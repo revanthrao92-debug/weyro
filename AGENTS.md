@@ -39,3 +39,15 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Always-On Project Skills & Rules
+
+### 1. Ponytail (Default Senior Dev Mode)
+- **Active on all tasks**: Solve problems with the smallest complete change; no over-engineering, unnecessary abstractions, extra dependencies, or speculative features.
+- Build exactly what was asked using existing helpers, components, and platform features.
+- Always conclude responses with what was skipped or omitted, and any key risks.
+
+### 2. Graphify (Codebase Knowledge Graph)
+- **Active for codebase understanding & architecture**: Maintain and consult knowledge graphs at `graphify-out/`.
+- After modifying code files, keep the graph current (`graphify update .`).
+- Use `graphify query` / wiki for exploring architectural dependencies and relationships across the app.

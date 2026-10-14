@@ -1,56 +1,112 @@
-# Welcome to your Expo app 👋
+# Weyro 🚗🔧
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> **Next-generation automotive marketplace connecting vehicle owners with verified mechanics, garages, and spare-parts dealers nationwide.**
 
-## Get started
+---
 
-1. Install dependencies
+## 📌 Overview
 
-   ```bash
-   npm install
-   ```
+**Weyro** is an asset-light automotive platform engineered to eliminate repair friction, opaque pricing, and part-sourcing bottlenecks. Vehicle owners report mechanical issues or vehicle damage, and our broadcast dispatch engine distributes the request across garages and parts distributors without arbitrary distance or time barriers.
 
-2. Start the app
+### Key Capabilities
 
-   ```bash
-   npx expo start
-   ```
+- **📸 Car Damage Photo Broadcast**: Vehicle owners snap a photo of damaged components (e.g. bumpers, headlights, cooling systems). The request is broadcast nationwide to verified mechanics and spare-parts dealers regardless of geographic distance.
+- **⚡ Competitive Multi-Bid Quotations**: Mechanics and parts dealers inspect damage photos, supply availability, and submit binding quotations specifying parts cost, labour, component grade (`OEM`, `AFTERMARKET`, `USED`), and delivery ETA.
+- **💬 Real-Time In-App Chat**: Customers negotiate directly with quoting providers to verify VIN compatibility, request component close-ups, and clarify fitment.
+- **📦 Direct Booking & Escrow Protection**: Customers compare competing offers side-by-side, choose their preferred fulfillment (Parts Courier, Garage Visit, or On-Site Fitment), and confirm bookings with milestone tracking.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🏗️ Architecture & Technology Stack
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The project is structured as a modular monorepo:
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+weyro/
+├── apps/
+│   ├── mobile/ (root)       # React Native + Expo SDK 57 + Expo Router
+│   └── api/                 # NestJS 11 + Prisma ORM + PostgreSQL / PostGIS
+└── packages/
+    ├── api-contracts/       # Shared TypeScript DTOs & Domain Interfaces
+    ├── database/            # Prisma Schema, Migrations & PostGIS Spatial Queries
+    └── validation/          # Shared Zod Schemas
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Core Technologies
 
-### Other setup steps
+| Layer | Technologies |
+|---|---|
+| **Mobile Client** | React Native 0.86, Expo SDK 57, Expo Router, React 19, TypeScript |
+| **Backend API** | NestJS 11, Express, Prisma Client, RxJS |
+| **Database & GIS** | PostgreSQL, PostGIS spatial indexing (`ST_DWithin`, clamped Haversine) |
+| **Media & Hardware** | `expo-image`, `expo-image-picker` |
+| **State & Cache** | React 19 `useSyncExternalStore` (zero external bloat) |
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+---
 
-## Learn more
+## 🚀 Getting Started
 
-To learn more about developing your project with Expo, look at the following resources:
+### Prerequisites
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- **Node.js**: v20+ (Node v22 recommended)
+- **npm** or **bun**
+- **Expo Go** or an iOS / Android simulator
 
-## Join the community
+### 1. Mobile Client Setup
 
-Join our community of developers creating universal apps.
+```bash
+# Clone the repository
+git clone https://github.com/revanthrao92-debug/weyro.git
+cd weyro
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Install dependencies
+npm install
+
+# Run Expo development server
+npx expo start
+```
+
+Press `i` for iOS Simulator, `a` for Android Emulator, or `w` for Web Browser.
+
+### 2. Backend API Setup
+
+```bash
+cd apps/api
+
+# Install backend dependencies
+npm install
+
+# Generate Prisma Client
+npx prisma generate --schema=../../packages/database/prisma/schema.prisma
+
+# Start API in development mode
+npm run start:dev
+```
+
+The API boots on `http://localhost:4000/api/v1`.
+
+---
+
+## 🧪 Quality & Verification
+
+Run project-wide diagnostics to ensure complete type safety and SDK conformance:
+
+```bash
+# Typecheck mobile client
+npx tsc --noEmit
+
+# Lint code quality
+npm run lint
+
+# Validate Expo SDK 57 compatibility
+npx expo-doctor
+
+# Typecheck backend API
+cd apps/api && npm run typecheck
+```
+
+---
+
+## 📄 License
+
+MIT License. Designed and developed for Weyro Automotive Technologies.

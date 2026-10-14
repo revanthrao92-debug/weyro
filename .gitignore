@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+
+# backend & build outputs
+apps/api/dist/
+apps/api/node_modules/
+
+# local knowledge & agent scratch files
+graphify-out/
+.claude/
+.gemini/
+*.log
+

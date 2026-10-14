@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  BOTH
+  ADMIN
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  CNG
+}
+
+enum ProviderType {
+  MECHANIC
+  GARAGE
+  AUTHORIZED_CENTER
+  PARTS_DEALER
+  TOWING
+  ROADSIDE
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum ServiceCategory {
+  REPAIR
+  MAINTENANCE
+  SPARE_PART
+  TOWING
+  ROADSIDE
+  INSPECTION
+}
+
+enum Urgency {
+  NORMAL
+  URGENT
+  EMERGENCY
+}
+
+enum ServiceRequestStatus {
+  DRAFT
+  OPEN
+  QUOTES_RECEIVED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum PartCondition {
+  OEM
+  AFTERMARKET
+  USED
+}
+
+enum QuotationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  PROVIDER_EN_ROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  NET_BANKING
+  WALLET
+}
+
+enum ReviewStatus {
+  ACTIVE
+  FLAGGED
+  REMOVED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  phone           String           @unique
+  passwordHash    String
+  role            UserRole         @default(CUSTOMER)
+  emailVerified   Boolean          @default(false)
+  phoneVerified   Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  customerProfile CustomerProfile?
+  providerProfile ProviderProfile?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  id             String           @id @default(uuid())
+  userId         String           @unique
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  avatarUrl      String?
+  savedAddresses Json?
+  vehicles       Vehicle[]
+  requests       ServiceRequest[]
+  bookings       Booking[]
+  reviews        Review[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("customer_profiles")
+}
+
+model Vehicle {
+  id                 String           @id @default(uuid())
+  customerId         String
+  customer           CustomerProfile  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  make               String
+  model              String
+  year               Int
+  registrationNumber String           @unique
+  vinNumber          String?
+  fuelType           FuelType         @default(PETROL)
+  color              String?
+  requests           ServiceRequest[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("vehicles")
+}
+
+model ProviderProfile {
+  id                    String             @id @default(uuid())
+  userId                String             @unique
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName          String
+  providerType          ProviderType
+  description           String
+  phone                 String
+  address               String
+  latitude              Float
+  longitude             Float
+  serviceRadiusKm       Float              @default(15.0)
+  verificationStatus    VerificationStatus @default(PENDING)
+  verificationDocuments Json?
+  avgRating             Float              @default(0.0)
+  totalReviews          Int                @default(0)
+  completedJobs         Int                @default(0)
+  isAvailable           Boolean            @default(true)
+  quotations            Quotation[]
+  bookings              Booking[]
+  reviews               Review[]
+  spareParts            SparePart[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@map("provider_profiles")
+}
+
+model ServiceRequest {
+  id              String               @id @default(uuid())
+  customerId      String
+  customer        CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicleId       String
+  vehicle         Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  category        ServiceCategory
+  title           String
+  description     String
+  address         String
+  latitude        Float
+  longitude       Float
+  urgency         Urgency              @default(NORMAL)
+  status          ServiceRequestStatus @default(OPEN)
+  isBroadcast     Boolean              @default(true)
+  damagePhotos    String[]             @default([])
+  fulfillmentType String?
+  expiresAt       DateTime
+  quotations      Quotation[]
+  media           RequestMedia[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@map("service_requests")
+}
+
+model RequestMedia {
+  id        String         @id @default(uuid())
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  url       String
+  fileType  String
+  createdAt DateTime       @default(now())
+
+  @@map("request_media")
+}
+
+model Quotation {
+  id             String          @id @default(uuid())
+  requestId      String
+  request        ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  providerId     String
+  provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  partsCost      Decimal         @db.Decimal(10, 2)
+  labourCost     Decimal         @db.Decimal(10, 2)
+  shippingCost   Decimal?        @db.Decimal(10, 2)
+  totalCost      Decimal         @db.Decimal(10, 2)
+  partCondition  PartCondition?
+  warrantyDays   Int             @default(30)
+  etaDescription String
+  deliveryMethod String?
+  notes          String?
+  status         QuotationStatus @default(PENDING)
+  booking        Booking?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("quotations")
+}
+
+model Booking {
+  id              String          @id @default(uuid())
+  quotationId     String          @unique
+  quotation       Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  customerId      String
+  customer        CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  status          BookingStatus   @default(CONFIRMED)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  completionNotes String?
+  payments        Payment[]
+  review          Review?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("bookings")
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  bookingId        String
+  booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amount           Decimal       @db.Decimal(10, 2)
+  currency         String        @default("INR")
+  status           PaymentStatus @default(PENDING)
+  gatewayPaymentId String?
+  gatewayOrderId   String?
+  method           PaymentMethod @default(UPI)
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model Review {
+  id         String          @id @default(uuid())
+  bookingId  String          @unique
+  booking    Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String?
+  status     ReviewStatus    @default(ACTIVE)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("reviews")
+}
+
+model SparePart {
+  id               String          @id @default(uuid())
+  providerId       String
+  provider         ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  name             String
+  partNumber       String
+  compatibleMakes  String[]
+  compatibleModels String[]
+  condition        PartCondition   @default(AFTERMARKET)
+  price            Decimal         @db.Decimal(10, 2)
+  stockQuantity    Int             @default(1)
+  imageUrl         String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("spare_parts")
+}
