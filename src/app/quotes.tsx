@@ -158,7 +158,7 @@ export default function QuotesAndBookingsScreen() {
               </ThemedText>
             </View>
             <ThemedText type="subtitle" style={styles.headerTitle}>
-              Quotes & Bookings
+              Quotes {'&'} Bookings
             </ThemedText>
             <ThemedText style={styles.headerSubtitle} themeColor="textSecondary">
               Compare competing quotes from verified mechanics and spare-parts dealers
@@ -280,7 +280,7 @@ export default function QuotesAndBookingsScreen() {
                           type="backgroundSelected"
                           style={styles.noQuotesBox}>
                           <ThemedText type="small" themeColor="textSecondary">
-                            ⏳ Broadcasting to mechanics & spare parts dealers... Incoming
+                            ⏳ Broadcasting to mechanics {'&'} spare parts dealers... Incoming
                             quotes will appear here.
                           </ThemedText>
                         </ThemedView>
@@ -374,13 +374,13 @@ export default function QuotesAndBookingsScreen() {
                                       pressed && styles.buttonPressed,
                                     ]}>
                                     <ThemedText style={styles.acceptButtonText}>
-                                      Accept Quote & Book
+                                      Accept Quote {'&'} Book
                                     </ThemedText>
                                   </Pressable>
                                 ) : isAccepted ? (
                                   <View style={styles.acceptedBanner}>
                                     <ThemedText style={styles.acceptedBannerText}>
-                                      ✓ Quote Confirmed & Booked
+                                      ✓ Quote Confirmed {'&'} Booked
                                     </ThemedText>
                                   </View>
                                 ) : isRejected ? (
@@ -486,7 +486,7 @@ export default function QuotesAndBookingsScreen() {
                       </View>
 
                       <View style={styles.deliveryDetailsBlock}>
-                        <ThemedText type="smallBold">Delivery & Schedule</ThemedText>
+                        <ThemedText type="smallBold">Delivery {'&'} Schedule</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
                           📍 Destination: {b.deliveryAddress}
                         </ThemedText>
@@ -649,7 +649,7 @@ export default function QuotesAndBookingsScreen() {
                           ) : (
                             <View style={styles.reviewInputBox}>
                               <ThemedText type="smallBold">
-                                Rate & Review Service
+                                Rate {'&'} Review Service
                               </ThemedText>
                               <ThemedText type="small" themeColor="textSecondary">
                                 How was your experience with {b.providerName}?
@@ -715,7 +715,7 @@ export default function QuotesAndBookingsScreen() {
                                   pressed && styles.buttonPressed,
                                 ]}>
                                 <ThemedText style={styles.submitReviewButtonText}>
-                                  Submit 5-Star Rating & Review
+                                  Submit 5-Star Rating {'&'} Review
                                 </ThemedText>
                               </Pressable>
                             </View>
@@ -751,7 +751,7 @@ export default function QuotesAndBookingsScreen() {
             ]}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>
-                Confirm Quote & Booking
+                Confirm Quote {'&'} Booking
               </ThemedText>
               <Pressable
                 onPress={() => {
