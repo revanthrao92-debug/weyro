@@ -143,13 +143,114 @@ let bookings: BookingRecord[] = [
   },
 ];
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+
 function emitChange() {
   for (const listener of listeners) {
     listener();
   }
 }
 
+function mapBackendRequest(raw: any): DamageBroadcastRequest {
+  return {
+    id: raw.id,
+    customerName: raw.customer
+      ? `${raw.customer.firstName || ''} ${raw.customer.lastName || ''}`.trim()
+      : raw.customerName || 'Customer',
+    vehicleMake: raw.vehicle?.make || raw.vehicleMake || 'Unknown',
+    vehicleModel: raw.vehicle?.model || raw.vehicleModel || 'Vehicle',
+    vehicleYear: raw.vehicle?.year || raw.vehicleYear || new Date().getFullYear(),
+    damagedPart: raw.title || raw.damagedPart || 'Damaged Component',
+    description: raw.description || '',
+    urgency: raw.urgency || 'NORMAL',
+    fulfillmentType: raw.fulfillmentType || 'PARTS_SHIPPING',
+    damagePhotos: raw.damagePhotos || [],
+    isBroadcast: true,
+    broadcastScope: 'BROADCAST_ALL',
+    status: raw.status || 'OPEN',
+    quotes: (raw.quotations || raw.quotes || []).map((q: any) => ({
+      id: q.id,
+      providerName: q.providerName || q.provider?.businessName || 'Provider',
+      providerType: q.providerType || q.provider?.providerType || 'MECHANIC',
+      distanceNote: q.distanceNote || 'Verified Provider',
+      estimatedCost: Number(q.totalCost || q.estimatedCost || 0),
+      partCondition: q.partCondition,
+      eta: q.etaDescription || q.eta || 'Standard ETA',
+      notes: q.notes || '',
+      status: q.status || 'PENDING',
+      createdAt: q.createdAt || new Date().toISOString(),
+    })),
+    createdAt: raw.createdAt || new Date().toISOString(),
+  };
+}
+
+function mapBackendBooking(raw: any): BookingRecord {
+  return {
+    id: raw.id,
+    requestId: raw.requestId || raw.quotation?.requestId || 'req_01',
+    quoteId: raw.quotationId || raw.quoteId || 'q_01',
+    customerName: raw.customer
+      ? `${raw.customer.firstName || ''} ${raw.customer.lastName || ''}`.trim()
+      : raw.customerName || 'Customer',
+    vehicle: raw.vehicle || 'Vehicle',
+    damagedPart: raw.damagedPart || 'Auto Service Booking',
+    providerName: raw.providerName || raw.provider?.businessName || 'Provider',
+    providerType: raw.providerType || raw.provider?.providerType || 'GARAGE',
+    totalCost: Number(raw.totalCost || raw.quotation?.totalCost || 0),
+    partCondition: raw.partCondition || raw.quotation?.partCondition,
+    eta: raw.eta || raw.quotation?.etaDescription || 'In Progress',
+    deliveryAddress: raw.deliveryAddress || 'Customer Address',
+    scheduledDate: raw.scheduledDate || 'Scheduled',
+    status: (raw.status as BookingMilestoneStatus) || 'CONFIRMED',
+    fulfillmentType: raw.fulfillmentType || 'PARTS_SHIPPING',
+    trackingNumber: raw.trackingNumber,
+    carrierName: raw.carrierName,
+    review: raw.review,
+    confirmedAt: raw.createdAt || raw.confirmedAt || new Date().toISOString(),
+    completedAt: raw.completedAt,
+  };
+}
+
+async function syncWithBackend(): Promise<void> {
+  try {
+    const [reqRes, bkRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/damage-requests/broadcast-feed`),
+      fetch(`${API_BASE_URL}/bookings`),
+    ]);
+
+    if (reqRes.ok) {
+      const serverRequests = await reqRes.json();
+      if (Array.isArray(serverRequests) && serverRequests.length > 0) {
+        const mapped = serverRequests.map(mapBackendRequest);
+        // Merge without losing locally added requests
+        const existingIds = new Set(mapped.map((r) => r.id));
+        const localOnly = requests.filter((r) => !existingIds.has(r.id));
+        requests = [...localOnly, ...mapped];
+      }
+    }
+
+    if (bkRes.ok) {
+      const serverBookings = await bkRes.json();
+      if (Array.isArray(serverBookings) && serverBookings.length > 0) {
+        const mapped = serverBookings.map(mapBackendBooking);
+        const existingIds = new Set(mapped.map((b) => b.id));
+        const localOnly = bookings.filter((b) => !existingIds.has(b.id));
+        bookings = [...localOnly, ...mapped];
+      }
+    }
+
+    emitChange();
+  } catch {
+    // Offline mode: gracefully maintain local memory state
+  }
+}
+
+let syncInitiated = false;
+
 export const damageRequestStore = {
+  syncWithBackend,
+
   getRequests(): DamageBroadcastRequest[] {
     return requests;
   },
@@ -175,6 +276,29 @@ export const damageRequestStore = {
     };
     requests = [newReq, ...requests];
     emitChange();
+
+    // Asynchronously push to NestJS backend
+    fetch(`${API_BASE_URL}/damage-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: data.damagedPart,
+        description: data.description,
+        urgency: data.urgency,
+        fulfillmentType: data.fulfillmentType,
+        damagePhotos: data.damagePhotos,
+        isBroadcast: true,
+        address: 'Nationwide Broadcast',
+        latitude: 40.7128,
+        longitude: -74.006,
+        vehicle: {
+          make: data.vehicleMake,
+          model: data.vehicleModel,
+          year: data.vehicleYear,
+        },
+      }),
+    }).catch(() => {});
+
     return newReq;
   },
 
@@ -205,6 +329,20 @@ export const damageRequestStore = {
       ...requests.slice(reqIndex + 1),
     ];
     emitChange();
+
+    fetch(`${API_BASE_URL}/damage-requests/${requestId}/quotations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerName: quote.providerName,
+        providerType: quote.providerType,
+        totalCost: quote.estimatedCost,
+        partCondition: quote.partCondition,
+        etaDescription: quote.eta,
+        notes: quote.notes,
+      }),
+    }).catch(() => {});
+
     return newQuote;
   },
 
@@ -268,6 +406,16 @@ export const damageRequestStore = {
     bookings = [newBooking, ...bookings];
 
     emitChange();
+
+    fetch(`${API_BASE_URL}/quotations/${acceptedQuote.id}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deliveryAddress: details.deliveryAddress,
+        scheduledDate: details.scheduledDate,
+      }),
+    }).catch(() => {});
+
     return newBooking;
   },
 
@@ -290,6 +438,17 @@ export const damageRequestStore = {
 
     bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
     emitChange();
+
+    fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status,
+        trackingNumber: details?.trackingNumber || target.trackingNumber,
+        carrierName: details?.carrierName || target.carrierName,
+      }),
+    }).catch(() => {});
+
     return updated;
   },
 
@@ -313,11 +472,25 @@ export const damageRequestStore = {
 
     bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
     emitChange();
+
+    fetch(`${API_BASE_URL}/bookings/${bookingId}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rating,
+        comment: comment.trim(),
+      }),
+    }).catch(() => {});
+
     return updated;
   },
 
   subscribe(listener: Listener): () => void {
     listeners = [...listeners, listener];
+    if (!syncInitiated) {
+      syncInitiated = true;
+      syncWithBackend().catch(() => {});
+    }
     return () => {
       listeners = listeners.filter((l) => l !== listener);
     };

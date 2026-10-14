@@ -165,4 +165,63 @@ export class QuotationsService {
       return this.memoryBookings;
     }
   }
+
+  async updateStatus(
+    bookingId: string,
+    status: string,
+    details?: { trackingNumber?: string; carrierName?: string }
+  ) {
+    try {
+      return await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: status as any,
+          completedAt: status === 'COMPLETED' ? new Date() : undefined,
+        },
+      });
+    } catch {
+      const booking = this.memoryBookings.find((b) => b.id === bookingId);
+      if (!booking) throw new NotFoundException('Booking not found');
+      booking.status = status;
+      if (details?.trackingNumber) booking.trackingNumber = details.trackingNumber;
+      if (details?.carrierName) booking.carrierName = details.carrierName;
+      if (status === 'COMPLETED') booking.completedAt = new Date().toISOString();
+      return booking;
+    }
+  }
+
+  async addReview(
+    bookingId: string,
+    rating: number,
+    comment?: string
+  ) {
+    try {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+
+      return await this.prisma.review.create({
+        data: {
+          bookingId,
+          customerId: booking.customerId,
+          providerId: booking.providerId,
+          rating,
+          comment,
+        },
+      });
+    } catch {
+      const booking = this.memoryBookings.find((b) => b.id === bookingId);
+      if (!booking) throw new NotFoundException('Booking not found');
+      const review = {
+        id: `rev_${Date.now()}`,
+        bookingId,
+        rating,
+        comment,
+        createdAt: new Date().toISOString(),
+      };
+      booking.review = review;
+      return review;
+    }
+  }
 }
