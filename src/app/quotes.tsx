@@ -19,6 +19,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  BookingMilestoneStatus,
+  BookingRecord,
   DamageBroadcastRequest,
   DamageRequestQuote,
   damageRequestStore,
@@ -36,7 +38,67 @@ export default function QuotesAndBookingsScreen() {
 
   const [activeTab, setActiveTab] = useState<'QUOTES' | 'BOOKINGS'>('QUOTES');
 
-  // Booking Modal State
+  // Review & Milestone State
+  const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
+  const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+
+  const handleAdvanceMilestone = (booking: BookingRecord) => {
+    const transitions: Record<BookingMilestoneStatus, BookingMilestoneStatus> = {
+      CONFIRMED: 'DISPATCHED_OR_IN_BAY',
+      DISPATCHED_OR_IN_BAY: 'OUT_FOR_DELIVERY_OR_TESTING',
+      OUT_FOR_DELIVERY_OR_TESTING: 'COMPLETED',
+      COMPLETED: 'COMPLETED',
+    };
+    const nextStatus = transitions[booking.status];
+    if (nextStatus && nextStatus !== booking.status) {
+      damageRequestStore.updateBookingStatus(booking.id, nextStatus);
+    }
+  };
+
+  const handleSubmitReview = (bookingId: string) => {
+    const rating = reviewRatings[bookingId] || 5;
+    const comment = reviewComments[bookingId] || '';
+    if (!comment.trim()) {
+      Alert.alert(
+        'Review Note Required',
+        'Please provide a brief comment on the part condition or repair quality.'
+      );
+      return;
+    }
+    damageRequestStore.addBookingReview(bookingId, rating, comment);
+    Alert.alert(
+      'Review Published ⭐',
+      'Thank you! Your verified rating helps build trust across the Weyro network.'
+    );
+  };
+
+  const getMilestoneIndex = (status: BookingMilestoneStatus): number => {
+    switch (status) {
+      case 'CONFIRMED':
+        return 1;
+      case 'DISPATCHED_OR_IN_BAY':
+        return 2;
+      case 'OUT_FOR_DELIVERY_OR_TESTING':
+        return 3;
+      case 'COMPLETED':
+        return 4;
+    }
+  };
+
+  const getNextStageLabel = (booking: BookingRecord): string => {
+    const isShipping = booking.fulfillmentType === 'PARTS_SHIPPING';
+    switch (booking.status) {
+      case 'CONFIRMED':
+        return isShipping ? 'Dispatch via Courier' : 'Check Into Workshop Bay';
+      case 'DISPATCHED_OR_IN_BAY':
+        return isShipping ? 'Out for Delivery' : 'Road Test & Paint Check';
+      case 'OUT_FOR_DELIVERY_OR_TESTING':
+        return 'Sign Off & Complete';
+      default:
+        return 'Completed';
+    }
+  };
+
   const [selectedRequest, setSelectedRequest] = useState<DamageBroadcastRequest | null>(
     null
   );
@@ -354,78 +416,315 @@ export default function QuotesAndBookingsScreen() {
                   </ThemedText>
                 </ThemedView>
               ) : (
-                bookings.map((b) => (
-                  <ThemedView
-                    key={b.id}
-                    type="backgroundElement"
-                    style={styles.bookingCard}>
-                    <View style={styles.bookingTopRow}>
-                      <View style={styles.bookingStatusBadge}>
-                        <ThemedText style={styles.bookingStatusText}>
-                          ✓ BOOKING CONFIRMED
+                bookings.map((b) => {
+                  const stepIndex = getMilestoneIndex(b.status);
+                  const isShipping = b.fulfillmentType === 'PARTS_SHIPPING';
+                  const getStatusBadgeConfig = () => {
+                    switch (b.status) {
+                      case 'CONFIRMED':
+                        return { text: '1. ORDER CONFIRMED', bg: '#059669' };
+                      case 'DISPATCHED_OR_IN_BAY':
+                        return {
+                          text: isShipping ? '2. COURIER IN TRANSIT' : '2. IN WORKSHOP BAY',
+                          bg: '#0F52BA',
+                        };
+                      case 'OUT_FOR_DELIVERY_OR_TESTING':
+                        return {
+                          text: isShipping ? '3. OUT FOR DELIVERY' : '3. ROAD TESTING & QA',
+                          bg: '#D97706',
+                        };
+                      case 'COMPLETED':
+                        return { text: '4. COMPLETED & SIGNED OFF', bg: '#059669' };
+                    }
+                  };
+                  const badge = getStatusBadgeConfig();
+
+                  return (
+                    <ThemedView
+                      key={b.id}
+                      type="backgroundElement"
+                      style={styles.bookingCard}>
+                      <View style={styles.bookingTopRow}>
+                        <View
+                          style={[
+                            styles.bookingStatusBadge,
+                            { backgroundColor: badge.bg },
+                          ]}>
+                          <ThemedText style={styles.bookingStatusText}>
+                            {badge.text}
+                          </ThemedText>
+                        </View>
+                        <ThemedText type="title" style={styles.bookingCostText}>
+                          ${b.totalCost}
                         </ThemedText>
                       </View>
-                      <ThemedText type="title" style={styles.bookingCostText}>
-                        ${b.totalCost}
-                      </ThemedText>
-                    </View>
 
-                    <View style={styles.bookingInfoBlock}>
-                      <ThemedText type="subtitle" style={styles.bookingTitle}>
-                        {b.damagedPart}
-                      </ThemedText>
-                      <ThemedText type="smallBold" themeColor="textSecondary">
-                        Vehicle: {b.vehicle}
-                      </ThemedText>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.providerSummaryBox,
-                        { backgroundColor: theme.background },
-                      ]}>
-                      <ThemedText type="smallBold">
-                        Selected Provider: {b.providerName}
-                      </ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        Category: {b.providerType.replace('_', ' ')} • Condition:{' '}
-                        {b.partCondition || 'OEM'}
-                      </ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        Estimated Delivery / Arrival: {b.eta}
-                      </ThemedText>
-                    </View>
-
-                    <View style={styles.deliveryDetailsBlock}>
-                      <ThemedText type="smallBold">Delivery & Schedule</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        📍 Destination: {b.deliveryAddress}
-                      </ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        🕒 Schedule: {b.scheduledDate}
-                      </ThemedText>
-                    </View>
-
-                    {/* Progress Tracker Steps */}
-                    <View style={styles.trackerRow}>
-                      <View style={[styles.trackerStep, styles.trackerStepActive]}>
-                        <ThemedText style={styles.trackerStepText}>1. Booked</ThemedText>
-                      </View>
-                      <View style={styles.trackerDivider} />
-                      <View style={styles.trackerStep}>
-                        <ThemedText style={styles.trackerStepTextInactive}>
-                          2. Dispatch / In Work
+                      <View style={styles.bookingInfoBlock}>
+                        <ThemedText type="subtitle" style={styles.bookingTitle}>
+                          {b.damagedPart}
+                        </ThemedText>
+                        <ThemedText type="smallBold" themeColor="textSecondary">
+                          Vehicle: {b.vehicle}
                         </ThemedText>
                       </View>
-                      <View style={styles.trackerDivider} />
-                      <View style={styles.trackerStep}>
-                        <ThemedText style={styles.trackerStepTextInactive}>
-                          3. Complete
+
+                      <View
+                        style={[
+                          styles.providerSummaryBox,
+                          { backgroundColor: theme.background },
+                        ]}>
+                        <ThemedText type="smallBold">
+                          Selected Provider: {b.providerName}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Category: {b.providerType.replace('_', ' ')} • Condition:{' '}
+                          {b.partCondition || 'OEM'}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Estimated Delivery / Arrival: {b.eta}
                         </ThemedText>
                       </View>
-                    </View>
-                  </ThemedView>
-                ))
+
+                      <View style={styles.deliveryDetailsBlock}>
+                        <ThemedText type="smallBold">Delivery & Schedule</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          📍 Destination: {b.deliveryAddress}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          🕒 Schedule: {b.scheduledDate}
+                        </ThemedText>
+                      </View>
+
+                      {/* Courier Waybill Tracking Card */}
+                      {b.trackingNumber && (
+                        <View
+                          style={[
+                            styles.waybillBox,
+                            { backgroundColor: theme.background },
+                          ]}>
+                          <ThemedText style={styles.waybillIcon}>🚚</ThemedText>
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <ThemedText type="smallBold" style={styles.waybillCarrier}>
+                              {b.carrierName || 'Express Auto Freight'}
+                            </ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              Waybill Tracking: {b.trackingNumber}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.liveBadge}>
+                            <ThemedText style={styles.liveBadgeText}>LIVE GPS</ThemedText>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 4-Step Progress Tracker */}
+                      <View style={styles.trackerRow}>
+                        <View
+                          style={[
+                            styles.trackerStep,
+                            stepIndex >= 1 && styles.trackerStepActive,
+                          ]}>
+                          <ThemedText
+                            style={
+                              stepIndex >= 1
+                                ? styles.trackerStepText
+                                : styles.trackerStepTextInactive
+                            }>
+                            1. Confirmed
+                          </ThemedText>
+                        </View>
+                        <View style={styles.trackerDivider} />
+                        <View
+                          style={[
+                            styles.trackerStep,
+                            stepIndex >= 2 && styles.trackerStepActive,
+                          ]}>
+                          <ThemedText
+                            style={
+                              stepIndex >= 2
+                                ? styles.trackerStepText
+                                : styles.trackerStepTextInactive
+                            }>
+                            {isShipping ? '2. In Transit' : '2. In Bay'}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.trackerDivider} />
+                        <View
+                          style={[
+                            styles.trackerStep,
+                            stepIndex >= 3 && styles.trackerStepActive,
+                          ]}>
+                          <ThemedText
+                            style={
+                              stepIndex >= 3
+                                ? styles.trackerStepText
+                                : styles.trackerStepTextInactive
+                            }>
+                            {isShipping ? '3. Out For Del' : '3. Road Test'}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.trackerDivider} />
+                        <View
+                          style={[
+                            styles.trackerStep,
+                            stepIndex >= 4 && styles.trackerStepActive,
+                          ]}>
+                          <ThemedText
+                            style={
+                              stepIndex >= 4
+                                ? styles.trackerStepText
+                                : styles.trackerStepTextInactive
+                            }>
+                            4. Complete
+                          </ThemedText>
+                        </View>
+                      </View>
+
+                      {/* Provider Advance Stage Simulator Button */}
+                      {b.status !== 'COMPLETED' && (
+                        <Pressable
+                          onPress={() => handleAdvanceMilestone(b)}
+                          style={({ pressed }) => [
+                            styles.advanceStageButton,
+                            pressed && styles.buttonPressed,
+                          ]}>
+                          <ThemedText style={styles.advanceStageButtonText}>
+                            Advance Stage ➔ {getNextStageLabel(b)} (Simulate)
+                          </ThemedText>
+                        </Pressable>
+                      )}
+
+                      {/* Message Provider Action */}
+                      <Pressable
+                        onPress={() =>
+                          router.push({
+                            pathname: '/chat',
+                            params: {
+                              requestId: b.requestId,
+                              providerName: b.providerName,
+                              customerName: b.customerName,
+                              damagedPart: b.damagedPart,
+                              vehicle: b.vehicle,
+                              role: 'CUSTOMER',
+                            },
+                          })
+                        }
+                        style={({ pressed }) => [
+                          styles.chatButton,
+                          pressed && styles.buttonPressed,
+                        ]}>
+                        <ThemedText style={styles.chatButtonText}>
+                          💬 Message Provider Regarding Booking
+                        </ThemedText>
+                      </Pressable>
+
+                      {/* Interactive 5-Star Customer Review Card */}
+                      {b.status === 'COMPLETED' && (
+                        <View
+                          style={[
+                            styles.reviewContainer,
+                            { backgroundColor: theme.background },
+                          ]}>
+                          {b.review ? (
+                            <View style={styles.reviewPublishedBox}>
+                              <View style={styles.reviewHeaderRow}>
+                                <ThemedText type="smallBold">
+                                  ⭐ Verified Customer Review
+                                </ThemedText>
+                                <ThemedText style={styles.starsRow}>
+                                  {'⭐'.repeat(b.review.rating)} ({b.review.rating}/5)
+                                </ThemedText>
+                              </View>
+                              <ThemedText type="small" style={styles.reviewCommentText}>
+                                &ldquo;{b.review.comment}&rdquo;
+                              </ThemedText>
+                              <ThemedText
+                                type="small"
+                                themeColor="textSecondary"
+                                style={{ fontSize: 11 }}>
+                                Published on{' '}
+                                {new Date(b.review.createdAt).toLocaleDateString()}
+                              </ThemedText>
+                            </View>
+                          ) : (
+                            <View style={styles.reviewInputBox}>
+                              <ThemedText type="smallBold">
+                                Rate & Review Service
+                              </ThemedText>
+                              <ThemedText type="small" themeColor="textSecondary">
+                                How was your experience with {b.providerName}?
+                              </ThemedText>
+
+                              <View style={styles.starPickerRow}>
+                                {[1, 2, 3, 4, 5].map((star) => {
+                                  const currentRating = reviewRatings[b.id] ?? 5;
+                                  const isSelected = star <= currentRating;
+                                  return (
+                                    <Pressable
+                                      key={star}
+                                      onPress={() =>
+                                        setReviewRatings((prev) => ({
+                                          ...prev,
+                                          [b.id]: star,
+                                        }))
+                                      }
+                                      style={styles.starButton}>
+                                      <ThemedText
+                                        style={{
+                                          fontSize: 24,
+                                          opacity: isSelected ? 1 : 0.3,
+                                        }}>
+                                        ⭐
+                                      </ThemedText>
+                                    </Pressable>
+                                  );
+                                })}
+                                <ThemedText
+                                  type="smallBold"
+                                  style={{ marginLeft: 8 }}>
+                                  {reviewRatings[b.id] ?? 5}/5
+                                </ThemedText>
+                              </View>
+
+                              <TextInput
+                                value={reviewComments[b.id] || ''}
+                                onChangeText={(text) =>
+                                  setReviewComments((prev) => ({
+                                    ...prev,
+                                    [b.id]: text,
+                                  }))
+                                }
+                                placeholder="Describe fitment accuracy, delivery speed, and overall service..."
+                                placeholderTextColor={theme.textSecondary}
+                                multiline
+                                numberOfLines={3}
+                                style={[
+                                  styles.reviewTextInput,
+                                  {
+                                    color: theme.text,
+                                    backgroundColor: theme.backgroundElement,
+                                    borderColor: theme.textSecondary,
+                                  },
+                                ]}
+                              />
+
+                              <Pressable
+                                onPress={() => handleSubmitReview(b.id)}
+                                style={({ pressed }) => [
+                                  styles.submitReviewButton,
+                                  pressed && styles.buttonPressed,
+                                ]}>
+                                <ThemedText style={styles.submitReviewButtonText}>
+                                  Submit 5-Star Rating & Review
+                                </ThemedText>
+                              </Pressable>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </ThemedView>
+                  );
+                })
               )}
             </View>
           )}
@@ -962,6 +1261,98 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: '#ffffff',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  waybillBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(15, 82, 186, 0.3)',
+  },
+  waybillIcon: {
+    fontSize: 22,
+  },
+  waybillCarrier: {
+    fontSize: 13,
+  },
+  liveBadge: {
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    paddingHorizontal: Spacing.one,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  liveBadgeText: {
+    color: '#059669',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  advanceStageButton: {
+    backgroundColor: '#0F52BA',
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advanceStageButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reviewContainer: {
+    padding: Spacing.two,
+    borderRadius: 12,
+    marginTop: Spacing.one,
+  },
+  reviewPublishedBox: {
+    gap: 4,
+  },
+  reviewHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  starsRow: {
+    fontSize: 14,
+  },
+  reviewCommentText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  reviewInputBox: {
+    gap: Spacing.one,
+  },
+  starPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  starButton: {
+    padding: 2,
+  },
+  reviewTextInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: Spacing.two,
+    fontSize: 13,
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+  submitReviewButton: {
+    backgroundColor: '#059669',
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  submitReviewButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '700',
   },
   buttonPressed: {
