@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: weyro_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weyro
+      POSTGRES_PASSWORD: weyro_dev_password
+      POSTGRES_DB: weyro_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U weyro -d weyro_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: weyro_api
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://weyro:weyro_dev_password@postgres:5432/weyro_db?schema=public
+      JWT_ACCESS_SECRET: weyro_docker_jwt_access_secret_super_key_32_chars
+      JWT_REFRESH_SECRET: weyro_docker_jwt_refresh_secret_super_key_32_chars
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8081,http://localhost:19006,http://localhost:8082
+      STORAGE_DRIVER: local
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

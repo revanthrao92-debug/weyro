@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { env } from './config/env.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,7 +24,7 @@ async function bootstrap() {
   app.use(express.urlencoded({ limit: '15mb', extended: true }));
   app.use('/uploads', express.static(uploadsDir));
 
-  const port = process.env.PORT || 4000;
+  const port = env.PORT;
   await app.listen(port);
   console.log(`🚀 Weyro API server running on: http://localhost:${port}/api/v1`);
 }

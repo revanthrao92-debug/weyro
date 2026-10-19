@@ -2,10 +2,15 @@
   "name": "weyro",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "dependencies": {
     "@expo/ui": "~57.0.25",
-    "@prisma/client": "^6.19.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@weyro/api-contracts": "*",
+    "@weyro/validation": "*",
     "expo": "~57.0.30",
     "expo-constants": "~57.0.21",
     "expo-device": "~57.0.2",
@@ -35,16 +40,19 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
-    "prisma": "^6.19.3",
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "build:packages": "npm run build -w @weyro/api-contracts && npm run build -w @weyro/validation && npm run build -w @weyro/database",
+    "build:api": "npm run build -w @weyro/api",
+    "build": "npm run build:packages && npm run build:api",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "typecheck:all": "tsc --noEmit && npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api",
     "doctor": "npx expo-doctor"
   },
   "private": true
