@@ -52,6 +52,34 @@ export class DamageRequestsService {
     },
   ];
 
+  async uploadMedia(body: { base64?: string; filename?: string; mimeType?: string; url?: string }) {
+    if (body.url && body.url.startsWith('http')) {
+      return { url: body.url };
+    }
+    if (body.base64) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const ext = body.mimeType?.includes('png') ? 'png' : 'jpg';
+        const filename = `damage_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+        const filePath = path.join(uploadsDir, filename);
+        const cleanBase64 = body.base64.replace(/^data:image\/\w+;base64,/, '');
+        fs.writeFileSync(filePath, Buffer.from(cleanBase64, 'base64'));
+        const host = process.env.API_HOST || 'http://localhost:4000';
+        return { url: `${host}/uploads/${filename}` };
+      } catch {
+        // Fallback to demo car damage asset
+      }
+    }
+    return {
+      url: body.url || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+    };
+  }
+
   async create(dto: CreateDamageRequestDto) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));

@@ -6,6 +6,13 @@ import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 export class DamageRequestsController {
   constructor(private readonly service: DamageRequestsService) {}
 
+  @Post('upload')
+  async uploadMedia(
+    @Body() body: { base64?: string; filename?: string; mimeType?: string; url?: string }
+  ) {
+    return this.service.uploadMedia(body);
+  }
+
   @Post()
   async create(@Body() dto: CreateDamageRequestDto) {
     return this.service.create(dto);

@@ -8,9 +8,16 @@
     "scheme": "weyro",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.weyro.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Weyro requires camera access so you can photograph damaged vehicle parts for quotes.",
+        "NSPhotoLibraryUsageDescription": "Weyro requires photo library access to upload vehicle damage photos."
+      }
     },
     "android": {
+      "package": "com.weyro.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,6 +32,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

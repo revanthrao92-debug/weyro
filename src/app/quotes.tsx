@@ -105,6 +105,10 @@ export default function QuotesAndBookingsScreen() {
   const [selectedQuote, setSelectedQuote] = useState<DamageRequestQuote | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState('742 Evergreen Terrace, Springfield');
   const [scheduledDate, setScheduledDate] = useState('Tomorrow, 10:00 AM');
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'UPI'>('CARD');
+  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
+  const [cardExpiry, setCardExpiry] = useState('12/28');
+  const [cardCvc, setCardCvc] = useState('882');
 
   const handleOpenBookingModal = (
     req: DamageBroadcastRequest,
@@ -128,8 +132,8 @@ export default function QuotesAndBookingsScreen() {
     });
 
     Alert.alert(
-      'Booking Confirmed! 🎉',
-      `You accepted the quotation from ${selectedQuote.providerName}. The provider has been notified.`
+      'Escrow Pre-Authorized! 🔒🎉',
+      `$${selectedQuote.estimatedCost} has been safely pre-authorized in Weyro Escrow (${paymentMethod === 'CARD' ? 'Visa / MC' : 'Direct Bank'}). Funds are locked and will only be disbursed to ${selectedQuote.providerName} upon verified delivery & inspection.`
     );
 
     setSelectedRequest(null);
@@ -825,11 +829,102 @@ export default function QuotesAndBookingsScreen() {
                   />
                 </View>
 
+                {/* Escrow Payment Method Selector */}
+                <View style={styles.modalFieldGroup}>
+                  <ThemedText type="smallBold">Escrow Payment Gateway</ThemedText>
+                  <View style={styles.paymentMethodRow}>
+                    <Pressable
+                      style={[
+                        styles.paymentMethodTab,
+                        paymentMethod === 'CARD' && styles.paymentMethodTabActive,
+                      ]}
+                      onPress={() => setPaymentMethod('CARD')}>
+                      <ThemedText
+                        style={[
+                          styles.paymentMethodText,
+                          paymentMethod === 'CARD' && styles.paymentMethodTextActive,
+                        ]}>
+                        💳 Credit / Debit Card
+                      </ThemedText>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.paymentMethodTab,
+                        paymentMethod === 'UPI' && styles.paymentMethodTabActive,
+                      ]}
+                      onPress={() => setPaymentMethod('UPI')}>
+                      <ThemedText
+                        style={[
+                          styles.paymentMethodText,
+                          paymentMethod === 'UPI' && styles.paymentMethodTextActive,
+                        ]}>
+                        ⚡ Instant Bank / Wire
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+
+                  {paymentMethod === 'CARD' && (
+                    <View style={styles.cardInputContainer}>
+                      <TextInput
+                        value={cardNumber}
+                        onChangeText={setCardNumber}
+                        placeholder="Card Number"
+                        placeholderTextColor={theme.textSecondary}
+                        keyboardType="numeric"
+                        style={[
+                          styles.modalInput,
+                          {
+                            color: theme.text,
+                            backgroundColor: theme.background,
+                            borderColor: theme.textSecondary,
+                            marginBottom: 8,
+                          },
+                        ]}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TextInput
+                          value={cardExpiry}
+                          onChangeText={setCardExpiry}
+                          placeholder="MM/YY"
+                          placeholderTextColor={theme.textSecondary}
+                          style={[
+                            styles.modalInput,
+                            {
+                              flex: 1,
+                              color: theme.text,
+                              backgroundColor: theme.background,
+                              borderColor: theme.textSecondary,
+                            },
+                          ]}
+                        />
+                        <TextInput
+                          value={cardCvc}
+                          onChangeText={setCardCvc}
+                          placeholder="CVC"
+                          placeholderTextColor={theme.textSecondary}
+                          keyboardType="numeric"
+                          secureTextEntry
+                          style={[
+                            styles.modalInput,
+                            {
+                              flex: 1,
+                              color: theme.text,
+                              backgroundColor: theme.background,
+                              borderColor: theme.textSecondary,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+
                 {/* Guarantee Note */}
                 <View style={styles.modalGuaranteeBanner}>
                   <ThemedText style={styles.modalGuaranteeText}>
-                    🔒 Escrow Protection: Payment is authorized upon booking and
-                    released only after part inspection or job completion.
+                    🔒 Escrow Protection: Payment of ${selectedQuote.estimatedCost} is
+                    pre-authorized and locked in escrow. Funds are disbursed to{' '}
+                    {selectedQuote.providerName} only after part inspection or fitment sign-off.
                   </ThemedText>
                 </View>
 
@@ -840,7 +935,7 @@ export default function QuotesAndBookingsScreen() {
                     pressed && styles.buttonPressed,
                   ]}>
                   <ThemedText style={styles.confirmButtonText}>
-                    Confirm Booking (${selectedQuote.estimatedCost}) 🚀
+                    Authorize Escrow (${selectedQuote.estimatedCost}) 🔒🚀
                   </ThemedText>
                 </Pressable>
               </ScrollView>
@@ -1357,5 +1452,36 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.8,
+  },
+  paymentMethodRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 4,
+  },
+  paymentMethodTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentMethodTabActive: {
+    borderColor: '#059669',
+    backgroundColor: '#ECFDF5',
+  },
+  paymentMethodText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  paymentMethodTextActive: {
+    color: '#059669',
+    fontWeight: '700',
+  },
+  cardInputContainer: {
+    marginTop: 6,
   },
 });

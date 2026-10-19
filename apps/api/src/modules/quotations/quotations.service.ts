@@ -104,12 +104,24 @@ export class QuotationsService {
           customerId: quote.request.customerId,
           providerId: quote.providerId,
           status: 'CONFIRMED',
+          payments: {
+            create: {
+              amount: quote.totalCost,
+              currency: 'USD',
+              status: 'AUTHORIZED',
+              method: 'CARD',
+              gatewayPaymentId: `escrow_${Date.now()}`,
+            },
+          },
+        },
+        include: {
+          payments: true,
         },
       });
 
       return {
         booking,
-        message: 'Quotation accepted and booking confirmed.',
+        message: 'Quotation accepted and booking confirmed. Escrow payment authorized.',
       };
     } catch {
       const targetQuote = this.memoryQuotes.find((q) => q.id === quotationId);
@@ -128,13 +140,15 @@ export class QuotationsService {
         deliveryAddress: dto.deliveryAddress,
         scheduledDate: dto.scheduledDate,
         totalCost: targetQuote.totalCost,
+        escrowStatus: 'AUTHORIZED',
+        gatewayPaymentId: `escrow_${Date.now()}`,
         confirmedAt: new Date().toISOString(),
       };
       this.memoryBookings.unshift(booking);
 
       return {
         booking,
-        message: 'Quotation accepted and booking confirmed.',
+        message: 'Quotation accepted and booking confirmed. Escrow payment authorized.',
       };
     }
   }
@@ -172,20 +186,39 @@ export class QuotationsService {
     details?: { trackingNumber?: string; carrierName?: string }
   ) {
     try {
-      return await this.prisma.booking.update({
+      const updated = await this.prisma.booking.update({
         where: { id: bookingId },
         data: {
           status: status as any,
           completedAt: status === 'COMPLETED' ? new Date() : undefined,
         },
       });
+
+      if (status === 'COMPLETED') {
+        await this.prisma.payment.updateMany({
+          where: { bookingId },
+          data: { status: 'CAPTURED', paidAt: new Date() },
+        });
+      } else if (status === 'CANCELLED') {
+        await this.prisma.payment.updateMany({
+          where: { bookingId },
+          data: { status: 'REFUNDED' },
+        });
+      }
+
+      return updated;
     } catch {
       const booking = this.memoryBookings.find((b) => b.id === bookingId);
       if (!booking) throw new NotFoundException('Booking not found');
       booking.status = status;
       if (details?.trackingNumber) booking.trackingNumber = details.trackingNumber;
       if (details?.carrierName) booking.carrierName = details.carrierName;
-      if (status === 'COMPLETED') booking.completedAt = new Date().toISOString();
+      if (status === 'COMPLETED') {
+        booking.completedAt = new Date().toISOString();
+        booking.escrowStatus = 'CAPTURED';
+      } else if (status === 'CANCELLED') {
+        booking.escrowStatus = 'REFUNDED';
+      }
       return booking;
     }
   }

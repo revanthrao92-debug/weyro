@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { weyroNotifications } from './notifications';
 
 export interface ChatMessage {
   id: string;
@@ -137,6 +138,7 @@ export const chatStore = {
     ];
 
     emitChange();
+    weyroNotifications.chatMessageReceived(senderName, text);
     return newMsg;
   },
 

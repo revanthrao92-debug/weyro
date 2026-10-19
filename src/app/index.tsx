@@ -20,6 +20,10 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { damageRequestStore } from '@/services/damage-request-store';
+import { useAuth } from '@/services/auth-store';
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 const COMMON_DAMAGED_PARTS = [
   'Front Bumper & Grille',
@@ -36,8 +40,9 @@ export default function PostDamageScreen() {
   const router = useRouter();
   const theme = useTheme();
   const safeAreaInsets = useSafeAreaInsets();
+  const auth = useAuth();
 
-  const [customerName, setCustomerName] = useState('Marcus Vance');
+  const [customerName, setCustomerName] = useState(auth.user.name || 'Marcus Vance');
   const [vehicleMake, setVehicleMake] = useState('BMW');
   const [vehicleModel, setVehicleModel] = useState('330i M-Sport');
   const [vehicleYear, setVehicleYear] = useState('2022');
@@ -51,6 +56,24 @@ export default function PostDamageScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+
+  const uploadToServer = async (base64: string, mimeType: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/damage-requests/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, mimeType }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.url) {
+          setPhotoUri(data.url);
+        }
+      }
+    } catch {
+      // Graceful fallback: maintain local photoUri
+    }
+  };
 
   const handlePickFromGallery = async () => {
     try {
@@ -68,11 +91,16 @@ export default function PostDamageScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.7,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setPhotoUri(asset.uri);
+        if (asset.base64) {
+          uploadToServer(asset.base64, asset.mimeType || 'image/jpeg');
+        }
       }
     } catch {
       Alert.alert('Error', 'Could not open image picker.');
@@ -96,11 +124,16 @@ export default function PostDamageScreen() {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.7,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setPhotoUri(asset.uri);
+        if (asset.base64) {
+          uploadToServer(asset.base64, asset.mimeType || 'image/jpeg');
+        }
       }
     } catch {
       Alert.alert('Error', 'Camera unavailable or not supported in this environment.');
@@ -208,10 +241,22 @@ export default function PostDamageScreen() {
           <View style={styles.formWrapper}>
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.broadcastBadge}>
-                <ThemedText style={styles.broadcastBadgeText}>
-                  BROADCAST MODE • ANY DISTANCE & TIME
-                </ThemedText>
+              <View style={styles.topBadgeRow}>
+                <View style={styles.broadcastBadge}>
+                  <ThemedText style={styles.broadcastBadgeText}>
+                    BROADCAST MODE • ANY DISTANCE & TIME
+                  </ThemedText>
+                </View>
+                <Pressable
+                  onPress={() => router.push('/auth')}
+                  style={({ pressed }) => [
+                    styles.accountChip,
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <ThemedText style={styles.accountChipText}>
+                    👤 {auth.user.name.split(' ')[0]} ({auth.user.role})
+                  </ThemedText>
+                </Pressable>
               </View>
               <ThemedText type="subtitle" style={styles.headerTitle}>
                 Post Car Damage Request
@@ -516,6 +561,22 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: Spacing.two,
+  },
+  topBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  accountChip: {
+    backgroundColor: '#EEF2F6',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  accountChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   broadcastBadge: {
     backgroundColor: '#0F52BA',

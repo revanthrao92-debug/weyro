@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { weyroNotifications } from './notifications';
 
 export interface DamageRequestQuote {
   id: string;
@@ -517,6 +518,12 @@ export const damageRequestStore = {
       }
     );
 
+    weyroNotifications.quoteReceived(
+      quote.providerName,
+      targetReq.damagedPart,
+      quote.estimatedCost
+    );
+
     return newQuote;
   },
 
@@ -623,6 +630,11 @@ export const damageRequestStore = {
         trackingNumber: details?.trackingNumber || target.trackingNumber,
         carrierName: details?.carrierName || target.carrierName,
       }
+    );
+
+    weyroNotifications.milestoneAdvanced(
+      updated.trackingNumber,
+      status
     );
 
     return updated;
