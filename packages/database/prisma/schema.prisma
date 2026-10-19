@@ -119,6 +119,7 @@ model User {
   isActive        Boolean          @default(true)
   customerProfile CustomerProfile?
   providerProfile ProviderProfile?
+  refreshTokens   RefreshToken[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -321,4 +322,17 @@ model SparePart {
   updatedAt        DateTime        @updatedAt
 
   @@map("spare_parts")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  revokedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }

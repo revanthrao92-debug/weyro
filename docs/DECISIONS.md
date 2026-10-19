@@ -26,3 +26,19 @@ This document tracks significant technical, architectural, and compliance decisi
 - **Status**: Accepted
 - **Context**: Weyro requires radius and proximity queries for auto mechanics and damage requests.
 - **Decision**: Standardize on PostgreSQL with PostGIS (`postgis/postgis:16-3.4` container). Use native PostGIS geometry/geography types with spatial GiST indexing.
+
+## ADR 004: Production Authentication & Authorization Architecture
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: The demo application relied on fake tokens (`jwt_demo_`), hardcoded admin secrets (`weyro_admin_super_secret_token`), client-side persona switching (`switchRole`), and insecure defaults (`cust_01`, `prov_01`). Endpoints were unauthenticated by default.
+- **Decision**:
+  - Secure password hashing with bcrypt (cost factor 12).
+  - Short-lived JWT access tokens and stateful rotating refresh tokens stored hashed (SHA-256) in the database with revocation support.
+  - Global `JwtAuthGuard` making all endpoints private by default; public routes explicitly designated via `@Public()`.
+  - Role-based access control with `@Roles()` and global `RolesGuard`.
+  - Admin access strictly gated to users in the database with `ADMIN` role.
+  - Strict ownership checks: `customerId` and `providerId` derived exclusively from verified JWT payload (`@CurrentUser()`).
+  - Provider broadcast feed and quoting privileges restricted to `VERIFIED` providers.
+  - Customer phone numbers and exact street addresses masked from providers until a quotation is accepted.
+  - Production security middleware: `helmet()`, environment-driven CORS allowlist, and `@nestjs/throttler` rate limiting.
+

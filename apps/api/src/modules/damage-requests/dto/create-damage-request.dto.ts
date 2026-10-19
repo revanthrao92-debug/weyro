@@ -1,14 +1,24 @@
 export class CreateDamageRequestDto {
-  customerId: string;
-  vehicleId: string;
-  title: string;
-  description: string;
-  address: string;
-  latitude: number;
-  longitude: number;
+  vehicleId!: string;
+  title!: string;
+  description!: string;
+  address!: string;
+  latitude!: number;
+  longitude!: number;
+  category?:
+    | 'REPAIR'
+    | 'MAINTENANCE'
+    | 'SPARE_PART'
+    | 'TOWING'
+    | 'ROADSIDE'
+    | 'INSPECTION';
   urgency?: 'NORMAL' | 'URGENT' | 'EMERGENCY';
-  damagePhotos: string[];
+  damagePhotos?: string[];
   isBroadcast?: boolean;
-  fulfillmentType?: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE';
+  fulfillmentType?:
+    | 'ON_SITE'
+    | 'WORKSHOP_VISIT'
+    | 'PARTS_SHIPPING'
+    | 'TOW_TO_GARAGE';
   expiresInDays?: number;
 }

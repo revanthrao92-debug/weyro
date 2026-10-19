@@ -1,14 +1,15 @@
 export class CreateQuotationDto {
-  providerId: string;
-  providerName?: string;
-  providerType?: 'MECHANIC' | 'GARAGE' | 'PARTS_DEALER';
-  partsCost: number;
+  partsCost!: number;
   labourCost?: number;
   shippingCost?: number;
-  totalCost: number;
+  totalCost?: number;
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
   warrantyDays?: number;
-  etaDescription: string;
-  deliveryMethod?: string;
+  etaDescription!: string;
+  deliveryMethod?:
+    | 'PICKUP'
+    | 'DOORSTEP_DELIVERY'
+    | 'PARTS_COURIER'
+    | 'ON_SITE_FITMENT';
   notes?: string;
 }

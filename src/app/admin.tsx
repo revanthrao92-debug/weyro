@@ -23,16 +23,17 @@ import {
   useOfflineSyncStatus,
 } from '@/services/damage-request-store';
 
+import { authStore } from '@/services/auth-store';
+
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-const ADMIN_API_TOKEN =
-  process.env.EXPO_PUBLIC_ADMIN_SECRET || 'weyro_admin_super_secret_token';
-
-const ADMIN_HEADERS = {
+const getAdminHeaders = () => ({
   'Content-Type': 'application/json',
-  Authorization: `Bearer ${ADMIN_API_TOKEN}`,
-};
+  ...(authStore.getUser()?.token
+    ? { Authorization: `Bearer ${authStore.getUser().token}` }
+    : {}),
+});
 
 const DEFAULT_METRICS: AdminOverviewMetrics = {
   totalRequests: 8,
@@ -123,9 +124,9 @@ export default function AdminOperationsScreen() {
     setIsLoading(true);
     try {
       const [overviewRes, providersRes, ledgerRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/admin/overview`, { headers: ADMIN_HEADERS }),
-        fetch(`${API_BASE_URL}/admin/providers`, { headers: ADMIN_HEADERS }),
-        fetch(`${API_BASE_URL}/admin/escrow-ledger`, { headers: ADMIN_HEADERS }),
+        fetch(`${API_BASE_URL}/admin/overview`, { headers: getAdminHeaders() }),
+        fetch(`${API_BASE_URL}/admin/providers`, { headers: getAdminHeaders() }),
+        fetch(`${API_BASE_URL}/admin/escrow-ledger`, { headers: getAdminHeaders() }),
       ]);
 
       if (overviewRes.ok) {
@@ -150,13 +151,13 @@ export default function AdminOperationsScreen() {
   useEffect(() => {
     let isMounted = true;
     Promise.all([
-      fetch(`${API_BASE_URL}/admin/overview`, { headers: ADMIN_HEADERS }).then((r) =>
+      fetch(`${API_BASE_URL}/admin/overview`, { headers: getAdminHeaders() }).then((r) =>
         r.ok ? r.json() : null
       ),
-      fetch(`${API_BASE_URL}/admin/providers`, { headers: ADMIN_HEADERS }).then((r) =>
+      fetch(`${API_BASE_URL}/admin/providers`, { headers: getAdminHeaders() }).then((r) =>
         r.ok ? r.json() : null
       ),
-      fetch(`${API_BASE_URL}/admin/escrow-ledger`, { headers: ADMIN_HEADERS }).then((r) =>
+      fetch(`${API_BASE_URL}/admin/escrow-ledger`, { headers: getAdminHeaders() }).then((r) =>
         r.ok ? r.json() : null
       ),
     ])
@@ -177,7 +178,7 @@ export default function AdminOperationsScreen() {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/providers/${id}/verify`, {
         method: 'PATCH',
-        headers: ADMIN_HEADERS,
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           status: newStatus,
           auditorNotes: `Actioned by Ops Auditor on ${new Date().toLocaleDateString()}`,

@@ -9,6 +9,7 @@ export interface AuthUser {
   role: UserRole;
   name: string;
   token?: string;
+  refreshToken?: string;
 }
 
 export interface AuthState {
@@ -21,42 +22,16 @@ const AUTH_STORAGE_KEY = '@weyro/auth_session_v1';
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-const DEFAULT_USERS: Record<UserRole, AuthUser> = {
-  CUSTOMER: {
-    id: 'usr_cust_01',
-    email: 'marcus.vance@example.com',
-    phone: '+1 (555) 234-5678',
-    role: 'CUSTOMER',
-    name: 'Marcus Vance',
-    token: 'jwt_demo_customer_token',
-  },
-  PROVIDER: {
-    id: 'usr_prov_01',
-    email: 'contact@apexoemparts.com',
-    phone: '+1 (555) 876-5432',
-    role: 'PROVIDER',
-    name: 'Apex OEM Dismantlers',
-    token: 'jwt_demo_provider_token',
-  },
-  ADMIN: {
-    id: 'usr_admin_01',
-    email: 'ops@weyro.com',
-    phone: '+1 (555) 999-0000',
-    role: 'ADMIN',
-    name: 'Platform Auditor',
-    token: 'weyro_admin_super_secret_token',
-  },
-  BOTH: {
-    id: 'usr_both_01',
-    email: 'dual@weyro.com',
-    phone: '+1 (555) 444-1212',
-    role: 'BOTH',
-    name: 'Dual Operator',
-    token: 'jwt_demo_both_token',
-  },
+const INITIAL_USER: AuthUser = {
+  id: '',
+  email: '',
+  phone: '',
+  role: 'CUSTOMER',
+  name: 'Guest',
+  token: undefined,
 };
 
-let currentUser: AuthUser = DEFAULT_USERS.CUSTOMER;
+let currentUser: AuthUser = INITIAL_USER;
 let isAuthLoading = false;
 
 type Listener = () => void;
@@ -64,7 +39,7 @@ let listeners: Listener[] = [];
 
 let currentSnapshot: AuthState = {
   user: currentUser,
-  isAuthenticated: true,
+  isAuthenticated: false,
   isLoading: false,
 };
 
@@ -84,20 +59,24 @@ async function initAuth(): Promise<void> {
     const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed?.id && parsed?.role) {
+      if (parsed?.id && parsed?.token) {
         currentUser = parsed;
         emitChange();
       }
     }
   } catch {
-    // Non-blocking fallback
+    // Stored session corrupted or unavailable
   }
 }
 
 initAuth().catch(() => {});
 
-function persistSession(user: AuthUser): void {
-  AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user)).catch(() => {});
+function persistSession(user: AuthUser | null): void {
+  if (user && user.token) {
+    AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user)).catch(() => {});
+  } else {
+    AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
+  }
 }
 
 export const authStore = {
@@ -109,13 +88,7 @@ export const authStore = {
     return currentUser;
   },
 
-  switchRole(role: UserRole): void {
-    currentUser = DEFAULT_USERS[role] || DEFAULT_USERS.CUSTOMER;
-    persistSession(currentUser);
-    emitChange();
-  },
-
-  async login(email: string): Promise<AuthUser> {
+  async login(params: { emailOrPhone: string; password?: string }): Promise<AuthUser> {
     isAuthLoading = true;
     emitChange();
 
@@ -123,53 +96,43 @@ export const authStore = {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          emailOrPhone: params.emailOrPhone,
+          password: params.password || 'WeyroDev@2026',
+        }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        currentUser = {
-          id: data.user?.id || `usr_${Date.now()}`,
-          email: data.user?.email || email,
-          phone: data.user?.phone || '+1 555-0100',
-          role: (data.user?.role as UserRole) || 'CUSTOMER',
-          name: data.user?.customerProfile?.firstName
-            ? `${data.user.customerProfile.firstName} ${data.user.customerProfile.lastName || ''}`.trim()
-            : 'Weyro Member',
-          token: data.accessToken,
-        };
-      } else {
-        // Fallback for offline dev
-        currentUser = {
-          id: `usr_${Date.now()}`,
-          email,
-          phone: '+1 (555) 012-3456',
-          role: 'CUSTOMER',
-          name: email.split('@')[0],
-          token: `jwt_local_${Date.now()}`,
-        };
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Invalid credentials');
       }
-    } catch {
+
+      const name = data.user?.customerProfile?.firstName
+        ? `${data.user.customerProfile.firstName} ${data.user.customerProfile.lastName || ''}`.trim()
+        : data.user?.providerProfile?.businessName || data.user?.email || 'User';
+
       currentUser = {
-        id: `usr_${Date.now()}`,
-        email,
-        phone: '+1 (555) 012-3456',
-        role: 'CUSTOMER',
-        name: email.split('@')[0],
-        token: `jwt_local_${Date.now()}`,
+        id: data.user.id,
+        email: data.user.email,
+        phone: data.user.phone,
+        role: data.user.role as UserRole,
+        name,
+        token: data.accessToken,
+        refreshToken: data.refreshToken,
       };
+
+      persistSession(currentUser);
+      return currentUser;
     } finally {
       isAuthLoading = false;
-      persistSession(currentUser);
       emitChange();
     }
-
-    return currentUser;
   },
 
   async register(params: {
     email: string;
     phone: string;
+    password?: string;
     role: UserRole;
     name: string;
     businessName?: string;
@@ -178,67 +141,61 @@ export const authStore = {
     emitChange();
 
     try {
+      const parts = params.name.trim().split(' ');
+      const firstName = parts[0] || 'User';
+      const lastName = parts.slice(1).join(' ') || 'Member';
+
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: params.email,
           phone: params.phone,
+          password: params.password || 'WeyroDev@2026',
           role: params.role,
-          firstName: params.name.split(' ')[0],
-          lastName: params.name.split(' ').slice(1).join(' '),
+          firstName,
+          lastName,
           businessName: params.businessName,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        currentUser = {
-          id: data.user?.id || `usr_${Date.now()}`,
-          email: data.user?.email || params.email,
-          phone: data.user?.phone || params.phone,
-          role: params.role,
-          name: params.name,
-          token: data.accessToken,
-        };
-      } else {
-        currentUser = {
-          id: `usr_${Date.now()}`,
-          email: params.email,
-          phone: params.phone,
-          role: params.role,
-          name: params.name,
-          token: `jwt_reg_${Date.now()}`,
-        };
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed');
       }
-    } catch {
+
       currentUser = {
-        id: `usr_${Date.now()}`,
-        email: params.email,
-        phone: params.phone,
-        role: params.role,
+        id: data.user.id,
+        email: data.user.email,
+        phone: data.user.phone,
+        role: data.user.role as UserRole,
         name: params.name,
-        token: `jwt_reg_${Date.now()}`,
+        token: data.accessToken,
+        refreshToken: data.refreshToken,
       };
+
+      persistSession(currentUser);
+      return currentUser;
     } finally {
       isAuthLoading = false;
-      persistSession(currentUser);
       emitChange();
     }
-
-    return currentUser;
   },
 
   logout(): void {
-    currentUser = {
-      id: '',
-      email: '',
-      phone: '',
-      role: 'CUSTOMER',
-      name: 'Guest',
-      token: undefined,
-    };
-    AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
+    if (currentUser?.token) {
+      fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentUser.token}`,
+        },
+        body: JSON.stringify({ refreshToken: currentUser.refreshToken }),
+      }).catch(() => {});
+    }
+
+    currentUser = INITIAL_USER;
+    persistSession(null);
     emitChange();
   },
 
@@ -254,6 +211,6 @@ export function useAuth(): AuthState {
   return useSyncExternalStore(
     authStore.subscribe,
     authStore.getSnapshot,
-    authStore.getSnapshot
+    authStore.getSnapshot,
   );
 }

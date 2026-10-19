@@ -6,13 +6,32 @@ export const RegisterSchema = z.object({
   phone: z.string().min(10).max(15),
   password: z.string().min(8),
   role: z.enum(['CUSTOMER', 'PROVIDER', 'BOTH']).default('CUSTOMER'),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().min(1).default('Customer'),
+  lastName: z.string().min(1).default('User'),
+  businessName: z.string().optional(),
+  providerType: z
+    .enum([
+      'MECHANIC',
+      'GARAGE',
+      'AUTHORIZED_CENTER',
+      'PARTS_DEALER',
+      'TOWING',
+      'ROADSIDE',
+    ])
+    .optional(),
+  description: z.string().optional(),
+  address: z.string().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 
 export const LoginSchema = z.object({
   emailOrPhone: z.string().min(3),
   password: z.string().min(1),
+});
+
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
 });
 
 // Vehicle validation

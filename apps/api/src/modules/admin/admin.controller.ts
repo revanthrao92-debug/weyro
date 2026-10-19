@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { VerifyProviderDto } from './dto/verify-provider.dto';
 import { AdminAuthGuard } from '../auth/guards/admin.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('admin')
 @UseGuards(AdminAuthGuard)
+@Roles('ADMIN')
 export class AdminController {
   constructor(private readonly service: AdminService) {}
 
@@ -21,7 +31,7 @@ export class AdminController {
   @Patch('providers/:id/verify')
   async verifyProvider(
     @Param('id') id: string,
-    @Body() dto: VerifyProviderDto
+    @Body() dto: VerifyProviderDto,
   ) {
     return this.service.verifyProvider(id, dto);
   }

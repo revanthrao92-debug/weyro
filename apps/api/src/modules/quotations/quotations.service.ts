@@ -1,44 +1,75 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
+import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 
 @Injectable()
 export class QuotationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private memoryQuotes: any[] = [
-    {
-      id: 'q_01',
-      requestId: 'req_seed_01',
-      providerId: 'prov_01',
-      providerName: 'Apex OEM Auto Dismantlers',
-      providerType: 'PARTS_DEALER',
-      partsCost: 1450,
-      labourCost: 0,
-      totalCost: 1450,
-      partCondition: 'OEM',
-      warrantyDays: 90,
-      etaDescription: '2 business days',
-      deliveryMethod: 'PARTS_COURIER',
-      notes: 'Genuine OEM LED matrix unit in pristine condition. Includes insured courier shipping.',
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  async create(
+    requestId: string,
+    providerId: string,
+    dto: CreateQuotationDto,
+  ) {
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+    });
 
-  private memoryBookings: any[] = [];
+    if (!request) {
+      throw new NotFoundException(`Service request with ID ${requestId} not found`);
+    }
 
-  async create(requestId: string, dto: CreateQuotationDto) {
-    try {
-      const quote = await this.prisma.quotation.create({
+    if (
+      request.status !== 'OPEN' &&
+      request.status !== 'QUOTES_RECEIVED'
+    ) {
+      throw new BadRequestException(
+        `Cannot submit quotation: request is currently ${request.status}`,
+      );
+    }
+
+    if (request.expiresAt < new Date()) {
+      throw new BadRequestException('Cannot submit quotation: request has expired');
+    }
+
+    // Check if provider already has an active quote for this request
+    const existingQuote = await this.prisma.quotation.findFirst({
+      where: {
+        requestId,
+        providerId,
+        status: { in: ['PENDING', 'ACCEPTED'] },
+      },
+    });
+
+    if (existingQuote) {
+      throw new ConflictException(
+        'You have already submitted an active quotation for this request',
+      );
+    }
+
+    // Compute total cost server-side
+    const parts = Number(dto.partsCost || 0);
+    const labour = Number(dto.labourCost || 0);
+    const shipping = Number(dto.shippingCost || 0);
+    const totalCost = parts + labour + shipping;
+
+    const [quote] = await this.prisma.$transaction([
+      this.prisma.quotation.create({
         data: {
           requestId,
-          providerId: dto.providerId || 'prov_01',
-          partsCost: dto.partsCost ?? dto.totalCost ?? 0,
-          labourCost: dto.labourCost || 0,
-          shippingCost: dto.shippingCost || 0,
-          totalCost: dto.totalCost ?? dto.partsCost ?? 0,
+          providerId,
+          partsCost: parts,
+          labourCost: labour,
+          shippingCost: shipping,
+          totalCost,
           partCondition: (dto.partCondition as any) || 'OEM',
           warrantyDays: dto.warrantyDays || 30,
           etaDescription: dto.etaDescription,
@@ -49,212 +80,263 @@ export class QuotationsService {
         include: {
           provider: true,
         },
-      });
-
-      await this.prisma.serviceRequest.update({
+      }),
+      this.prisma.serviceRequest.update({
         where: { id: requestId },
         data: { status: 'QUOTES_RECEIVED' },
-      });
+      }),
+    ]);
 
-      return quote;
-    } catch {
-      const newQuote = {
-        id: `q_${Date.now()}`,
-        requestId,
-        ...dto,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-      };
-      this.memoryQuotes.unshift(newQuote);
-      return newQuote;
-    }
+    return quote;
   }
 
-  async accept(quotationId: string, dto: AcceptQuotationDto) {
-    try {
-      const quote = await this.prisma.quotation.findUnique({
-        where: { id: quotationId },
-        include: { request: true },
+  async findByRequest(requestId: string, user: AuthUserPayload) {
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Request with ID ${requestId} not found`);
+    }
+
+    const isCustomerOwner =
+      user.customerProfileId && request.customerId === user.customerProfileId;
+    const isAdmin = user.role === 'ADMIN';
+
+    // If customer: can see all quotes on their own request
+    if (isCustomerOwner || isAdmin) {
+      return this.prisma.quotation.findMany({
+        where: { requestId },
+        include: { provider: true },
+        orderBy: { createdAt: 'desc' },
       });
+    }
 
-      if (!quote) throw new NotFoundException('Quotation not found');
+    // If provider: can only see their own quote on this request
+    if (user.providerProfileId) {
+      return this.prisma.quotation.findMany({
+        where: { requestId, providerId: user.providerProfileId },
+        include: { provider: true },
+      });
+    }
 
-      // Update quote to ACCEPTED and reject others
-      await this.prisma.quotation.update({
+    throw new ForbiddenException('You do not have access to quotations for this request');
+  }
+
+  async accept(quotationId: string, user: AuthUserPayload, dto: AcceptQuotationDto) {
+    const quote = await this.prisma.quotation.findUnique({
+      where: { id: quotationId },
+      include: {
+        request: true,
+        provider: true,
+      },
+    });
+
+    if (!quote) {
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    }
+
+    const isCustomerOwner =
+      user.customerProfileId && quote.request.customerId === user.customerProfileId;
+    const isAdmin = user.role === 'ADMIN';
+
+    if (!isCustomerOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'You can only accept quotations for your own service requests',
+      );
+    }
+
+    if (quote.status !== 'PENDING') {
+      throw new BadRequestException(
+        `Quotation cannot be accepted because its status is ${quote.status}`,
+      );
+    }
+
+    // Atomic acceptance transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // Guarded update: ensure quote is still pending
+      const updatedQuote = await tx.quotation.update({
         where: { id: quotationId },
         data: { status: 'ACCEPTED' },
       });
 
-      await this.prisma.quotation.updateMany({
+      // Reject all other quotations for this request
+      await tx.quotation.updateMany({
         where: {
           requestId: quote.requestId,
           id: { not: quotationId },
+          status: 'PENDING',
         },
         data: { status: 'REJECTED' },
       });
 
-      await this.prisma.serviceRequest.update({
+      // Update service request status to ACCEPTED
+      await tx.serviceRequest.update({
         where: { id: quote.requestId },
         data: { status: 'ACCEPTED' },
       });
 
-      const booking = await this.prisma.booking.create({
+      // Create Booking atomically
+      const booking = await tx.booking.create({
         data: {
           quotationId: quote.id,
           customerId: quote.request.customerId,
           providerId: quote.providerId,
           status: 'CONFIRMED',
-          payments: {
-            create: {
-              amount: quote.totalCost,
-              currency: 'USD',
-              status: 'AUTHORIZED',
-              method: 'CARD',
-              gatewayPaymentId: `escrow_${Date.now()}`,
-            },
-          },
+          scheduledAt: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
+          completionNotes: dto.notes,
         },
         include: {
-          payments: true,
-        },
-      });
-
-      return {
-        booking,
-        message: 'Quotation accepted and booking confirmed. Escrow payment authorized.',
-      };
-    } catch {
-      const targetQuote = this.memoryQuotes.find((q) => q.id === quotationId);
-      if (!targetQuote) throw new NotFoundException('Quotation not found');
-
-      targetQuote.status = 'ACCEPTED';
-      this.memoryQuotes
-        .filter((q) => q.requestId === targetQuote.requestId && q.id !== quotationId)
-        .forEach((q) => (q.status = 'REJECTED'));
-
-      const booking = {
-        id: `bk_${Date.now()}`,
-        quotationId: targetQuote.id,
-        requestId: targetQuote.requestId,
-        status: 'CONFIRMED',
-        deliveryAddress: dto.deliveryAddress,
-        scheduledDate: dto.scheduledDate,
-        totalCost: targetQuote.totalCost,
-        escrowStatus: 'AUTHORIZED',
-        gatewayPaymentId: `escrow_${Date.now()}`,
-        confirmedAt: new Date().toISOString(),
-      };
-      this.memoryBookings.unshift(booking);
-
-      return {
-        booking,
-        message: 'Quotation accepted and booking confirmed. Escrow payment authorized.',
-      };
-    }
-  }
-
-  async findByRequest(requestId: string) {
-    try {
-      return await this.prisma.quotation.findMany({
-        where: { requestId },
-        include: { provider: true },
-        orderBy: { createdAt: 'desc' },
-      });
-    } catch {
-      return this.memoryQuotes.filter((q) => q.requestId === requestId);
-    }
-  }
-
-  async getBookings() {
-    try {
-      return await this.prisma.booking.findMany({
-        include: {
-          customer: true,
-          provider: true,
           quotation: true,
+          provider: true,
+          customer: true,
         },
-        orderBy: { createdAt: 'desc' },
       });
-    } catch {
-      return this.memoryBookings;
+
+      // Create initial Payment record in PENDING
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: quote.totalCost,
+          currency: 'INR',
+          status: 'PENDING',
+          method: 'UPI',
+        },
+      });
+
+      return booking;
+    });
+  }
+
+  async getBookings(user: AuthUserPayload) {
+    const where: any = {};
+
+    if (user.role === 'ADMIN') {
+      // Admin sees all
+    } else if (user.customerProfileId && user.role === 'CUSTOMER') {
+      where.customerId = user.customerProfileId;
+    } else if (user.providerProfileId && user.role === 'PROVIDER') {
+      where.providerId = user.providerProfileId;
+    } else if (user.role === 'BOTH') {
+      where.OR = [
+        user.customerProfileId ? { customerId: user.customerProfileId } : undefined,
+        user.providerProfileId ? { providerId: user.providerProfileId } : undefined,
+      ].filter(Boolean);
+    } else {
+      where.id = 'none';
     }
+
+    return await this.prisma.booking.findMany({
+      where,
+      include: {
+        customer: true,
+        provider: true,
+        quotation: true,
+        payments: true,
+        review: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async updateStatus(
-    bookingId: string,
-    status: string,
-    details?: { trackingNumber?: string; carrierName?: string }
+    id: string,
+    user: AuthUserPayload,
+    newStatus: string,
+    metadata?: { trackingNumber?: string; carrierName?: string },
   ) {
-    try {
-      const updated = await this.prisma.booking.update({
-        where: { id: bookingId },
-        data: {
-          status: status as any,
-          completedAt: status === 'COMPLETED' ? new Date() : undefined,
-        },
-      });
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+    });
 
-      if (status === 'COMPLETED') {
-        await this.prisma.payment.updateMany({
-          where: { bookingId },
-          data: { status: 'CAPTURED', paidAt: new Date() },
-        });
-      } else if (status === 'CANCELLED') {
-        await this.prisma.payment.updateMany({
-          where: { bookingId },
-          data: { status: 'REFUNDED' },
-        });
-      }
-
-      return updated;
-    } catch {
-      const booking = this.memoryBookings.find((b) => b.id === bookingId);
-      if (!booking) throw new NotFoundException('Booking not found');
-      booking.status = status;
-      if (details?.trackingNumber) booking.trackingNumber = details.trackingNumber;
-      if (details?.carrierName) booking.carrierName = details.carrierName;
-      if (status === 'COMPLETED') {
-        booking.completedAt = new Date().toISOString();
-        booking.escrowStatus = 'CAPTURED';
-      } else if (status === 'CANCELLED') {
-        booking.escrowStatus = 'REFUNDED';
-      }
-      return booking;
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
     }
+
+    const isCustomerOwner =
+      user.customerProfileId && booking.customerId === user.customerProfileId;
+    const isProviderOwner =
+      user.providerProfileId && booking.providerId === user.providerProfileId;
+    const isAdmin = user.role === 'ADMIN';
+
+    if (!isCustomerOwner && !isProviderOwner && !isAdmin) {
+      throw new ForbiddenException('You do not have permission to update this booking');
+    }
+
+    const data: any = { status: newStatus as any };
+    if (newStatus === 'IN_PROGRESS' && !booking.startedAt) {
+      data.startedAt = new Date();
+    }
+    if (newStatus === 'COMPLETED' && !booking.completedAt) {
+      data.completedAt = new Date();
+    }
+
+    return await this.prisma.booking.update({
+      where: { id },
+      data,
+      include: {
+        customer: true,
+        provider: true,
+        quotation: true,
+      },
+    });
   }
 
   async addReview(
     bookingId: string,
+    user: AuthUserPayload,
     rating: number,
-    comment?: string
+    comment?: string,
   ) {
-    try {
-      const booking = await this.prisma.booking.findUnique({
-        where: { id: bookingId },
-      });
-      if (!booking) throw new NotFoundException('Booking not found');
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
 
-      return await this.prisma.review.create({
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+    }
+
+    if (
+      user.role !== 'ADMIN' &&
+      (!user.customerProfileId || booking.customerId !== user.customerProfileId)
+    ) {
+      throw new ForbiddenException('Only the booking customer can leave a review');
+    }
+
+    if (booking.status !== 'COMPLETED' && user.role !== 'ADMIN') {
+      throw new BadRequestException('Reviews can only be submitted for completed bookings');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const review = await tx.review.create({
         data: {
           bookingId,
           customerId: booking.customerId,
           providerId: booking.providerId,
-          rating,
+          rating: Math.max(1, Math.min(5, Math.round(rating))),
           comment,
         },
       });
-    } catch {
-      const booking = this.memoryBookings.find((b) => b.id === bookingId);
-      if (!booking) throw new NotFoundException('Booking not found');
-      const review = {
-        id: `rev_${Date.now()}`,
-        bookingId,
-        rating,
-        comment,
-        createdAt: new Date().toISOString(),
-      };
-      booking.review = review;
+
+      // Recompute provider average rating and review count
+      const allReviews = await tx.review.findMany({
+        where: { providerId: booking.providerId, status: 'ACTIVE' },
+        select: { rating: true },
+      });
+
+      const totalReviews = allReviews.length;
+      const sum = allReviews.reduce((acc, r) => acc + r.rating, 0);
+      const avgRating = totalReviews > 0 ? Number((sum / totalReviews).toFixed(1)) : 0;
+
+      await tx.providerProfile.update({
+        where: { id: booking.providerId },
+        data: {
+          avgRating,
+          totalReviews,
+        },
+      });
+
       return review;
-    }
+    });
   }
 }

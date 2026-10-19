@@ -1,43 +1,26 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { AuthUserPayload } from '../../../common/types/auth-user-payload.type';
 
 @Injectable()
 export class AdminAuthGuard implements CanActivate {
-  private readonly adminSecret =
-    process.env.ADMIN_SECRET_KEY || 'weyro_admin_super_secret_token';
-
-  canActivate(
-    context: ExecutionContext
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers['authorization'];
+    const user: AuthUserPayload = request.user;
 
-    if (!authHeader) {
-      throw new UnauthorizedException(
-        'Missing authorization header for operations access'
-      );
+    if (!user) {
+      throw new UnauthorizedException('Authentication required');
     }
 
-    const [scheme, token] = authHeader.split(' ');
-    if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException(
-        'Malformed authorization header. Expected: Bearer <token>'
-      );
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('Access restricted to administrators');
     }
 
-    // Validate admin secret or admin role token signature
-    if (token === this.adminSecret || token.startsWith('jwt_admin_')) {
-      request.user = { id: 'admin_sys', role: 'ADMIN' };
-      return true;
-    }
-
-    throw new UnauthorizedException(
-      'Invalid administrative credentials. Access restricted to authorized operators.'
-    );
+    return true;
   }
 }
