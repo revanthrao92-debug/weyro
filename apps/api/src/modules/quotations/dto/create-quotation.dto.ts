@@ -1,10 +1,16 @@
-export class CreateQuotationDto {
+import {
+  CreateQuotationSchema,
+  CreateQuotationInput,
+} from '@weyro/validation';
+
+export class CreateQuotationDto implements CreateQuotationInput {
+  static readonly schema = CreateQuotationSchema;
+
   partsCost!: number;
-  labourCost?: number;
+  labourCost!: number;
   shippingCost?: number;
-  totalCost?: number;
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
-  warrantyDays?: number;
+  warrantyDays!: number;
   etaDescription!: string;
   deliveryMethod?:
     | 'PICKUP'

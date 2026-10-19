@@ -42,3 +42,17 @@ This document tracks significant technical, architectural, and compliance decisi
   - Customer phone numbers and exact street addresses masked from providers until a quotation is accepted.
   - Production security middleware: `helmet()`, environment-driven CORS allowlist, and `@nestjs/throttler` rate limiting.
 
+## ADR 005: Correctness, Strict Validation, State Machines, and Lifecycle Automation
+- **Date**: 2026-10-19
+- **Status**: Accepted
+- **Context**: Fallbacks in `catch` blocks silently swallowed database outages and returned fabricated mock objects. Input DTOs accepted unverified client values (such as client-calculated `totalCost`), lacked strict whitelisting against unknown payload properties, and status changes were freeform without role-based state machine enforcement.
+- **Decision**:
+  - Delete all in-memory mock fallbacks. `PrismaService` fails fast on boot if database is unreachable.
+  - Implement a global `PrismaExceptionFilter` mapping Prisma error codes (`P2002` -> 409 Conflict, `P2025` -> 404 Not Found, `P2003` -> 400 Bad Request) and correlating each response with an `x-request-id` header.
+  - Apply global `ZodValidationPipe` paired with `.strict()` schemas from `@weyro/validation` as the single source of truth to reject unknown parameters.
+  - Enforce server-side calculation for quotation `totalCost` (`partsCost + labourCost + shippingCost`).
+  - Quotation acceptance implemented in an atomic `prisma.$transaction` with a guarded update (`updateMany where status = PENDING`) and idempotency support to prevent race conditions and duplicate bookings.
+  - Implement pure, unit-tested state machine transition validators for `ServiceRequest`, `Quotation`, `Booking`, and `Payment`.
+  - Automate request and quote expiry through `@nestjs/schedule` cron tasks.
+  - Reviews restricted to completed bookings and verified customers, with provider aggregate ratings recalculated in the same transaction.
+

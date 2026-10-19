@@ -1,6 +1,14 @@
-import { RegisterInput, LoginInput } from '@weyro/validation';
+import {
+  RegisterSchema,
+  LoginSchema,
+  RefreshTokenSchema,
+  RegisterInput,
+  LoginInput,
+  RefreshTokenInput,
+} from '@weyro/validation';
 
 export class RegisterDto implements RegisterInput {
+  static readonly schema = RegisterSchema;
   email!: string;
   phone!: string;
   password!: string;
@@ -22,11 +30,13 @@ export class RegisterDto implements RegisterInput {
 }
 
 export class LoginDto implements LoginInput {
+  static readonly schema = LoginSchema;
   emailOrPhone!: string;
   password!: string;
-  email?: string; // Backwards compatibility if passed
+  email?: string;
 }
 
-export class RefreshTokenDto {
+export class RefreshTokenDto implements RefreshTokenInput {
+  static readonly schema = RefreshTokenSchema;
   refreshToken!: string;
 }

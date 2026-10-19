@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -10,6 +11,8 @@ import {
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -56,8 +59,9 @@ export class QuotationsController {
     @Param('id') id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: AcceptQuotationDto,
+    @Headers('x-idempotency-key') idempotencyKey?: string,
   ) {
-    return this.service.accept(id, user, dto);
+    return this.service.accept(id, user, dto, idempotencyKey);
   }
 
   @Get('bookings')
@@ -69,8 +73,7 @@ export class QuotationsController {
   async updateStatus(
     @Param('id') id: string,
     @CurrentUser() user: AuthUserPayload,
-    @Body()
-    body: { status: string; trackingNumber?: string; carrierName?: string },
+    @Body() body: UpdateBookingStatusDto,
   ) {
     return this.service.updateStatus(id, user, body.status, {
       trackingNumber: body.trackingNumber,
@@ -83,7 +86,7 @@ export class QuotationsController {
   async addReview(
     @Param('id') id: string,
     @CurrentUser() user: AuthUserPayload,
-    @Body() body: { rating: number; comment?: string },
+    @Body() body: CreateReviewDto,
   ) {
     return this.service.addReview(id, user, body.rating, body.comment);
   }

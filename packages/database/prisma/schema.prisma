@@ -247,6 +247,7 @@ model Quotation {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  @@unique([requestId, providerId])
   @@map("quotations")
 }
 

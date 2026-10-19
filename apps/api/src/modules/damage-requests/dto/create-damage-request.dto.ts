@@ -1,20 +1,28 @@
-export class CreateDamageRequestDto {
+import {
+  CreateServiceRequestSchema,
+  CreateServiceRequestInput,
+} from '@weyro/validation';
+
+export class CreateDamageRequestDto implements CreateServiceRequestInput {
+  static readonly schema = CreateServiceRequestSchema;
+
   vehicleId!: string;
-  title!: string;
-  description!: string;
-  address!: string;
-  latitude!: number;
-  longitude!: number;
-  category?:
+  category!:
     | 'REPAIR'
     | 'MAINTENANCE'
     | 'SPARE_PART'
     | 'TOWING'
     | 'ROADSIDE'
     | 'INSPECTION';
-  urgency?: 'NORMAL' | 'URGENT' | 'EMERGENCY';
-  damagePhotos?: string[];
-  isBroadcast?: boolean;
+  title!: string;
+  description!: string;
+  address!: string;
+  latitude!: number;
+  longitude!: number;
+  urgency!: 'NORMAL' | 'URGENT' | 'EMERGENCY';
+  mediaUrls!: string[];
+  damagePhotos!: string[];
+  isBroadcast!: boolean;
   fulfillmentType?:
     | 'ON_SITE'
     | 'WORKSHOP_VISIT'

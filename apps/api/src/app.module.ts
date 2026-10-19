@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DamageRequestsModule } from './modules/damage-requests/damage-requests.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 @Module({
   imports: [
@@ -17,13 +21,23 @@ import { RolesGuard } from './common/guards/roles.guard';
         limit: 100,
       },
     ]),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     DamageRequestsModule,
     QuotationsModule,
     AdminModule,
+    TasksModule,
   ],
   providers: [
+    {
+      provide: APP_FILTER,
+      useClass: PrismaExceptionFilter,
+    },
+    {
+      provide: APP_PIPE,
+      useClass: ZodValidationPipe,
+    },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

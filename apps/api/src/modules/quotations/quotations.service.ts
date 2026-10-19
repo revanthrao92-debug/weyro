@@ -9,6 +9,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import {
+  validateBookingTransition,
+  validateQuotationTransition,
+  validateServiceRequestTransition,
+} from '../../common/state-machines/state-machines';
 
 @Injectable()
 export class QuotationsService {
@@ -123,7 +128,27 @@ export class QuotationsService {
     throw new ForbiddenException('You do not have access to quotations for this request');
   }
 
-  async accept(quotationId: string, user: AuthUserPayload, dto: AcceptQuotationDto) {
+  async accept(
+    quotationId: string,
+    user: AuthUserPayload,
+    dto: AcceptQuotationDto,
+    idempotencyKey?: string,
+  ) {
+    // Idempotency: return existing booking if this quotation is already accepted into a booking
+    const existingBooking = await this.prisma.booking.findUnique({
+      where: { quotationId },
+      include: {
+        quotation: true,
+        provider: true,
+        customer: true,
+        payments: true,
+      },
+    });
+
+    if (existingBooking) {
+      return existingBooking;
+    }
+
     const quote = await this.prisma.quotation.findUnique({
       where: { id: quotationId },
       include: {
@@ -146,21 +171,25 @@ export class QuotationsService {
       );
     }
 
-    if (quote.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Quotation cannot be accepted because its status is ${quote.status}`,
-      );
-    }
+    // Validate state machine transitions
+    validateQuotationTransition(quote.status, 'ACCEPTED', user.role);
+    validateServiceRequestTransition(quote.request.status, 'ACCEPTED', user.role);
 
-    // Atomic acceptance transaction
+    // Atomic acceptance transaction with guarded update
     return await this.prisma.$transaction(async (tx) => {
-      // Guarded update: ensure quote is still pending
-      const updatedQuote = await tx.quotation.update({
-        where: { id: quotationId },
+      // Guarded update: ensure quote is still pending. If concurrent accept raced, count will be 0
+      const updateResult = await tx.quotation.updateMany({
+        where: { id: quotationId, status: 'PENDING' },
         data: { status: 'ACCEPTED' },
       });
 
-      // Reject all other quotations for this request
+      if (updateResult.count === 0) {
+        throw new ConflictException(
+          'Quotation has already been accepted or is no longer in pending status',
+        );
+      }
+
+      // Reject all other competing quotations for this request
       await tx.quotation.updateMany({
         where: {
           requestId: quote.requestId,
@@ -247,6 +276,11 @@ export class QuotationsService {
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
+      include: {
+        quotation: {
+          include: { request: true },
+        },
+      },
     });
 
     if (!booking) {
@@ -263,6 +297,9 @@ export class QuotationsService {
       throw new ForbiddenException('You do not have permission to update this booking');
     }
 
+    // Validate state machine transition with actor permissions
+    validateBookingTransition(booking.status, newStatus as any, user.role);
+
     const data: any = { status: newStatus as any };
     if (newStatus === 'IN_PROGRESS' && !booking.startedAt) {
       data.startedAt = new Date();
@@ -271,14 +308,31 @@ export class QuotationsService {
       data.completedAt = new Date();
     }
 
-    return await this.prisma.booking.update({
-      where: { id },
-      data,
-      include: {
-        customer: true,
-        provider: true,
-        quotation: true,
-      },
+    return await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.update({
+        where: { id },
+        data,
+        include: {
+          customer: true,
+          provider: true,
+          quotation: true,
+        },
+      });
+
+      // If work is completed, transition ServiceRequest to COMPLETED as well
+      if (newStatus === 'COMPLETED' && booking.quotation?.request) {
+        validateServiceRequestTransition(
+          booking.quotation.request.status,
+          'COMPLETED',
+          user.role,
+        );
+        await tx.serviceRequest.update({
+          where: { id: booking.quotation.request.id },
+          data: { status: 'COMPLETED' },
+        });
+      }
+
+      return updated;
     });
   }
 
