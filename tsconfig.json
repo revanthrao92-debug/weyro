@@ -8,6 +8,9 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@weyro/api-contracts": [
+        "./packages/api-contracts/src/index.ts"
       ]
     }
   },

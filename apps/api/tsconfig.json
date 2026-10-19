@@ -19,7 +19,8 @@
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@weyro/api-contracts": ["../../packages/api-contracts/src/index.ts"]
     }
   },
   "include": ["src/**/*"],

@@ -59,8 +59,8 @@ export class DamageRequestsService {
     try {
       return await this.prisma.serviceRequest.create({
         data: {
-          customerId: dto.customerId,
-          vehicleId: dto.vehicleId,
+          customerId: dto.customerId || 'cust_01',
+          vehicleId: dto.vehicleId || 'veh_01',
           category: 'REPAIR',
           title: dto.title,
           description: dto.description,

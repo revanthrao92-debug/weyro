@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weyro - Next-Generation Automotive Marketplace Presentation</title>
+  <style>
+    :root {
+      --bg: #0B132B;
+      --card-bg: #1C2541;
+      --accent-cyan: #48CAE4;
+      --accent-green: #10B981;
+      --accent-amber: #F59E0B;
+      --text-main: #FFFFFF;
+      --text-muted: #A0AEC0;
+      --border: #3A4A6F;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .presentation-container {
+      width: 100%;
+      max-width: 1100px;
+      aspect-ratio: 16 / 9;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 44px 56px;
+      overflow: hidden;
+    }
+
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .slide-tracker {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .slide-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-main);
+    }
+
+    .slide-number {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+    }
+
+    .card-sub {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-amber);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .card ul li {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      position: relative;
+      padding-left: 16px;
+      line-height: 1.45;
+    }
+
+    .card ul li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--accent-cyan);
+      font-weight: bold;
+    }
+
+    /* Controls bar */
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-top: 20px;
+      align-items: center;
+    }
+
+    button {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-cyan);
+      color: var(--bg);
+      border-color: var(--accent-cyan);
+    }
+
+    .slide {
+      display: none;
+      height: 100%;
+      flex-direction: column;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    .hero-title {
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+
+    .hero-sub {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+      max-width: 800px;
+      line-height: 1.5;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      background: rgba(72, 202, 228, 0.15);
+      color: var(--accent-cyan);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      border: 1px solid rgba(72, 202, 228, 0.3);
+    }
+
+    .key-metrics {
+      display: flex;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .metric-box {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 10px;
+    }
+
+    .metric-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent-green);
+    }
+
+    .metric-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="presentation-container">
+
+    <!-- Slide 1: Cover -->
+    <div class="slide active">
+      <div class="slide-header">
+        <div>
+          <span class="badge-pill">EXECUTIVE PITCH DECK</span>
+        </div>
+        <div class="slide-number">01 / 10</div>
+      </div>
+      <div class="slide-body">
+        <h1 class="hero-title">Weyro 🚗🔧</h1>
+        <p class="hero-sub">Next-generation automotive marketplace connecting vehicle owners with verified mechanics, garages, and spare-parts dealers nationwide.</p>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">📸 Damage Broadcast</div>
+            <div class="card-desc">Decentralized nationwide dispatch without geographic barriers or travel restrictions.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">⚡ Multi-Bid Quotations</div>
+            <div class="card-desc">Binding bids with itemized parts, labour, grade (OEM/Aftermarket), and delivery ETA.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">🛡️ Escrow Protection</div>
+            <div class="card-desc">Funds secured in milestone escrow until the vehicle owner inspects and approves.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 2: Market Problem -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">MARKET FRICTION</div>
+          <div class="slide-title">The Automotive Repair Trilemma</div>
+        </div>
+        <div class="slide-number">02 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">1. Opaque Pricing</div>
+            <div class="card-sub">30-50% Unchecked Markup</div>
+            <ul>
+              <li>Garages provide arbitrary, non-binding estimates</li>
+              <li>No visibility into genuine parts pricing vs labour</li>
+              <li>Vehicle owners trapped by local monopoly garages</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">2. Part Sourcing Bottlenecks</div>
+            <div class="card-sub">Weeks of Vehicle Downtime</div>
+            <ul>
+              <li>Workshops restricted to local distributor catalogs</li>
+              <li>Frequent wrong-part deliveries and compatibility issues</li>
+              <li>Inability to access nationwide auto dismantling inventory</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">3. Zero Escrow Protection</div>
+            <div class="card-sub">High Financial Risk</div>
+            <ul>
+              <li>Upfront deposits required with zero consumer recourse</li>
+              <li>No live courier or repair milestone accountability</li>
+              <li>Absence of formal warranty and dispute resolution</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 3: The Solution -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">VALUE PROPOSITION</div>
+          <div class="slide-title">The Weyro Decentralized Platform</div>
+        </div>
+        <div class="slide-number">03 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">📸 Photo Broadcast Engine</div>
+            <div class="card-desc">Snap damaged components. The broadcast engine distributes requests nationwide across vetted mechanics and parts distributors in seconds.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">⚡ Multi-Bid Quotation Auctions</div>
+            <div class="card-desc">Providers compete transparently with itemized bids specifying OEM vs Aftermarket grade, labour costs, warranty days, and courier ETA.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">💬 In-App Fitment Chat</div>
+            <div class="card-desc">Real-time messaging between car owners and providers to verify VIN compatibility, share close-ups, and clarify fitment.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">📦 Escrow & Courier Tracking</div>
+            <div class="card-desc">Milestone-based fund release: Confirmed → Sourced → Dispatched → Completed, with integrated FedEx/Courier tracking.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 4: System Architecture -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">ENGINEERING ARCHITECTURE</div>
+          <div class="slide-title">Modular Monorepo Topology</div>
+        </div>
+        <div class="slide-number">04 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">📱 Mobile Client</div>
+            <div class="card-sub">React Native 0.86 • Expo SDK 57</div>
+            <ul>
+              <li>Expo Router file-based routing</li>
+              <li>useSyncExternalStore reactive store</li>
+              <li>AsyncStorage offline queue durability</li>
+              <li>expo-image & camera picker capture</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">⚙️ Backend API</div>
+            <div class="card-sub">NestJS 11 • Prisma ORM</div>
+            <ul>
+              <li>Domain modules: Requests, Quotes, Admin</li>
+              <li>AdminAuthGuard RBAC token enforcement</li>
+              <li>PostgreSQL with PostGIS spatial radius</li>
+              <li>Atomic database transactions</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">📦 Shared Contracts</div>
+            <div class="card-sub">TypeScript Monorepo Packages</div>
+            <ul>
+              <li>packages/api-contracts: Shared DTOs</li>
+              <li>packages/database: Prisma schema & migrations</li>
+              <li>packages/validation: Shared Zod schemas</li>
+              <li>Strict end-to-end type safety</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 5: Customer Journey -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">USER EXPERIENCE</div>
+          <div class="slide-title">End-to-End Customer Journey</div>
+        </div>
+        <div class="slide-number">05 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">1. Post Damage Broadcast</div>
+            <div class="card-desc">Upload damaged part photos, vehicle make/model/year, urgency status, and preferred fulfillment (Courier, Workshop, On-Site).</div>
+          </div>
+          <div class="card">
+            <div class="card-title">2. Side-by-Side Comparison</div>
+            <div class="card-desc">Review competing bids with transparent breakdown of parts cost, labour, freight, warranty, and provider verified reputation.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">3. Escrow & Milestones</div>
+            <div class="card-desc">Accept winning quote, secure funds in escrow, track courier tracking number, and inspect upon delivery before releasing funds.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: Provider Ecosystem -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">SUPPLY SIDE</div>
+          <div class="slide-title">Provider & Workshop Experience</div>
+        </div>
+        <div class="slide-number">06 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Nationwide Broadcast Feed</div>
+            <div class="card-desc">Mechanics and auto dismantlers view incoming repair requests nationwide, expanding revenue beyond local zip codes.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Fast Quotation Builder</div>
+            <div class="card-desc">Submit binding quotes with OEM/Aftermarket tags, ETA timeframes, and warranty commitments in under 60 seconds.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Verified Trust Badging</div>
+            <div class="card-desc">Vetted trade license and workshop accreditation badges increase win rates on high-ticket luxury and commercial vehicles.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 7: Operations & Admin Console -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">GOVERNANCE & PLATFORM SCALE</div>
+          <div class="slide-title">Operations & Dispatcher Console</div>
+        </div>
+        <div class="slide-number">07 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">📊 Real-Time Platform KPIs</div>
+            <div class="card-desc">Live tracking of open broadcasts, bidding velocity, completed bookings, and total gross escrow volume.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">📋 Provider KYC Verification</div>
+            <div class="card-desc">Audit mechanic trade licenses, tax IDs, and physical shop credentials with one-click approve/reject actions.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">🛡️ Escrow Reconciliation Ledger</div>
+            <div class="card-desc">Immutable transaction log tracking escrow funds held, provider payouts released, and refunds processed.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">🔐 AdminAuthGuard Security</div>
+            <div class="card-desc">Protected by Bearer token authorization guards on NestJS API to prevent unauthorized access.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 8: Offline Durability -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">RESILIENCE ENGINEERING</div>
+          <div class="slide-title">Zero-Data-Loss Offline Architecture</div>
+        </div>
+        <div class="slide-number">08 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">1. Action Enqueueing</div>
+            <div class="card-desc">Every mutation (post broadcast, quote, booking, review) is buffered as an immutable QueuedMutation object with unique ID.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">2. Native Storage Backup</div>
+            <div class="card-desc">Persisted to native device storage using @react-native-async-storage/async-storage, surviving app restarts and crashes.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">3. FIFO Auto-Drain</div>
+            <div class="card-desc">Background worker drains queued actions in strict order with retry backoff and manual flush controls.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 9: Monetization & Economics -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">BUSINESS MODEL</div>
+          <div class="slide-title">Monetization & Unit Economics</div>
+        </div>
+        <div class="slide-number">09 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Marketplace Take-Rate</div>
+            <div class="card-sub">5% - 8% Platform Commission</div>
+            <div class="card-desc">Deducted automatically upon milestone escrow completion. Substantially lower than dealership markup.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Sponsored Provider Ads</div>
+            <div class="card-sub">Featured Bidding Tier</div>
+            <div class="card-desc">High-volume dismantling yards pay subscription fees for top-of-feed placement and enhanced trust badges.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">B2B Fleet Dispatch</div>
+            <div class="card-sub">Enterprise SaaS Integration</div>
+            <div class="card-desc">Direct claims dispatch API for motor insurance carriers and commercial fleet operators.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 10: Roadmap -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tracker">PRODUCT ROADMAP</div>
+          <div class="slide-title">Engineering Horizons & Expansion</div>
+        </div>
+        <div class="slide-number">10 / 10</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Tier 1: Core Foundation</div>
+            <div class="card-sub">In Progress</div>
+            <ul>
+              <li>JWT Authentication & SecureStore</li>
+              <li>Payment Gateway (UPI / Stripe)</li>
+              <li>Automated Escrow Milestone release</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">Tier 2: Trust & Spatial AI</div>
+            <div class="card-sub">Next Milestone</div>
+            <ul>
+              <li>Live PostGIS ST_DWithin courier map</li>
+              <li>VIN / Chassis auto-compatibility decoder</li>
+              <li>Warranty dispute evidence freezer</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">Tier 3: Scale & Operations</div>
+            <div class="card-sub" style="color: var(--accent-green);">Completed ✓</div>
+            <ul>
+              <li>Durable AsyncStorage mutation queue</li>
+              <li>Operations dashboard & escrow ledger</li>
+              <li>AdminAuthGuard token RBAC protection</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="controls">
+    <button onclick="prevSlide()">← Previous</button>
+    <button onclick="nextSlide()">Next →</button>
+    <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+
+    function showSlide(index) {
+      slides[currentSlide].classList.remove('active');
+      currentSlide = (index + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+    }
+
+    function nextSlide() {
+      showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      showSlide(currentSlide - 1);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+  </script>
+</body>
+</html>

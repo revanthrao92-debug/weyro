@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface DamageRequestQuote {
   id: string;
@@ -143,13 +144,176 @@ let bookings: BookingRecord[] = [
   },
 ];
 
+export interface QueuedMutation {
+  id: string;
+  type:
+    | 'CREATE_REQUEST'
+    | 'CREATE_QUOTE'
+    | 'ACCEPT_QUOTE'
+    | 'UPDATE_STATUS'
+    | 'SUBMIT_REVIEW';
+  url: string;
+  method: 'POST' | 'PATCH' | 'PUT';
+  body: Record<string, unknown>;
+  createdAt: string;
+  retryCount: number;
+  lastError?: string;
+}
+
+export interface OfflineSyncStatus {
+  pendingCount: number;
+  isSyncing: boolean;
+  lastSyncedAt: string | null;
+  isOnline: boolean;
+  lastError: string | null;
+}
+
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+
+const QUEUE_STORAGE_KEY = '@weyro/offline_mutation_queue_v1';
+
+function loadPersistedQueue(): QueuedMutation[] {
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
+      const data = globalThis.localStorage.getItem(QUEUE_STORAGE_KEY);
+      if (data) return JSON.parse(data);
+    }
+  } catch {
+    // Non-blocking catch
+  }
+  return [];
+}
+
+function persistQueue(queue: QueuedMutation[]): void {
+  // Asynchronously persist to native cross-platform AsyncStorage
+  AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue)).catch(() => {});
+
+  // Synchronously backup to web localStorage if available
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
+      globalThis.localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    }
+  } catch {
+    // Non-blocking catch
+  }
+}
+
+let mutationQueue: QueuedMutation[] = loadPersistedQueue();
+
+async function initAsyncStorage(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
+    if (raw) {
+      const parsed: QueuedMutation[] = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        mutationQueue = parsed;
+        emitChange();
+        flushMutationQueue().catch(() => {});
+      }
+    }
+  } catch {
+    // Non-blocking catch
+  }
+}
+
+initAsyncStorage().catch(() => {});
+let isCurrentlySyncing = false;
+let lastSyncedTimestamp: string | null = null;
+let lastSyncErrorMessage: string | null = null;
+let isNetworkOnline = true;
+
+let currentSyncStatus: OfflineSyncStatus = {
+  pendingCount: mutationQueue.length,
+  isSyncing: false,
+  lastSyncedAt: null,
+  isOnline: true,
+  lastError: null,
+};
 
 function emitChange() {
+  currentSyncStatus = {
+    pendingCount: mutationQueue.length,
+    isSyncing: isCurrentlySyncing,
+    lastSyncedAt: lastSyncedTimestamp,
+    isOnline: isNetworkOnline,
+    lastError: lastSyncErrorMessage,
+  };
   for (const listener of listeners) {
     listener();
   }
+}
+
+async function flushMutationQueue(): Promise<{ synced: number; failed: number }> {
+  if (mutationQueue.length === 0) {
+    return { synced: 0, failed: 0 };
+  }
+
+  let synced = 0;
+  let failed = 0;
+  const remaining: QueuedMutation[] = [];
+
+  for (const item of mutationQueue) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(item.url, {
+        method: item.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item.body),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        synced++;
+      } else {
+        item.retryCount += 1;
+        item.lastError = `HTTP ${res.status}: ${res.statusText}`;
+        remaining.push(item);
+        failed++;
+      }
+    } catch (err: any) {
+      item.retryCount += 1;
+      item.lastError = err?.message || 'Network unreachable';
+      remaining.push(item);
+      failed++;
+      isNetworkOnline = false;
+      break; // Stop draining if network is dropped
+    }
+  }
+
+  mutationQueue = remaining;
+  persistQueue(mutationQueue);
+  emitChange();
+
+  return { synced, failed };
+}
+
+function enqueueMutation(
+  type: QueuedMutation['type'],
+  url: string,
+  method: QueuedMutation['method'],
+  body: Record<string, unknown>
+): void {
+  const item: QueuedMutation = {
+    id: `mut_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    type,
+    url,
+    method,
+    body,
+    createdAt: new Date().toISOString(),
+    retryCount: 0,
+  };
+
+  mutationQueue.push(item);
+  persistQueue(mutationQueue);
+  emitChange();
+
+  // Attempt immediate background flush
+  flushMutationQueue().catch(() => {});
 }
 
 function mapBackendRequest(raw: any): DamageBroadcastRequest {
@@ -213,7 +377,15 @@ function mapBackendBooking(raw: any): BookingRecord {
 }
 
 async function syncWithBackend(): Promise<void> {
+  if (isCurrentlySyncing) return;
+  isCurrentlySyncing = true;
+  emitChange();
+
   try {
+    // 1. Drain pending offline mutation queue first
+    await flushMutationQueue();
+
+    // 2. Fetch fresh feed from backend
     const [reqRes, bkRes] = await Promise.all([
       fetch(`${API_BASE_URL}/damage-requests/broadcast-feed`),
       fetch(`${API_BASE_URL}/bookings`),
@@ -223,7 +395,6 @@ async function syncWithBackend(): Promise<void> {
       const serverRequests = await reqRes.json();
       if (Array.isArray(serverRequests) && serverRequests.length > 0) {
         const mapped = serverRequests.map(mapBackendRequest);
-        // Merge without losing locally added requests
         const existingIds = new Set(mapped.map((r) => r.id));
         const localOnly = requests.filter((r) => !existingIds.has(r.id));
         requests = [...localOnly, ...mapped];
@@ -240,9 +411,15 @@ async function syncWithBackend(): Promise<void> {
       }
     }
 
+    isNetworkOnline = true;
+    lastSyncedTimestamp = new Date().toISOString();
+    lastSyncErrorMessage = null;
+  } catch (err: any) {
+    isNetworkOnline = false;
+    lastSyncErrorMessage = err?.message || 'Offline mode: maintaining local state';
+  } finally {
+    isCurrentlySyncing = false;
     emitChange();
-  } catch {
-    // Offline mode: gracefully maintain local memory state
   }
 }
 
@@ -277,27 +454,23 @@ export const damageRequestStore = {
     requests = [newReq, ...requests];
     emitChange();
 
-    // Asynchronously push to NestJS backend
-    fetch(`${API_BASE_URL}/damage-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.damagedPart,
-        description: data.description,
-        urgency: data.urgency,
-        fulfillmentType: data.fulfillmentType,
-        damagePhotos: data.damagePhotos,
-        isBroadcast: true,
-        address: 'Nationwide Broadcast',
-        latitude: 40.7128,
-        longitude: -74.006,
-        vehicle: {
-          make: data.vehicleMake,
-          model: data.vehicleModel,
-          year: data.vehicleYear,
-        },
-      }),
-    }).catch(() => {});
+    // Enqueue durable offline mutation
+    enqueueMutation('CREATE_REQUEST', `${API_BASE_URL}/damage-requests`, 'POST', {
+      title: data.damagedPart,
+      description: data.description,
+      urgency: data.urgency,
+      fulfillmentType: data.fulfillmentType,
+      damagePhotos: data.damagePhotos,
+      isBroadcast: true,
+      address: 'Nationwide Broadcast',
+      latitude: 40.7128,
+      longitude: -74.006,
+      vehicle: {
+        make: data.vehicleMake,
+        model: data.vehicleModel,
+        year: data.vehicleYear,
+      },
+    });
 
     return newReq;
   },
@@ -330,18 +503,19 @@ export const damageRequestStore = {
     ];
     emitChange();
 
-    fetch(`${API_BASE_URL}/damage-requests/${requestId}/quotations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    enqueueMutation(
+      'CREATE_QUOTE',
+      `${API_BASE_URL}/damage-requests/${requestId}/quotations`,
+      'POST',
+      {
         providerName: quote.providerName,
         providerType: quote.providerType,
         totalCost: quote.estimatedCost,
         partCondition: quote.partCondition,
         etaDescription: quote.eta,
         notes: quote.notes,
-      }),
-    }).catch(() => {});
+      }
+    );
 
     return newQuote;
   },
@@ -407,14 +581,15 @@ export const damageRequestStore = {
 
     emitChange();
 
-    fetch(`${API_BASE_URL}/quotations/${acceptedQuote.id}/accept`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    enqueueMutation(
+      'ACCEPT_QUOTE',
+      `${API_BASE_URL}/quotations/${acceptedQuote.id}/accept`,
+      'POST',
+      {
         deliveryAddress: details.deliveryAddress,
         scheduledDate: details.scheduledDate,
-      }),
-    }).catch(() => {});
+      }
+    );
 
     return newBooking;
   },
@@ -439,15 +614,16 @@ export const damageRequestStore = {
     bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
     emitChange();
 
-    fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    enqueueMutation(
+      'UPDATE_STATUS',
+      `${API_BASE_URL}/bookings/${bookingId}/status`,
+      'PATCH',
+      {
         status,
         trackingNumber: details?.trackingNumber || target.trackingNumber,
         carrierName: details?.carrierName || target.carrierName,
-      }),
-    }).catch(() => {});
+      }
+    );
 
     return updated;
   },
@@ -473,16 +649,29 @@ export const damageRequestStore = {
     bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
     emitChange();
 
-    fetch(`${API_BASE_URL}/bookings/${bookingId}/reviews`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    enqueueMutation(
+      'SUBMIT_REVIEW',
+      `${API_BASE_URL}/bookings/${bookingId}/reviews`,
+      'POST',
+      {
         rating,
         comment: comment.trim(),
-      }),
-    }).catch(() => {});
+      }
+    );
 
     return updated;
+  },
+
+  getPendingMutations(): QueuedMutation[] {
+    return [...mutationQueue];
+  },
+
+  getSyncStatus(): OfflineSyncStatus {
+    return currentSyncStatus;
+  },
+
+  flushQueue(): Promise<{ synced: number; failed: number }> {
+    return flushMutationQueue();
   },
 
   subscribe(listener: Listener): () => void {
@@ -512,3 +701,12 @@ export function useBookings(): BookingRecord[] {
     damageRequestStore.getBookings
   );
 }
+
+export function useOfflineSyncStatus(): OfflineSyncStatus {
+  return useSyncExternalStore(
+    damageRequestStore.subscribe,
+    damageRequestStore.getSyncStatus,
+    damageRequestStore.getSyncStatus
+  );
+}
+

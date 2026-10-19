@@ -213,3 +213,39 @@ export interface Review {
   comment?: string;
   createdAt: string;
 }
+
+// Admin & Platform Scale (Tier 3)
+export interface AdminOverviewMetrics {
+  totalRequests: number;
+  openBroadcasts: number;
+  totalQuotations: number;
+  acceptedQuotations: number;
+  totalBookings: number;
+  completedBookings: number;
+  totalEscrowVolume: number;
+  pendingVerifications: number;
+  verifiedProviders: number;
+}
+
+export interface ProviderVerificationRecord {
+  id: string;
+  businessName: string;
+  providerType: ProviderType;
+  phone: string;
+  address: string;
+  verificationStatus: VerificationStatus;
+  licenseNumber?: string;
+  taxId?: string;
+  createdAt: string;
+  auditorNotes?: string;
+}
+
+export interface EscrowLedgerEntry {
+  bookingId: string;
+  customerName: string;
+  providerName: string;
+  amount: number;
+  status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  confirmedAt: string;
+  completedAt?: string;
+}
