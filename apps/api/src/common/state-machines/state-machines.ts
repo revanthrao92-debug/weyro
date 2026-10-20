@@ -125,8 +125,8 @@ export function validateBookingTransition(
 
 // 4. Payment State Machine
 export const PAYMENT_TRANSITIONS: TransitionRule<PaymentStatus>[] = [
-  { from: 'PENDING', to: 'AUTHORIZED', allowedActors: ['SYSTEM', 'ADMIN'] },
-  { from: 'PENDING', to: 'CAPTURED', allowedActors: ['SYSTEM', 'ADMIN'] },
+  { from: 'PENDING', to: 'AUTHORIZED', allowedActors: ['SYSTEM', 'ADMIN', 'CUSTOMER'] },
+  { from: 'PENDING', to: 'CAPTURED', allowedActors: ['SYSTEM', 'ADMIN', 'CUSTOMER'] },
   { from: 'PENDING', to: 'FAILED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'AUTHORIZED', to: 'CAPTURED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'AUTHORIZED', to: 'FAILED', allowedActors: ['SYSTEM', 'ADMIN'] },

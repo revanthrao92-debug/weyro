@@ -11,6 +11,7 @@ import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
   validateBookingTransition,
+  validatePaymentTransition,
   validateQuotationTransition,
   validateServiceRequestTransition,
 } from '../../common/state-machines/state-machines';
@@ -277,6 +278,7 @@ export class QuotationsService {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
       include: {
+        payments: { orderBy: { createdAt: 'desc' } },
         quotation: {
           include: { request: true },
         },
@@ -316,6 +318,7 @@ export class QuotationsService {
           customer: true,
           provider: true,
           quotation: true,
+          payments: { orderBy: { createdAt: 'desc' } },
         },
       });
 
@@ -330,6 +333,16 @@ export class QuotationsService {
           where: { id: booking.quotation.request.id },
           data: { status: 'COMPLETED' },
         });
+
+        // Trigger payment release/capture per payment state machine
+        const latestPayment = booking.payments?.[0];
+        if (latestPayment && latestPayment.status === 'AUTHORIZED') {
+          validatePaymentTransition(latestPayment.status, 'CAPTURED', 'SYSTEM');
+          await tx.payment.update({
+            where: { id: latestPayment.id },
+            data: { status: 'CAPTURED', paidAt: new Date() },
+          });
+        }
       }
 
       return updated;

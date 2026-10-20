@@ -107,6 +107,16 @@ cd apps/api && npm run typecheck
 
 ---
 
+## 💳 Payments & Regulatory Compliance
+
+Weyro integrates Razorpay for processing Indian Rupee (INR) transactions via UPI, Credit/Debit cards, and Netbanking with cryptographically verified HMAC SHA-256 webhook signatures and idempotent event handling.
+
+> [!IMPORTANT]
+> **Regulatory Note (RBI PA/PG Guidelines)**:
+> In the application architecture, "escrow" or "held" states represent internal workflow milestones. Under Reserve Bank of India (RBI) Payment Aggregator and Payment Gateway (PA/PG) guidelines, intermediary holding of customer funds requires an authorized PA license or an approved Nodal/Escrow banking arrangement with a scheduled commercial bank. Production marketplace disbursements and split payouts utilize authorized Payment Aggregator marketplace solutions (such as Razorpay Route) with compliant vendor KYC.
+
+---
+
 ## 📄 License
 
 MIT License. Designed and developed for Weyro Automotive Technologies.

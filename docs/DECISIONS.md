@@ -56,3 +56,19 @@ This document tracks significant technical, architectural, and compliance decisi
   - Automate request and quote expiry through `@nestjs/schedule` cron tasks.
   - Reviews restricted to completed bookings and verified customers, with provider aggregate ratings recalculated in the same transaction.
 
+## ADR 006: Payments, Razorpay Gateway, and Indian RBI PA/PG Regulatory Compliance
+- **Date**: 2026-10-20
+- **Status**: Accepted
+- **Context**: Weyro operates as an automotive marketplace connecting Indian vehicle owners with local garages, workshops, and parts suppliers. Monetary transactions use Indian Rupee (INR) via UPI, debit/credit cards, and netbanking.
+- **Decision**:
+  - Integrate Razorpay payment gateway via `PaymentGateway` interface with real HMAC SHA256 cryptographic verification for payment signatures and incoming webhooks.
+  - In development environments without live credentials, fallback to `MockPaymentGateway` (strictly blocked from booting in `NODE_ENV === 'production'`).
+  - Idempotent webhook handling via `WebhookEvent` model with unique event IDs to prevent double capture or multiple refunds.
+  - State machine transition enforcement: payments transition strictly through `PENDING -> AUTHORIZED -> CAPTURED -> REFUNDED` or `FAILED`.
+  - Wire booking completion (`COMPLETED`) to trigger payment capture/release transition.
+- **Legal & Regulatory Compliance (RBI PA/PG Guidelines)**:
+  - Application-level "escrow" or "held" states represent internal workflow milestones.
+  - Under Reserve Bank of India (RBI) Payment Aggregator and Payment Gateway (PA/PG) regulations (Guidelines on Regulation of Payment Aggregators and Payment Gateways, RBI/DPSS/2019-20/174), funds cannot be retained in an intermediary current account without a PA license or an approved Nodal/Escrow account arrangement with a scheduled commercial bank.
+  - For marketplace split disbursements and vendor payouts, Weyro must either utilize an authorized Payment Aggregator's Route/Split/Marketplace product (e.g., Razorpay Route) with direct merchant onboarding and KYC, or undergo formal legal review and banking integration before initiating automated funds distribution.
+
+

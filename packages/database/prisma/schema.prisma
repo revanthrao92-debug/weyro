@@ -280,7 +280,7 @@ model Payment {
   currency         String        @default("INR")
   status           PaymentStatus @default(PENDING)
   gatewayPaymentId String?
-  gatewayOrderId   String?
+  gatewayOrderId   String?       @unique
   method           PaymentMethod @default(UPI)
   paidAt           DateTime?
   createdAt        DateTime      @default(now())
@@ -337,3 +337,15 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  provider    String   @default("RAZORPAY")
+  eventType   String
+  payload     Json
+  processedAt DateTime @default(now())
+
+  @@map("webhook_events")
+}
+
