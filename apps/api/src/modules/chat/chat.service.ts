@@ -16,12 +16,42 @@ export class ChatService {
   ) {}
 
   async getOrCreateThread(user: AuthUserPayload, dto: CreateThreadDto) {
-    if (!user.customerProfileId && user.role !== 'ADMIN') {
+    if (!user.customerProfileId) {
       throw new ForbiddenException(
         'Customer profile required to initiate chat thread',
       );
     }
-    const customerId = user.customerProfileId || user.sub;
+    const customerId = user.customerProfileId;
+
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: dto.providerId },
+      select: { id: true, userId: true },
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    if (provider.userId === user.sub) {
+      throw new ForbiddenException('You cannot start a chat with yourself');
+    }
+
+    if (dto.requestId) {
+      const request = await this.prisma.serviceRequest.findUnique({
+        where: { id: dto.requestId },
+        select: { customerId: true },
+      });
+
+      if (!request) {
+        throw new NotFoundException('Service request not found');
+      }
+
+      if (request.customerId !== customerId) {
+        throw new ForbiddenException(
+          'You can only attach your own service requests to a chat',
+        );
+      }
+    }
 
     const existing = await this.prisma.thread.findFirst({
       where: {
@@ -177,12 +207,19 @@ export class ChatService {
   ) {
     const thread = await this.verifyParticipant(threadId, user);
 
+    const senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN' =
+      user.sub === thread.customer.userId
+        ? 'CUSTOMER'
+        : user.sub === thread.provider.userId
+          ? 'PROVIDER'
+          : 'ADMIN';
+
     const message = await this.prisma.$transaction(async (tx) => {
       const msg = await tx.message.create({
         data: {
           threadId,
           senderId: user.sub,
-          senderRole: user.role,
+          senderRole,
           content,
           mediaUrls,
         },

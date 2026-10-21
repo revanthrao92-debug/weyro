@@ -22,6 +22,12 @@ describe('ChatService', () => {
         create: jest.fn(),
         updateMany: jest.fn(),
       },
+      providerProfile: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'prov-1', userId: 'user-p' }),
+      },
+      serviceRequest: {
+        findUnique: jest.fn(),
+      },
       $transaction: jest.fn((callback) => callback(mockPrisma)),
     };
 
@@ -98,6 +104,21 @@ describe('ChatService', () => {
           }),
         }),
       );
+    });
+
+    it('rejects attaching another customer\'s service request', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+        customerId: 'cust-999',
+      });
+
+      await expect(
+        service.getOrCreateThread(customerUser, {
+          providerId: 'prov-1',
+          requestId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.thread.create).not.toHaveBeenCalled();
     });
   });
 
