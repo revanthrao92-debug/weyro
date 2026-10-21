@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DamageRequestsService } from './damage-requests.service';
 
 describe('DamageRequestsService', () => {
@@ -138,5 +138,127 @@ describe('DamageRequestsService', () => {
       expect(result.address).toBe('Whitefield, Bengaluru');
       expect((result.customer as any).user).toBeUndefined();
     });
+  });
+});
+
+describe('DamageRequestsService authorization regressions', () => {
+  let service: DamageRequestsService;
+  let mockPrisma: any;
+
+  beforeEach(() => {
+    mockPrisma = {
+      serviceRequest: {
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+      },
+      $queryRaw: jest.fn(),
+    };
+    service = new DamageRequestsService(mockPrisma);
+  });
+
+  const providerUser = {
+    sub: 'usr-prov',
+    email: 'prov@example.com',
+    role: 'PROVIDER',
+    providerProfileId: 'prov-1',
+  };
+
+  it('scopes feed quotations to the calling provider', async () => {
+    mockPrisma.serviceRequest.findMany.mockResolvedValue([]);
+
+    await service.getBroadcastFeed({ providerId: 'prov-1' });
+
+    expect(mockPrisma.serviceRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          quotations: { where: { providerId: 'prov-1' } },
+        }),
+      }),
+    );
+  });
+
+  it('hides competitors quotations from a provider request detail', async () => {
+    mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+      id: 'req-1',
+      customerId: 'cust-1',
+      address: '1 Main Road, Whitefield, Bengaluru',
+      customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
+      quotations: [
+        { id: 'q-own', providerId: 'prov-1', status: 'PENDING', booking: null },
+        { id: 'q-rival', providerId: 'prov-2', status: 'PENDING', booking: null },
+      ],
+    });
+
+    const result = await service.findOne('req-1', providerUser as any);
+
+    expect(result.quotations).toHaveLength(1);
+    expect(result.quotations[0].id).toBe('q-own');
+  });
+
+  it('allows the owning customer to see every quotation', async () => {
+    mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+      id: 'req-1',
+      customerId: 'cust-1',
+      address: '1 Main Road, Whitefield, Bengaluru',
+      customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
+      quotations: [
+        { id: 'q-1', providerId: 'prov-1', status: 'PENDING', booking: null },
+        { id: 'q-2', providerId: 'prov-2', status: 'PENDING', booking: null },
+      ],
+    });
+
+    const result = await service.findOne('req-1', {
+      sub: 'usr-cust',
+      email: 'c@example.com',
+      role: 'CUSTOMER',
+      customerProfileId: 'cust-1',
+    } as any);
+
+    expect(result.quotations).toHaveLength(2);
+  });
+
+  it('rejects a customer reading another customers request', async () => {
+    mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+      id: 'req-1',
+      customerId: 'cust-1',
+      address: '1 Main Road, Whitefield, Bengaluru',
+      customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
+      quotations: [],
+    });
+
+    await expect(
+      service.findOne('req-1', {
+        sub: 'usr-x',
+        email: 'x@example.com',
+        role: 'CUSTOMER',
+        customerProfileId: 'cust-999',
+      } as any),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('returns only the calling customers own requests from findMine', async () => {
+    mockPrisma.serviceRequest.findMany.mockResolvedValue([]);
+
+    await service.findMine(
+      {
+        sub: 'usr-cust',
+        email: 'c@example.com',
+        role: 'CUSTOMER',
+        customerProfileId: 'cust-1',
+      } as any,
+      undefined,
+      10,
+    );
+
+    expect(mockPrisma.serviceRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { customerId: 'cust-1' } }),
+    );
+  });
+
+  it('does not query when a provider has no customer profile', async () => {
+    const result = await service.findMine(providerUser as any);
+
+    expect(result).toEqual({ items: [], nextCursor: null });
+    expect(mockPrisma.serviceRequest.findMany).not.toHaveBeenCalled();
   });
 });
