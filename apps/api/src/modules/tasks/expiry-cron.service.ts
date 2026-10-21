@@ -6,7 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ExpiryCronService {
   private readonly logger = new Logger(ExpiryCronService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleExpiration() {

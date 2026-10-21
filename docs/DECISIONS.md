@@ -71,4 +71,17 @@ This document tracks significant technical, architectural, and compliance decisi
   - Under Reserve Bank of India (RBI) Payment Aggregator and Payment Gateway (PA/PG) regulations (Guidelines on Regulation of Payment Aggregators and Payment Gateways, RBI/DPSS/2019-20/174), funds cannot be retained in an intermediary current account without a PA license or an approved Nodal/Escrow account arrangement with a scheduled commercial bank.
   - For marketplace split disbursements and vendor payouts, Weyro must either utilize an authorized Payment Aggregator's Route/Split/Marketplace product (e.g., Razorpay Route) with direct merchant onboarding and KYC, or undergo formal legal review and banking integration before initiating automated funds distribution.
 
+## ADR 007: PostGIS Spatial Indexing, Real SQL Migrations, and Cursor Pagination
+- **Date**: 2026-10-21
+- **Status**: Accepted
+- **Context**: Radius and proximity queries across provider profiles and damage requests previously relied on runtime trigonometric Haversine computations or dynamic geography point conversions on unindexed tables. Requests also lacked foreign key indexes, compound query indexes, and cursor-based pagination, risking performance degradation with unbounded `findMany` queries.
+- **Decision**:
+  - Establish baseline SQL migration (`packages/database/prisma/migrations/20261020000000_init_postgis_and_models/migration.sql`) enabling PostGIS, creating all schema tables, enums, FK constraints, and indexes.
+  - Add native PostGIS `geography(Point, 4326)` columns (`location`) with GiST spatial indexes (`provider_profiles_location_idx`, `service_requests_location_idx`) and database-level trigger functions (`sync_geography_location`) that automatically synchronize coordinates on insert or update of `latitude` and `longitude`.
+  - Rewrite `packages/database/src/geo.ts` to utilize `ST_DWithin` on the GiST-indexed `location` column for sub-millisecond proximity queries.
+  - Implement cursor-based pagination across broadcast feed, quotations, bookings, and spare parts catalog with a strict maximum limit of 50 items to eliminate unbounded table scans.
+  - Deprecate redundant `damagePhotos String[]` column in favor of the normalized `RequestMedia` relational model (`request_media` table), preserving backwards-compatible mapping across legacy API contracts.
+  - Introduce `Thread`, `Message`, and `Notification` models to establish the foundation for real-time messaging and push dispatch.
+
+
 

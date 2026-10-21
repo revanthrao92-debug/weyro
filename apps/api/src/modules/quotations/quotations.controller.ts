@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
@@ -49,8 +50,15 @@ export class QuotationsController {
   async findByRequest(
     @Param('requestId') requestId: string,
     @CurrentUser() user: AuthUserPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.service.findByRequest(requestId, user);
+    return this.service.findByRequest(
+      requestId,
+      user,
+      cursor,
+      limit ? parseInt(limit, 10) : 20,
+    );
   }
 
   @Post('quotations/:id/accept')
@@ -65,8 +73,18 @@ export class QuotationsController {
   }
 
   @Get('bookings')
-  async getBookings(@CurrentUser() user: AuthUserPayload) {
-    return this.service.getBookings(user);
+  async getBookings(
+    @CurrentUser() user: AuthUserPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.service.getBookings(
+      user,
+      cursor,
+      limit ? parseInt(limit, 10) : 20,
+      status,
+    );
   }
 
   @Patch('bookings/:id/status')

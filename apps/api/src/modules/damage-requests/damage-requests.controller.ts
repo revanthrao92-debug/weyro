@@ -48,17 +48,23 @@ export class DamageRequestsController {
     @Query('lat') lat?: string,
     @Query('lng') lng?: string,
     @Query('radiusKm') radiusKm?: string,
+    @Query('category') category?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
     if (user.role !== 'ADMIN' && user.verificationStatus !== 'VERIFIED') {
       throw new ForbiddenException(
         'Only verified providers can access the broadcast feed',
       );
     }
-    return this.service.getBroadcastFeed(
-      lat ? parseFloat(lat) : undefined,
-      lng ? parseFloat(lng) : undefined,
-      radiusKm ? parseFloat(radiusKm) : 25,
-    );
+    return this.service.getBroadcastFeed({
+      providerLat: lat ? parseFloat(lat) : undefined,
+      providerLng: lng ? parseFloat(lng) : undefined,
+      radiusKm: radiusKm ? parseFloat(radiusKm) : 25,
+      category,
+      cursor,
+      limit: limit ? parseInt(limit, 10) : 20,
+    });
   }
 
   @Get(':id')

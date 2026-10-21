@@ -120,6 +120,7 @@ model User {
   customerProfile CustomerProfile?
   providerProfile ProviderProfile?
   refreshTokens   RefreshToken[]
+  notifications   Notification[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -138,6 +139,7 @@ model CustomerProfile {
   requests       ServiceRequest[]
   bookings       Booking[]
   reviews        Review[]
+  threads        Thread[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -159,13 +161,14 @@ model Vehicle {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
+  @@index([customerId])
   @@map("vehicles")
 }
 
 model ProviderProfile {
-  id                    String             @id @default(uuid())
-  userId                String             @unique
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String                              @id @default(uuid())
+  userId                String                              @unique
+  user                  User                                @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName          String
   providerType          ProviderType
   description           String
@@ -173,46 +176,58 @@ model ProviderProfile {
   address               String
   latitude              Float
   longitude             Float
-  serviceRadiusKm       Float              @default(15.0)
-  verificationStatus    VerificationStatus @default(PENDING)
+  location              Unsupported("geography(Point, 4326)")?
+  serviceRadiusKm       Float                               @default(15.0)
+  verificationStatus    VerificationStatus                  @default(PENDING)
   verificationDocuments Json?
-  avgRating             Float              @default(0.0)
-  totalReviews          Int                @default(0)
-  completedJobs         Int                @default(0)
-  isAvailable           Boolean            @default(true)
+  avgRating             Float                               @default(0.0)
+  totalReviews          Int                                 @default(0)
+  completedJobs         Int                                 @default(0)
+  isAvailable           Boolean                             @default(true)
   quotations            Quotation[]
   bookings              Booking[]
   reviews               Review[]
   spareParts            SparePart[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  threads               Thread[]
+  createdAt             DateTime                            @default(now())
+  updatedAt             DateTime                            @updatedAt
 
+  @@index([verificationStatus])
+  @@index([providerType])
+  @@index([avgRating])
   @@map("provider_profiles")
 }
 
 model ServiceRequest {
-  id              String               @id @default(uuid())
+  id              String                                @id @default(uuid())
   customerId      String
-  customer        CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer        CustomerProfile                       @relation(fields: [customerId], references: [id], onDelete: Cascade)
   vehicleId       String
-  vehicle         Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  vehicle         Vehicle                               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   category        ServiceCategory
   title           String
   description     String
   address         String
   latitude        Float
   longitude       Float
-  urgency         Urgency              @default(NORMAL)
-  status          ServiceRequestStatus @default(OPEN)
-  isBroadcast     Boolean              @default(true)
-  damagePhotos    String[]             @default([])
+  location        Unsupported("geography(Point, 4326)")?
+  urgency         Urgency                               @default(NORMAL)
+  status          ServiceRequestStatus                  @default(OPEN)
+  isBroadcast     Boolean                               @default(true)
   fulfillmentType String?
   expiresAt       DateTime
   quotations      Quotation[]
   media           RequestMedia[]
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  threads         Thread[]
+  createdAt       DateTime                              @default(now())
+  updatedAt       DateTime                              @updatedAt
 
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([status, createdAt])
+  @@index([status, urgency])
+  @@index([category, status])
+  @@index([expiresAt])
   @@map("service_requests")
 }
 
@@ -224,6 +239,7 @@ model RequestMedia {
   fileType  String
   createdAt DateTime       @default(now())
 
+  @@index([requestId])
   @@map("request_media")
 }
 
@@ -248,6 +264,9 @@ model Quotation {
   updatedAt      DateTime        @updatedAt
 
   @@unique([requestId, providerId])
+  @@index([requestId])
+  @@index([providerId])
+  @@index([status, createdAt])
   @@map("quotations")
 }
 
@@ -269,6 +288,9 @@ model Booking {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  @@index([customerId])
+  @@index([providerId])
+  @@index([status, createdAt])
   @@map("bookings")
 }
 
@@ -286,6 +308,8 @@ model Payment {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
+  @@index([bookingId])
+  @@index([status, createdAt])
   @@map("payments")
 }
 
@@ -303,6 +327,9 @@ model Review {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
+  @@index([customerId])
+  @@index([providerId])
+  @@index([providerId, status])
   @@map("reviews")
 }
 
@@ -322,6 +349,8 @@ model SparePart {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
+  @@index([providerId])
+  @@index([providerId, isActive])
   @@map("spare_parts")
 }
 
@@ -348,4 +377,57 @@ model WebhookEvent {
 
   @@map("webhook_events")
 }
+
+model Thread {
+  id            String          @id @default(uuid())
+  requestId     String?
+  request       ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  customerId    String
+  customer      CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerId    String
+  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  lastMessageAt DateTime        @default(now())
+  messages      Message[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([customerId, providerId, requestId])
+  @@index([customerId])
+  @@index([providerId])
+  @@index([requestId])
+  @@index([lastMessageAt])
+  @@map("threads")
+}
+
+model Message {
+  id         String    @id @default(uuid())
+  threadId   String
+  thread     Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId   String
+  senderRole UserRole
+  content    String
+  mediaUrls  String[]  @default([])
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
 

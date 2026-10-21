@@ -6,10 +6,22 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { getProviderFeedQuery } from '@weyro/database';
 
 @Injectable()
 export class DamageRequestsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private formatRequest(req: any) {
+    if (!req) return req;
+    const damagePhotos = req.media
+      ? req.media.map((m: any) => m.url)
+      : req.damagePhotos || [];
+    return {
+      ...req,
+      damagePhotos,
+    };
+  }
 
   async uploadMedia(body: {
     base64?: string;
@@ -46,7 +58,7 @@ export class DamageRequestsService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
-    return await this.prisma.serviceRequest.create({
+    const created = await this.prisma.serviceRequest.create({
       data: {
         customerId,
         vehicleId: dto.vehicleId,
@@ -59,29 +71,85 @@ export class DamageRequestsService {
         urgency: dto.urgency || 'URGENT',
         status: 'OPEN',
         isBroadcast: dto.isBroadcast !== false,
-        damagePhotos: dto.damagePhotos || [],
         fulfillmentType: dto.fulfillmentType || 'PARTS_SHIPPING',
         expiresAt,
+        media:
+          (dto.mediaUrls?.length || dto.damagePhotos?.length)
+            ? {
+                create: (dto.mediaUrls?.length ? dto.mediaUrls : dto.damagePhotos!).map((url) => ({
+                  url,
+                  fileType: 'image/jpeg',
+                })),
+              }
+            : undefined,
       },
       include: {
+        media: true,
         vehicle: true,
         quotations: true,
       },
     });
+
+    return this.formatRequest(created);
   }
 
-  async getBroadcastFeed(
-    providerLat?: number,
-    providerLng?: number,
-    radiusKm: number = 25,
-  ) {
+  async getBroadcastFeed(params: {
+    providerLat?: number;
+    providerLng?: number;
+    radiusKm?: number;
+    category?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
+
+    if (
+      typeof params.providerLat === 'number' &&
+      typeof params.providerLng === 'number'
+    ) {
+      let cursorItem: { createdAt: Date; id: string } | null = null;
+      if (params.cursor) {
+        cursorItem = await this.prisma.serviceRequest.findUnique({
+          where: { id: params.cursor },
+          select: { createdAt: true, id: true },
+        });
+      }
+
+      const query = getProviderFeedQuery({
+        providerLat: params.providerLat,
+        providerLng: params.providerLng,
+        radiusKm: params.radiusKm || 25,
+        category: params.category,
+        limit: boundedLimit,
+        cursorCreatedAt: cursorItem?.createdAt,
+        cursorId: cursorItem?.id,
+      });
+
+      const rawResults = await this.prisma.$queryRaw<any[]>(query);
+      const items = rawResults.map((req) => ({
+        ...req,
+        address: this.maskAddress(req.address),
+      }));
+
+      return {
+        items,
+        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      };
+    }
+
+    const where: any = {
+      status: 'OPEN',
+      isBroadcast: true,
+      expiresAt: { gt: new Date() },
+    };
+    if (params.category) {
+      where.category = params.category;
+    }
+
     const requests = await this.prisma.serviceRequest.findMany({
-      where: {
-        status: 'OPEN',
-        isBroadcast: true,
-        expiresAt: { gt: new Date() },
-      },
+      where,
       include: {
+        media: true,
         vehicle: true,
         customer: {
           select: {
@@ -98,20 +166,27 @@ export class DamageRequestsService {
         },
       },
       orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }],
-      take: 50,
+      take: boundedLimit,
+      skip: params.cursor ? 1 : 0,
+      cursor: params.cursor ? { id: params.cursor } : undefined,
     });
 
-    // Privacy masking: never expose exact address or customer contact in broadcast feed
-    return requests.map((req) => ({
-      ...req,
+    const items = requests.map((req) => ({
+      ...this.formatRequest(req),
       address: this.maskAddress(req.address),
     }));
+
+    return {
+      items,
+      nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+    };
   }
 
   async findOne(id: string, user: AuthUserPayload) {
     const found = await this.prisma.serviceRequest.findUnique({
       where: { id },
       include: {
+        media: true,
         vehicle: true,
         customer: {
           include: {
@@ -180,8 +255,11 @@ export class DamageRequestsService {
     const parts = fullAddress.split(',');
     // If multiple parts, return the city/area only
     if (parts.length >= 2) {
-      return parts.slice(-2).join(', ').trim();
+      return parts
+        .slice(-2)
+        .map((p) => p.trim())
+        .join(', ');
     }
-    return fullAddress.replace(/^\d+[\w\s]+,\s*/, '');
+    return fullAddress.replace(/^\d+[\w\s]+,\s*/, '').trim();
   }
 }

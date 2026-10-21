@@ -394,9 +394,12 @@ async function syncWithBackend(): Promise<void> {
 
     if (reqRes.ok) {
       const serverRequests = await reqRes.json();
-      if (Array.isArray(serverRequests) && serverRequests.length > 0) {
-        const mapped = serverRequests.map(mapBackendRequest);
-        const existingIds = new Set(mapped.map((r) => r.id));
+      const rawList = Array.isArray(serverRequests)
+        ? serverRequests
+        : serverRequests?.items || [];
+      if (rawList.length > 0) {
+        const mapped = rawList.map(mapBackendRequest);
+        const existingIds = new Set(mapped.map((r: any) => r.id));
         const localOnly = requests.filter((r) => !existingIds.has(r.id));
         requests = [...localOnly, ...mapped];
       }
@@ -404,9 +407,12 @@ async function syncWithBackend(): Promise<void> {
 
     if (bkRes.ok) {
       const serverBookings = await bkRes.json();
-      if (Array.isArray(serverBookings) && serverBookings.length > 0) {
-        const mapped = serverBookings.map(mapBackendBooking);
-        const existingIds = new Set(mapped.map((b) => b.id));
+      const rawList = Array.isArray(serverBookings)
+        ? serverBookings
+        : serverBookings?.items || [];
+      if (rawList.length > 0) {
+        const mapped = rawList.map(mapBackendBooking);
+        const existingIds = new Set(mapped.map((b: any) => b.id));
         const localOnly = bookings.filter((b) => !existingIds.has(b.id));
         bookings = [...localOnly, ...mapped];
       }

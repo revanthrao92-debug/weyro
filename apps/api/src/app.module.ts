@@ -8,6 +8,7 @@ import { DamageRequestsModule } from './modules/damage-requests/damage-requests.
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -28,6 +29,7 @@ import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
     DamageRequestsModule,
     QuotationsModule,
     PaymentsModule,
+    SparePartsModule,
     AdminModule,
     TasksModule,
   ],

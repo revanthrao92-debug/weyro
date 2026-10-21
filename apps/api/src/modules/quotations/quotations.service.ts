@@ -96,7 +96,12 @@ export class QuotationsService {
     return quote;
   }
 
-  async findByRequest(requestId: string, user: AuthUserPayload) {
+  async findByRequest(
+    requestId: string,
+    user: AuthUserPayload,
+    cursor?: string,
+    limit: number = 20,
+  ) {
     const request = await this.prisma.serviceRequest.findUnique({
       where: { id: requestId },
     });
@@ -108,22 +113,38 @@ export class QuotationsService {
     const isCustomerOwner =
       user.customerProfileId && request.customerId === user.customerProfileId;
     const isAdmin = user.role === 'ADMIN';
+    const boundedLimit = Math.min(50, Math.max(1, limit));
 
     // If customer: can see all quotes on their own request
     if (isCustomerOwner || isAdmin) {
-      return this.prisma.quotation.findMany({
+      const items = await this.prisma.quotation.findMany({
         where: { requestId },
         include: { provider: true },
+        take: boundedLimit,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
         orderBy: { createdAt: 'desc' },
       });
+      return {
+        items,
+        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      };
     }
 
     // If provider: can only see their own quote on this request
     if (user.providerProfileId) {
-      return this.prisma.quotation.findMany({
+      const items = await this.prisma.quotation.findMany({
         where: { requestId, providerId: user.providerProfileId },
         include: { provider: true },
+        take: boundedLimit,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: 'desc' },
       });
+      return {
+        items,
+        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      };
     }
 
     throw new ForbiddenException('You do not have access to quotations for this request');
@@ -238,8 +259,16 @@ export class QuotationsService {
     });
   }
 
-  async getBookings(user: AuthUserPayload) {
+  async getBookings(
+    user: AuthUserPayload,
+    cursor?: string,
+    limit: number = 20,
+    status?: string,
+  ) {
     const where: any = {};
+    if (status) {
+      where.status = status;
+    }
 
     if (user.role === 'ADMIN') {
       // Admin sees all
@@ -256,8 +285,13 @@ export class QuotationsService {
       where.id = 'none';
     }
 
-    return await this.prisma.booking.findMany({
+    const boundedLimit = Math.min(50, Math.max(1, limit));
+
+    const items = await this.prisma.booking.findMany({
       where,
+      take: boundedLimit,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       include: {
         customer: true,
         provider: true,
@@ -267,6 +301,11 @@ export class QuotationsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return {
+      items,
+      nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+    };
   }
 
   async updateStatus(

@@ -171,9 +171,14 @@ async function main() {
         urgency: 'URGENT',
         status: 'OPEN',
         isBroadcast: true,
-        damagePhotos: [
-          'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
-        ],
+        media: {
+          create: [
+            {
+              url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+              fileType: 'image/jpeg',
+            },
+          ],
+        },
         fulfillmentType: 'ON_SITE',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },

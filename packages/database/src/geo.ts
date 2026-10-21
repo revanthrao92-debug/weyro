@@ -14,21 +14,41 @@ export interface NearbyProviderResult {
   distanceKm: number;
 }
 
+export interface ProviderFeedItem {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  urgency: string;
+  status: string;
+  isBroadcast: boolean;
+  damagePhotos: string[];
+  fulfillmentType: string | null;
+  address: string;
+  latitude: number;
+  longitude: number;
+  expiresAt: Date;
+  createdAt: Date;
+  distanceKm: number;
+}
+
 /**
- * SQL migration statement to enable PostGIS on Supabase PostgreSQL.
+ * SQL migration statement to enable PostGIS.
  */
 export const ENABLE_POSTGIS_SQL = Prisma.sql`CREATE EXTENSION IF NOT EXISTS postgis;`;
 
 /**
  * Query nearby providers within a given radius (in kilometers) using PostGIS ST_DWithin
- * on geography points for sub-millisecond indexed spatial search.
+ * on the GiST-indexed geography column for sub-millisecond indexed spatial search.
  */
 export function getNearbyProvidersQuery(
   lat: number,
   lng: number,
-  radiusKm: number = 15
+  radiusKm: number = 15,
+  providerType?: string,
 ): Prisma.Sql {
   const radiusMeters = radiusKm * 1000;
+  const pointGeog = Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
 
   return Prisma.sql`
     SELECT 
@@ -44,17 +64,18 @@ export function getNearbyProvidersQuery(
       "totalReviews",
       ROUND(
         (ST_Distance(
-          ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
-          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+          COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
+          ${pointGeog}
         ) / 1000.0)::numeric,
         2
       )::float AS "distanceKm"
     FROM provider_profiles
     WHERE "verificationStatus" = 'VERIFIED'
       AND "isAvailable" = true
+      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
       AND ST_DWithin(
-        ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
-        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+        COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
+        ${pointGeog},
         ${radiusMeters}
       )
     ORDER BY "distanceKm" ASC;
@@ -63,13 +84,12 @@ export function getNearbyProvidersQuery(
 
 /**
  * Haversine fallback query for standard PostgreSQL without PostGIS extension.
- * Clamps the acos() input with LEAST(1.0, GREATEST(-1.0, ...)) to prevent out-of-range errors
- * on identical or extremely close coordinates.
  */
 export function getNearbyProvidersHaversineQuery(
   lat: number,
   lng: number,
-  radiusKm: number = 15
+  radiusKm: number = 15,
+  providerType?: string,
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT 
@@ -96,6 +116,7 @@ export function getNearbyProvidersHaversineQuery(
     FROM provider_profiles
     WHERE "verificationStatus" = 'VERIFIED'
       AND "isAvailable" = true
+      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
       AND (6371 * acos(
         LEAST(1.0, GREATEST(-1.0,
           cos(radians(${lat})) * cos(radians(latitude)) *
@@ -107,17 +128,40 @@ export function getNearbyProvidersHaversineQuery(
   `;
 }
 
+export interface ProviderFeedQueryParams {
+  providerLat?: number;
+  providerLng?: number;
+  radiusKm?: number;
+  category?: string;
+  limit?: number;
+  cursorCreatedAt?: Date;
+  cursorId?: string;
+}
+
 /**
  * Returns incoming service requests for a provider's feed:
- * Matches local requests within radius AND all broadcast requests (e.g. car damage with photos, rare parts)
- * irrespective of distance.
- * Includes floating-point clamping on acos() to avoid range crashes.
+ * Uses PostGIS ST_DWithin on the GiST-indexed geography location column.
+ * Matches local requests within radius AND all nationwide broadcast requests.
+ * Supports cursor-based pagination and category filtering.
  */
-export function getProviderFeedQuery(
-  providerLat: number,
-  providerLng: number,
-  radiusKm: number = 15
-): Prisma.Sql {
+export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sql {
+  const {
+    providerLat,
+    providerLng,
+    radiusKm = 25,
+    category,
+    limit = 20,
+    cursorCreatedAt,
+    cursorId,
+  } = params;
+
+  const boundedLimit = Math.min(50, Math.max(1, limit));
+  const hasCoordinates = typeof providerLat === 'number' && typeof providerLng === 'number';
+  const radiusMeters = radiusKm * 1000;
+  const pointGeog = hasCoordinates
+    ? Prisma.sql`ST_SetSRID(ST_MakePoint(${providerLng}, ${providerLat}), 4326)::geography`
+    : null;
+
   return Prisma.sql`
     SELECT 
       sr.id,
@@ -127,37 +171,56 @@ export function getProviderFeedQuery(
       sr.urgency,
       sr.status,
       sr."isBroadcast",
-      sr."damagePhotos",
+      (SELECT COALESCE(array_agg(rm.url), ARRAY[]::text[]) FROM request_media rm WHERE rm."requestId" = sr.id) AS "damagePhotos",
       sr."fulfillmentType",
       sr.address,
       sr.latitude,
       sr.longitude,
       sr."expiresAt",
       sr."createdAt",
-      ROUND(
-        (6371 * acos(
-          LEAST(1.0, GREATEST(-1.0,
-            cos(radians(${providerLat})) * cos(radians(sr.latitude)) *
-            cos(radians(sr.longitude) - radians(${providerLng})) +
-            sin(radians(${providerLat})) * sin(radians(sr.latitude))
-          ))
-        ))::numeric,
-        2
-      )::float AS "distanceKm"
+      ${
+        hasCoordinates && pointGeog
+          ? Prisma.sql`ROUND(
+              (ST_Distance(
+                COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+                ${pointGeog}
+              ) / 1000.0)::numeric,
+              2
+            )::float`
+          : Prisma.sql`0.0::float`
+      } AS "distanceKm"
     FROM service_requests sr
     WHERE sr.status = 'OPEN'
-      AND (
-        sr."isBroadcast" = true
-        OR (6371 * acos(
-          LEAST(1.0, GREATEST(-1.0,
-            cos(radians(${providerLat})) * cos(radians(sr.latitude)) *
-            cos(radians(sr.longitude) - radians(${providerLng})) +
-            sin(radians(${providerLat})) * sin(radians(sr.latitude))
-          ))
-        )) <= ${radiusKm}
-      )
+      AND sr."expiresAt" > NOW()
+      ${category ? Prisma.sql`AND sr.category = ${category}::"ServiceCategory"` : Prisma.empty}
+      ${
+        hasCoordinates && pointGeog
+          ? Prisma.sql`AND (
+              sr."isBroadcast" = true
+              OR ST_DWithin(
+                COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+                ${pointGeog},
+                ${radiusMeters}
+              )
+            )`
+          : Prisma.empty
+      }
+      ${
+        cursorCreatedAt && cursorId
+          ? Prisma.sql`AND (
+              sr."createdAt" < ${cursorCreatedAt}
+              OR (sr."createdAt" = ${cursorCreatedAt} AND sr.id < ${cursorId})
+            )`
+          : Prisma.empty
+      }
     ORDER BY 
-      sr."urgency" DESC,
-      sr."createdAt" DESC;
+      CASE sr."urgency"
+        WHEN 'EMERGENCY' THEN 1
+        WHEN 'URGENT' THEN 2
+        ELSE 3
+      END ASC,
+      sr."createdAt" DESC,
+      sr.id DESC
+    LIMIT ${boundedLimit};
   `;
 }
