@@ -7,7 +7,12 @@ export const createThreadSchema = z
   })
   .strict();
 
-export type CreateThreadDto = z.infer<typeof createThreadSchema>;
+export class CreateThreadDto implements z.infer<typeof createThreadSchema> {
+  static readonly schema = createThreadSchema;
+
+  requestId?: string;
+  providerId!: string;
+}
 
 export const sendMessageSchema = z
   .object({
@@ -16,7 +21,12 @@ export const sendMessageSchema = z
   })
   .strict();
 
-export type SendMessageDto = z.infer<typeof sendMessageSchema>;
+export class SendMessageDto implements z.infer<typeof sendMessageSchema> {
+  static readonly schema = sendMessageSchema;
+
+  content!: string;
+  mediaUrls!: string[];
+}
 
 export const markReadSchema = z
   .object({
@@ -24,4 +34,8 @@ export const markReadSchema = z
   })
   .strict();
 
-export type MarkReadDto = z.infer<typeof markReadSchema>;
+export class MarkReadDto implements z.infer<typeof markReadSchema> {
+  static readonly schema = markReadSchema;
+
+  messageIds?: string[];
+}

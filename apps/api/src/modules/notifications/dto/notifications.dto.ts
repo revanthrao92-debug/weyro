@@ -7,4 +7,11 @@ export const registerPushTokenSchema = z
   })
   .strict();
 
-export type RegisterPushTokenDto = z.infer<typeof registerPushTokenSchema>;
+export class RegisterPushTokenDto
+  implements z.infer<typeof registerPushTokenSchema>
+{
+  static readonly schema = registerPushTokenSchema;
+
+  token!: string;
+  deviceOs?: 'ios' | 'android' | 'web';
+}

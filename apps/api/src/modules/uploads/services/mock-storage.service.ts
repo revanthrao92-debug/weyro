@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  FinalizeImageResult,
   PresignedUrlParams,
   PresignedUrlResult,
   StorageService,
@@ -19,16 +20,27 @@ export class MockStorageService implements StorageService {
   async getPresignedUploadUrl(
     params: PresignedUrlParams,
   ): Promise<PresignedUrlResult> {
-    const { filename, folder = 'damage-requests' } = params;
+    const { filename, folder = 'damage-requests', ownerId } = params;
     const cleanExt = filename.split('.').pop()?.toLowerCase() || 'jpg';
     const randomId = crypto.randomBytes(8).toString('hex');
-    const key = `${folder}/${Date.now()}_${randomId}.${cleanExt}`;
+    const ownerPrefix = ownerId ? `${ownerId}/` : '';
+    const key = `${folder}/${ownerPrefix}${Date.now()}_${randomId}.${cleanExt}`;
 
     return {
       uploadUrl: `https://storage.mock.local/upload/${key}?sig=mock_presigned_signature`,
       fileUrl: `https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80`,
       key,
       expiresInSeconds: 300,
+    };
+  }
+
+  async finalizeImage(params: {
+    key: string;
+    contentType: string;
+  }): Promise<FinalizeImageResult> {
+    return {
+      fileUrl: `https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80`,
+      key: params.key,
     };
   }
 }

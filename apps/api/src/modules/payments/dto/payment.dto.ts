@@ -6,7 +6,11 @@ export const createOrderSchema = z
   })
   .strict();
 
-export type CreateOrderDto = z.infer<typeof createOrderSchema>;
+export class CreateOrderDto implements z.infer<typeof createOrderSchema> {
+  static readonly schema = createOrderSchema;
+
+  bookingId!: string;
+}
 
 export const verifyPaymentSchema = z
   .object({
@@ -17,4 +21,11 @@ export const verifyPaymentSchema = z
   })
   .strict();
 
-export type VerifyPaymentDto = z.infer<typeof verifyPaymentSchema>;
+export class VerifyPaymentDto implements z.infer<typeof verifyPaymentSchema> {
+  static readonly schema = verifyPaymentSchema;
+
+  bookingId!: string;
+  orderId!: string;
+  paymentId!: string;
+  signature!: string;
+}

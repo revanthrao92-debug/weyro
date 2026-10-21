@@ -2,7 +2,7 @@ import { apiClient } from './api-client';
 
 export interface PresignedUploadResult {
   uploadUrl: string;
-  publicUrl: string;
+  fileUrl: string;
   key: string;
 }
 
@@ -51,6 +51,11 @@ export async function uploadImageViaPresignedUrl(
     throw new Error(`Direct upload failed with status ${uploadRes.status}`);
   }
 
-  // 3. Return permanent public URL
-  return presigned.publicUrl;
+  // 3. Ask the API to strip EXIF/GPS metadata before the URL is persisted
+  const finalized = await apiClient.post<{ fileUrl: string; key: string }>(
+    '/uploads/finalize',
+    { key: presigned.key, contentType: mimeType },
+  );
+
+  return finalized.fileUrl;
 }

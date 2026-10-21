@@ -1,17 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
+  FinalizeImageResult,
   PresignedUrlParams,
   PresignedUrlResult,
   StorageService,
 } from '../interfaces/storage.interface';
 import { env } from '../../../config/env.config';
+import {
+  ImageProcessingService,
+  MAX_UPLOAD_FILE_SIZE,
+} from './image-processing.service';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class S3StorageService implements StorageService {
   private readonly logger = new Logger(S3StorageService.name);
+  private readonly imageProcessor = new ImageProcessingService();
   private readonly s3Client: S3Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
@@ -55,16 +65,24 @@ export class S3StorageService implements StorageService {
   async getPresignedUploadUrl(
     params: PresignedUrlParams,
   ): Promise<PresignedUrlResult> {
-    const { filename, contentType, folder = 'damage-requests' } = params;
+    const {
+      filename,
+      contentType,
+      folder = 'damage-requests',
+      fileSize,
+      ownerId,
+    } = params;
     const cleanExt = filename.split('.').pop()?.toLowerCase() || 'jpg';
     const randomId = crypto.randomBytes(8).toString('hex');
-    const key = `${folder}/${Date.now()}_${randomId}.${cleanExt}`;
+    const ownerPrefix = ownerId ? `${ownerId}/` : '';
+    const key = `${folder}/${ownerPrefix}${Date.now()}_${randomId}.${cleanExt}`;
     const expiresInSeconds = 300; // 5 minutes
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       ContentType: contentType,
+      ...(fileSize ? { ContentLength: fileSize } : {}),
     });
 
     const uploadUrl = await getSignedUrl(this.s3Client, command, {
@@ -80,6 +98,43 @@ export class S3StorageService implements StorageService {
       fileUrl,
       key,
       expiresInSeconds,
+    };
+  }
+
+  async finalizeImage(params: {
+    key: string;
+    contentType: string;
+  }): Promise<FinalizeImageResult> {
+    const object = await this.s3Client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: params.key }),
+    );
+
+    const bytes = await object.Body?.transformToByteArray();
+    if (!bytes || bytes.length === 0) {
+      throw new BadRequestException('Uploaded object is empty or missing');
+    }
+
+    if (bytes.length > MAX_UPLOAD_FILE_SIZE) {
+      throw new BadRequestException('Uploaded object exceeds the size limit');
+    }
+
+    const cleaned = await this.imageProcessor.stripExif(Buffer.from(bytes));
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: params.key,
+        Body: cleaned,
+        ContentType: params.contentType,
+        CacheControl: 'private, max-age=0',
+      }),
+    );
+
+    this.logger.log(`Sanitized image metadata for key: ${params.key}`);
+
+    return {
+      fileUrl: `${this.publicUrl}/${params.key}`,
+      key: params.key,
     };
   }
 }

@@ -13,4 +13,15 @@ export const createSparePartSchema = z
   })
   .strict();
 
-export type CreateSparePartDto = z.infer<typeof createSparePartSchema>;
+export class CreateSparePartDto implements z.infer<typeof createSparePartSchema> {
+  static readonly schema = createSparePartSchema;
+
+  name!: string;
+  partNumber!: string;
+  compatibleMakes!: string[];
+  compatibleModels!: string[];
+  condition!: 'OEM' | 'AFTERMARKET' | 'USED';
+  price!: number;
+  stockQuantity!: number;
+  imageUrl?: string;
+}

@@ -1,7 +1,16 @@
-import { BadRequestException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { UploadsController } from './uploads.controller';
 import { StorageService } from './interfaces/storage.interface';
 import { S3StorageService } from './services/s3-storage.service';
+import { presignedUrlQuerySchema } from './dto/presigned-url.dto';
+import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+
+const user = {
+  sub: 'user-1',
+  email: 'user@test.com',
+  phone: '+919876543210',
+  role: 'CUSTOMER',
+} as AuthUserPayload;
 
 describe('Uploads Module', () => {
   let controller: UploadsController;
@@ -10,6 +19,7 @@ describe('Uploads Module', () => {
   beforeEach(() => {
     mockStorage = {
       getPresignedUploadUrl: jest.fn(),
+      finalizeImage: jest.fn(),
     };
 
     controller = new UploadsController(mockStorage);
@@ -24,34 +34,78 @@ describe('Uploads Module', () => {
         expiresInSeconds: 300,
       });
 
-      const result = await controller.getPresignedUrl(
-        'bumper.jpg',
-        'image/jpeg',
-        'damage-requests',
-      );
+      const result = await controller.getPresignedUrl(user, {
+        filename: 'bumper.jpg',
+        contentType: 'image/jpeg',
+        folder: 'damage-requests',
+        fileSize: 1024,
+      });
 
       expect(mockStorage.getPresignedUploadUrl).toHaveBeenCalledWith({
         filename: 'bumper.jpg',
         contentType: 'image/jpeg',
         folder: 'damage-requests',
+        fileSize: 1024,
+        ownerId: 'user-1',
       });
       expect(result.uploadUrl).toContain('https://s3.amazonaws.com');
     });
 
-    it('rejects disallowed content types with 400 Bad Request', async () => {
-      await expect(
-        controller.getPresignedUrl('malware.exe', 'application/x-msdownload'),
-      ).rejects.toThrow(BadRequestException);
+    it('rejects disallowed content types', () => {
+      expect(
+        presignedUrlQuerySchema.safeParse({
+          filename: 'malware.exe',
+          contentType: 'application/x-msdownload',
+          fileSize: 1024,
+        }).success,
+      ).toBe(false);
 
-      await expect(
-        controller.getPresignedUrl('document.pdf', 'application/pdf'),
-      ).rejects.toThrow(BadRequestException);
+      expect(
+        presignedUrlQuerySchema.safeParse({
+          filename: 'document.pdf',
+          contentType: 'application/pdf',
+          fileSize: 1024,
+        }).success,
+      ).toBe(false);
     });
 
-    it('rejects empty filename with 400 Bad Request', async () => {
+    it('rejects empty filenames and oversized files', () => {
+      expect(
+        presignedUrlQuerySchema.safeParse({
+          filename: '',
+          contentType: 'image/png',
+          fileSize: 1024,
+        }).success,
+      ).toBe(false);
+
+      expect(
+        presignedUrlQuerySchema.safeParse({
+          filename: 'photo.png',
+          contentType: 'image/png',
+          fileSize: 11 * 1024 * 1024,
+        }).success,
+      ).toBe(false);
+    });
+
+    it('finalizes only keys owned by the caller', async () => {
+      mockStorage.finalizeImage.mockResolvedValue({
+        fileUrl: 'https://cdn.weyro.in/damage-requests/user-1/key.jpg',
+        key: 'damage-requests/user-1/key.jpg',
+      });
+
+      const result = await controller.finalize(user, {
+        key: 'damage-requests/user-1/key.jpg',
+        contentType: 'image/jpeg',
+      });
+
+      expect(result.key).toBe('damage-requests/user-1/key.jpg');
+
       await expect(
-        controller.getPresignedUrl('', 'image/png'),
-      ).rejects.toThrow(BadRequestException);
+        controller.finalize(user, {
+          key: 'damage-requests/other-user/key.jpg',
+          contentType: 'image/jpeg',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

@@ -1,8 +1,10 @@
 import {
-  BadRequestException,
+  Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
+  Post,
   Query,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -10,8 +12,22 @@ import {
   STORAGE_SERVICE,
   StorageService,
 } from './interfaces/storage.interface';
-import { presignedUrlQuerySchema, MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from './dto/presigned-url.dto';
-import { z } from 'zod';
+import {
+  finalizeUploadSchema,
+  FinalizeUploadDto,
+  presignedUrlQuerySchema,
+  PresignedUrlQueryDto,
+} from './dto/presigned-url.dto';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+
+const UPLOAD_FOLDERS = [
+  'damage-requests',
+  'vehicles',
+  'avatars',
+  'spare-parts',
+] as const;
 
 @Controller('uploads')
 export class UploadsController {
@@ -22,38 +38,36 @@ export class UploadsController {
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Get('presigned-url')
   async getPresignedUrl(
-    @Query('filename') filename: string,
-    @Query('contentType') contentType: string,
-    @Query('folder') folder?: string,
-    @Query('fileSize') fileSize?: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Query(new ZodValidationPipe(presignedUrlQuerySchema))
+    query: PresignedUrlQueryDto,
   ) {
-    if (!filename || filename.trim().length === 0) {
-      throw new BadRequestException('filename query parameter is required');
-    }
-
-    if (!contentType || !ALLOWED_MIME_TYPES.includes(contentType as any)) {
-      throw new BadRequestException(
-        `Invalid contentType "${contentType}". Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
-      );
-    }
-
-    // Validate file size if provided
-    if (fileSize !== undefined) {
-      const size = parseInt(fileSize, 10);
-      if (isNaN(size) || size <= 0) {
-        throw new BadRequestException('fileSize must be a positive integer');
-      }
-      if (size > MAX_FILE_SIZE) {
-        throw new BadRequestException(
-          `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)} MB`,
-        );
-      }
-    }
-
     return this.storageService.getPresignedUploadUrl({
-      filename: filename.trim(),
-      contentType: contentType.trim(),
-      folder: folder?.trim(),
+      filename: query.filename,
+      contentType: query.contentType,
+      folder: query.folder,
+      fileSize: query.fileSize,
+      ownerId: user.sub,
+    });
+  }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('finalize')
+  async finalize(
+    @CurrentUser() user: AuthUserPayload,
+    @Body(new ZodValidationPipe(finalizeUploadSchema)) dto: FinalizeUploadDto,
+  ) {
+    const isOwnedKey = UPLOAD_FOLDERS.some((folder) =>
+      dto.key.startsWith(`${folder}/${user.sub}/`),
+    );
+
+    if (!isOwnedKey || dto.key.includes('..')) {
+      throw new ForbiddenException('You can only finalize your own uploads');
+    }
+
+    return this.storageService.finalizeImage({
+      key: dto.key,
+      contentType: dto.contentType,
     });
   }
 }
