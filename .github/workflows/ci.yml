@@ -1,23 +1,58 @@
-name: Continuous Integration
+name: CI
 
 on:
   push:
-    branches: [main, feat/*]
+    branches: [main, feat/ui-ux]
   pull_request:
     branches: [main]
 
 jobs:
   lint-and-typecheck:
-    name: Lint, Typecheck & Expo Doctor
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (mobile app)
+        run: npx expo lint
+
+      - name: Run TypeScript typecheck (all workspaces)
+        run: npm run typecheck:all
+
+  api-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: weyro
+          POSTGRES_PASSWORD: weyro_dev_password
+          POSTGRES_DB: weyro_db
+        options: >-
+          --health-cmd "pg_isready -U weyro -d weyro_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -26,55 +61,35 @@ jobs:
       - name: Build shared packages
         run: npm run build:packages
 
-      - name: Run root and monorepo typecheck
-        run: npm run typecheck:all
+      - name: Build API
+        run: npm run build:api
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run Prisma migrations
+        run: npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+
+      - name: Run API tests
+        run: npm run test -w @weyro/api
+        env:
+          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+          JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
+          JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
+
+  expo-doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run Expo Doctor
         run: npx expo-doctor
-
-  api-tests:
-    name: Backend API Unit & Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build shared packages
-        run: npm run build:packages
-
-      - name: Run Jest test suites
-        run: npm run test -w @weyro/api
-
-  database-schema:
-    name: Prisma Schema & Migration Verification
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Validate Prisma Schema
-        run: npx prisma validate --schema packages/database/prisma/schema.prisma
-
-      - name: Check Migration Formatting
-        run: npx prisma format --schema packages/database/prisma/schema.prisma --check

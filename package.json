@@ -52,6 +52,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test": "npm run test -w @weyro/api",
     "typecheck": "tsc --noEmit",
     "typecheck:all": "tsc --noEmit && npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api",
     "doctor": "npx expo-doctor"

@@ -33,6 +33,7 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
@@ -41,11 +42,22 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Weyro needs access to your photos so you can upload images of damaged vehicle parts.",
+          "cameraPermission": "Weyro needs access to your camera so you can take photos of damaged vehicle parts."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "weyro-app-project-id-placeholder"
+      }
     }
   }
 }
