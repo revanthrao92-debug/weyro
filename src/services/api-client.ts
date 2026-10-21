@@ -12,7 +12,34 @@ export class ApiClientError extends Error {
   }
 }
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '') ?? '';
+
+const REQUEST_TIMEOUT_MS = 30_000;
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new ApiClientError(
+        0,
+        'Request timed out. Check your connection and try again.',
+      );
+    }
+    throw new ApiClientError(
+      0,
+      'Network request failed. Check your connection and try again.',
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -48,6 +75,13 @@ async function executeRequest<T>(
   options?: RequestOptions<T>,
   isRetry: boolean = false,
 ): Promise<T> {
+  if (!API_BASE_URL && !endpoint.startsWith('http')) {
+    throw new ApiClientError(
+      0,
+      'API URL is not configured. Set EXPO_PUBLIC_API_URL before building the app.',
+    );
+  }
+
   let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
   if (options?.params) {
@@ -73,7 +107,7 @@ async function executeRequest<T>(
     }
   }
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -114,14 +148,19 @@ async function executeRequest<T>(
     isRefreshing = true;
 
     try {
-      const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      const refreshRes = await fetchWithTimeout(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
 
       if (!refreshRes.ok) {
-        throw new Error('Refresh token invalid');
+        throw new ApiClientError(
+          refreshRes.status,
+          refreshRes.status === 401 || refreshRes.status === 403
+            ? 'Refresh token invalid'
+            : 'Session refresh failed',
+        );
       }
 
       const refreshData = await refreshRes.json();
@@ -135,9 +174,18 @@ async function executeRequest<T>(
 
       // Retry original request
       return executeRequest<T>(method, endpoint, body, options, true);
-    } catch {
+    } catch (err) {
       isRefreshing = false;
       onRefreshed(null);
+
+      const isAuthFailure =
+        err instanceof ApiClientError &&
+        (err.status === 401 || err.status === 403);
+
+      if (!isAuthFailure) {
+        throw err;
+      }
+
       await tokenStorage.clearAll();
       if (onUnauthorizedCallback) onUnauthorizedCallback();
       throw new ApiClientError(401, 'Session expired. Please sign in again.');

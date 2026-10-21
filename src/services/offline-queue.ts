@@ -121,6 +121,12 @@ export const offlineQueue = {
     try {
       const now = Date.now();
 
+      if (!API_BASE_URL) {
+        hasErrors = true;
+        emitChange();
+        return { processed: 0, succeeded: 0, failed: 0 };
+      }
+
       for (const item of queue) {
         // Exponential backoff check: wait 2^retryCount * 1000 ms before retrying
         if (item.retryCount > 0 && item.lastAttemptAt) {
@@ -141,17 +147,22 @@ export const offlineQueue = {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           'Idempotency-Key': item.id,
+          'x-idempotency-key': item.id,
         };
 
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30_000);
+
         try {
           const res = await fetch(url, {
             method: item.method,
             headers,
             body: item.body !== undefined ? JSON.stringify(item.body) : undefined,
+            signal: controller.signal,
           });
 
           if (res.ok) {
@@ -186,6 +197,8 @@ export const offlineQueue = {
               lastError: networkErr?.message || 'Network error',
             });
           }
+        } finally {
+          clearTimeout(timeout);
         }
       }
 
