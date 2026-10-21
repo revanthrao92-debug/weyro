@@ -31,7 +31,10 @@ export class AdminService {
       this.prisma.booking.count({ where: { status: 'COMPLETED' } }),
       this.prisma.providerProfile.count({ where: { verificationStatus: 'PENDING' } }),
       this.prisma.providerProfile.count({ where: { verificationStatus: 'VERIFIED' } }),
-      this.prisma.payment.findMany({ select: { amount: true } }),
+      this.prisma.payment.findMany({
+        where: { status: { in: ['AUTHORIZED', 'CAPTURED'] } },
+        select: { amount: true },
+      }),
     ]);
 
     const totalEscrowVolume = payments.reduce((acc, p) => acc + Number(p.amount), 0);
@@ -102,28 +105,39 @@ export class AdminService {
   }
 
   async getEscrowLedger(): Promise<EscrowLedgerEntry[]> {
-    const bookings = await this.prisma.booking.findMany({
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        status: { in: ['PENDING', 'AUTHORIZED', 'CAPTURED', 'REFUNDED'] },
+      },
       include: {
-        customer: true,
-        provider: true,
-        quotation: true,
+        booking: {
+          include: {
+            customer: true,
+            provider: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return bookings.map((b) => ({
-      bookingId: b.id,
-      customerName: `${b.customer?.firstName || 'Customer'} ${b.customer?.lastName || ''}`.trim(),
-      providerName: b.provider?.businessName || 'Verified Provider',
-      amount: Number(b.quotation?.totalCost || 0),
+    return payments.map((payment) => ({
+      bookingId: payment.bookingId,
+      customerName: `${payment.booking?.customer?.firstName || 'Customer'} ${
+        payment.booking?.customer?.lastName || ''
+      }`.trim(),
+      providerName:
+        payment.booking?.provider?.businessName || 'Verified Provider',
+      amount: Number(payment.amount),
+      // No release/payout flow exists yet; completed bookings still hold funds
+      // until a disbursement is implemented.
       status:
-        b.status === 'COMPLETED'
-          ? 'RELEASED_TO_PROVIDER'
-          : b.status === 'CANCELLED'
+        payment.status === 'REFUNDED'
           ? 'REFUNDED_TO_CUSTOMER'
           : 'HELD_IN_ESCROW',
-      confirmedAt: b.createdAt.toISOString(),
-      completedAt: b.completedAt ? b.completedAt.toISOString() : undefined,
+      confirmedAt: payment.createdAt.toISOString(),
+      completedAt: payment.booking?.completedAt
+        ? payment.booking.completedAt.toISOString()
+        : undefined,
     }));
   }
 }

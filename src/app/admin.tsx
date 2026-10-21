@@ -49,7 +49,8 @@ export default function AdminScreen() {
     Promise.all([
       apiClient.get<any>('/admin/overview').catch(() => null),
       apiClient.get<any>('/admin/providers').catch(() => null),
-    ]).then(([overviewData, providersData]) => {
+      apiClient.get<any>('/admin/escrow-ledger').catch(() => null),
+    ]).then(([overviewData, providersData, ledgerData]) => {
       if (!active) return;
       if (overviewData) {
         setMetrics({
@@ -63,9 +64,12 @@ export default function AdminScreen() {
           pendingVerifications: overviewData.pendingVerifications || 0,
           verifiedProviders: overviewData.verifiedProviders || 0,
         });
-        if (overviewData.recentEscrowLedger) {
-          setLedger(overviewData.recentEscrowLedger);
-        }
+      }
+
+      if (Array.isArray(ledgerData)) {
+        setLedger(ledgerData);
+      } else if (overviewData?.recentEscrowLedger) {
+        setLedger(overviewData.recentEscrowLedger);
       }
 
       if (providersData?.items && Array.isArray(providersData.items)) {
@@ -83,7 +87,7 @@ export default function AdminScreen() {
     status: 'VERIFIED' | 'REJECTED',
   ) => {
     try {
-      await apiClient.patch(`/admin/providers/${providerId}/verification`, {
+      await apiClient.patch(`/admin/providers/${providerId}/verify`, {
         status,
         auditorNotes: `Audited and marked ${status} via Mobile Admin Console.`,
       });
