@@ -15,10 +15,14 @@ import {
   validateQuotationTransition,
   validateServiceRequestTransition,
 } from '../../common/state-machines/state-machines';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class QuotationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(
     requestId: string,
@@ -27,6 +31,7 @@ export class QuotationsService {
   ) {
     const request = await this.prisma.serviceRequest.findUnique({
       where: { id: requestId },
+      include: { customer: true },
     });
 
     if (!request) {
@@ -92,6 +97,17 @@ export class QuotationsService {
         data: { status: 'QUOTES_RECEIVED' },
       }),
     ]);
+
+    if (request.customer?.userId) {
+      this.notifications
+        .sendPushNotification({
+          userId: request.customer.userId,
+          title: 'New Quote Received',
+          body: `A verified provider submitted a quotation of ₹${totalCost} for "${request.title}".`,
+          data: { requestId, quotationId: quote.id, type: 'new_quote' },
+        })
+        .catch(() => {});
+    }
 
     return quote;
   }
