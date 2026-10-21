@@ -149,9 +149,10 @@ configured expiry.
 
 ### I6. Quotation acceptance ignores expiry and validates nothing
 `apps/api/src/modules/quotations/quotations.service.ts:169-214` never checks
-`quote.expiresAt` or `request.expiresAt`, and `scheduledAt` accepts any date string,
-including the past. `AcceptQuotationDto.deliveryAddress` is accepted but unused.
-**Fix:** Reject expired quotes/requests, validate the scheduled date, and persist or drop
+`request.expiresAt` (quotations have no expiry column), and `scheduledAt` accepts any
+date string, including the past. `AcceptQuotationDto.deliveryAddress` is accepted but
+unused.
+**Fix:** Reject expired requests, validate the scheduled date, and persist or drop
 `deliveryAddress` explicitly.
 
 ### I7. Booking status metadata is silently discarded

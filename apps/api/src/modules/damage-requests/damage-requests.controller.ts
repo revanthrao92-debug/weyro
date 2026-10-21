@@ -49,6 +49,7 @@ export class DamageRequestsController {
       );
     }
     return this.service.getBroadcastFeed({
+      providerId: user.providerProfileId,
       providerLat: lat ? parseFloat(lat) : undefined,
       providerLng: lng ? parseFloat(lng) : undefined,
       radiusKm: radiusKm ? parseFloat(radiusKm) : 25,

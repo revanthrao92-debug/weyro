@@ -62,10 +62,18 @@ export class SparePartsService {
   }
 
   async findOne(id: string) {
-    const part = await this.prisma.sparePart.findUnique({
-      where: { id },
+    const part = await this.prisma.sparePart.findFirst({
+      where: { id, isActive: true },
       include: {
-        provider: true,
+        provider: {
+          select: {
+            id: true,
+            businessName: true,
+            phone: true,
+            address: true,
+            avgRating: true,
+          },
+        },
       },
     });
 

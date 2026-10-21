@@ -94,6 +94,7 @@ export class DamageRequestsService {
   }
 
   async getBroadcastFeed(params: {
+    providerId?: string;
     providerLat?: number;
     providerLng?: number;
     radiusKm?: number;
@@ -159,11 +160,9 @@ export class DamageRequestsService {
             avatarUrl: true,
           },
         },
-        quotations: {
-          include: {
-            provider: true,
-          },
-        },
+        quotations: params.providerId
+          ? { where: { providerId: params.providerId } }
+          : false,
       },
       orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }],
       take: boundedLimit,
@@ -231,8 +230,15 @@ export class DamageRequestsService {
       throw new ForbiddenException('You can only access your own requests');
     }
 
-    // Privacy protection: Redact customer contact & exact address for providers until quote accepted
-    if (!isCustomerOwner && !isAdmin && !hasAcceptedBooking) {
+    // Privacy protection: never expose competitors' quotations to providers
+    const isOwnerOrAdmin = Boolean(isCustomerOwner) || isAdmin;
+    const visibleQuotations = isOwnerOrAdmin
+      ? found.quotations
+      : found.quotations.filter(
+          (q) => q.providerId === user.providerProfileId,
+        );
+
+    if (!isOwnerOrAdmin && !hasAcceptedBooking) {
       const sanitizedCustomer = {
         id: found.customer.id,
         firstName: found.customer.firstName,
@@ -244,10 +250,11 @@ export class DamageRequestsService {
         ...found,
         address: this.maskAddress(found.address),
         customer: sanitizedCustomer,
+        quotations: visibleQuotations,
       };
     }
 
-    return found;
+    return { ...found, quotations: visibleQuotations };
   }
 
   private maskAddress(fullAddress: string): string {

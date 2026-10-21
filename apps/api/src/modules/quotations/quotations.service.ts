@@ -172,21 +172,6 @@ export class QuotationsService {
     dto: AcceptQuotationDto,
     idempotencyKey?: string,
   ) {
-    // Idempotency: return existing booking if this quotation is already accepted into a booking
-    const existingBooking = await this.prisma.booking.findUnique({
-      where: { quotationId },
-      include: {
-        quotation: true,
-        provider: true,
-        customer: true,
-        payments: true,
-      },
-    });
-
-    if (existingBooking) {
-      return existingBooking;
-    }
-
     const quote = await this.prisma.quotation.findUnique({
       where: { id: quotationId },
       include: {
@@ -207,6 +192,31 @@ export class QuotationsService {
       throw new ForbiddenException(
         'You can only accept quotations for your own service requests',
       );
+    }
+
+    if (quote.request.expiresAt < new Date()) {
+      throw new BadRequestException(
+        'Cannot accept quotation: service request has expired',
+      );
+    }
+
+    if (quote.status === 'EXPIRED') {
+      throw new BadRequestException('Cannot accept quotation: quotation has expired');
+    }
+
+    // Idempotency: return the existing booking only after ownership is verified
+    const existingBooking = await this.prisma.booking.findUnique({
+      where: { quotationId },
+      include: {
+        quotation: true,
+        provider: true,
+        customer: true,
+        payments: true,
+      },
+    });
+
+    if (existingBooking) {
+      return existingBooking;
     }
 
     // Validate state machine transitions
