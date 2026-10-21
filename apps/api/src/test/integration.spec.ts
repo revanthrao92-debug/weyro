@@ -249,6 +249,8 @@ describe('End-to-End Core Integration Suite', () => {
       mockPrisma.payment.findUnique.mockResolvedValue({
         id: 'pay_1',
         status: 'PENDING',
+        amount: 5000,
+        currency: 'INR',
         booking: { id: 'bk_1', quotation: { totalCost: 5000 } },
       });
 
@@ -261,6 +263,7 @@ describe('End-to-End Core Integration Suite', () => {
               id: 'pay_rzp_123',
               order_id: 'order_123',
               amount: 500000,
+              currency: 'INR',
             },
           },
         },

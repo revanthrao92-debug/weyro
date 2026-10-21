@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import {
   PAYMENT_GATEWAY,
   PaymentGateway,
@@ -179,8 +180,13 @@ export class PaymentsService {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    const eventId = payload.id || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const eventType = payload.event;
+    const eventId = payload?.id;
+    if (typeof eventId !== 'string' || eventId.length === 0) {
+      throw new BadRequestException(
+        'Webhook payload is missing a gateway event id',
+      );
+    }
+    const eventType = payload?.event;
 
     // Idempotency check: duplicate event check
     const existingEvent = await this.prisma.webhookEvent.findUnique({
@@ -192,15 +198,57 @@ export class PaymentsService {
       return { status: 'ignored', reason: 'duplicate', eventId };
     }
 
+    // Validate money fields before recording/processing the event
+    if (eventType === 'payment.captured') {
+      const entity = payload?.payload?.payment?.entity;
+      const orderId = entity?.order_id;
+
+      if (!orderId) {
+        throw new BadRequestException(
+          'Webhook payment entity is missing order_id',
+        );
+      }
+
+      const payment = await this.prisma.payment.findUnique({
+        where: { gatewayOrderId: orderId },
+      });
+
+      if (payment) {
+        const expectedMinorUnits = Math.round(Number(payment.amount) * 100);
+        if (
+          Number(entity.amount) !== expectedMinorUnits ||
+          entity.currency !== payment.currency
+        ) {
+          this.logger.warn(
+            `Rejected webhook ${eventId}: amount/currency mismatch for payment ${payment.id}`,
+          );
+          throw new BadRequestException(
+            'Webhook amount or currency does not match the stored payment',
+          );
+        }
+      }
+    }
+
     // Record webhook event in DB
-    await this.prisma.webhookEvent.create({
-      data: {
-        eventId,
-        provider: 'RAZORPAY',
-        eventType: eventType || 'unknown',
-        payload: payload as any,
-      },
-    });
+    try {
+      await this.prisma.webhookEvent.create({
+        data: {
+          eventId,
+          provider: 'RAZORPAY',
+          eventType: eventType || 'unknown',
+          payload: payload as any,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        this.logger.log(`Ignoring concurrently recorded webhook: ${eventId}`);
+        return { status: 'ignored', reason: 'duplicate', eventId };
+      }
+      throw err;
+    }
 
     this.logger.log(`Processing verified webhook event: ${eventId} (${eventType})`);
 
@@ -251,13 +299,28 @@ export class PaymentsService {
       }
 
       case 'refund.processed': {
-        const paymentEntityId = payload.payload?.refund?.entity?.payment_id;
+        const refundEntity = payload.payload?.refund?.entity;
+        const paymentEntityId = refundEntity?.payment_id;
         if (paymentEntityId) {
           const payment = await this.prisma.payment.findFirst({
             where: { gatewayPaymentId: paymentEntityId },
           });
 
           if (payment && payment.status === 'CAPTURED') {
+            const refundMinorUnits = Number(refundEntity?.amount);
+            const capturedMinorUnits = Math.round(Number(payment.amount) * 100);
+
+            if (
+              !Number.isFinite(refundMinorUnits) ||
+              refundMinorUnits > capturedMinorUnits ||
+              refundEntity?.currency !== payment.currency
+            ) {
+              this.logger.warn(
+                `Rejected refund ${eventId}: amount/currency mismatch for payment ${payment.id}`,
+              );
+              break;
+            }
+
             validatePaymentTransition(payment.status, 'REFUNDED', 'SYSTEM');
             await this.prisma.payment.update({
               where: { id: payment.id },

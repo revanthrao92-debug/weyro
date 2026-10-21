@@ -241,6 +241,45 @@ describe('PaymentsService', () => {
       expect(mockPrisma.payment.update).not.toHaveBeenCalled();
     });
 
+    it('rejects webhook payloads without a gateway event id', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+
+      await expect(
+        service.handleWebhook('{}', 'valid_sig', { event: 'payment.captured' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects amount/currency mismatches before recording the event', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        status: 'PENDING',
+        gatewayOrderId: 'order_abc',
+        amount: 100,
+        currency: 'INR',
+      });
+
+      await expect(
+        service.handleWebhook('{}', 'valid_sig', {
+          id: 'evt_bad_amount',
+          event: 'payment.captured',
+          payload: {
+            payment: {
+              entity: {
+                id: 'pay_rzp_123',
+                order_id: 'order_abc',
+                amount: 9999,
+                currency: 'INR',
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrisma.webhookEvent.create).not.toHaveBeenCalled();
+    });
+
     it('processes payment.captured event and marks payment CAPTURED', async () => {
       mockGateway.verifyWebhookSignature.mockReturnValue(true);
       mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
@@ -248,6 +287,8 @@ describe('PaymentsService', () => {
         id: 'pay-1',
         status: 'PENDING',
         gatewayOrderId: 'order_abc',
+        amount: 100,
+        currency: 'INR',
       });
 
       const payload = {
@@ -258,6 +299,8 @@ describe('PaymentsService', () => {
             entity: {
               id: 'pay_rzp_123',
               order_id: 'order_abc',
+              amount: 10000,
+              currency: 'INR',
             },
           },
         },
@@ -321,6 +364,8 @@ describe('PaymentsService', () => {
         id: 'pay-1',
         status: 'CAPTURED',
         gatewayPaymentId: 'pay_captured_123',
+        amount: 100,
+        currency: 'INR',
       });
 
       const payload = {
@@ -331,6 +376,8 @@ describe('PaymentsService', () => {
             entity: {
               id: 'rfnd_123',
               payment_id: 'pay_captured_123',
+              amount: 10000,
+              currency: 'INR',
             },
           },
         },
