@@ -10,7 +10,7 @@ import {
   STORAGE_SERVICE,
   StorageService,
 } from './interfaces/storage.interface';
-import { presignedUrlQuerySchema, MAX_FILE_SIZE } from './dto/presigned-url.dto';
+import { presignedUrlQuerySchema, MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from './dto/presigned-url.dto';
 import { z } from 'zod';
 
 @Controller('uploads')
@@ -57,5 +57,3 @@ export class UploadsController {
     });
   }
 }
-
-export { ALLOWED_MIME_TYPES } from './dto/presigned-url.dto';
