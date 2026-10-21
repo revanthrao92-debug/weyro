@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -17,8 +17,8 @@ import { BorderRadius, Elevation, BottomTabInset, MaxContentWidth, Spacing } fro
 import { useTheme } from '@/hooks/use-theme';
 import {
   ChatMessage,
+  ChatThread,
   chatStore,
-  useChatThread,
 } from '@/services/chat-store';
 
 const QUICK_PROMPTS = [
@@ -49,21 +49,30 @@ export default function ChatScreen() {
       ? `${params.requestId}_${params.providerName}`
       : 'thread_direct');
 
-  // Ensure thread exists
-  const activeThread =
-    useChatThread(resolvedThreadId) ||
-    chatStore.getOrCreateThread({
+  const [activeRole, setActiveRole] = useState<'CUSTOMER' | 'PROVIDER'>(
+    params.role === 'PROVIDER' ? 'PROVIDER' : 'CUSTOMER'
+  );
+  const [inputText, setInputText] = useState('');
+
+  // Get or create thread synchronously (idempotent store operation)
+  const activeThread = useMemo<ChatThread>(() => {
+    const existing = chatStore.getThread(resolvedThreadId);
+    if (existing) return existing;
+    return chatStore.getOrCreateThread({
       requestId: params.requestId || 'req_direct',
       providerName: params.providerName || 'Service Provider',
       customerName: params.customerName || 'Customer',
       damagedPart: params.damagedPart || 'Automotive Service',
       vehicle: params.vehicle || 'Vehicle',
     });
-
-  const [activeRole, setActiveRole] = useState<'CUSTOMER' | 'PROVIDER'>(
-    params.role === 'PROVIDER' ? 'PROVIDER' : 'CUSTOMER'
-  );
-  const [inputText, setInputText] = useState('');
+  }, [
+    resolvedThreadId,
+    params.requestId,
+    params.providerName,
+    params.customerName,
+    params.damagedPart,
+    params.vehicle,
+  ]);
 
   const handleSend = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
