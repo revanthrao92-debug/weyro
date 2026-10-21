@@ -9,22 +9,44 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000/api/v1"
       }
     },
     "preview": {
       "distribution": "internal",
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-preview.weyro.in/api/v1"
       }
     },
     "production": {
       "autoIncrement": true,
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.weyro.in/api/v1"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "APPLE_APP_ID_PLACEHOLDER"
+      },
+      "android": {
+        "serviceAccountKeyPath": "GOOGLE_PLAY_SERVICE_ACCOUNT_KEY_PATH_PLACEHOLDER"
+      }
+    }
   }
 }

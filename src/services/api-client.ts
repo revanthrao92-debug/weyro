@@ -12,8 +12,7 @@ export class ApiClientError extends Error {
   }
 }
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
