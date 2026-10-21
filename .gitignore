@@ -59,4 +59,8 @@ graphify-out/
 weyro_presentation.*
 *.pptx
 
+# supabase local temp
+supabase/.temp/
+
+
 
