@@ -214,7 +214,7 @@ export class QuotationsService {
     validateServiceRequestTransition(quote.request.status, 'ACCEPTED', user.role);
 
     // Atomic acceptance transaction with guarded update
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Guarded update: ensure quote is still pending. If concurrent accept raced, count will be 0
       const updateResult = await tx.quotation.updateMany({
         where: { id: quotationId, status: 'PENDING' },
@@ -391,8 +391,8 @@ export class QuotationsService {
       data.completedAt = new Date();
     }
 
-    return await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.booking.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedBooking = await tx.booking.update({
         where: { id },
         data,
         include: {
@@ -426,7 +426,7 @@ export class QuotationsService {
         }
       }
 
-      return updated;
+      return updatedBooking;
     });
 
     // Notify opposite party of booking status update

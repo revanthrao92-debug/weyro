@@ -120,3 +120,13 @@ This document tracks significant technical, architectural, and compliance decisi
   - Clean State & Zero Demo Seeds: Purge dummy Marcus Vance, Apex OEM, and US demo seeds; initialize the application in a clean, logged-out state with real backend synchronisation.
   - Screen Modularization: Decompose all oversized screens (`index.tsx`, `quotes.tsx`, `explore.tsx`, `admin.tsx`) to ≤ 220 lines by extracting focused, reusable UI components into `src/components/damage-post/`, `src/components/quotes/`, `src/components/explore/`, and `src/components/admin/`.
 
+## ADR 011: Strict TypeScript Mode, Health Probes, OpenAPI Spec, and CI Workflow
+- **Date**: 2026-10-21
+- **Status**: Accepted
+- **Context**: Production resilience requires strict compiler guarantees against `any` and unhandled `null` references, standard container liveness/readiness probes, machine-readable API specifications, and automated CI pipelines.
+- **Decision**:
+  - Strict TypeScript Configuration: Pinned `strict: true`, `strictNullChecks: true`, `noImplicitAny: true`, and `forceConsistentCasingInFileNames: true` in `apps/api/tsconfig.json` and resolved all type errors across the API.
+  - Observability & Logging: Created `RequestIdMiddleware` attaching unique UUIDs or `x-request-id` headers to requests and structured logs recording latency, route, status code, and correlation ID.
+  - Health & Readiness Probes (`HealthModule`): Implemented `/api/v1/health` (process uptime liveness) and `/api/v1/ready` (active PostgreSQL database query probe returning 503 if disconnected).
+  - OpenAPI & Swagger Documentation: Configured `@nestjs/swagger` at `/api/docs` with Bearer auth definitions and model tags.
+  - Automated CI Pipeline (`.github/workflows/ci.yml`): Established GitHub Actions running monorepo typecheck (`typecheck:all`), ESLint, `expo-doctor`, Jest unit/integration suites, and Prisma schema validation on push and PR.

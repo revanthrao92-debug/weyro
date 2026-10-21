@@ -40,7 +40,7 @@ export class JwtAuthGuard implements CanActivate {
         secret: env.JWT_ACCESS_SECRET,
       });
 
-      request['user'] = payload;
+      (request as any).user = payload;
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired authentication token');

@@ -35,7 +35,7 @@ export class RazorpayPaymentGateway implements PaymentGateway {
       throw new Error('Razorpay keys must be configured to use RazorpayPaymentGateway');
     }
     this.keySecret = keySecret;
-    this.webhookSecret = webhookSecret;
+    this.webhookSecret = webhookSecret || keySecret;
     this.instance = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,

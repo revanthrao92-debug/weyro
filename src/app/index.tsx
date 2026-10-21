@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { damageRequestStore } from '@/services/damage-request-store';
 import { useAuth } from '@/services/auth-store';
@@ -82,16 +82,11 @@ export default function PostDamageScreen() {
           styles.scrollContent,
           {
             paddingTop: safeAreaInsets.top + Spacing.three,
-            paddingBottom: safeAreaInsets.bottom + BottomTabInset + Spacing.four,
+            paddingBottom: Spacing.six,
           },
         ]}>
         <View style={styles.contentWrapper}>
           <View style={styles.header}>
-            <View style={[styles.badge, { backgroundColor: theme.primarySurface }]}>
-              <ThemedText style={[styles.badgeText, { color: theme.primary }]}>
-                WEYRO INSTANT REPAIR DISPATCH
-              </ThemedText>
-            </View>
             <ThemedText type="subtitle" style={styles.headerTitle}>
               Post Car Damage
             </ThemedText>
@@ -124,21 +119,24 @@ export default function PostDamageScreen() {
             fulfillmentType={fulfillmentType}
             setFulfillmentType={setFulfillmentType}
           />
-
-          <Pressable
-            disabled={isSubmitting}
-            onPress={handleSubmit}
-            style={[
-              styles.submitButton,
-              { backgroundColor: theme.primary },
-              isSubmitting && { opacity: 0.7 },
-            ]}>
-            <ThemedText style={[styles.submitText, { color: theme.inverseText }]}>
-              {isSubmitting ? 'Broadcasting...' : 'Broadcast to Workshops & Dealers 📡'}
-            </ThemedText>
-          </Pressable>
         </View>
       </ScrollView>
+
+      {/* Floating primary CTA */}
+      <View style={[styles.fabContainer, { bottom: safeAreaInsets.bottom + Spacing.three }]}>
+        <Pressable
+          disabled={isSubmitting}
+          onPress={handleSubmit}
+          style={[
+            styles.fab,
+            { backgroundColor: theme.primary },
+            isSubmitting && { opacity: 0.7 },
+          ]}>
+          <ThemedText style={[styles.fabText, { color: theme.inverseText }]}>
+            {isSubmitting ? 'Broadcasting...' : 'Broadcast Request 📡'}
+          </ThemedText>
+        </Pressable>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -158,36 +156,29 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.four,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: Spacing.one,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: Spacing.half,
   },
   headerSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  submitButton: {
-    height: 52,
-    borderRadius: 10,
+  fabContainer: {
+    position: 'absolute',
+    left: Spacing.three,
+    right: Spacing.three,
+  },
+  fab: {
+    height: 56,
+    borderRadius: BorderRadius.xlarge,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.two,
+    ...Elevation.floating,
   },
-  submitText: {
-    fontSize: 15,
+  fabText: {
+    fontSize: 16,
     fontWeight: '700',
   },
 });

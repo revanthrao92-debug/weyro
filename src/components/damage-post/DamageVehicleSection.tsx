@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, TextInput, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export const COMMON_DAMAGED_PARTS = [
@@ -43,7 +43,7 @@ export function DamageVehicleSection({
   const theme = useTheme();
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, Elevation.low, { borderRadius: BorderRadius.large, backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         1. VEHICLE DETAILS & DAMAGED PART
       </ThemedText>
@@ -127,6 +127,7 @@ export function DamageVehicleSection({
 const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.four,
+    padding: Spacing.three,
   },
   sectionTitle: {
     letterSpacing: 1.2,

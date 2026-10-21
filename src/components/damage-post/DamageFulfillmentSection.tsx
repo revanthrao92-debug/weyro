@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface DamageFulfillmentSectionProps {
@@ -36,7 +36,7 @@ export function DamageFulfillmentSection({
   const theme = useTheme();
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, Elevation.low, { borderRadius: BorderRadius.large, backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         3. URGENCY & PREFERRED FULFILLMENT
       </ThemedText>
@@ -97,6 +97,7 @@ export function DamageFulfillmentSection({
 const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.four,
+    padding: Spacing.three,
   },
   sectionTitle: {
     letterSpacing: 1.2,

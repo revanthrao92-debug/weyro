@@ -87,5 +87,21 @@ export const Spacing = {
   six: 64,
 } as const;
 
+export const Elevation = {
+  none: { shadowColor: 'transparent', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  low: { shadowColor: '#000000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
+  medium: { shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4 },
+  high: { shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.16, shadowRadius: 16, elevation: 8 },
+  floating: { shadowColor: '#000000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.20, shadowRadius: 24, elevation: 12 },
+} as const;
+
+export const BorderRadius = {
+  small: 8,
+  medium: 12,
+  large: 16,
+  xlarge: 20,
+  round: 999,
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
