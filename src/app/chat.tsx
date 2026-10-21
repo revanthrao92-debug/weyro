@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   ChatMessage,
@@ -93,7 +93,7 @@ export default function ChatScreen() {
             styles.messageBubble,
             isCustomer
               ? [styles.customerBubble, { backgroundColor: theme.primary }]
-              : styles.providerBubble,
+              : [styles.providerBubble, Elevation.low, { backgroundColor: theme.backgroundElement }],
           ]}>
           <ThemedText
             type="smallBold"
@@ -126,8 +126,8 @@ export default function ChatScreen() {
         type="backgroundElement"
         style={[
           styles.headerContainer,
-          { paddingTop: insets.top + Spacing.two },
-        ]}>
+          { paddingTop: insets.top + Spacing.two, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.card },
+          ]}>
         <View style={styles.headerTopRow}>
           <Pressable
             onPress={() => router.back()}
@@ -156,6 +156,7 @@ export default function ChatScreen() {
               style={[
                 styles.rolePill,
                 activeRole === 'CUSTOMER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
+                { borderColor: theme.border },
               ]}>
               <ThemedText
                 type="small"
@@ -172,6 +173,7 @@ export default function ChatScreen() {
               style={[
                 styles.rolePill,
                 activeRole === 'PROVIDER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
+                { borderColor: theme.border },
               ]}>
               <ThemedText
                 type="small"
@@ -210,7 +212,7 @@ export default function ChatScreen() {
               onPress={() => handleSend(item)}
               style={({ pressed }) => [
                 styles.promptChip,
-                { backgroundColor: theme.backgroundElement },
+                { borderColor: theme.border, backgroundColor: theme.backgroundElement },
                 pressed && styles.pressed,
               ]}>
               <ThemedText type="small" style={styles.promptChipText}>
@@ -228,6 +230,8 @@ export default function ChatScreen() {
           styles.inputBarContainer,
           {
             paddingBottom: insets.bottom + BottomTabInset,
+            borderTopColor: theme.border,
+            backgroundColor: theme.backgroundElement,
           },
         ]}>
         <TextInput
@@ -266,9 +270,8 @@ const styles = StyleSheet.create({
   headerContainer: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
     gap: Spacing.two,
+    ...Elevation.low,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -305,9 +308,8 @@ const styles = StyleSheet.create({
   rolePill: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: BorderRadius.round,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
   },
   rolePillActive: {},
   rolePillText: {
@@ -344,11 +346,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 2,
   },
   providerBubble: {
-    backgroundColor: '#2E3135',
     borderBottomLeftRadius: 2,
   },
   senderBadge: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '700',
+    opacity: 0.8,
   },
   customerSenderText: {
     color: '#93C5FD',
@@ -374,9 +377,8 @@ const styles = StyleSheet.create({
   promptChip: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
-    borderRadius: 16,
+    borderRadius: BorderRadius.round,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
   },
   promptChipText: {
     fontSize: 12,
@@ -387,21 +389,21 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     gap: Spacing.two,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.08)',
     alignItems: 'center',
+    ...Elevation.low,
   },
   chatInput: {
     flex: 1,
-    height: 44,
+    height: 48,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: BorderRadius.round,
     paddingHorizontal: Spacing.three,
     fontSize: 14,
   },
   sendButton: {
-    height: 44,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 12,
+    height: 48,
+    width: 48,
+    borderRadius: BorderRadius.round,
     alignItems: 'center',
     justifyContent: 'center',
   },

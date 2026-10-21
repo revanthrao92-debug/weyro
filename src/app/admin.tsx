@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   AdminOverviewMetrics,
@@ -181,8 +181,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.two,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: BorderRadius.round,
     marginBottom: Spacing.one,
+    ...Elevation.low,
   },
   badgeText: {
     fontSize: 10,
@@ -200,6 +201,7 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: Spacing.three,
+    padding: Spacing.three,
   },
   sectionTitle: {
     letterSpacing: 1.1,

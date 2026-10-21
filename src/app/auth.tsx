@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { BottomTabInset, BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authStore, useAuth } from '@/services/auth-store';
 import { UserRole } from '@weyro/api-contracts';
@@ -133,7 +133,7 @@ export default function AuthScreen() {
 
         {/* Current Active User Status Card */}
         {auth.isAuthenticated && auth.user ? (
-          <ThemedView type="backgroundElement" style={styles.activeCard}>
+          <ThemedView type="backgroundElement" style={[styles.activeCard, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText style={[styles.sectionHeading, { color: theme.textSecondary }]}>AUTHENTICATED USER</ThemedText>
             <ThemedText style={styles.activeName}>{auth.user.name}</ThemedText>
             <ThemedText style={[styles.activeEmail, { color: theme.textSecondary }]}>{auth.user.email}</ThemedText>
@@ -145,7 +145,7 @@ export default function AuthScreen() {
             </View>
 
             <Pressable
-              style={[styles.logoutBtn, { backgroundColor: theme.danger }]}
+              style={[styles.logoutBtn, { backgroundColor: theme.danger }, Elevation.low]}
               onPress={handleLogout}>
               <ThemedText style={[styles.logoutBtnText, { color: theme.inverseText }]}>Sign Out</ThemedText>
             </Pressable>
@@ -154,8 +154,8 @@ export default function AuthScreen() {
 
         {/* Auth Form */}
         {!auth.isAuthenticated && (
-          <ThemedView type="backgroundElement" style={styles.formCard}>
-            <View style={styles.modeToggle}>
+          <ThemedView type="backgroundElement" style={[styles.formCard, { backgroundColor: theme.backgroundElement }]}>
+            <View style={[styles.modeToggle, { backgroundColor: theme.muted }]}>
               <Pressable
                 style={[styles.modeTab, mode === 'LOGIN' && [styles.modeTabActive, { backgroundColor: theme.card }]]}
                 onPress={() => setMode('LOGIN')}>
@@ -272,7 +272,7 @@ export default function AuthScreen() {
                       key={r}
                       style={[
                         styles.roleChoice,
-                        { borderColor: theme.border },
+                        { borderColor: theme.border, backgroundColor: theme.backgroundElement },
                         selectedRole === r && [styles.roleChoiceActive, { borderColor: theme.primary, backgroundColor: theme.primarySurface }],
                       ]}
                       onPress={() => setSelectedRole(r)}>
@@ -309,7 +309,7 @@ export default function AuthScreen() {
             )}
 
             <Pressable
-              style={[styles.submitBtn, { backgroundColor: theme.primary }, submitting && { opacity: 0.7 }]}
+              style={[styles.submitBtn, { backgroundColor: theme.primary }, Elevation.medium, submitting && { opacity: 0.7 }]}
               onPress={handleSubmit}
               disabled={submitting}>
               {submitting ? (
@@ -358,8 +358,9 @@ const styles = StyleSheet.create({
   },
   activeCard: {
     padding: Spacing.three,
-    borderRadius: 16,
+    borderRadius: BorderRadius.xlarge,
     marginBottom: Spacing.three,
+    ...Elevation.low,
   },
   sectionHeading: {
     fontSize: 11,
@@ -383,8 +384,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: BorderRadius.round,
     marginTop: 10,
+    ...Elevation.low,
   },
   roleTagText: {
     fontSize: 11,
@@ -402,13 +404,15 @@ const styles = StyleSheet.create({
   },
   formCard: {
     padding: Spacing.three,
-    borderRadius: 16,
+    borderRadius: BorderRadius.xlarge,
+    ...Elevation.low,
   },
   modeToggle: {
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: BorderRadius.round,
     padding: 3,
     marginBottom: Spacing.three,
+    ...Elevation.low,
   },
   modeTab: {
     flex: 1,
@@ -416,7 +420,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  modeTabActive: {},
+  modeTabActive: {
+    ...Elevation.low,
+  },
   modeTabText: {
     fontSize: 13,
     fontWeight: '600',
@@ -444,7 +450,7 @@ const styles = StyleSheet.create({
   roleChoice: {
     flex: 1,
     height: 40,
-    borderRadius: 8,
+    borderRadius: BorderRadius.round,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -459,8 +465,8 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: Spacing.three,
-    height: 46,
-    borderRadius: 12,
+    height: 50,
+    borderRadius: BorderRadius.round,
     alignItems: 'center',
     justifyContent: 'center',
   },
