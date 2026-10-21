@@ -164,6 +164,8 @@ export default function AuthScreen() {
           <ThemedView type="backgroundElement" style={[styles.formCard, { backgroundColor: theme.backgroundElement }]}>
             <View style={[styles.modeToggle, { backgroundColor: theme.muted }]}>
               <Pressable
+                accessibilityLabel="Sign In tab"
+                accessibilityRole="tab"
                 style={[styles.modeTab, mode === 'LOGIN' && [styles.modeTabActive, { backgroundColor: theme.card }]]}
                 onPress={() => setMode('LOGIN')}>
                 <ThemedText
@@ -176,6 +178,8 @@ export default function AuthScreen() {
                 </ThemedText>
               </Pressable>
               <Pressable
+                accessibilityLabel="Create Account tab"
+                accessibilityRole="tab"
                 style={[styles.modeTab, mode === 'REGISTER' && [styles.modeTabActive, { backgroundColor: theme.card }]]}
                 onPress={() => setMode('REGISTER')}>
                 <ThemedText
@@ -193,6 +197,7 @@ export default function AuthScreen() {
               <>
                 <ThemedText style={styles.inputLabel}>Email or Phone Number</ThemedText>
                 <TextInput
+                  accessibilityLabel="Email or phone number"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -207,6 +212,7 @@ export default function AuthScreen() {
 
                 <ThemedText style={styles.inputLabel}>Password</ThemedText>
                 <TextInput
+                  accessibilityLabel="Password"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -222,6 +228,7 @@ export default function AuthScreen() {
               <>
                 <ThemedText style={styles.inputLabel}>Full Name</ThemedText>
                 <TextInput
+                  accessibilityLabel="Full name"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -234,6 +241,7 @@ export default function AuthScreen() {
 
                 <ThemedText style={styles.inputLabel}>Email Address</ThemedText>
                 <TextInput
+                  accessibilityLabel="Email address"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -248,6 +256,7 @@ export default function AuthScreen() {
 
                 <ThemedText style={styles.inputLabel}>Mobile Phone (+91)</ThemedText>
                 <TextInput
+                  accessibilityLabel="Mobile phone number"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -261,6 +270,7 @@ export default function AuthScreen() {
 
                 <ThemedText style={styles.inputLabel}>Password (Min 8 characters)</ThemedText>
                 <TextInput
+                  accessibilityLabel="Password"
                   style={[
                     styles.textInput,
                     { color: theme.text, borderColor: theme.backgroundElement },
@@ -316,6 +326,8 @@ export default function AuthScreen() {
             )}
 
             <Pressable
+              accessibilityLabel={submitting ? 'Signing in...' : mode === 'LOGIN' ? 'Sign in' : 'Create account'}
+              accessibilityRole="button"
               style={[styles.submitBtn, { backgroundColor: theme.primary }, Elevation.medium, submitting && { opacity: 0.7 }]}
               onPress={handleSubmit}
               disabled={submitting}>

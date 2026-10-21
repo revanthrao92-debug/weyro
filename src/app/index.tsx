@@ -125,6 +125,8 @@ export default function PostDamageScreen() {
       {/* Floating primary CTA */}
       <View style={[styles.fabContainer, { bottom: safeAreaInsets.bottom + Spacing.three }]}>
         <Pressable
+          accessibilityLabel={isSubmitting ? 'Broadcasting request...' : 'Broadcast damage request to workshops and dealers'}
+          accessibilityRole="button"
           disabled={isSubmitting}
           onPress={handleSubmit}
           style={[
