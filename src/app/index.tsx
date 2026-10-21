@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { damageRequestStore } from '@/services/damage-request-store';
 import { useAuth } from '@/services/auth-store';

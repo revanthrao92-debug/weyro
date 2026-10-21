@@ -1,122 +1,120 @@
 # Weyro 🚗🔧
 
-> **Next-generation automotive marketplace connecting vehicle owners with verified mechanics, garages, and spare-parts dealers nationwide.**
+> **Production-ready automotive marketplace connecting Indian vehicle owners with verified workshops, garages, and spare-parts distributors nationwide.**
 
 ---
 
-## 📌 Overview
+## 📌 Architecture & Overview
 
-**Weyro** is an asset-light automotive platform engineered to eliminate repair friction, opaque pricing, and part-sourcing bottlenecks. Vehicle owners report mechanical issues or vehicle damage, and our broadcast dispatch engine distributes the request across garages and parts distributors without arbitrary distance or time barriers.
+Weyro operates as an automotive marketplace tailored for the Indian landscape—handling vehicle breakdowns, damaged components, and spare part sourcing across INR (₹) pricing, UPI/card payments via Razorpay, +91 mobile authentication, and Indian vehicle makes (Maruti Suzuki, Hyundai, Tata, Mahindra, Honda, Toyota).
 
-### Key Capabilities
+```mermaid
+graph TD
+    subgraph Client ["Mobile Client (Expo SDK 57 / React Native)"]
+        UI["UI Screens (Quotes, Post, Explore, Admin)"]
+        Store["State & Hooks (authStore, damageRequestStore)"]
+        Secure["Token Storage (expo-secure-store)"]
+        Queue["Offline Mutation Queue (Idempotency + Backoff)"]
+        ClientAPI["Typed API Client (Auto-Refresh on 401)"]
+    end
 
-- **📸 Car Damage Photo Broadcast**: Vehicle owners snap a photo of damaged components (e.g. bumpers, headlights, cooling systems). The request is broadcast nationwide to verified mechanics and spare-parts dealers regardless of geographic distance.
-- **⚡ Competitive Multi-Bid Quotations**: Mechanics and parts dealers inspect damage photos, supply availability, and submit binding quotations specifying parts cost, labour, component grade (`OEM`, `AFTERMARKET`, `USED`), and delivery ETA.
-- **💬 Real-Time In-App Chat**: Customers negotiate directly with quoting providers to verify VIN compatibility, request component close-ups, and clarify fitment.
-- **📦 Direct Booking & Escrow Protection**: Customers compare competing offers side-by-side, choose their preferred fulfillment (Parts Courier, Garage Visit, or On-Site Fitment), and confirm bookings with milestone tracking.
+    subgraph Backend ["Backend API (NestJS 11 / Express)"]
+        GW["Global Guards (JWT, Roles, Throttler)"]
+        Modules["Modules: Auth, Requests, Quotes, Payments, Uploads, Chat, Health"]
+        SM["Domain State Machines (Request, Quote, Booking, Payment)"]
+        Cron["Task Expiry Cron Service"]
+    end
 
----
+    subgraph Data ["Data Layer & External Services"]
+        PG[("PostgreSQL 16 + PostGIS (Spatial GiST Index)")]
+        S3[("S3-Compatible Storage (Presigned PUT URLs)")]
+        RZP["Razorpay Gateway (UPI, Cards, Webhooks)"]
+        ExpoPush["Expo Push Service (Chunked Mobile Dispatch)"]
+    end
 
-## 🏗️ Architecture & Technology Stack
-
-The project is structured as a modular monorepo:
-
+    UI --> Store
+    Store --> ClientAPI
+    Store --> Queue
+    Queue --> ClientAPI
+    ClientAPI --> Secure
+    ClientAPI -->|HTTPS / WSS| GW
+    GW --> Modules
+    Modules --> SM
+    Modules --> PG
+    Modules --> S3
+    Modules --> RZP
+    Modules --> ExpoPush
+    Cron --> PG
 ```
-weyro/
-├── apps/
-│   ├── mobile/ (root)       # React Native + Expo SDK 57 + Expo Router
-│   └── api/                 # NestJS 11 + Prisma ORM + PostgreSQL / PostGIS
-└── packages/
-    ├── api-contracts/       # Shared TypeScript DTOs & Domain Interfaces
-    ├── database/            # Prisma Schema, Migrations & PostGIS Spatial Queries
-    └── validation/          # Shared Zod Schemas
-```
-
-### Core Technologies
-
-| Layer | Technologies |
-|---|---|
-| **Mobile Client** | React Native 0.86, Expo SDK 57, Expo Router, React 19, TypeScript |
-| **Backend API** | NestJS 11, Express, Prisma Client, RxJS |
-| **Database & GIS** | PostgreSQL, PostGIS spatial indexing (`ST_DWithin`, clamped Haversine) |
-| **Media & Hardware** | `expo-image`, `expo-image-picker` |
-| **State & Cache** | React 19 `useSyncExternalStore` (zero external bloat) |
 
 ---
 
-## 🚀 Getting Started
+## ⚡ Quickstart (≤ 5 Commands)
 
-### Prerequisites
-
-- **Node.js**: v20+ (Node v22 recommended)
-- **npm** or **bun**
-- **Expo Go** or an iOS / Android simulator
-
-### 1. Mobile Client Setup
+To bring up the entire Weyro stack locally:
 
 ```bash
-# Clone the repository
-git clone https://github.com/revanthrao92-debug/weyro.git
-cd weyro
-
-# Install dependencies
+# 1. Install all dependencies across monorepo workspaces
 npm install
 
-# Run Expo development server
-npx expo start
+# 2. Copy environment configuration
+cp .env.example .env && cp apps/api/.env.example apps/api/.env
+
+# 3. Boot PostgreSQL with PostGIS extension
+docker-compose up -d
+
+# 4. Build shared packages and run database baseline migration
+npm run build:packages && npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+
+# 5. Start API & Mobile client concurrently
+npm run build && (cd apps/api && npm run start:dev &) && npx expo start
 ```
-
-Press `i` for iOS Simulator, `a` for Android Emulator, or `w` for Web Browser.
-
-### 2. Backend API Setup
-
-```bash
-cd apps/api
-
-# Install backend dependencies
-npm install
-
-# Generate Prisma Client
-npx prisma generate --schema=../../packages/database/prisma/schema.prisma
-
-# Start API in development mode
-npm run start:dev
-```
-
-The API boots on `http://localhost:4000/api/v1`.
 
 ---
 
-## 🧪 Quality & Verification
+## 🇮🇳 India Market Localization
 
-Run project-wide diagnostics to ensure complete type safety and SDK conformance:
+- **Currency & Denominations**: Strict Indian Rupee (INR / ₹) calculations across all quotes, bookings, and payments. Razorpay order amounts calculated in paise.
+- **Payment Infrastructure**: Razorpay gateway integration supporting UPI (Google Pay, PhonePe, Paytm, BHIM), Net Banking, Credit/Debit cards, and marketplace webhook idempotency.
+- **Regulatory Compliance (RBI PA/PG)**: Fully adheres to RBI Guidelines on Regulation of Payment Aggregators (RBI/DPSS/2019-20/174). Escrow records represent internal milestone states; funds disbursements are gated through authorized banking partners / Razorpay Route.
+- **Identity & Verification**: +91 E.164 phone number authentication, constant-time dummy password verification preventing timing attacks, and GSTIN / trade license verification for automotive service partners.
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Description | Required | Default |
+|---|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string with PostGIS | **Yes** | `postgresql://postgres:postgres@localhost:5432/weyro?schema=public` |
+| `PORT` | NestJS API listening port | No | `4000` |
+| `JWT_ACCESS_SECRET` | Secret key for signing short-lived JWT access tokens | **Yes** | `dev_access_secret_min_32_chars_long!!` |
+| `JWT_ACCESS_EXPIRES_IN` | Access token lifespan | No | `15m` |
+| `JWT_REFRESH_SECRET` | Secret key for rotating stateful refresh tokens | **Yes** | `dev_refresh_secret_min_32_chars_long!!` |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan | No | `30d` |
+| `CORS_ORIGINS` | Comma-separated CORS allowed origins | No | `*` |
+| `RAZORPAY_KEY_ID` | Razorpay API Key ID for INR payments | No | `rzp_test_placeholder` |
+| `RAZORPAY_KEY_SECRET` | Razorpay Key Secret for order creation | No | `placeholder_secret` |
+| `RAZORPAY_WEBHOOK_SECRET` | Secret for HMAC SHA256 webhook verification | No | `placeholder_webhook_secret` |
+| `STORAGE_DRIVER` | Storage driver (`s3` or `memory` for test) | No | `memory` |
+| `STORAGE_BUCKET` | S3 / MinIO object storage bucket name | No | `weyro-media` |
+| `EXPO_PUBLIC_API_URL` | API base URL for mobile Expo client | No | `http://localhost:4000/api/v1` |
+
+---
+
+## 🛠️ Verification & Testing
 
 ```bash
-# Typecheck mobile client
-npx tsc --noEmit
+# Typecheck entire monorepo (strict mode)
+npm run typecheck:all
 
-# Lint code quality
+# Run ESLint across codebases
 npm run lint
 
-# Validate Expo SDK 57 compatibility
-npx expo-doctor
+# Run Jest unit and integration suites (60+ tests)
+npm run test -w @weyro/api
 
-# Typecheck backend API
-cd apps/api && npm run typecheck
+# Run Expo Doctor SDK conformance check
+npx expo-doctor
 ```
 
----
-
-## 💳 Payments & Regulatory Compliance
-
-Weyro integrates Razorpay for processing Indian Rupee (INR) transactions via UPI, Credit/Debit cards, and Netbanking with cryptographically verified HMAC SHA-256 webhook signatures and idempotent event handling.
-
-> [!IMPORTANT]
-> **Regulatory Note (RBI PA/PG Guidelines)**:
-> In the application architecture, "escrow" or "held" states represent internal workflow milestones. Under Reserve Bank of India (RBI) Payment Aggregator and Payment Gateway (PA/PG) guidelines, intermediary holding of customer funds requires an authorized PA license or an approved Nodal/Escrow banking arrangement with a scheduled commercial bank. Production marketplace disbursements and split payouts utilize authorized Payment Aggregator marketplace solutions (such as Razorpay Route) with compliant vendor KYC.
-
----
-
-## 📄 License
-
-MIT License. Designed and developed for Weyro Automotive Technologies.
+Interactive OpenAPI documentation is available at `http://localhost:4000/api/docs`.

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { DamageRequestQuote } from '@/services/damage-request-store';
 
@@ -15,7 +15,7 @@ export function QuoteCard({ quote, onAccept, onChat }: QuoteCardProps) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
+    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }, Elevation.low, { borderRadius: BorderRadius.large }]}>
       <View style={styles.headerRow}>
         <View style={styles.providerInfo}>
           <ThemedText type="smallBold" style={styles.providerName}>
@@ -79,7 +79,7 @@ export function QuoteCard({ quote, onAccept, onChat }: QuoteCardProps) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 0,
     padding: Spacing.two,
     marginBottom: Spacing.two,
   },

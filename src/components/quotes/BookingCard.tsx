@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { BookingRecord, BookingMilestoneStatus } from '@/services/damage-request-store';
 
@@ -44,7 +44,7 @@ export function BookingCard({
   const currentIndex = getMilestoneIndex(booking.status);
 
   return (
-    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
+    <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }, Elevation.low, { borderRadius: BorderRadius.large }]}>
       <View style={styles.header}>
         <View style={styles.vehicleInfo}>
           <ThemedText type="smallBold" style={styles.partTitle}>
@@ -137,7 +137,7 @@ export function BookingCard({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 0,
     padding: Spacing.two,
     marginBottom: Spacing.three,
   },

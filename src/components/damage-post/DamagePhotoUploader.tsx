@@ -9,7 +9,7 @@ import {
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadImageViaPresignedUrl } from '@/services/upload-helper';
 
@@ -84,7 +84,7 @@ export function DamagePhotoUploader({
       </ThemedText>
 
       {photoUri ? (
-        <View style={styles.previewContainer}>
+        <View style={[styles.previewContainer, Elevation.medium, { borderRadius: BorderRadius.large }]}>
           <Image source={{ uri: photoUri }} style={styles.previewImage} contentFit="cover" />
           {isUploading && (
             <View style={styles.uploadingOverlay}>
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   previewContainer: {
-    borderRadius: 8,
+    borderRadius: BorderRadius.large,
     overflow: 'hidden',
     position: 'relative',
   },
