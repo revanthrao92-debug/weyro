@@ -273,6 +273,32 @@ export class QuotationsService {
 
       return booking;
     });
+
+    // Notify provider of accepted quotation
+    try {
+      const providerUser = await this.prisma.providerProfile.findUnique({
+        where: { id: quote.providerId },
+        select: { userId: true },
+      });
+      if (providerUser?.userId) {
+        this.notifications
+          .sendPushNotification({
+            userId: providerUser.userId,
+            title: 'Quotation Accepted!',
+            body: `Your quotation for "${quote.request.title}" was accepted. Booking #${result.id.slice(0, 8)} confirmed.`,
+            data: {
+              type: 'QUOTATION_ACCEPTED',
+              bookingId: result.id,
+              quotationId: quote.id,
+            },
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
+    return result;
   }
 
   async getBookings(
@@ -402,6 +428,56 @@ export class QuotationsService {
 
       return updated;
     });
+
+    // Notify opposite party of booking status update
+    try {
+      const targetUserIds: string[] = [];
+      if (isCustomerOwner) {
+        const p = await this.prisma.providerProfile.findUnique({
+          where: { id: booking.providerId },
+          select: { userId: true },
+        });
+        if (p?.userId) targetUserIds.push(p.userId);
+      } else if (isProviderOwner) {
+        const c = await this.prisma.customerProfile.findUnique({
+          where: { id: booking.customerId },
+          select: { userId: true },
+        });
+        if (c?.userId) targetUserIds.push(c.userId);
+      } else {
+        const [c, p] = await Promise.all([
+          this.prisma.customerProfile.findUnique({
+            where: { id: booking.customerId },
+            select: { userId: true },
+          }),
+          this.prisma.providerProfile.findUnique({
+            where: { id: booking.providerId },
+            select: { userId: true },
+          }),
+        ]);
+        if (c?.userId) targetUserIds.push(c.userId);
+        if (p?.userId) targetUserIds.push(p.userId);
+      }
+
+      for (const targetUserId of targetUserIds) {
+        this.notifications
+          .sendPushNotification({
+            userId: targetUserId,
+            title: `Booking Update: ${newStatus}`,
+            body: `Booking #${booking.id.slice(0, 8)} status changed to ${newStatus}.`,
+            data: {
+              type: 'BOOKING_STATUS_CHANGED',
+              bookingId: booking.id,
+              status: newStatus,
+            },
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
+    return updated;
   }
 
   async addReview(

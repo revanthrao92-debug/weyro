@@ -94,6 +94,17 @@ This document tracks significant technical, architectural, and compliance decisi
   - Rate-limit presigned URL generation (20 requests per minute) and enforce 5-minute URL expiration.
   - Return direct CDN / S3 object URLs for mobile client caching and rendering via `expo-image`.
 
-
-
-
+## ADR 009: Real-time WebSocket Messaging, Expo Push Dispatch, and Room Authorization
+- **Date**: 2026-10-21
+- **Status**: Accepted
+- **Context**: The mobile marketplace requires bidirectional communication between vehicle owners and repair providers, as well as timely push notifications for quote submissions, quote acceptance, and booking status updates.
+- **Decision**:
+  - Implement real-time communication using Socket.IO via `@nestjs/websockets` on namespace `/chat`.
+  - Enforce JWT authentication on connection (`handleConnection`) using Bearer tokens extracted from handshake headers or auth payloads; unauthorized connections are rejected immediately.
+  - Implement room authorization (`verifyParticipant`): clients can only join and broadcast to rooms (`thread_<threadId>`) if they are the customer, provider, or administrator linked to that thread.
+  - Persist all messages atomically to the database with cursor-based pagination and update thread activity timestamp (`lastMessageAt`).
+  - Wire push notifications via `expo-server-sdk` for background delivery:
+    - Automatically create an in-app `Notification` record in the database for persistence and retrieval.
+    - Dispatch push notifications to valid `ExponentPushToken[...]` device tokens using chunked batch requests.
+    - Automatically prune invalid tokens from the database when Expo returns `DeviceNotRegistered`.
+    - Trigger push notifications on quote receipt, quotation acceptance, booking status transitions, and incoming chat messages.

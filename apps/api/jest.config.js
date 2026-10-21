@@ -7,5 +7,8 @@ module.exports = {
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
+  moduleNameMapper: {
+    '^expo-server-sdk$': '<rootDir>/__mocks__/expo-server-sdk.ts',
+  },
   testEnvironment: 'node',
 };

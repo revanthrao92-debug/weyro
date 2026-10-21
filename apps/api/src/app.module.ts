@@ -11,6 +11,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -32,6 +34,8 @@ import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
     PaymentsModule,
     SparePartsModule,
     UploadsModule,
+    NotificationsModule,
+    ChatModule,
     AdminModule,
     TasksModule,
   ],
