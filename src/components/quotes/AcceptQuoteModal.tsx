@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, StyleSheet, TextInput, View, Pressable } from 'react-native';
+import { Alert, Modal, StyleSheet, TextInput, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -12,6 +12,11 @@ interface AcceptQuoteModalProps {
   onConfirm: (address: string, date: string) => void;
 }
 
+function defaultServiceDate(): string {
+  const target = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  return target.toISOString().slice(0, 10);
+}
+
 export function AcceptQuoteModal({
   visible,
   quote,
@@ -19,10 +24,28 @@ export function AcceptQuoteModal({
   onConfirm,
 }: AcceptQuoteModalProps) {
   const theme = useTheme();
-  const [address, setAddress] = useState('Sector 62, Noida, Uttar Pradesh 201309');
-  const [scheduledDate, setScheduledDate] = useState('2026-10-25');
+  const [address, setAddress] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(defaultServiceDate);
 
   if (!quote) return null;
+
+  const handleConfirm = () => {
+    const trimmedAddress = address.trim();
+    if (trimmedAddress.length < 5) {
+      Alert.alert(
+        'Address Required',
+        'Enter the doorstep address or workshop dropoff location.',
+      );
+      return;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate.trim())) {
+      Alert.alert('Invalid Date', 'Use the YYYY-MM-DD format for the service date.');
+      return;
+    }
+
+    onConfirm(trimmedAddress, scheduledDate.trim());
+  };
 
   return (
     <Modal
@@ -69,7 +92,7 @@ export function AcceptQuoteModal({
               <ThemedText style={styles.cancelText}>Cancel</ThemedText>
             </Pressable>
             <Pressable
-              onPress={() => onConfirm(address, scheduledDate)}
+              onPress={handleConfirm}
               accessibilityRole="button"
               accessibilityLabel="Confirm and book this quote"
               style={[styles.btn, styles.confirmBtn, { backgroundColor: theme.primary }]}>

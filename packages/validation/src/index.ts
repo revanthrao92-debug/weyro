@@ -119,8 +119,17 @@ export const CreateQuotationSchema = z
 
 export const AcceptQuotationSchema = z
   .object({
-    scheduledDate: z.string().optional(),
-    deliveryAddress: z.string().optional(),
+    scheduledDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Scheduled date must use YYYY-MM-DD')
+      .refine(
+        (value) =>
+          new Date(`${value}T23:59:59.999Z`).getTime() >=
+          Date.now() - 24 * 60 * 60 * 1000,
+        'Scheduled date cannot be in the past',
+      )
+      .optional(),
+    deliveryAddress: z.string().min(5).max(500).optional(),
     notes: z.string().max(1000).optional(),
   })
   .strict();

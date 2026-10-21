@@ -296,7 +296,7 @@ export class QuotationsService {
           providerId: quote.providerId,
           status: 'CONFIRMED',
           scheduledAt: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
-          completionNotes: dto.notes,
+          completionNotes: dto.notes || dto.deliveryAddress,
         },
         include: {
           quotation: {
