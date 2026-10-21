@@ -9,6 +9,7 @@ import { QuotationsModule } from './modules/quotations/quotations.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -30,6 +31,7 @@ import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
     QuotationsModule,
     PaymentsModule,
     SparePartsModule,
+    UploadsModule,
     AdminModule,
     TasksModule,
   ],

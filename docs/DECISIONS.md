@@ -83,5 +83,17 @@ This document tracks significant technical, architectural, and compliance decisi
   - Deprecate redundant `damagePhotos String[]` column in favor of the normalized `RequestMedia` relational model (`request_media` table), preserving backwards-compatible mapping across legacy API contracts.
   - Introduce `Thread`, `Message`, and `Notification` models to establish the foundation for real-time messaging and push dispatch.
 
+## ADR 008: Presigned Object Storage, MIME Validation, and Local Decommissioning
+- **Date**: 2026-10-21
+- **Status**: Accepted
+- **Context**: The prototype previously accepted full base64 image strings directly into the API process, wrote them synchronously to local disk in `/uploads`, and served static assets through Express with an inflated 15MB JSON request body limit. This architecture introduced security risks, memory exhaustion vectors, and scaling bottlenecks in distributed serverless or multi-container deployments.
+- **Decision**:
+  - Completely decommission local filesystem storage, static file serving routes, and the 15MB request payload allowance (reduced to standard 1MB).
+  - Implement presigned upload URLs for S3-compatible object storage (AWS S3, Cloudflare R2, MinIO) via `StorageService` interface (`GET /api/v1/uploads/presigned-url`).
+  - Restrict uploads strictly to verified image MIME types (`image/jpeg`, `image/png`, `image/webp`, `image/heic`).
+  - Rate-limit presigned URL generation (20 requests per minute) and enforce 5-minute URL expiration.
+  - Return direct CDN / S3 object URLs for mobile client caching and rendering via `expo-image`.
+
+
 
 

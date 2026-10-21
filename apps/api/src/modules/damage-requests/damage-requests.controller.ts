@@ -18,15 +18,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 export class DamageRequestsController {
   constructor(private readonly service: DamageRequestsService) {}
 
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Post('upload')
-  async uploadMedia(
-    @Body()
-    body: { base64?: string; filename?: string; mimeType?: string; url?: string },
-  ) {
-    return this.service.uploadMedia(body);
-  }
-
   @Post()
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async create(

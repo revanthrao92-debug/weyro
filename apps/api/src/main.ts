@@ -30,23 +30,16 @@ async function bootstrap() {
   });
 
   const express = await import('express');
-  const path = await import('path');
-  const uploadsDir = path.join(process.cwd(), 'uploads');
-  const fs = await import('fs');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
 
   app.use(
     express.json({
-      limit: '15mb',
+      limit: '1mb',
       verify: (req: any, _res, buf) => {
         req.rawBody = buf;
       },
     }),
   );
-  app.use(express.urlencoded({ limit: '15mb', extended: true }));
-  app.use('/uploads', express.static(uploadsDir));
+  app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
   const port = env.PORT;
   await app.listen(port);
