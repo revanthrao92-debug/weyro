@@ -257,9 +257,9 @@ export const damageRequestStore = {
         description: params.description,
         urgency: params.urgency,
         fulfillmentType: params.fulfillmentType,
-        latitude: params.latitude || 28.6139,
-        longitude: params.longitude || 77.2090,
-        address: params.address || 'New Delhi, India',
+        latitude: params.latitude,
+        longitude: params.longitude,
+        address: params.address || 'Address not specified',
         mediaUrls: params.damagePhotos,
       },
     );
@@ -314,7 +314,9 @@ export const damageRequestStore = {
       `/damage-requests/${requestId}/quotations`,
       'POST',
       {
-        totalCost: quote.estimatedCost,
+        partsCost: Math.round(quote.estimatedCost * 0.7),
+        labourCost: Math.round(quote.estimatedCost * 0.2),
+        shippingCost: Math.round(quote.estimatedCost * 0.1),
         partCondition: quote.partCondition,
         etaDescription: quote.eta,
         notes: quote.notes,
@@ -398,6 +400,7 @@ export const damageRequestStore = {
       'POST',
       {
         scheduledDate: details.scheduledDate,
+        deliveryAddress: details.deliveryAddress,
         notes: details.deliveryAddress,
       },
     );
@@ -437,10 +440,8 @@ export const damageRequestStore = {
       'PATCH',
       {
         status: backendStatus,
-        metadata: {
-          trackingNumber: details?.trackingNumber || target.trackingNumber,
-          carrierName: details?.carrierName || target.carrierName,
-        },
+        trackingNumber: details?.trackingNumber || target.trackingNumber,
+        carrierName: details?.carrierName || target.carrierName,
       },
     );
 
