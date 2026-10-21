@@ -1,53 +1,40 @@
 import { useSyncExternalStore } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole } from '@weyro/api-contracts';
+import { apiClient, setUnauthorizedCallback } from './api-client';
+import { tokenStorage, UserSessionProfile } from './token-storage';
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  phone: string;
-  role: UserRole;
-  name: string;
+export interface AuthUser extends UserSessionProfile {
   token?: string;
   refreshToken?: string;
 }
 
 export interface AuthState {
-  user: AuthUser;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
 }
 
-const AUTH_STORAGE_KEY = '@weyro/auth_session_v1';
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-
-const INITIAL_USER: AuthUser = {
-  id: '',
-  email: '',
-  phone: '',
-  role: 'CUSTOMER',
-  name: 'Guest',
-  token: undefined,
-};
-
-let currentUser: AuthUser = INITIAL_USER;
+let currentUser: AuthUser | null = null;
 let isAuthLoading = false;
+let isInitialized = false;
 
 type Listener = () => void;
 let listeners: Listener[] = [];
 
 let currentSnapshot: AuthState = {
-  user: currentUser,
+  user: null,
   isAuthenticated: false,
   isLoading: false,
+  isInitialized: false,
 };
 
 function emitChange() {
   currentSnapshot = {
     user: currentUser,
-    isAuthenticated: Boolean(currentUser?.token),
+    isAuthenticated: Boolean(currentUser?.id),
     isLoading: isAuthLoading,
+    isInitialized,
   };
   for (const listener of listeners) {
     listener();
@@ -56,72 +43,88 @@ function emitChange() {
 
 async function initAuth(): Promise<void> {
   try {
-    const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed?.id && parsed?.token) {
-        currentUser = parsed;
-        emitChange();
-      }
+    const [token, session] = await Promise.all([
+      tokenStorage.getAccessToken(),
+      tokenStorage.getUserSession(),
+    ]);
+
+    if (token && session?.id) {
+      currentUser = {
+        ...session,
+        token,
+      };
+    } else {
+      currentUser = null;
     }
   } catch {
-    // Stored session corrupted or unavailable
+    currentUser = null;
+  } finally {
+    isInitialized = true;
+    emitChange();
   }
 }
 
+// Automatically initialize auth state on module load
 initAuth().catch(() => {});
 
-function persistSession(user: AuthUser | null): void {
-  if (user && user.token) {
-    AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user)).catch(() => {});
-  } else {
-    AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
-  }
-}
+// Listen for 401 refresh failures from apiClient
+setUnauthorizedCallback(() => {
+  currentUser = null;
+  emitChange();
+});
 
 export const authStore = {
   getSnapshot(): AuthState {
     return currentSnapshot;
   },
 
-  getUser(): AuthUser {
+  getUser(): AuthUser | null {
     return currentUser;
   },
 
-  async login(params: { emailOrPhone: string; password?: string }): Promise<AuthUser> {
+  async login(params: {
+    emailOrPhone: string;
+    password: string;
+  }): Promise<AuthUser> {
     isAuthLoading = true;
     emitChange();
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailOrPhone: params.emailOrPhone,
-          password: params.password || 'WeyroDev@2026',
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Invalid credentials');
-      }
+      const data = await apiClient.post<any>(
+        '/auth/login',
+        {
+          emailOrPhone: params.emailOrPhone.trim(),
+          password: params.password,
+        },
+        { skipAuth: true },
+      );
 
       const name = data.user?.customerProfile?.firstName
         ? `${data.user.customerProfile.firstName} ${data.user.customerProfile.lastName || ''}`.trim()
         : data.user?.providerProfile?.businessName || data.user?.email || 'User';
 
-      currentUser = {
+      const userProfile: UserSessionProfile = {
         id: data.user.id,
         email: data.user.email,
         phone: data.user.phone,
         role: data.user.role as UserRole,
         name,
+        customerProfileId: data.user?.customerProfile?.id,
+        providerProfileId: data.user?.providerProfile?.id,
+      };
+
+      await Promise.all([
+        tokenStorage.setAccessToken(data.accessToken),
+        tokenStorage.setRefreshToken(data.refreshToken),
+        tokenStorage.setUserSession(userProfile),
+      ]);
+
+      currentUser = {
+        ...userProfile,
         token: data.accessToken,
         refreshToken: data.refreshToken,
       };
 
-      persistSession(currentUser);
       return currentUser;
     } finally {
       isAuthLoading = false;
@@ -132,7 +135,7 @@ export const authStore = {
   async register(params: {
     email: string;
     phone: string;
-    password?: string;
+    password: string;
     role: UserRole;
     name: string;
     businessName?: string;
@@ -145,36 +148,42 @@ export const authStore = {
       const firstName = parts[0] || 'User';
       const lastName = parts.slice(1).join(' ') || 'Member';
 
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: params.email,
-          phone: params.phone,
-          password: params.password || 'WeyroDev@2026',
+      const data = await apiClient.post<any>(
+        '/auth/register',
+        {
+          email: params.email.trim(),
+          phone: params.phone.trim(),
+          password: params.password,
           role: params.role,
           firstName,
           lastName,
-          businessName: params.businessName,
-        }),
-      });
+          businessName: params.businessName?.trim(),
+        },
+        { skipAuth: true },
+      );
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      currentUser = {
+      const userProfile: UserSessionProfile = {
         id: data.user.id,
         email: data.user.email,
         phone: data.user.phone,
         role: data.user.role as UserRole,
-        name: params.name,
+        name: params.name.trim(),
+        customerProfileId: data.user?.customerProfile?.id,
+        providerProfileId: data.user?.providerProfile?.id,
+      };
+
+      await Promise.all([
+        tokenStorage.setAccessToken(data.accessToken),
+        tokenStorage.setRefreshToken(data.refreshToken),
+        tokenStorage.setUserSession(userProfile),
+      ]);
+
+      currentUser = {
+        ...userProfile,
         token: data.accessToken,
         refreshToken: data.refreshToken,
       };
 
-      persistSession(currentUser);
       return currentUser;
     } finally {
       isAuthLoading = false;
@@ -182,20 +191,16 @@ export const authStore = {
     }
   },
 
-  logout(): void {
-    if (currentUser?.token) {
-      fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${currentUser.token}`,
-        },
-        body: JSON.stringify({ refreshToken: currentUser.refreshToken }),
-      }).catch(() => {});
+  async logout(): Promise<void> {
+    const refreshToken = await tokenStorage.getRefreshToken();
+    if (refreshToken) {
+      apiClient
+        .post('/auth/logout', { refreshToken })
+        .catch(() => {});
     }
 
-    currentUser = INITIAL_USER;
-    persistSession(null);
+    await tokenStorage.clearAll();
+    currentUser = null;
     emitChange();
   },
 

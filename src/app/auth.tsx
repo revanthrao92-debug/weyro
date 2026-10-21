@@ -125,29 +125,29 @@ export default function AuthScreen() {
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
-            <ThemedText style={styles.backBtnText}>‹ Back</ThemedText>
+            <ThemedText style={[styles.backBtnText, { color: theme.primary }]}>‹ Back</ThemedText>
           </Pressable>
           <ThemedText style={styles.navTitle}>Account & Identity</ThemedText>
           <View style={{ width: 50 }} />
         </View>
 
         {/* Current Active User Status Card */}
-        {auth.isAuthenticated ? (
+        {auth.isAuthenticated && auth.user ? (
           <ThemedView type="backgroundElement" style={styles.activeCard}>
-            <ThemedText style={styles.sectionHeading}>AUTHENTICATED USER</ThemedText>
+            <ThemedText style={[styles.sectionHeading, { color: theme.textSecondary }]}>AUTHENTICATED USER</ThemedText>
             <ThemedText style={styles.activeName}>{auth.user.name}</ThemedText>
-            <ThemedText style={styles.activeEmail}>{auth.user.email}</ThemedText>
+            <ThemedText style={[styles.activeEmail, { color: theme.textSecondary }]}>{auth.user.email}</ThemedText>
             {auth.user.phone ? (
-              <ThemedText style={styles.activePhone}>{auth.user.phone}</ThemedText>
+              <ThemedText style={[styles.activePhone, { color: theme.textSecondary }]}>{auth.user.phone}</ThemedText>
             ) : null}
-            <View style={styles.roleTag}>
-              <ThemedText style={styles.roleTagText}>{auth.user.role}</ThemedText>
+            <View style={[styles.roleTag, { backgroundColor: theme.success }]}>
+              <ThemedText style={[styles.roleTagText, { color: theme.inverseText }]}>{auth.user.role}</ThemedText>
             </View>
 
             <Pressable
-              style={styles.logoutBtn}
+              style={[styles.logoutBtn, { backgroundColor: theme.danger }]}
               onPress={handleLogout}>
-              <ThemedText style={styles.logoutBtnText}>Sign Out</ThemedText>
+              <ThemedText style={[styles.logoutBtnText, { color: theme.inverseText }]}>Sign Out</ThemedText>
             </Pressable>
           </ThemedView>
         ) : null}
@@ -157,23 +157,25 @@ export default function AuthScreen() {
           <ThemedView type="backgroundElement" style={styles.formCard}>
             <View style={styles.modeToggle}>
               <Pressable
-                style={[styles.modeTab, mode === 'LOGIN' && styles.modeTabActive]}
+                style={[styles.modeTab, mode === 'LOGIN' && [styles.modeTabActive, { backgroundColor: theme.card }]]}
                 onPress={() => setMode('LOGIN')}>
                 <ThemedText
                   style={[
                     styles.modeTabText,
-                    mode === 'LOGIN' && styles.modeTabTextActive,
+                    { color: theme.textSecondary },
+                    mode === 'LOGIN' && { color: theme.text, fontWeight: '700' },
                   ]}>
                   Sign In
                 </ThemedText>
               </Pressable>
               <Pressable
-                style={[styles.modeTab, mode === 'REGISTER' && styles.modeTabActive]}
+                style={[styles.modeTab, mode === 'REGISTER' && [styles.modeTabActive, { backgroundColor: theme.card }]]}
                 onPress={() => setMode('REGISTER')}>
                 <ThemedText
                   style={[
                     styles.modeTabText,
-                    mode === 'REGISTER' && styles.modeTabTextActive,
+                    { color: theme.textSecondary },
+                    mode === 'REGISTER' && { color: theme.text, fontWeight: '700' },
                   ]}>
                   Create Account
                 </ThemedText>
@@ -270,13 +272,15 @@ export default function AuthScreen() {
                       key={r}
                       style={[
                         styles.roleChoice,
-                        selectedRole === r && styles.roleChoiceActive,
+                        { borderColor: theme.border },
+                        selectedRole === r && [styles.roleChoiceActive, { borderColor: theme.primary, backgroundColor: theme.primarySurface }],
                       ]}
                       onPress={() => setSelectedRole(r)}>
                       <ThemedText
                         style={[
                           styles.roleChoiceText,
-                          selectedRole === r && styles.roleChoiceTextActive,
+                          { color: theme.textSecondary },
+                          selectedRole === r && { color: theme.primary, fontWeight: '700' },
                         ]}>
                         {r === 'CUSTOMER' ? 'Vehicle Owner' : 'Garage / Parts Dealer'}
                       </ThemedText>
@@ -305,13 +309,13 @@ export default function AuthScreen() {
             )}
 
             <Pressable
-              style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
+              style={[styles.submitBtn, { backgroundColor: theme.primary }, submitting && { opacity: 0.7 }]}
               onPress={handleSubmit}
               disabled={submitting}>
               {submitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={theme.inverseText} size="small" />
               ) : (
-                <ThemedText style={styles.submitBtnText}>
+                <ThemedText style={[styles.submitBtnText, { color: theme.inverseText }]}>
                   {mode === 'LOGIN' ? 'Sign In' : 'Create Account'}
                 </ThemedText>
               )}
@@ -344,7 +348,6 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2563EB',
   },
   navTitle: {
     fontSize: 17,
@@ -361,7 +364,6 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6B7280',
     letterSpacing: 0.8,
     marginBottom: 4,
   },
@@ -371,24 +373,20 @@ const styles = StyleSheet.create({
   },
   activeEmail: {
     fontSize: 14,
-    color: '#6B7280',
     marginTop: 2,
   },
   activePhone: {
     fontSize: 13,
-    color: '#6B7280',
     marginTop: 2,
   },
   roleTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#059669',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     marginTop: 10,
   },
   roleTagText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -396,11 +394,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#EF4444',
     alignItems: 'center',
   },
   logoutBtnText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -410,7 +406,6 @@ const styles = StyleSheet.create({
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#E5E7EB',
     borderRadius: 10,
     padding: 3,
     marginBottom: Spacing.three,
@@ -421,16 +416,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  modeTabActive: {
-    backgroundColor: '#FFFFFF',
-  },
+  modeTabActive: {},
   modeTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
   },
   modeTabTextActive: {
-    color: '#111827',
     fontWeight: '700',
   },
   inputLabel: {
@@ -455,33 +446,25 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleChoiceActive: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
-  },
+  roleChoiceActive: {},
   roleChoiceText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
   },
   roleChoiceTextActive: {
-    color: '#2563EB',
     fontWeight: '700',
   },
   submitBtn: {
     marginTop: Spacing.three,
     height: 46,
     borderRadius: 12,
-    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitBtnText: {
-    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
   },

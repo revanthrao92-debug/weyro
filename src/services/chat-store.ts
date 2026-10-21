@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import { weyroNotifications } from './notifications';
+import { apiClient } from './api-client';
 
 export interface ChatMessage {
   id: string;
   threadId: string;
-  senderRole: 'CUSTOMER' | 'PROVIDER';
+  senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
   senderName: string;
   text: string;
   timestamp: string;
@@ -25,44 +26,8 @@ export interface ChatThread {
 type Listener = () => void;
 let listeners: Listener[] = [];
 
-// Seed chat conversations matching the BMW 330i damage request
-let threads: ChatThread[] = [
-  {
-    id: 'req_seed_01_Apex OEM Auto Dismantlers',
-    requestId: 'req_seed_01',
-    providerName: 'Apex OEM Auto Dismantlers',
-    customerName: 'Marcus Vance',
-    damagedPart: 'Front Bumper & Headlight Assembly',
-    vehicle: '2022 BMW 330i M-Sport',
-    lastMessageAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    messages: [
-      {
-        id: 'msg_01',
-        threadId: 'req_seed_01_Apex OEM Auto Dismantlers',
-        senderRole: 'PROVIDER',
-        senderName: 'Apex OEM Auto Dismantlers',
-        text: 'Hello Marcus! We inspected your uploaded damage photo. We have an exact matching OEM LED matrix headlight assembly in stock.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-      },
-      {
-        id: 'msg_02',
-        threadId: 'req_seed_01_Apex OEM Auto Dismantlers',
-        senderRole: 'CUSTOMER',
-        senderName: 'Marcus Vance',
-        text: 'Thanks! Does the unit include the ballast and control module, or is it just the bare housing?',
-        timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-      },
-      {
-        id: 'msg_03',
-        threadId: 'req_seed_01_Apex OEM Auto Dismantlers',
-        senderRole: 'PROVIDER',
-        senderName: 'Apex OEM Auto Dismantlers',
-        text: 'It is the complete plug-and-play assembly including the OEM LED ballast and all mounting tabs intact. No coding required.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-      },
-    ],
-  },
-];
+// Initialize clean empty threads state - no dummy/mock seed data
+let threads: ChatThread[] = [];
 
 function emitChange() {
   for (const listener of listeners) {
@@ -108,38 +73,86 @@ export const chatStore = {
 
   sendMessage(
     threadId: string,
-    senderRole: 'CUSTOMER' | 'PROVIDER',
+    senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN',
     senderName: string,
-    text: string
-  ): ChatMessage | null {
+    text: string,
+    imageUrl?: string,
+  ): ChatMessage {
     const threadIndex = threads.findIndex((t) => t.id === threadId);
-    if (threadIndex === -1) return null;
+    const now = new Date().toISOString();
 
-    const newMsg: ChatMessage = {
-      id: `msg_${Date.now()}`,
+    const newMessage: ChatMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       threadId,
       senderRole,
       senderName,
-      text: text.trim(),
-      timestamp: new Date().toISOString(),
+      text,
+      timestamp: now,
+      imageUrl,
     };
 
-    const targetThread = threads[threadIndex];
-    const updatedThread: ChatThread = {
-      ...targetThread,
-      messages: [...targetThread.messages, newMsg],
-      lastMessageAt: newMsg.timestamp,
-    };
-
-    threads = [
-      ...threads.slice(0, threadIndex),
-      updatedThread,
-      ...threads.slice(threadIndex + 1),
-    ];
+    if (threadIndex !== -1) {
+      const targetThread = threads[threadIndex];
+      const updatedThread: ChatThread = {
+        ...targetThread,
+        lastMessageAt: now,
+        messages: [...targetThread.messages, newMessage],
+      };
+      threads = [
+        updatedThread,
+        ...threads.slice(0, threadIndex),
+        ...threads.slice(threadIndex + 1),
+      ];
+    } else {
+      threads = [
+        {
+          id: threadId,
+          requestId: threadId.split('_')[0] || '',
+          providerName: senderRole === 'PROVIDER' ? senderName : 'Service Provider',
+          customerName: senderRole === 'CUSTOMER' ? senderName : 'Customer',
+          damagedPart: 'Service Request',
+          vehicle: 'Vehicle',
+          messages: [newMessage],
+          lastMessageAt: now,
+        },
+        ...threads,
+      ];
+    }
 
     emitChange();
+
+    // Trigger local push notification for demo/feedback
     weyroNotifications.chatMessageReceived(senderName, text);
-    return newMsg;
+
+    return newMessage;
+  },
+
+  async syncWithBackend(): Promise<void> {
+    try {
+      const res = await apiClient.get<any>('/chat/threads');
+      if (res?.items && Array.isArray(res.items)) {
+        threads = res.items.map((item: any) => ({
+          id: item.id,
+          requestId: item.requestId || '',
+          providerName: item.provider?.businessName || 'Provider',
+          customerName: `${item.customer?.firstName || 'Customer'} ${item.customer?.lastName || ''}`.trim(),
+          damagedPart: item.request?.title || 'Service Request',
+          vehicle: 'Vehicle',
+          messages: (item.messages || []).map((m: any) => ({
+            id: m.id,
+            threadId: item.id,
+            senderRole: m.senderRole,
+            senderName: m.senderRole === 'CUSTOMER' ? item.customer?.firstName : item.provider?.businessName,
+            text: m.content,
+            timestamp: m.createdAt,
+          })),
+          lastMessageAt: item.lastMessageAt || item.createdAt,
+        }));
+        emitChange();
+      }
+    } catch {
+      // Backend not yet authenticated or offline
+    }
   },
 
   subscribe(listener: Listener): () => void {
@@ -154,11 +167,14 @@ export function useChatThreads(): ChatThread[] {
   return useSyncExternalStore(
     chatStore.subscribe,
     chatStore.getThreads,
-    chatStore.getThreads
+    chatStore.getThreads,
   );
 }
 
 export function useChatThread(threadId: string): ChatThread | undefined {
-  const all = useChatThreads();
-  return all.find((t) => t.id === threadId);
+  return useSyncExternalStore(
+    chatStore.subscribe,
+    () => chatStore.getThread(threadId),
+    () => chatStore.getThread(threadId),
+  );
 }

@@ -45,17 +45,19 @@ export default function ChatScreen() {
   // Determine active thread
   const resolvedThreadId =
     params.threadId ||
-    `${params.requestId || 'req_seed_01'}_${params.providerName || 'Apex OEM Auto Dismantlers'}`;
+    (params.requestId && params.providerName
+      ? `${params.requestId}_${params.providerName}`
+      : 'thread_direct');
 
   // Ensure thread exists
   const activeThread =
     useChatThread(resolvedThreadId) ||
     chatStore.getOrCreateThread({
-      requestId: params.requestId || 'req_seed_01',
-      providerName: params.providerName || 'Apex OEM Auto Dismantlers',
-      customerName: params.customerName || 'Marcus Vance',
-      damagedPart: params.damagedPart || 'Front Bumper & Headlight Assembly',
-      vehicle: params.vehicle || '2022 BMW 330i M-Sport',
+      requestId: params.requestId || 'req_direct',
+      providerName: params.providerName || 'Service Provider',
+      customerName: params.customerName || 'Customer',
+      damagedPart: params.damagedPart || 'Automotive Service',
+      vehicle: params.vehicle || 'Vehicle',
     });
 
   const [activeRole, setActiveRole] = useState<'CUSTOMER' | 'PROVIDER'>(
@@ -89,7 +91,9 @@ export default function ChatScreen() {
         <View
           style={[
             styles.messageBubble,
-            isCustomer ? styles.customerBubble : styles.providerBubble,
+            isCustomer
+              ? [styles.customerBubble, { backgroundColor: theme.primary }]
+              : styles.providerBubble,
           ]}>
           <ThemedText
             type="smallBold"
@@ -100,9 +104,9 @@ export default function ChatScreen() {
             {item.senderName} ({item.senderRole})
           </ThemedText>
 
-          <ThemedText style={styles.messageText}>{item.text}</ThemedText>
+          <ThemedText style={[styles.messageText, { color: theme.inverseText }]}>{item.text}</ThemedText>
 
-          <ThemedText style={styles.timestampText}>
+          <ThemedText style={[styles.timestampText, { color: theme.textSecondary }]}>
             {new Date(item.timestamp).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -128,7 +132,7 @@ export default function ChatScreen() {
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <ThemedText style={styles.backButtonText}>‹ Back</ThemedText>
+            <ThemedText style={[styles.backButtonText, { color: theme.primary }]}>‹ Back</ThemedText>
           </Pressable>
 
           <View style={styles.headerTitleBox}>
@@ -151,13 +155,13 @@ export default function ChatScreen() {
               onPress={() => setActiveRole('CUSTOMER')}
               style={[
                 styles.rolePill,
-                activeRole === 'CUSTOMER' && styles.rolePillActive,
+                activeRole === 'CUSTOMER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
               ]}>
               <ThemedText
                 type="small"
                 style={[
                   styles.rolePillText,
-                  activeRole === 'CUSTOMER' && styles.rolePillTextActive,
+                  activeRole === 'CUSTOMER' && { color: theme.inverseText, fontWeight: '700' },
                 ]}>
                 Customer ({activeThread.customerName.split(' ')[0]})
               </ThemedText>
@@ -167,13 +171,13 @@ export default function ChatScreen() {
               onPress={() => setActiveRole('PROVIDER')}
               style={[
                 styles.rolePill,
-                activeRole === 'PROVIDER' && styles.rolePillActive,
+                activeRole === 'PROVIDER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
               ]}>
               <ThemedText
                 type="small"
                 style={[
                   styles.rolePillText,
-                  activeRole === 'PROVIDER' && styles.rolePillTextActive,
+                  activeRole === 'PROVIDER' && { color: theme.inverseText, fontWeight: '700' },
                 ]}>
                 Provider ({activeThread.providerName.split(' ')[0]})
               </ThemedText>
@@ -245,9 +249,10 @@ export default function ChatScreen() {
           onPress={() => handleSend()}
           style={({ pressed }) => [
             styles.sendButton,
+            { backgroundColor: theme.primary },
             pressed && styles.pressed,
           ]}>
-          <ThemedText style={styles.sendButtonText}>Send 📨</ThemedText>
+          <ThemedText style={[styles.sendButtonText, { color: theme.inverseText }]}>Send 📨</ThemedText>
         </Pressable>
       </ThemedView>
     </KeyboardAvoidingView>
@@ -277,7 +282,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F52BA',
   },
   headerTitleBox: {
     flex: 1,
@@ -305,15 +309,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.15)',
   },
-  rolePillActive: {
-    backgroundColor: '#0F52BA',
-    borderColor: '#0F52BA',
-  },
+  rolePillActive: {},
   rolePillText: {
     fontSize: 11,
   },
   rolePillTextActive: {
-    color: '#ffffff',
     fontWeight: '700',
   },
   listContent: {
@@ -341,7 +341,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   customerBubble: {
-    backgroundColor: '#0F52BA',
     borderBottomRightRadius: 2,
   },
   providerBubble: {
@@ -360,11 +359,9 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#ffffff',
   },
   timestampText: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.6)',
     alignSelf: 'flex-end',
   },
   quickPromptsContainer: {
@@ -402,7 +399,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendButton: {
-    backgroundColor: '#0F52BA',
     height: 44,
     paddingHorizontal: Spacing.three,
     borderRadius: 12,
@@ -410,7 +406,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendButtonText: {
-    color: '#ffffff',
     fontWeight: '700',
     fontSize: 14,
   },

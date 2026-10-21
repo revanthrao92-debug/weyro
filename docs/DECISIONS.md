@@ -108,3 +108,15 @@ This document tracks significant technical, architectural, and compliance decisi
     - Dispatch push notifications to valid `ExponentPushToken[...]` device tokens using chunked batch requests.
     - Automatically prune invalid tokens from the database when Expo returns `DeviceNotRegistered`.
     - Trigger push notifications on quote receipt, quotation acceptance, booking status transitions, and incoming chat messages.
+
+## ADR 010: Mobile Client Architecture: Secure Token Storage, Typed API Client, Enhanced Offline Queue, and Screen Decomposition
+- **Date**: 2026-10-21
+- **Status**: Accepted
+- **Context**: The mobile client previously relied on unencrypted `AsyncStorage` for JWT tokens, raw ad-hoc `fetch` calls with hardcoded demo credentials, an unhedged offline queue prone to poison-pill retries on 4xx errors, monolithic screen components (>800 to 1,480 lines), and hardcoded demo seed state ("Marcus Vance", BMW 330i, Springfield addresses).
+- **Decision**:
+  - Secure Token Storage (`tokenStorage`): Migrate access and refresh tokens to `expo-secure-store` (with web fallback via localStorage) to protect tokens against unprivileged storage inspection.
+  - Unified Typed API Client (`apiClient`): Centralize HTTP requests with `EXPO_PUBLIC_API_URL`, automatic Bearer auth header attachment, automatic 401 interceptor that rotates refresh tokens and retries failed requests seamlessly, and optional Zod response schema validation.
+  - Enhanced Offline Mutation Queue (`offlineQueue`): Attach current JWT at send time (not queue time), assign unique idempotency keys per mutation (`Idempotency-Key` header), apply exponential backoff (up to 5 retries), and drop unrecoverable 4xx client errors to prevent permanent queue blocks.
+  - Clean State & Zero Demo Seeds: Purge dummy Marcus Vance, Apex OEM, and US demo seeds; initialize the application in a clean, logged-out state with real backend synchronisation.
+  - Screen Modularization: Decompose all oversized screens (`index.tsx`, `quotes.tsx`, `explore.tsx`, `admin.tsx`) to ≤ 220 lines by extracting focused, reusable UI components into `src/components/damage-post/`, `src/components/quotes/`, `src/components/explore/`, and `src/components/admin/`.
+

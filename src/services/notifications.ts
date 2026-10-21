@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { apiClient } from './api-client';
 
 // Configure how notifications appear when app is in the foreground
 Notifications.setNotificationHandler({
@@ -44,10 +45,20 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       });
     }
 
-    // Try to get Expo Push Token (graceful fallback in dev/simulator without project ID)
+    // Retrieve Expo Push Token
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync();
       pushToken = tokenData.data;
+
+      // Register token with backend API if valid Expo token
+      if (pushToken && pushToken.startsWith('ExponentPushToken[')) {
+        apiClient
+          .post('/notifications/push-token', {
+            token: pushToken,
+            deviceOs: Platform.OS,
+          })
+          .catch(() => {});
+      }
     } catch {
       pushToken = `local_sim_${Date.now()}`;
     }
@@ -59,7 +70,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
-export async function triggerNotification(title: string, body: string, data?: Record<string, unknown>): Promise<void> {
+export async function triggerNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>,
+): Promise<void> {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -68,10 +83,10 @@ export async function triggerNotification(title: string, body: string, data?: Re
         data: data || {},
         sound: 'default',
       },
-      trigger: null, // deliver immediately
+      trigger: null,
     });
   } catch {
-    // Non-blocking catch in environments where native notification scheduler is restricted
+    // Non-blocking catch for restricted simulator environments
   }
 }
 
@@ -80,8 +95,8 @@ export const weyroNotifications = {
   quoteReceived: (providerName: string, part: string, cost: number) => {
     triggerNotification(
       'New Quote Received! 💬',
-      `${providerName} submitted a bid of $${cost} for your ${part}.`,
-      { type: 'QUOTE_RECEIVED' }
+      `${providerName} submitted a bid of ₹${cost} for your ${part}.`,
+      { type: 'QUOTE_RECEIVED' },
     );
   },
 
@@ -90,7 +105,7 @@ export const weyroNotifications = {
     triggerNotification(
       'Logistics Update 🚚',
       `Booking milestone updated to: ${label}.${trackingNumber ? ` Waybill: ${trackingNumber}` : ''}`,
-      { type: 'MILESTONE_ADVANCED' }
+      { type: 'MILESTONE_ADVANCED' },
     );
   },
 
@@ -98,7 +113,7 @@ export const weyroNotifications = {
     triggerNotification(
       `Message from ${senderName}`,
       text,
-      { type: 'CHAT_MESSAGE' }
+      { type: 'CHAT_MESSAGE' },
     );
   },
 };
