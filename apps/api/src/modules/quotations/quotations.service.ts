@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
@@ -51,59 +52,91 @@ export class QuotationsService {
       throw new BadRequestException('Cannot submit quotation: request has expired');
     }
 
-    // Check if provider already has an active quote for this request
-    const existingQuote = await this.prisma.quotation.findFirst({
-      where: {
-        requestId,
-        providerId,
-        status: { in: ['PENDING', 'ACCEPTED'] },
-      },
-    });
-
-    if (existingQuote) {
-      throw new ConflictException(
-        'You have already submitted an active quotation for this request',
-      );
-    }
-
     // Compute total cost server-side
     const parts = Number(dto.partsCost || 0);
     const labour = Number(dto.labourCost || 0);
     const shipping = Number(dto.shippingCost || 0);
     const totalCost = parts + labour + shipping;
 
-    const [quote] = await this.prisma.$transaction([
-      this.prisma.quotation.create({
-        data: {
-          requestId,
-          providerId,
-          partsCost: parts,
-          labourCost: labour,
-          shippingCost: shipping,
-          totalCost,
-          partCondition: (dto.partCondition as any) || 'OEM',
-          warrantyDays: dto.warrantyDays || 30,
-          etaDescription: dto.etaDescription,
-          deliveryMethod: dto.deliveryMethod || 'DOORSTEP_DELIVERY',
-          notes: dto.notes,
-          status: 'PENDING',
-        },
-        include: {
-          provider: true,
-        },
-      }),
-      this.prisma.serviceRequest.update({
-        where: { id: requestId },
-        data: { status: 'QUOTES_RECEIVED' },
-      }),
-    ]);
+    // The unique constraint on (requestId, providerId) is the source of truth for
+    // duplicate quotes. Re-check request state inside the transaction so a request
+    // accepted concurrently cannot receive a late quote or be downgraded.
+    const quote = await this.prisma
+      .$transaction(async (tx) => {
+        const current = await tx.serviceRequest.findUnique({
+          where: { id: requestId },
+          select: { status: true, expiresAt: true },
+        });
+
+        if (!current) {
+          throw new NotFoundException(
+            `Service request with ID ${requestId} not found`,
+          );
+        }
+
+        if (current.status !== 'OPEN' && current.status !== 'QUOTES_RECEIVED') {
+          throw new BadRequestException(
+            `Cannot submit quotation: request is currently ${current.status}`,
+          );
+        }
+
+        if (current.expiresAt < new Date()) {
+          throw new BadRequestException(
+            'Cannot submit quotation: request has expired',
+          );
+        }
+
+        const created = await tx.quotation.create({
+          data: {
+            requestId,
+            providerId,
+            partsCost: parts,
+            labourCost: labour,
+            shippingCost: shipping,
+            totalCost,
+            partCondition: (dto.partCondition as any) || 'OEM',
+            warrantyDays: dto.warrantyDays || 30,
+            etaDescription: dto.etaDescription,
+            deliveryMethod: dto.deliveryMethod || 'DOORSTEP_DELIVERY',
+            notes: dto.notes,
+            status: 'PENDING',
+          },
+          include: {
+            provider: true,
+          },
+        });
+
+        if (current.status === 'OPEN') {
+          await tx.serviceRequest.updateMany({
+            where: { id: requestId, status: 'OPEN' },
+            data: { status: 'QUOTES_RECEIVED' },
+          });
+        }
+
+        return created;
+      })
+      .catch((error) => {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException(
+            'You have already submitted a quotation for this request',
+          );
+        }
+        throw error;
+      });
 
     if (request.customer?.userId) {
+      const providerLabel =
+        quote.provider?.verificationStatus === 'VERIFIED'
+          ? 'A verified provider'
+          : 'A provider';
       this.notifications
         .sendPushNotification({
           userId: request.customer.userId,
           title: 'New Quote Received',
-          body: `A verified provider submitted a quotation of ₹${totalCost} for "${request.title}".`,
+          body: `${providerLabel} submitted a quotation of ₹${totalCost} for "${request.title}".`,
           data: { requestId, quotationId: quote.id, type: 'new_quote' },
         })
         .catch(() => {});
