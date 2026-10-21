@@ -16,8 +16,12 @@ import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { FeedQuery, feedQuerySchema } from '../../common/dto/query.dto';
-
+import {
+  CursorPaginationQuery,
+  cursorPaginationSchema,
+  FeedQuery,
+  feedQuerySchema,
+} from '../../common/dto/query.dto';
 @Controller('damage-requests')
 export class DamageRequestsController {
   constructor(private readonly service: DamageRequestsService) {}
@@ -53,6 +57,15 @@ export class DamageRequestsController {
       cursor: query.cursor,
       limit: query.limit,
     });
+  }
+
+  @Get('my')
+  async findMine(
+    @CurrentUser() user: AuthUserPayload,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
+  ) {
+    return this.service.findMine(user, query.cursor, query.limit);
   }
 
   @Get(':id')

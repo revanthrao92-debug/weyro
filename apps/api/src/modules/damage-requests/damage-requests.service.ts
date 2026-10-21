@@ -93,6 +93,40 @@ export class DamageRequestsService {
     return this.formatRequest(created);
   }
 
+  async findMine(
+    user: AuthUserPayload,
+    cursor?: string,
+    limit: number = 20,
+  ) {
+    const customerId = user.customerProfileId;
+    if (!customerId) {
+      return { items: [], nextCursor: null };
+    }
+
+    const boundedLimit = Math.min(50, Math.max(1, limit));
+    const items = await this.prisma.serviceRequest.findMany({
+      where: { customerId },
+      include: {
+        media: true,
+        vehicle: true,
+        quotations: {
+          include: { provider: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: boundedLimit,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+    });
+
+    return {
+      items: items.map((item) => this.formatRequest(item)),
+      nextCursor:
+        items.length === boundedLimit ? items[items.length - 1].id : null,
+    };
+  }
+
   async getBroadcastFeed(params: {
     providerId?: string;
     providerLat?: number;

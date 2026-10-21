@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { weyroNotifications } from './notifications';
-import { apiClient } from './api-client';
+import { ApiClientError, apiClient } from './api-client';
 import { offlineQueue, OfflineSyncStatus } from './offline-queue';
 
 export interface DamageRequestQuote {
@@ -86,6 +86,94 @@ function emitChange() {
   }
 }
 
+function mapQuote(q: any): DamageRequestQuote {
+  return {
+    id: q.id,
+    providerName: q.provider?.businessName || 'Provider',
+    providerType: q.provider?.providerType || 'GARAGE',
+    distanceNote: q.provider?.address || 'Local workshop',
+    estimatedCost: Number(q.totalCost) || 0,
+    partCondition: q.partCondition,
+    eta: q.etaDescription || '1-2 days',
+    notes: q.notes || '',
+    status: q.status,
+    createdAt: q.createdAt,
+  };
+}
+
+function mapRequest(item: any): DamageBroadcastRequest {
+  return {
+    id: item.id,
+    customerName: `${item.customer?.firstName || 'Customer'} ${
+      item.customer?.lastName || ''
+    }`.trim(),
+    vehicleMake: item.vehicle?.make || 'Unknown',
+    vehicleModel: item.vehicle?.model || 'Vehicle',
+    vehicleYear: item.vehicle?.year || new Date().getFullYear(),
+    damagedPart: item.title,
+    description: item.description,
+    urgency: item.urgency,
+    fulfillmentType: item.fulfillmentType || 'WORKSHOP_VISIT',
+    damagePhotos: (item.media || []).map((m: any) => m.url),
+    isBroadcast: true,
+    broadcastScope: 'BROADCAST_ALL',
+    status: item.status,
+    quotes: (item.quotations || []).map(mapQuote),
+    createdAt: item.createdAt,
+  };
+}
+
+function mapBooking(b: any): BookingRecord {
+  const rawStatus = b.status;
+  return {
+    id: b.id,
+    requestId: b.quotation?.requestId || b.quotation?.request?.id || '',
+    quoteId: b.quotationId || b.quotation?.id || '',
+    customerName: `${b.customer?.firstName || 'Customer'} ${
+      b.customer?.lastName || ''
+    }`.trim(),
+    vehicle: `${b.quotation?.request?.vehicle?.year || ''} ${
+      b.quotation?.request?.vehicle?.make || ''
+    } ${b.quotation?.request?.vehicle?.model || ''}`.trim(),
+    damagedPart: b.quotation?.request?.title || 'Automotive Service',
+    providerName: b.provider?.businessName || 'Provider',
+    providerType: b.provider?.providerType || 'GARAGE',
+    totalCost: Number(b.quotation?.totalCost) || 0,
+    partCondition: b.quotation?.partCondition,
+    eta: b.quotation?.etaDescription || 'Confirmed',
+    deliveryAddress: b.completionNotes || b.provider?.address || 'Workshop',
+    scheduledDate: b.scheduledAt,
+    status:
+      rawStatus === 'PROVIDER_EN_ROUTE'
+        ? 'DISPATCHED_OR_IN_BAY'
+        : rawStatus === 'IN_PROGRESS'
+          ? 'OUT_FOR_DELIVERY_OR_TESTING'
+          : (rawStatus as BookingMilestoneStatus),
+    fulfillmentType:
+      b.quotation?.request?.fulfillmentType || 'WORKSHOP_VISIT',
+    review: b.review
+      ? {
+          rating: b.review.rating,
+          comment: b.review.comment || '',
+          createdAt: b.review.createdAt,
+        }
+      : undefined,
+    confirmedAt: b.createdAt,
+    completedAt: b.completedAt,
+  };
+}
+
+function sortByCreatedAtDesc<T extends { createdAt: string }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+function shouldQueue(err: unknown): boolean {
+  if (!(err instanceof ApiClientError)) return true;
+  return err.status === 0 || err.status >= 500;
+}
+
 async function loadCachedState(): Promise<void> {
   try {
     const [cachedReqs, cachedBks] = await Promise.all([
@@ -137,68 +225,40 @@ export const damageRequestStore = {
     isSyncing = true;
 
     try {
-      // 1. Fetch damage requests feed
-      const feedRes = await apiClient.get<any>('/damage-requests/feed').catch(() => null);
-      if (feedRes?.items && Array.isArray(feedRes.items)) {
-        requests = feedRes.items.map((item: any) => ({
-          id: item.id,
-          customerName: `${item.customer?.firstName || 'Customer'} ${item.customer?.lastName || ''}`.trim(),
-          vehicleMake: item.vehicle?.make || 'Unknown',
-          vehicleModel: item.vehicle?.model || 'Vehicle',
-          vehicleYear: item.vehicle?.year || new Date().getFullYear(),
-          damagedPart: item.title,
-          description: item.description,
-          urgency: item.urgency,
-          fulfillmentType: item.fulfillmentType,
-          damagePhotos: (item.media || []).map((m: any) => m.url),
-          isBroadcast: true,
-          broadcastScope: 'BROADCAST_ALL',
-          status: item.status,
-          quotes: (item.quotations || []).map((q: any) => ({
-            id: q.id,
-            providerName: q.provider?.businessName || 'Provider',
-            providerType: q.provider?.providerType || 'GARAGE',
-            distanceNote: `${q.provider?.address || 'Local workshop'}`,
-            estimatedCost: q.totalCost,
-            partCondition: q.partCondition,
-            eta: q.etaDescription || '1-2 days',
-            notes: q.notes || '',
-            status: q.status,
-            createdAt: q.createdAt,
-          })),
-          createdAt: item.createdAt,
-        }));
+      // Customers load their own requests; providers load the broadcast feed.
+      // Both calls are attempted and merged so BOTH-role users see everything.
+      const [mine, feed, bookingsRes] = await Promise.allSettled([
+        apiClient.get<any>('/damage-requests/my'),
+        apiClient.get<any>('/damage-requests/feed'),
+        apiClient.get<any>('/quotations/bookings'),
+      ]);
+
+      const byId = new Map<string, DamageBroadcastRequest>();
+
+      if (mine.status === 'fulfilled' && Array.isArray(mine.value?.items)) {
+        for (const item of mine.value.items) {
+          const mapped = mapRequest(item);
+          byId.set(mapped.id, mapped);
+        }
       }
 
-      // 2. Fetch bookings
-      const bookingsRes = await apiClient.get<any>('/quotations/bookings').catch(() => null);
-      if (bookingsRes?.items && Array.isArray(bookingsRes.items)) {
-        bookings = bookingsRes.items.map((b: any) => ({
-          id: b.id,
-          requestId: b.quotation?.requestId || '',
-          quoteId: b.quotationId,
-          customerName: `${b.customer?.firstName || 'Customer'} ${b.customer?.lastName || ''}`.trim(),
-          vehicle: `${b.quotation?.request?.vehicle?.year || ''} ${b.quotation?.request?.vehicle?.make || ''} ${b.quotation?.request?.vehicle?.model || ''}`.trim(),
-          damagedPart: b.quotation?.request?.title || 'Automotive Service',
-          providerName: b.provider?.businessName || 'Provider',
-          providerType: b.provider?.providerType || 'GARAGE',
-          totalCost: b.quotation?.totalCost || 0,
-          partCondition: b.quotation?.partCondition,
-          eta: b.quotation?.etaDescription || 'Confirmed',
-          deliveryAddress: b.completionNotes || b.provider?.address || 'Workshop',
-          scheduledDate: b.scheduledAt,
-          status: b.status === 'PROVIDER_EN_ROUTE' ? 'DISPATCHED_OR_IN_BAY'
-                : b.status === 'IN_PROGRESS' ? 'OUT_FOR_DELIVERY_OR_TESTING'
-                : b.status,
-          fulfillmentType: b.quotation?.request?.fulfillmentType || 'WORKSHOP_VISIT',
-          review: b.review ? {
-            rating: b.review.rating,
-            comment: b.review.comment || '',
-            createdAt: b.review.createdAt,
-          } : undefined,
-          confirmedAt: b.createdAt,
-          completedAt: b.completedAt,
-        }));
+      if (feed.status === 'fulfilled' && Array.isArray(feed.value?.items)) {
+        for (const item of feed.value.items) {
+          const mapped = mapRequest(item);
+          // Prefer the customer view (all quotes) when the request already exists.
+          if (!byId.has(mapped.id)) byId.set(mapped.id, mapped);
+        }
+      }
+
+      if (byId.size > 0 || mine.status === 'fulfilled' || feed.status === 'fulfilled') {
+        requests = sortByCreatedAtDesc([...byId.values()]);
+      }
+
+      if (
+        bookingsRes.status === 'fulfilled' &&
+        Array.isArray(bookingsRes.value?.items)
+      ) {
+        bookings = bookingsRes.value.items.map(mapBooking);
       }
 
       await persistState();
@@ -208,7 +268,7 @@ export const damageRequestStore = {
     }
   },
 
-  createBroadcastRequest(params: {
+  async createBroadcastRequest(params: {
     customerName: string;
     vehicleMake: string;
     vehicleModel: string;
@@ -218,56 +278,38 @@ export const damageRequestStore = {
     urgency: 'NORMAL' | 'URGENT' | 'EMERGENCY';
     fulfillmentType: 'WORKSHOP_VISIT' | 'ON_SITE' | 'PARTS_SHIPPING';
     damagePhotos: string[];
-    latitude?: number;
-    longitude?: number;
-    address?: string;
-  }): DamageBroadcastRequest {
-    const newReq: DamageBroadcastRequest = {
-      id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      customerName: params.customerName,
+    latitude: number;
+    longitude: number;
+    address: string;
+  }): Promise<DamageBroadcastRequest> {
+    const created = await apiClient.post<any>('/damage-requests', {
       vehicleMake: params.vehicleMake,
       vehicleModel: params.vehicleModel,
       vehicleYear: params.vehicleYear,
-      damagedPart: params.damagedPart,
+      category: 'MECHANICAL',
+      title: params.damagedPart,
       description: params.description,
       urgency: params.urgency,
       fulfillmentType: params.fulfillmentType,
-      damagePhotos: params.damagePhotos,
-      isBroadcast: true,
-      broadcastScope: 'BROADCAST_ALL',
-      status: 'OPEN',
-      quotes: [],
-      createdAt: new Date().toISOString(),
+      latitude: params.latitude,
+      longitude: params.longitude,
+      address: params.address,
+      mediaUrls: params.damagePhotos,
+    });
+
+    const newReq: DamageBroadcastRequest = {
+      ...mapRequest(created),
+      customerName: params.customerName,
     };
 
-    requests = [newReq, ...requests];
-    persistState();
+    requests = [newReq, ...requests.filter((r) => r.id !== newReq.id)];
+    await persistState();
     emitChange();
-
-    offlineQueue.enqueue(
-      'CREATE_REQUEST',
-      '/damage-requests',
-      'POST',
-      {
-        vehicleMake: params.vehicleMake,
-        vehicleModel: params.vehicleModel,
-        vehicleYear: params.vehicleYear,
-        category: 'MECHANICAL',
-        title: params.damagedPart,
-        description: params.description,
-        urgency: params.urgency,
-        fulfillmentType: params.fulfillmentType,
-        latitude: params.latitude,
-        longitude: params.longitude,
-        address: params.address || 'Address not specified',
-        mediaUrls: params.damagePhotos,
-      },
-    );
 
     return newReq;
   },
 
-  submitQuote(
+  async submitQuote(
     requestId: string,
     quote: {
       providerName: string;
@@ -277,42 +319,11 @@ export const damageRequestStore = {
       eta: string;
       notes: string;
     },
-  ): DamageRequestQuote | null {
-    const reqIndex = requests.findIndex((r) => r.id === requestId);
-    if (reqIndex === -1) return null;
+  ): Promise<DamageRequestQuote | null> {
+    if (!requests.some((r) => r.id === requestId)) return null;
 
-    const targetReq = requests[reqIndex];
-    const newQuote: DamageRequestQuote = {
-      id: `q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      providerName: quote.providerName,
-      providerType: quote.providerType,
-      distanceNote: 'Verified Local Partner',
-      estimatedCost: quote.estimatedCost,
-      partCondition: quote.partCondition,
-      eta: quote.eta,
-      notes: quote.notes,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedReq: DamageBroadcastRequest = {
-      ...targetReq,
-      status: 'QUOTES_RECEIVED',
-      quotes: [newQuote, ...targetReq.quotes],
-    };
-
-    requests = [
-      ...requests.slice(0, reqIndex),
-      updatedReq,
-      ...requests.slice(reqIndex + 1),
-    ];
-    persistState();
-    emitChange();
-
-    offlineQueue.enqueue(
-      'SUBMIT_QUOTE',
+    const created = await apiClient.post<any>(
       `/damage-requests/${requestId}/quotations`,
-      'POST',
       {
         partsCost: Math.round(quote.estimatedCost * 0.7),
         labourCost: Math.round(quote.estimatedCost * 0.2),
@@ -323,44 +334,47 @@ export const damageRequestStore = {
       },
     );
 
-    weyroNotifications.quoteReceived(
-      quote.providerName,
-      targetReq.damagedPart,
-      quote.estimatedCost,
+    const newQuote = mapQuote(created);
+
+    requests = requests.map((r) =>
+      r.id === requestId
+        ? {
+            ...r,
+            status: 'QUOTES_RECEIVED',
+            quotes: [newQuote, ...r.quotes.filter((q) => q.id !== newQuote.id)],
+          }
+        : r,
     );
+
+    await persistState();
+    emitChange();
 
     return newQuote;
   },
 
-  acceptQuote(
+  async acceptQuote(
     requestId: string,
     quoteId: string,
     details: { deliveryAddress: string; scheduledDate: string },
-  ): BookingRecord | null {
-    const reqIndex = requests.findIndex((r) => r.id === requestId);
-    if (reqIndex === -1) return null;
+  ): Promise<BookingRecord | null> {
+    const targetReq = requests.find((r) => r.id === requestId);
+    if (!targetReq) return null;
+    const acceptedQuote = targetReq.quotes.find((q) => q.id === quoteId);
+    if (!acceptedQuote) return null;
 
-    const targetReq = requests[reqIndex];
-    const quoteIndex = targetReq.quotes.findIndex((q) => q.id === quoteId);
-    if (quoteIndex === -1) return null;
-
-    const acceptedQuote = targetReq.quotes[quoteIndex];
-
-    const updatedQuotes: DamageRequestQuote[] = targetReq.quotes.map((q) => ({
-      ...q,
-      status: q.id === quoteId ? 'ACCEPTED' : 'REJECTED',
-    }));
-
-    const updatedReq: DamageBroadcastRequest = {
-      ...targetReq,
-      status: 'ACCEPTED',
-      quotes: updatedQuotes,
-    };
+    const created = await apiClient.post<any>(
+      `/quotations/${quoteId}/accept`,
+      {
+        scheduledDate: details.scheduledDate,
+        deliveryAddress: details.deliveryAddress,
+        notes: details.deliveryAddress,
+      },
+    );
 
     const newBooking: BookingRecord = {
-      id: `bk_${Date.now()}`,
-      requestId: targetReq.id,
-      quoteId: acceptedQuote.id,
+      ...mapBooking(created),
+      requestId,
+      quoteId,
       customerName: targetReq.customerName,
       vehicle: `${targetReq.vehicleYear} ${targetReq.vehicleMake} ${targetReq.vehicleModel}`,
       damagedPart: targetReq.damagedPart,
@@ -371,39 +385,25 @@ export const damageRequestStore = {
       eta: acceptedQuote.eta,
       deliveryAddress: details.deliveryAddress,
       scheduledDate: details.scheduledDate,
-      status: 'CONFIRMED',
       fulfillmentType: targetReq.fulfillmentType,
-      trackingNumber:
-        targetReq.fulfillmentType === 'PARTS_SHIPPING'
-          ? `WYR-${Math.floor(10000000 + Math.random() * 90000000)}IN`
-          : undefined,
-      carrierName:
-        targetReq.fulfillmentType === 'PARTS_SHIPPING'
-          ? 'Blue Dart Express'
-          : undefined,
-      confirmedAt: new Date().toISOString(),
     };
 
-    requests = [
-      ...requests.slice(0, reqIndex),
-      updatedReq,
-      ...requests.slice(reqIndex + 1),
-    ];
-    bookings = [newBooking, ...bookings];
-
-    persistState();
-    emitChange();
-
-    offlineQueue.enqueue(
-      'ACCEPT_QUOTE',
-      `/quotations/${acceptedQuote.id}/accept`,
-      'POST',
-      {
-        scheduledDate: details.scheduledDate,
-        deliveryAddress: details.deliveryAddress,
-        notes: details.deliveryAddress,
-      },
+    requests = requests.map((r) =>
+      r.id === requestId
+        ? {
+            ...r,
+            status: 'ACCEPTED',
+            quotes: r.quotes.map((q) => ({
+              ...q,
+              status: q.id === quoteId ? 'ACCEPTED' : 'REJECTED',
+            })),
+          }
+        : r,
     );
+    bookings = [newBooking, ...bookings.filter((b) => b.id !== newBooking.id)];
+
+    await persistState();
+    emitChange();
 
     return newBooking;
   },
@@ -422,28 +422,43 @@ export const damageRequestStore = {
       status,
       trackingNumber: details?.trackingNumber || target.trackingNumber,
       carrierName: details?.carrierName || target.carrierName,
-      completedAt: status === 'COMPLETED' ? new Date().toISOString() : target.completedAt,
+      completedAt:
+        status === 'COMPLETED' ? new Date().toISOString() : target.completedAt,
     };
 
-    bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
+    bookings = [
+      ...bookings.slice(0, index),
+      updated,
+      ...bookings.slice(index + 1),
+    ];
     persistState();
     emitChange();
 
     const backendStatus =
-      status === 'DISPATCHED_OR_IN_BAY' ? 'PROVIDER_EN_ROUTE'
-      : status === 'OUT_FOR_DELIVERY_OR_TESTING' ? 'IN_PROGRESS'
-      : status;
+      status === 'DISPATCHED_OR_IN_BAY'
+        ? 'PROVIDER_EN_ROUTE'
+        : status === 'OUT_FOR_DELIVERY_OR_TESTING'
+          ? 'IN_PROGRESS'
+          : status;
 
-    offlineQueue.enqueue(
-      'UPDATE_STATUS',
-      `/quotations/bookings/${bookingId}/status`,
-      'PATCH',
-      {
-        status: backendStatus,
-        trackingNumber: details?.trackingNumber || target.trackingNumber,
-        carrierName: details?.carrierName || target.carrierName,
-      },
-    );
+    const body = {
+      status: backendStatus,
+      trackingNumber: details?.trackingNumber || target.trackingNumber,
+      carrierName: details?.carrierName || target.carrierName,
+    };
+
+    apiClient
+      .patch(`/quotations/bookings/${bookingId}/status`, body)
+      .catch((err) => {
+        if (shouldQueue(err)) {
+          offlineQueue.enqueue(
+            'UPDATE_STATUS',
+            `/quotations/bookings/${bookingId}/status`,
+            'PATCH',
+            body,
+          );
+        }
+      });
 
     weyroNotifications.milestoneAdvanced(updated.trackingNumber, status);
 
@@ -468,19 +483,28 @@ export const damageRequestStore = {
       },
     };
 
-    bookings = [...bookings.slice(0, index), updated, ...bookings.slice(index + 1)];
+    bookings = [
+      ...bookings.slice(0, index),
+      updated,
+      ...bookings.slice(index + 1),
+    ];
     persistState();
     emitChange();
 
-    offlineQueue.enqueue(
-      'ADD_REVIEW',
-      `/quotations/bookings/${bookingId}/reviews`,
-      'POST',
-      {
-        rating,
-        comment: comment.trim(),
-      },
-    );
+    const body = { rating, comment: comment.trim() };
+
+    apiClient
+      .post(`/quotations/bookings/${bookingId}/reviews`, body)
+      .catch((err) => {
+        if (shouldQueue(err)) {
+          offlineQueue.enqueue(
+            'ADD_REVIEW',
+            `/quotations/bookings/${bookingId}/reviews`,
+            'POST',
+            body,
+          );
+        }
+      });
 
     return updated;
   },

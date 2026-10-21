@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -49,7 +50,33 @@ export default function PostDamageScreen() {
 
     setIsSubmitting(true);
     try {
-      damageRequestStore.createBroadcastRequest({
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Required',
+          'Weyro needs your location to match this request with nearby workshops and parts dealers.',
+        );
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      let address = 'Current location';
+      try {
+        const [place] = await Location.reverseGeocodeAsync(position.coords);
+        if (place) {
+          address =
+            [place.name, place.street, place.city, place.region]
+              .filter(Boolean)
+              .join(', ') || address;
+        }
+      } catch {
+        // Reverse geocoding is best-effort; coordinates are still valid.
+      }
+
+      await damageRequestStore.createBroadcastRequest({
         customerName: auth.user?.name || 'Customer',
         vehicleMake: vehicleMake.trim() || 'Generic',
         vehicleModel: vehicleModel.trim() || 'Vehicle',
@@ -59,6 +86,9 @@ export default function PostDamageScreen() {
         urgency,
         fulfillmentType,
         damagePhotos: photoUri ? [photoUri] : [],
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        address,
       });
 
       Alert.alert(

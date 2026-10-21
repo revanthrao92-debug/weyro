@@ -34,7 +34,7 @@ export default function ProviderFeedScreen() {
 
   const openRequests = requests.filter((r) => r.status === 'OPEN' || r.status === 'QUOTES_RECEIVED');
 
-  const handleQuoteSubmit = (data: {
+  const handleQuoteSubmit = async (data: {
     estimatedCost: number;
     partCondition: 'OEM' | 'AFTERMARKET' | 'USED';
     eta: string;
@@ -42,20 +42,27 @@ export default function ProviderFeedScreen() {
   }) => {
     if (!activeRequest) return;
 
-    damageRequestStore.submitQuote(activeRequest.id, {
-      providerName: auth.user?.name || 'Verified Workshop Partner',
-      providerType: 'GARAGE',
-      estimatedCost: data.estimatedCost,
-      partCondition: data.partCondition,
-      eta: data.eta,
-      notes: data.notes,
-    });
+    try {
+      await damageRequestStore.submitQuote(activeRequest.id, {
+        providerName: auth.user?.name || 'Verified Workshop Partner',
+        providerType: 'GARAGE',
+        estimatedCost: data.estimatedCost,
+        partCondition: data.partCondition,
+        eta: data.eta,
+        notes: data.notes,
+      });
 
-    setActiveRequest(null);
-    Alert.alert(
-      'Quote Dispatched! 🚀',
-      `Your bid of ₹${data.estimatedCost.toLocaleString('en-IN')} has been delivered to the customer.`,
-    );
+      setActiveRequest(null);
+      Alert.alert(
+        'Quote Dispatched! 🚀',
+        `Your bid of ₹${data.estimatedCost.toLocaleString('en-IN')} has been delivered to the customer.`,
+      );
+    } catch {
+      Alert.alert(
+        'Quote Not Sent',
+        'We could not reach the server. Check your connection and try again.',
+      );
+    }
   };
 
   return (

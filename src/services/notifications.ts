@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { apiClient } from './api-client';
 
@@ -20,7 +21,19 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   if (isConfigured) return pushToken;
 
   if (Platform.OS === 'web') {
-    return 'web_simulated_token';
+    // Web push is not configured; do not register a fake token.
+    return null;
+  }
+
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    (Constants as any).easConfig?.projectId;
+
+  if (!projectId) {
+    console.warn(
+      '[notifications] EAS projectId is not configured; skipping push registration.',
+    );
+    return null;
   }
 
   try {
@@ -47,7 +60,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     // Retrieve Expo Push Token
     try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       pushToken = tokenData.data;
 
       // Register token with backend API if valid Expo token
@@ -59,8 +72,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
           })
           .catch(() => {});
       }
-    } catch {
-      pushToken = `local_sim_${Date.now()}`;
+    } catch (err) {
+      console.warn('[notifications] Failed to obtain Expo push token', err);
+      pushToken = null;
     }
 
     isConfigured = true;

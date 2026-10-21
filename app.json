@@ -8,7 +8,7 @@
     "scheme": "weyro",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.weyro.app",
       "supportsTablet": true,
       "infoPlist": {
@@ -48,16 +48,17 @@
           "photosPermission": "Weyro needs access to your photos so you can upload images of damaged vehicle parts.",
           "cameraPermission": "Weyro needs access to your camera so you can take photos of damaged vehicle parts."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Weyro uses your location to match your repair request with nearby workshops and parts dealers."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "weyro-app-project-id-placeholder"
-      }
     }
   }
 }

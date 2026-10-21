@@ -208,7 +208,9 @@ export class QuotationsService {
     const existingBooking = await this.prisma.booking.findUnique({
       where: { quotationId },
       include: {
-        quotation: true,
+        quotation: {
+          include: { request: { include: { vehicle: true, media: true } } },
+        },
         provider: true,
         customer: true,
         payments: true,
@@ -264,7 +266,9 @@ export class QuotationsService {
           completionNotes: dto.notes,
         },
         include: {
-          quotation: true,
+          quotation: {
+            include: { request: { include: { vehicle: true, media: true } } },
+          },
           provider: true,
           customer: true,
         },
@@ -347,7 +351,9 @@ export class QuotationsService {
       include: {
         customer: true,
         provider: true,
-        quotation: true,
+        quotation: {
+          include: { request: { include: { vehicle: true, media: true } } },
+        },
         payments: true,
         review: true,
       },

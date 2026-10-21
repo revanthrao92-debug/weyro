@@ -56,15 +56,30 @@ export default function QuotesAndBookingsScreen() {
     }
   };
 
-  const handleAcceptQuoteConfirm = (address: string, date: string) => {
+  const handleAcceptQuoteConfirm = async (address: string, date: string) => {
     if (!selectedQuote) return;
-    damageRequestStore.acceptQuote(selectedQuote.requestId, selectedQuote.quote.id, {
-      deliveryAddress: address,
-      scheduledDate: date,
-    });
-    setSelectedQuote(null);
-    setActiveTab('BOOKINGS');
-    Alert.alert('Booking Confirmed! 🎉', 'Your appointment has been placed into the milestone ledger.');
+
+    try {
+      await damageRequestStore.acceptQuote(
+        selectedQuote.requestId,
+        selectedQuote.quote.id,
+        {
+          deliveryAddress: address,
+          scheduledDate: date,
+        },
+      );
+      setSelectedQuote(null);
+      setActiveTab('BOOKINGS');
+      Alert.alert(
+        'Booking Confirmed! 🎉',
+        'Your appointment has been placed into the milestone ledger.',
+      );
+    } catch {
+      Alert.alert(
+        'Booking Not Confirmed',
+        'We could not reach the server. Check your connection and try again.',
+      );
+    }
   };
 
   const handleReviewSubmit = (rating: number, comment: string) => {
