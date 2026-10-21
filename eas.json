@@ -39,14 +39,5 @@
       }
     }
   },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "APPLE_APP_ID_PLACEHOLDER"
-      },
-      "android": {
-        "serviceAccountKeyPath": "GOOGLE_PLAY_SERVICE_ACCOUNT_KEY_PATH_PLACEHOLDER"
-      }
-    }
-  }
+  "submit": {}
 }
