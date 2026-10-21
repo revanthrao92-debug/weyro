@@ -17,7 +17,15 @@ import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  BookingsQuery,
+  bookingsQuerySchema,
+  CursorPaginationQuery,
+  cursorPaginationSchema,
+} from '../../common/dto/query.dto';
 
 @Controller()
 export class QuotationsController {
@@ -26,6 +34,7 @@ export class QuotationsController {
   @Post('damage-requests/:requestId/quotations')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   @UseGuards(VerifiedProviderGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async create(
     @Param('requestId') requestId: string,
     @CurrentUser() user: AuthUserPayload,
@@ -42,19 +51,20 @@ export class QuotationsController {
   async findByRequest(
     @Param('requestId') requestId: string,
     @CurrentUser() user: AuthUserPayload,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
   ) {
     return this.service.findByRequest(
       requestId,
       user,
-      cursor,
-      limit ? parseInt(limit, 10) : 20,
+      query.cursor,
+      query.limit,
     );
   }
 
   @Post('quotations/:id/accept')
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async accept(
     @Param('id') id: string,
     @CurrentUser() user: AuthUserPayload,
@@ -67,15 +77,13 @@ export class QuotationsController {
   @Get(['bookings', 'quotations/bookings'])
   async getBookings(
     @CurrentUser() user: AuthUserPayload,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
-    @Query('status') status?: string,
+    @Query(new ZodValidationPipe(bookingsQuerySchema)) query: BookingsQuery,
   ) {
     return this.service.getBookings(
       user,
-      cursor,
-      limit ? parseInt(limit, 10) : 20,
-      status,
+      query.cursor,
+      query.limit,
+      query.status,
     );
   }
 

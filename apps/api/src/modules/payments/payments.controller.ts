@@ -10,12 +10,14 @@ import { CreateOrderDto, VerifyPaymentDto } from './dto/payment.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('create-order')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async createOrder(
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateOrderDto,
@@ -24,6 +26,7 @@ export class PaymentsController {
   }
 
   @Post('verify')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async verifyPayment(
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: VerifyPaymentDto,

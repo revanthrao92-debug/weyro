@@ -13,6 +13,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  SparePartsQuery,
+  sparePartsQuerySchema,
+} from '../../common/dto/query.dto';
 
 @Controller('spare-parts')
 export class SparePartsController {
@@ -21,20 +27,16 @@ export class SparePartsController {
   @Public()
   @Get()
   async findAll(
-    @Query('search') search?: string,
-    @Query('make') make?: string,
-    @Query('model') model?: string,
-    @Query('condition') condition?: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(sparePartsQuerySchema))
+    query: SparePartsQuery,
   ) {
     return this.service.findAll({
-      search,
-      make,
-      model,
-      condition,
-      cursor,
-      limit: limit ? parseInt(limit, 10) : 20,
+      search: query.search,
+      make: query.make,
+      model: query.model,
+      condition: query.condition,
+      cursor: query.cursor,
+      limit: query.limit,
     });
   }
 
@@ -46,6 +48,7 @@ export class SparePartsController {
 
   @Post()
   @Roles('PROVIDER', 'ADMIN')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async create(
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateSparePartDto,

@@ -13,6 +13,11 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { AdminAuthGuard } from '../auth/guards/admin.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  ProviderAdminQuery,
+  providerAdminQuerySchema,
+} from '../../common/dto/query.dto';
 
 @Controller('admin')
 @UseGuards(AdminAuthGuard)
@@ -26,8 +31,11 @@ export class AdminController {
   }
 
   @Get('providers')
-  async getProviders(@Query('status') status?: string) {
-    return this.service.getProviders(status);
+  async getProviders(
+    @Query(new ZodValidationPipe(providerAdminQuerySchema))
+    query: ProviderAdminQuery,
+  ) {
+    return this.service.getProviders(query.status);
   }
 
   @Patch('providers/:id/verify')

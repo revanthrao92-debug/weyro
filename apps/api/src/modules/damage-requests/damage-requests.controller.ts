@@ -15,6 +15,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { FeedQuery, feedQuerySchema } from '../../common/dto/query.dto';
 
 @Controller('damage-requests')
 export class DamageRequestsController {
@@ -22,6 +24,7 @@ export class DamageRequestsController {
 
   @Post()
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async create(
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateDamageRequestDto,
@@ -39,21 +42,16 @@ export class DamageRequestsController {
   @UseGuards(VerifiedProviderGuard)
   async getBroadcastFeed(
     @CurrentUser() user: AuthUserPayload,
-    @Query('lat') lat?: string,
-    @Query('lng') lng?: string,
-    @Query('radiusKm') radiusKm?: string,
-    @Query('category') category?: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(feedQuerySchema)) query: FeedQuery,
   ) {
     return this.service.getBroadcastFeed({
       providerId: user.providerProfileId,
-      providerLat: lat ? parseFloat(lat) : undefined,
-      providerLng: lng ? parseFloat(lng) : undefined,
-      radiusKm: radiusKm ? parseFloat(radiusKm) : 25,
-      category,
-      cursor,
-      limit: limit ? parseInt(limit, 10) : 20,
+      providerLat: query.lat,
+      providerLng: query.lng,
+      radiusKm: query.radiusKm,
+      category: query.category,
+      cursor: query.cursor,
+      limit: query.limit,
     });
   }
 

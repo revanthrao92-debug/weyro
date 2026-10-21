@@ -15,12 +15,19 @@ import {
 } from './dto/chat.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { Throttle } from '@nestjs/throttler';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  CursorPaginationQuery,
+  cursorPaginationSchema,
+} from '../../common/dto/query.dto';
 
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('threads')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async createThread(
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateThreadDto,
@@ -31,32 +38,29 @@ export class ChatController {
   @Get('threads')
   async getThreads(
     @CurrentUser() user: AuthUserPayload,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
   ) {
-    return this.chatService.getUserThreads(
-      user,
-      cursor,
-      limit ? parseInt(limit, 10) : 20,
-    );
+    return this.chatService.getUserThreads(user, query.cursor, query.limit);
   }
 
   @Get('threads/:id/messages')
   async getMessages(
     @CurrentUser() user: AuthUserPayload,
     @Param('id') id: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
   ) {
     return this.chatService.getThreadMessages(
       id,
       user,
-      cursor,
-      limit ? parseInt(limit, 10) : 30,
+      query.cursor,
+      query.limit,
     );
   }
 
   @Post('threads/:id/messages')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async sendMessage(
     @CurrentUser() user: AuthUserPayload,
     @Param('id') id: string,
