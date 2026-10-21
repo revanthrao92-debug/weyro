@@ -1,13 +1,13 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Headers,
   Param,
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
@@ -17,6 +17,7 @@ import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 
 @Controller()
 export class QuotationsController {
@@ -24,21 +25,12 @@ export class QuotationsController {
 
   @Post('damage-requests/:requestId/quotations')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @UseGuards(VerifiedProviderGuard)
   async create(
     @Param('requestId') requestId: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateQuotationDto,
   ) {
-    if (user.role !== 'ADMIN' && user.verificationStatus !== 'VERIFIED') {
-      throw new ForbiddenException(
-        'Only verified providers can submit quotations',
-      );
-    }
-    if (!user.providerProfileId && user.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Provider profile required to submit quotations',
-      );
-    }
     return this.service.create(
       requestId,
       user.providerProfileId || user.sub,

@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { DamageRequestsService } from './damage-requests.service';
@@ -13,6 +14,7 @@ import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 
 @Controller('damage-requests')
 export class DamageRequestsController {
@@ -34,6 +36,7 @@ export class DamageRequestsController {
 
   @Get(['broadcast-feed', 'feed'])
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @UseGuards(VerifiedProviderGuard)
   async getBroadcastFeed(
     @CurrentUser() user: AuthUserPayload,
     @Query('lat') lat?: string,
@@ -43,11 +46,6 @@ export class DamageRequestsController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    if (user.role !== 'ADMIN' && user.verificationStatus !== 'VERIFIED') {
-      throw new ForbiddenException(
-        'Only verified providers can access the broadcast feed',
-      );
-    }
     return this.service.getBroadcastFeed({
       providerId: user.providerProfileId,
       providerLat: lat ? parseFloat(lat) : undefined,
