@@ -164,6 +164,8 @@ function mapBooking(b: any): BookingRecord {
       : undefined,
     confirmedAt: b.createdAt,
     completedAt: b.completedAt,
+    trackingNumber: b.trackingNumber || undefined,
+    carrierName: b.carrierName || undefined,
   };
 }
 

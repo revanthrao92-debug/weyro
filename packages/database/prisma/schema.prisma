@@ -288,6 +288,8 @@ model Booking {
   startedAt       DateTime?
   completedAt     DateTime?
   completionNotes String?
+  trackingNumber  String?
+  carrierName     String?
   payments        Payment[]
   review          Review?
   createdAt       DateTime        @default(now())

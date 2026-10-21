@@ -400,6 +400,12 @@ export class QuotationsService {
     validateBookingTransition(booking.status, newStatus as any, user.role);
 
     const data: any = { status: newStatus as any };
+    if (metadata?.trackingNumber !== undefined) {
+      data.trackingNumber = metadata.trackingNumber;
+    }
+    if (metadata?.carrierName !== undefined) {
+      data.carrierName = metadata.carrierName;
+    }
     if (newStatus === 'IN_PROGRESS' && !booking.startedAt) {
       data.startedAt = new Date();
     }
