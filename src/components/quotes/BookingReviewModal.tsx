@@ -25,10 +25,15 @@ export function BookingReviewModal({
   if (!booking) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      accessibilityViewIsModal>
       <View style={styles.overlay}>
         <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <ThemedText type="smallBold" style={styles.title}>
+          <ThemedText type="smallBold" style={styles.title} accessibilityRole="header">
             Rate Your Repair & Service
           </ThemedText>
           <ThemedText style={styles.subtitle} themeColor="textSecondary">
@@ -41,6 +46,9 @@ export function BookingReviewModal({
               <Pressable
                 key={star}
                 onPress={() => setRating(star)}
+                accessibilityRole="button"
+                accessibilityLabel={`Rate ${star} out of 5`}
+                accessibilityState={{ selected: star === rating }}
                 style={styles.starBtn}>
                 <ThemedText style={[styles.starText, { opacity: star <= rating ? 1 : 0.25 }]}>
                   ⭐
@@ -58,16 +66,21 @@ export function BookingReviewModal({
             numberOfLines={3}
             placeholder="Feedback on part condition, fitment, or workshop turnaround..."
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Review feedback"
           />
 
           <View style={styles.buttonRow}>
             <Pressable
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close review"
               style={[styles.btn, styles.cancelBtn, { borderColor: theme.border }]}>
               <ThemedText style={styles.cancelText}>Close</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => onSubmit(rating, comment)}
+              accessibilityRole="button"
+              accessibilityLabel="Submit review"
               style={[styles.btn, styles.submitBtn, { backgroundColor: theme.primary }]}>
               <ThemedText style={[styles.submitText, { color: theme.inverseText }]}>Submit Review</ThemedText>
             </Pressable>

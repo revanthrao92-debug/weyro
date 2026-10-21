@@ -25,10 +25,15 @@ export function AcceptQuoteModal({
   if (!quote) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      accessibilityViewIsModal>
       <View style={styles.overlay}>
         <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <ThemedText type="smallBold" style={styles.title}>
+          <ThemedText type="smallBold" style={styles.title} accessibilityRole="header">
             Accept Quotation & Confirm Booking
           </ThemedText>
           <ThemedText style={styles.subtitle} themeColor="textSecondary">
@@ -42,6 +47,7 @@ export function AcceptQuoteModal({
             onChangeText={setAddress}
             placeholder="Doorstep address or workshop dropoff"
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Delivery or fitment address"
           />
 
           <ThemedText style={styles.label}>Target Service Date (YYYY-MM-DD)</ThemedText>
@@ -51,16 +57,21 @@ export function AcceptQuoteModal({
             onChangeText={setScheduledDate}
             placeholder="YYYY-MM-DD"
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Target service date, format year month day"
           />
 
           <View style={styles.buttonRow}>
             <Pressable
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel accepting quote"
               style={[styles.btn, styles.cancelBtn, { borderColor: theme.border }]}>
               <ThemedText style={styles.cancelText}>Cancel</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => onConfirm(address, scheduledDate)}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm and book this quote"
               style={[styles.btn, styles.confirmBtn, { backgroundColor: theme.primary }]}>
               <ThemedText style={[styles.confirmText, { color: theme.inverseText }]}>Confirm & Book</ThemedText>
             </Pressable>

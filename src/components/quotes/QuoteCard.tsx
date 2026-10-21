@@ -54,6 +54,8 @@ export function QuoteCard({ quote, onAccept, onChat }: QuoteCardProps) {
       <View style={styles.actionRow}>
         <Pressable
           onPress={onChat}
+          accessibilityRole="button"
+          accessibilityLabel={`Chat with ${quote.providerName}`}
           style={[styles.chatButton, { borderColor: theme.border }]}>
           <ThemedText style={styles.chatButtonText}>💬 Chat</ThemedText>
         </Pressable>
@@ -61,11 +63,16 @@ export function QuoteCard({ quote, onAccept, onChat }: QuoteCardProps) {
         {quote.status === 'PENDING' ? (
           <Pressable
             onPress={onAccept}
+            accessibilityRole="button"
+            accessibilityLabel={`Accept quote from ${quote.providerName} for ${quote.estimatedCost} rupees`}
             style={[styles.acceptButton, { backgroundColor: theme.primary }]}>
             <ThemedText style={[styles.acceptButtonText, { color: theme.inverseText }]}>Accept Quote & Book</ThemedText>
           </Pressable>
         ) : (
-          <View style={[styles.statusBadge, { backgroundColor: quote.status === 'ACCEPTED' ? theme.successSurface : theme.dangerSurface }]}>
+          <View
+            accessible
+            accessibilityLabel={`Quote ${quote.status.toLowerCase()}`}
+            style={[styles.statusBadge, { backgroundColor: quote.status === 'ACCEPTED' ? theme.successSurface : theme.dangerSurface }]}>
             <ThemedText style={{ color: quote.status === 'ACCEPTED' ? theme.success : theme.danger, fontWeight: '700', fontSize: 12 }}>
               {quote.status}
             </ThemedText>

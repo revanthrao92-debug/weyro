@@ -64,6 +64,8 @@ export function BroadcastRequestCard({
           source={{ uri: request.damagePhotos[0] }}
           style={styles.thumbnail}
           contentFit="cover"
+          accessible
+          accessibilityLabel={`Damage photo for ${request.damagedPart}`}
         />
       )}
 
@@ -83,11 +85,15 @@ export function BroadcastRequestCard({
       <View style={styles.actionRow}>
         <Pressable
           onPress={onOpenChat}
+          accessibilityRole="button"
+          accessibilityLabel={`Chat with customer about ${request.damagedPart}`}
           style={[styles.chatBtn, { borderColor: theme.border }]}>
           <ThemedText style={styles.chatBtnText}>💬 Chat Customer</ThemedText>
         </Pressable>
         <Pressable
           onPress={onOpenQuoteModal}
+          accessibilityRole="button"
+          accessibilityLabel={`Send a quotation for ${request.damagedPart}`}
           style={[styles.quoteBtn, { backgroundColor: theme.primary }]}>
           <ThemedText style={[styles.quoteBtnText, { color: theme.inverseText }]}>+ Send Quotation</ThemedText>
         </Pressable>

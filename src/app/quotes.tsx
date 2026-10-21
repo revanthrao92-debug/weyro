@@ -119,6 +119,9 @@ export default function QuotesAndBookingsScreen() {
           <View style={[styles.tabContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Pressable
               onPress={() => setActiveTab('QUOTES')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'QUOTES' }}
+              accessibilityLabel={`Quotations, ${allQuotes.length} received`}
               style={[styles.tabBtn, activeTab === 'QUOTES' && { backgroundColor: theme.primary }]}>
               <ThemedText style={[styles.tabText, activeTab === 'QUOTES' && { color: theme.inverseText, fontWeight: '700' }]}>
                 Quotations ({allQuotes.length})
@@ -126,6 +129,9 @@ export default function QuotesAndBookingsScreen() {
             </Pressable>
             <Pressable
               onPress={() => setActiveTab('BOOKINGS')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'BOOKINGS' }}
+              accessibilityLabel={`Active bookings, ${bookings.length}`}
               style={[styles.tabBtn, activeTab === 'BOOKINGS' && { backgroundColor: theme.primary }]}>
               <ThemedText style={[styles.tabText, activeTab === 'BOOKINGS' && { color: theme.inverseText, fontWeight: '700' }]}>
                 Active Bookings ({bookings.length})

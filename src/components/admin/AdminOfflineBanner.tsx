@@ -33,6 +33,9 @@ export function AdminOfflineBanner({ status, onFlush }: AdminOfflineBannerProps)
       <Pressable
         disabled={status.isSyncing}
         onPress={onFlush}
+        accessibilityRole="button"
+        accessibilityLabel="Sync offline changes now"
+        accessibilityState={{ disabled: status.isSyncing, busy: status.isSyncing }}
         style={[styles.syncBtn, { backgroundColor: theme.warning }]}>
         {status.isSyncing ? (
           <ActivityIndicator size="small" color={theme.inverseText} />

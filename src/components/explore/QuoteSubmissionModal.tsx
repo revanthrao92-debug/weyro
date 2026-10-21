@@ -50,10 +50,15 @@ export function QuoteSubmissionModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      accessibilityViewIsModal>
       <View style={styles.overlay}>
         <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <ThemedText type="smallBold" style={styles.title}>
+          <ThemedText type="smallBold" style={styles.title} accessibilityRole="header">
             Submit Quotation Bid
           </ThemedText>
           <ThemedText style={styles.subtitle} themeColor="textSecondary">
@@ -68,16 +73,20 @@ export function QuoteSubmissionModal({
             keyboardType="numeric"
             placeholder="e.g. 4500"
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Quoted total cost in Indian rupees"
           />
 
           <ThemedText style={styles.label}>Component Condition</ThemedText>
-          <View style={styles.chipsRow}>
+          <View style={styles.chipsRow} accessibilityRole="radiogroup">
             {CONDITIONS.map((cond) => {
               const isSelected = partCondition === cond;
               return (
                 <Pressable
                   key={cond}
                   onPress={() => setPartCondition(cond)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${cond} condition`}
                   style={[
                     styles.chip,
                     { borderColor: isSelected ? theme.primary : theme.border },
@@ -102,6 +111,7 @@ export function QuoteSubmissionModal({
             onChangeText={setEtaInput}
             placeholder="e.g. Same day, 2 days"
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Estimated delivery or fitment turnaround"
           />
 
           <ThemedText style={styles.label}>Notes / Warranty</ThemedText>
@@ -113,16 +123,21 @@ export function QuoteSubmissionModal({
             numberOfLines={2}
             placeholder="Specify fitment notes, courier tracking, or warranty terms..."
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Quotation notes and warranty terms"
           />
 
           <View style={styles.buttonRow}>
             <Pressable
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel quotation"
               style={[styles.btn, styles.cancelBtn, { borderColor: theme.border }]}>
               <ThemedText style={styles.cancelText}>Cancel</ThemedText>
             </Pressable>
             <Pressable
               onPress={handleSubmit}
+              accessibilityRole="button"
+              accessibilityLabel="Dispatch quotation"
               style={[styles.btn, styles.submitBtn, { backgroundColor: theme.primary }]}>
               <ThemedText style={[styles.submitText, { color: theme.inverseText }]}>Dispatch Quote</ThemedText>
             </Pressable>

@@ -33,6 +33,8 @@ export function AdminProviderItem({
           </ThemedText>
         </View>
         <View
+          accessible
+          accessibilityLabel={`Verification status: ${provider.verificationStatus}`}
           style={[
             styles.badge,
             {
@@ -65,11 +67,15 @@ export function AdminProviderItem({
         <View style={styles.actionRow}>
           <Pressable
             onPress={onReject}
+            accessibilityRole="button"
+            accessibilityLabel={`Reject verification for ${provider.businessName}`}
             style={[styles.btn, styles.rejectBtn, { backgroundColor: theme.dangerSurface }]}>
             <ThemedText style={[styles.rejectText, { color: theme.danger }]}>Reject</ThemedText>
           </Pressable>
           <Pressable
             onPress={onVerify}
+            accessibilityRole="button"
+            accessibilityLabel={`Verify ${provider.businessName}`}
             style={[styles.btn, styles.verifyBtn, { backgroundColor: theme.success }]}>
             <ThemedText style={[styles.verifyText, { color: theme.inverseText }]}>Verify Partner</ThemedText>
           </Pressable>

@@ -28,6 +28,8 @@ export function EmptyListCard({
       {Boolean(actionText && onAction) && (
         <Pressable
           onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionText}
           style={[styles.btn, { backgroundColor: theme.primary }]}>
           <ThemedText style={styles.btnText}>{actionText}</ThemedText>
         </Pressable>

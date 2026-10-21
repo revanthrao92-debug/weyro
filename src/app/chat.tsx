@@ -224,6 +224,8 @@ export default function ChatScreen() {
         <View style={styles.headerTopRow}>
           <Pressable
             onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
             <ThemedText style={[styles.backButtonText, { color: theme.primary }]}>‹ Back</ThemedText>
           </Pressable>
@@ -241,11 +243,14 @@ export default function ChatScreen() {
         {/* Role Toggle Switch for Testing */}
         <View style={styles.roleToggleRow}>
           <ThemedText type="small" themeColor="textSecondary">
-            Replying as:
+            Viewing as:
           </ThemedText>
           <View style={styles.roleTogglePills}>
             <Pressable
               onPress={() => setActiveRole('CUSTOMER')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activeRole === 'CUSTOMER' }}
+              accessibilityLabel="View conversation as customer"
               style={[
                 styles.rolePill,
                 activeRole === 'CUSTOMER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
@@ -263,6 +268,9 @@ export default function ChatScreen() {
 
             <Pressable
               onPress={() => setActiveRole('PROVIDER')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activeRole === 'PROVIDER' }}
+              accessibilityLabel="View conversation as provider"
               style={[
                 styles.rolePill,
                 activeRole === 'PROVIDER' && [styles.rolePillActive, { backgroundColor: theme.primary, borderColor: theme.primary }],
@@ -303,6 +311,8 @@ export default function ChatScreen() {
           renderItem={({ item }) => (
             <Pressable
               onPress={() => handleSend(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Send quick message: ${item}`}
               style={({ pressed }) => [
                 styles.promptChip,
                 { borderColor: theme.border, backgroundColor: theme.backgroundElement },
@@ -332,6 +342,7 @@ export default function ChatScreen() {
           onChangeText={setInputText}
           placeholder={`Message as ${activeRole === 'CUSTOMER' ? 'Customer' : 'Provider'}...`}
           placeholderTextColor={theme.textSecondary}
+          accessibilityLabel="Message text"
           style={[
             styles.chatInput,
             {
@@ -344,6 +355,8 @@ export default function ChatScreen() {
 
         <Pressable
           onPress={() => handleSend()}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
           style={({ pressed }) => [
             styles.sendButton,
             { backgroundColor: theme.primary },

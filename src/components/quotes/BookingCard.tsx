@@ -102,6 +102,8 @@ export function BookingCard({
       <View style={styles.actionRow}>
         <Pressable
           onPress={onChat}
+          accessibilityRole="button"
+          accessibilityLabel={`Chat with ${booking.providerName} about ${booking.damagedPart}`}
           style={[styles.smallBtn, { borderColor: theme.border }]}>
           <ThemedText style={styles.btnText}>💬 Chat</ThemedText>
         </Pressable>
@@ -109,12 +111,20 @@ export function BookingCard({
         {booking.status !== 'COMPLETED' ? (
           <Pressable
             onPress={onAdvanceMilestone}
+            accessibilityRole="button"
+            accessibilityLabel={`Advance ${booking.damagedPart} booking to the next milestone`}
             style={[styles.advanceBtn, { backgroundColor: theme.primary }]}>
             <ThemedText style={[styles.advanceBtnText, { color: theme.inverseText }]}>Advance Milestone ➔</ThemedText>
           </Pressable>
         ) : (
           <Pressable
             onPress={onOpenReview}
+            accessibilityRole="button"
+            accessibilityLabel={
+              booking.review
+                ? `Rated ${booking.review.rating} out of 5. Edit review`
+                : 'Leave a review'
+            }
             style={[
               styles.reviewBtn,
               { backgroundColor: booking.review ? theme.successSurface : theme.primarySurface },
