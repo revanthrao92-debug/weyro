@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, BorderRadius, Elevation, Spacing } from '@/constants/theme';
+import { BorderRadius, Elevation, BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authStore, useAuth } from '@/services/auth-store';
 import { UserRole } from '@weyro/api-contracts';
@@ -88,7 +88,14 @@ export default function AuthScreen() {
       }
       router.back();
     } catch (err: any) {
-      Alert.alert('Authentication Failed', err?.message || 'Could not complete login/registration.');
+      if (err?.status === 429) {
+        Alert.alert(
+          'Too Many Attempts',
+          'You have exceeded the maximum login/registration attempts. Please wait 60 seconds before trying again.',
+        );
+      } else {
+        Alert.alert('Authentication Failed', err?.message || 'Could not complete login/registration.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -125,7 +132,7 @@ export default function AuthScreen() {
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
-            <ThemedText style={[styles.backBtnText, { color: theme.primary }]}>‹ Back</ThemedText>
+            <ThemedText style={styles.backBtnText}>‹ Back</ThemedText>
           </Pressable>
           <ThemedText style={styles.navTitle}>Account & Identity</ThemedText>
           <View style={{ width: 50 }} />
@@ -343,7 +350,7 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: BorderRadius.medium,
   },
   backBtnText: {
     fontSize: 16,
@@ -395,7 +402,7 @@ const styles = StyleSheet.create({
   logoutBtn: {
     marginTop: Spacing.three,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: BorderRadius.large,
     alignItems: 'center',
   },
   logoutBtnText: {
@@ -418,7 +425,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: BorderRadius.round,
   },
   modeTabActive: {
     ...Elevation.low,
@@ -439,7 +446,7 @@ const styles = StyleSheet.create({
   textInput: {
     height: 44,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: BorderRadius.medium,
     paddingHorizontal: 12,
     fontSize: 14,
   },

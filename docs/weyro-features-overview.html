@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weyro - Platform Features & Architecture Overview</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      color: #1e293b;
+      background-color: #ffffff;
+      line-height: 1.5;
+      font-size: 11pt;
+    }
+    .header {
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .title-area h1 {
+      font-size: 24pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+    .title-area p {
+      font-size: 11pt;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .badge {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 9pt;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .meta-tag {
+      font-size: 9pt;
+      color: #64748b;
+      text-align: right;
+    }
+    .section-title {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin: 20px 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      background-color: #f8fafc;
+      page-break-inside: avoid;
+    }
+    .card-title {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    .card-list li {
+      position: relative;
+      padding-left: 14px;
+      margin-bottom: 4px;
+      font-size: 9.5pt;
+      color: #334155;
+    }
+    .card-list li::before {
+      content: "•";
+      position: absolute;
+      left: 2px;
+      color: #2563eb;
+      font-weight: bold;
+    }
+    .highlight-card {
+      background-color: #f0fdf4;
+      border-color: #bbf7d0;
+      border-left: 4px solid #16a34a;
+    }
+    .highlight-card .card-title {
+      color: #15803d;
+    }
+    .bucket-card {
+      background-color: #faf5ff;
+      border-color: #e9d5ff;
+      border-left: 4px solid #9333ea;
+    }
+    .bucket-card .card-title {
+      color: #7e22ce;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .footer {
+      margin-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+      font-size: 8pt;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title-area">
+      <h1>WEYRO</h1>
+      <p>Automotive Marketplace Platform — Production Feature & Architecture Specification</p>
+    </div>
+    <div class="meta-tag">
+      <span class="badge">Production Ready</span><br>
+      <span style="font-size: 8pt; color: #64748b;">Generated: October 2026</span>
+    </div>
+  </div>
+
+  <div class="section-title">1. Core Platform & Backend Capabilities</div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">🔐 Identity, Auth & RBAC</div>
+      <ul class="card-list">
+        <li><strong>Dual-Identifier Sign-in</strong>: Email and Indian Mobile (+91).</li>
+        <li><strong>Password Security</strong>: Bcrypt (cost 12) + constant-time dummy verification for non-existent accounts.</li>
+        <li><strong>Token Pair Lifecycle</strong>: 15-min JWT access token + 7-day stateful rotating refresh tokens in DB.</li>
+        <li><strong>Role Guards</strong>: Global RBAC covering <code>CUSTOMER</code>, <code>PROVIDER</code>, <code>BOTH</code>, and <code>ADMIN</code>.</li>
+        <li><strong>Customer PII Masking</strong>: Contact info withheld from public feeds until quote acceptance.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📍 PostGIS Geospatial Engine</div>
+      <ul class="card-list">
+        <li><strong>Native Spatial Point Type</strong>: <code>geography(Point, 4326)</code> synced automatically via DB triggers.</li>
+        <li><strong>Sub-Millisecond Radius Search</strong>: Indexed with PostgreSQL GiST spatial indexes.</li>
+        <li><strong>Spatial Filtering</strong>: <code>ST_DWithin</code> finds workshops within customer-selected radius (e.g., 10-50 km).</li>
+        <li><strong>Cursor Pagination</strong>: High-performance cursor pagination (max limit 50).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🛠️ Damage Requests & Bidding</div>
+      <ul class="card-list">
+        <li><strong>Structured Lead Creation</strong>: Multi-angle photos, vehicle details, fuel type, and damage description.</li>
+        <li><strong>Workshop Competitive Bids</strong>: Itemized quotes with labor charges, spare parts, and estimated days.</li>
+        <li><strong>Atomic Quote Acceptance</strong>: Guarded PostgreSQL transactions prevent concurrent double-booking.</li>
+        <li><strong>Scheduled Expiration</strong>: Automated cron jobs (<code>@nestjs/schedule</code>) auto-expire stale requests.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💳 Payments & Escrow (Razorpay India)</div>
+      <ul class="card-list">
+        <li><strong>Indian Currency Standard</strong>: Native INR (₹) processing in paise.</li>
+        <li><strong>UPI & Cards</strong>: Instant UPI intent, netbanking, and domestic debit/credit cards.</li>
+        <li><strong>RBI PA/PG Compliance</strong>: Authorized capture architecture without illegal custodial accounts.</li>
+        <li><strong>Webhook Idempotency</strong>: Verified with timing-safe HMAC SHA-256; deduplicated via <code>WebhookEvent</code>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 Real-Time Chat & Push Notifications</div>
+      <ul class="card-list">
+        <li><strong>WebSocket Gateway</strong>: Socket.IO on <code>/chat</code> with JWT handshake authentication.</li>
+        <li><strong>Isolated Chat Rooms</strong>: Room isolation (<code>thread_&lt;id&gt;</code>) restricted to authenticated participants.</li>
+        <li><strong>Expo Push Dispatch</strong>: Immediate device push alerts on new quotes, acceptances, and chat messages.</li>
+        <li><strong>Automated Token Pruning</strong>: Purges invalid or unregistered device tokens automatically.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Admin & Observability</div>
+      <ul class="card-list">
+        <li><strong>Health Probes</strong>: <code>/api/v1/health</code> (liveness) & <code>/api/v1/ready</code> (readiness with DB query).</li>
+        <li><strong>Request Tracing</strong>: Correlation IDs attached to all HTTP requests via <code>x-request-id</code>.</li>
+        <li><strong>OpenAPI / Swagger</strong>: Interactive API specifications automatically documented at <code>/api/docs</code>.</li>
+        <li><strong>Automated CI</strong>: GitHub Actions CI pipeline running lint, typecheck, tests, and Expo Doctor.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="section-title">2. Supabase Storage Bucket Specifications (<code>weyro-uploads</code>)</div>
+
+  <div class="card bucket-card" style="margin-bottom: 16px;">
+    <div class="card-title">📦 Storage Infrastructure Overview</div>
+    <p style="font-size: 9.5pt; color: #475569; margin-bottom: 8px;">
+      The <strong><code>weyro-uploads</code></strong> bucket provides S3-compatible, high-performance object storage hosted on Supabase in AWS Mumbai (<code>ap-south-1</code>) and accelerated globally via Cloudflare CDN.
+    </p>
+    <div style="display: flex; gap: 12px; font-size: 9pt;">
+      <div><strong>Region:</strong> <code>ap-south-1</code> (Mumbai)</div>
+      <div><strong>File Limit:</strong> 10 MB per item</div>
+      <div><strong>MIME Whitelist:</strong> JPEG, PNG, WebP</div>
+      <div><strong>Architecture:</strong> Presigned S3 PUT URLs</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Bucket Directory</th>
+        <th style="width: 35%;">Purpose & Content</th>
+        <th style="width: 40%;">Security & Access Policies</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>damage-requests/</code></td>
+        <td>Collision, dent, and paint damage photos uploaded by vehicle owners when initiating repair quotes.</td>
+        <td>Presigned PUT upload (5-min validity). Public CDN read for verified repair workshops.</td>
+      </tr>
+      <tr>
+        <td><code>quotations/</code></td>
+        <td>Repair diagrams, inspection estimates, and spare parts invoices submitted by repair workshops.</td>
+        <td>Restricted upload to verified repair providers. Read access granted to request owner.</td>
+      </tr>
+      <tr>
+        <td><code>completion-proofs/</code></td>
+        <td>Before-and-after vehicle repair photos uploaded by workshops upon completing repair jobs.</td>
+        <td>Uploaded upon booking status transition to <code>IN_PROGRESS</code> or <code>COMPLETED</code>.</td>
+      </tr>
+      <tr>
+        <td><code>chat-attachments/</code></td>
+        <td>Media and parts photos shared during live direct messaging between customer and workshop.</td>
+        <td>Accessible only through thread room authorization. CDN accelerated.</td>
+      </tr>
+      <tr>
+        <td><code>provider-profiles/</code></td>
+        <td>Garage storefront photography, workshop logos, trade certifications, and facility photos.</td>
+        <td>Uploaded during provider registration and profile updates. Public read CDN.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">3. Mobile Client Architecture (Expo SDK 57)</div>
+
+  <div class="grid">
+    <div class="card highlight-card">
+      <div class="card-title">📱 Hardware Secure Storage</div>
+      <p style="font-size: 9.5pt; color: #166534;">
+        Replaced unencrypted storage with <code>expo-secure-store</code>. Tokens reside strictly in Apple Keychain (iOS) and Android KeyStore with AES-256 encryption.
+      </p>
+    </div>
+    <div class="card highlight-card">
+      <div class="card-title">🔄 Resilient Offline Mutation Queue</div>
+      <p style="font-size: 9.5pt; color: #166534;">
+        Network loss triggers an offline mutation queue with unique <code>Idempotency-Key</code> headers and exponential backoff retry algorithms.
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Weyro Automotive Marketplace • Architecture & Feature Document</div>
+    <div>Page 2 of 2</div>
+  </div>
+
+</body>
+</html>

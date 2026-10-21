@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.half,
   },
   headerSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   fabContainer: {
     position: 'absolute',

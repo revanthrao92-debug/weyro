@@ -135,7 +135,7 @@ export default function AdminScreen() {
           <AdminOverviewCards metrics={metrics} />
 
           {/* Partner Verifications */}
-          <View style={styles.section}>
+          <View style={[styles.section, Elevation.low, { backgroundColor: theme.card, borderRadius: BorderRadius.xlarge }]}>
             <ThemedText type="smallBold" style={styles.sectionTitle}>
               PROVIDER VERIFICATIONS ({providers.length})
             </ThemedText>
@@ -191,13 +191,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: Spacing.half,
   },
   subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 22,
   },
   section: {
     marginBottom: Spacing.three,

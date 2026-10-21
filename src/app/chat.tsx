@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -127,7 +127,7 @@ export default function ChatScreen() {
         style={[
           styles.headerContainer,
           { paddingTop: insets.top + Spacing.two, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.card },
-          ]}>
+        ]}>
         <View style={styles.headerTopRow}>
           <Pressable
             onPress={() => router.back()}
@@ -291,6 +291,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
+    fontWeight: '700',
   },
   headerSubtitle: {
     fontSize: 12,
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
   messageBubble: {
     maxWidth: '82%',
     padding: Spacing.three,
-    borderRadius: 14,
+    borderRadius: BorderRadius.large,
     gap: 4,
   },
   customerBubble: {

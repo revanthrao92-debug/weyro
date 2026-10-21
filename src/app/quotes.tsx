@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BorderRadius, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   BookingMilestoneStatus,
@@ -195,11 +195,11 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: Spacing.three, alignItems: 'center' },
   contentWrapper: { width: '100%', maxWidth: MaxContentWidth },
   header: { marginBottom: Spacing.three },
-  title: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  subtitle: { fontSize: 13 },
-  tabContainer: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, padding: 3, marginBottom: Spacing.three },
-  tabBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: Spacing.half },
+  subtitle: { fontSize: 15, lineHeight: 22 },
+  tabContainer: { flexDirection: 'row', borderRadius: BorderRadius.xlarge, borderWidth: 1, padding: 4, marginBottom: Spacing.three },
+  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.large, alignItems: 'center' },
   tabText: { fontSize: 13, fontWeight: '600' },
   listSection: { width: '100%' },
-  reqRefBadge: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4, marginLeft: 2 },
+  reqRefBadge: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 4, marginLeft: 2 },
 });

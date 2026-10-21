@@ -66,8 +66,14 @@ export function DamagePhotoUploader({
           );
           setPhotoUri(publicUrl);
         } catch (err: any) {
-          // If offline or dev fallback, preserve local uri
-          console.warn('Presigned upload fallback to local URI:', err?.message);
+          if (err?.status === 429) {
+            Alert.alert(
+              'Upload Rate Limit',
+              'You have requested too many image uploads. Please wait 60 seconds before trying again.',
+            );
+          } else {
+            console.warn('Presigned upload fallback to local URI:', err?.message);
+          }
         } finally {
           setIsUploading(false);
         }
