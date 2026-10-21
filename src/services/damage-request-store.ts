@@ -521,6 +521,20 @@ export const damageRequestStore = {
       listeners = listeners.filter((l) => l !== listener);
     };
   },
+
+  async clearLocalState(): Promise<void> {
+    requests = [];
+    bookings = [];
+    emitChange();
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(REQUESTS_CACHE_KEY),
+        AsyncStorage.removeItem(BOOKINGS_CACHE_KEY),
+      ]);
+    } catch {
+      // Non-blocking cache clear error
+    }
+  },
 };
 
 export function useDamageRequests(): DamageBroadcastRequest[] {

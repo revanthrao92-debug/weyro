@@ -200,6 +200,11 @@ export const chatStore = {
       listeners = listeners.filter((l) => l !== listener);
     };
   },
+
+  clearLocalState(): void {
+    threads = [];
+    emitChange();
+  },
 };
 
 export function useChatThreads(): ChatThread[] {
