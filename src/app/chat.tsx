@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +20,7 @@ import {
   ChatMessage,
   ChatThread,
   chatStore,
+  useChatThread,
 } from '@/services/chat-store';
 
 const QUICK_PROMPTS = [
@@ -35,6 +37,7 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{
     threadId?: string;
     requestId?: string;
+    providerId?: string;
     providerName?: string;
     customerName?: string;
     damagedPart?: string;
@@ -42,49 +45,107 @@ export default function ChatScreen() {
     role?: 'CUSTOMER' | 'PROVIDER';
   }>();
 
-  // Determine active thread
-  const resolvedThreadId =
-    params.threadId ||
-    (params.requestId && params.providerName
-      ? `${params.requestId}_${params.providerName}`
-      : 'thread_direct');
-
   const [activeRole, setActiveRole] = useState<'CUSTOMER' | 'PROVIDER'>(
     params.role === 'PROVIDER' ? 'PROVIDER' : 'CUSTOMER'
   );
   const [inputText, setInputText] = useState('');
+  const [activeThread, setActiveThread] = useState<ChatThread | null>(() =>
+    (params.threadId ? chatStore.getThread(params.threadId) : null) ?? null
+  );
+  const [threadError, setThreadError] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
-  // Get or create thread synchronously (idempotent store operation)
-  const activeThread = useMemo<ChatThread>(() => {
-    const existing = chatStore.getThread(resolvedThreadId);
-    if (existing) return existing;
-    return chatStore.getOrCreateThread({
-      requestId: params.requestId || 'req_direct',
-      providerName: params.providerName || 'Service Provider',
-      customerName: params.customerName || 'Customer',
-      damagedPart: params.damagedPart || 'Automotive Service',
-      vehicle: params.vehicle || 'Vehicle',
-    });
+  const liveThread = useChatThread(activeThread?.id || '') || activeThread;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveThread() {
+      const byId = params.threadId
+        ? chatStore.getThread(params.threadId)
+        : undefined;
+      if (byId) {
+        if (!cancelled) setActiveThread(byId);
+        chatStore.loadMessages(byId.id).catch(() => {});
+        return;
+      }
+
+      const existing = chatStore
+        .getThreads()
+        .find(
+          (t) =>
+            t.requestId === params.requestId &&
+            (!params.providerId || t.providerId === params.providerId),
+        );
+      if (existing) {
+        if (!cancelled) setActiveThread(existing);
+        chatStore.loadMessages(existing.id).catch(() => {});
+        return;
+      }
+
+      if (!params.requestId || !params.providerId) {
+        if (!cancelled) {
+          setThreadError('Chat is unavailable for this request.');
+        }
+        return;
+      }
+
+      setIsResolving(true);
+      try {
+        const thread = await chatStore.getOrCreateThread({
+          requestId: params.requestId,
+          providerId: params.providerId,
+          providerName: params.providerName || 'Service Provider',
+          customerName: params.customerName || 'Customer',
+          damagedPart: params.damagedPart || 'Automotive Service',
+          vehicle: params.vehicle || 'Vehicle',
+        });
+        if (!cancelled) {
+          setActiveThread(thread);
+          setThreadError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setThreadError(
+            'We could not open this conversation. Check your connection and try again.',
+          );
+        }
+      } finally {
+        if (!cancelled) setIsResolving(false);
+      }
+    }
+
+    resolveThread();
+    return () => {
+      cancelled = true;
+    };
   }, [
-    resolvedThreadId,
+    params.threadId,
     params.requestId,
+    params.providerId,
     params.providerName,
     params.customerName,
     params.damagedPart,
     params.vehicle,
   ]);
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
+    const thread = liveThread;
     const text = (textToSend || inputText).trim();
-    if (!text) return;
+    if (!thread || !text) return;
 
     const senderName =
-      activeRole === 'CUSTOMER'
-        ? activeThread.customerName
-        : activeThread.providerName;
+      activeRole === 'CUSTOMER' ? thread.customerName : thread.providerName;
 
-    chatStore.sendMessage(activeThread.id, activeRole, senderName, text);
-    setInputText('');
+    try {
+      await chatStore.sendMessage(thread.id, activeRole, senderName, text);
+      setInputText('');
+    } catch {
+      Alert.alert(
+        'Message Not Sent',
+        'Check your connection and try again. Your message was not delivered.',
+      );
+    }
   };
 
   const renderMessageItem = ({ item }: { item: ChatMessage }) => {
@@ -126,6 +187,29 @@ export default function ChatScreen() {
     );
   };
 
+  if (!liveThread) {
+    return (
+      <ThemedView
+        style={[
+          styles.container,
+          { backgroundColor: theme.background, padding: Spacing.four },
+        ]}>
+        <ThemedText
+          type="subtitle"
+          style={{ marginTop: insets.top + Spacing.four }}>
+          {isResolving ? 'Opening conversation…' : 'Chat unavailable'}
+        </ThemedText>
+        {threadError ? (
+          <ThemedText
+            themeColor="textSecondary"
+            style={{ marginTop: Spacing.two }}>
+            {threadError}
+          </ThemedText>
+        ) : null}
+      </ThemedView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -146,10 +230,10 @@ export default function ChatScreen() {
 
           <View style={styles.headerTitleBox}>
             <ThemedText type="smallBold" style={styles.headerTitle}>
-              {activeThread.providerName}
+              {liveThread.providerName}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.headerSubtitle}>
-              {activeThread.vehicle} • {activeThread.damagedPart}
+              {liveThread.vehicle} • {liveThread.damagedPart}
             </ThemedText>
           </View>
         </View>
@@ -173,7 +257,7 @@ export default function ChatScreen() {
                   styles.rolePillText,
                   activeRole === 'CUSTOMER' && { color: theme.inverseText, fontWeight: '700' },
                 ]}>
-                Customer ({activeThread.customerName.split(' ')[0]})
+                Customer ({liveThread.customerName.split(' ')[0]})
               </ThemedText>
             </Pressable>
 
@@ -190,7 +274,7 @@ export default function ChatScreen() {
                   styles.rolePillText,
                   activeRole === 'PROVIDER' && { color: theme.inverseText, fontWeight: '700' },
                 ]}>
-                Provider ({activeThread.providerName.split(' ')[0]})
+                Provider ({liveThread.providerName.split(' ')[0]})
               </ThemedText>
             </Pressable>
           </View>
@@ -199,7 +283,7 @@ export default function ChatScreen() {
 
       {/* Messages List */}
       <FlatList
-        data={activeThread.messages}
+        data={liveThread.messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessageItem}
         contentContainerStyle={[

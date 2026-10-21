@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react';
-import { weyroNotifications } from './notifications';
 import { apiClient } from './api-client';
 
 export interface ChatMessage {
@@ -15,6 +14,7 @@ export interface ChatMessage {
 export interface ChatThread {
   id: string;
   requestId: string;
+  providerId: string;
   providerName: string;
   customerName: string;
   damagedPart: string;
@@ -26,13 +26,63 @@ export interface ChatThread {
 type Listener = () => void;
 let listeners: Listener[] = [];
 
-// Initialize clean empty threads state - no dummy/mock seed data
 let threads: ChatThread[] = [];
 
 function emitChange() {
   for (const listener of listeners) {
     listener();
   }
+}
+
+function customerNameOf(item: any): string {
+  return `${item.customer?.firstName || 'Customer'} ${
+    item.customer?.lastName || ''
+  }`.trim();
+}
+
+function mapMessage(message: any, thread: ChatThread): ChatMessage {
+  return {
+    id: message.id,
+    threadId: thread.id,
+    senderRole: message.senderRole,
+    senderName:
+      message.senderRole === 'CUSTOMER'
+        ? thread.customerName
+        : message.senderRole === 'PROVIDER'
+          ? thread.providerName
+          : 'Weyro Support',
+    text: message.content,
+    timestamp: message.createdAt,
+    imageUrl: message.mediaUrls?.[0],
+  };
+}
+
+function mapThread(
+  item: any,
+  fallback?: Partial<ChatThread>,
+): ChatThread {
+  const customerName = item.customer ? customerNameOf(item) : fallback?.customerName || 'Customer';
+  const providerName =
+    item.provider?.businessName || fallback?.providerName || 'Provider';
+
+  const thread: ChatThread = {
+    id: item.id,
+    requestId: item.requestId || item.request?.id || fallback?.requestId || '',
+    providerId: item.providerId || item.provider?.id || fallback?.providerId || '',
+    providerName,
+    customerName,
+    damagedPart:
+      item.request?.title || fallback?.damagedPart || 'Service Request',
+    vehicle: fallback?.vehicle || 'Vehicle',
+    messages: [],
+    lastMessageAt: item.lastMessageAt || item.createdAt,
+  };
+
+  thread.messages = (item.messages || []).map((m: any) =>
+    mapMessage(m, thread),
+  );
+
+  return thread;
 }
 
 export const chatStore = {
@@ -44,110 +94,99 @@ export const chatStore = {
     return threads.find((t) => t.id === threadId);
   },
 
-  getOrCreateThread(params: {
+  async getOrCreateThread(params: {
     requestId: string;
+    providerId: string;
     providerName: string;
     customerName: string;
     damagedPart: string;
     vehicle: string;
-  }): ChatThread {
-    const threadId = `${params.requestId}_${params.providerName}`;
-    const existing = threads.find((t) => t.id === threadId);
+  }): Promise<ChatThread> {
+    const existing = threads.find(
+      (t) =>
+        t.requestId === params.requestId && t.providerId === params.providerId,
+    );
     if (existing) return existing;
 
-    const newThread: ChatThread = {
-      id: threadId,
+    const res = await apiClient.post<any>('/chat/threads', {
       requestId: params.requestId,
-      providerName: params.providerName,
-      customerName: params.customerName,
-      damagedPart: params.damagedPart,
-      vehicle: params.vehicle,
-      messages: [],
-      lastMessageAt: new Date().toISOString(),
-    };
+      providerId: params.providerId,
+    });
 
-    threads = [newThread, ...threads];
+    const thread = mapThread(res, params);
+
+    threads = [thread, ...threads.filter((t) => t.id !== thread.id)];
     emitChange();
-    return newThread;
+    return thread;
   },
 
-  sendMessage(
+  async sendMessage(
     threadId: string,
     senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN',
     senderName: string,
     text: string,
     imageUrl?: string,
-  ): ChatMessage {
-    const threadIndex = threads.findIndex((t) => t.id === threadId);
-    const now = new Date().toISOString();
+  ): Promise<ChatMessage> {
+    const res = await apiClient.post<any>(
+      `/chat/threads/${threadId}/messages`,
+      {
+        content: text,
+        mediaUrls: imageUrl ? [imageUrl] : [],
+      },
+    );
 
-    const newMessage: ChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    const thread = threads.find((t) => t.id === threadId);
+    const message: ChatMessage = {
+      id: res.id,
       threadId,
-      senderRole,
+      senderRole: res.senderRole || senderRole,
       senderName,
-      text,
-      timestamp: now,
+      text: res.content ?? text,
+      timestamp: res.createdAt || new Date().toISOString(),
       imageUrl,
     };
 
-    if (threadIndex !== -1) {
-      const targetThread = threads[threadIndex];
-      const updatedThread: ChatThread = {
-        ...targetThread,
-        lastMessageAt: now,
-        messages: [...targetThread.messages, newMessage],
-      };
-      threads = [
-        updatedThread,
-        ...threads.slice(0, threadIndex),
-        ...threads.slice(threadIndex + 1),
-      ];
-    } else {
-      threads = [
-        {
-          id: threadId,
-          requestId: threadId.split('_')[0] || '',
-          providerName: senderRole === 'PROVIDER' ? senderName : 'Service Provider',
-          customerName: senderRole === 'CUSTOMER' ? senderName : 'Customer',
-          damagedPart: 'Service Request',
-          vehicle: 'Vehicle',
-          messages: [newMessage],
-          lastMessageAt: now,
-        },
-        ...threads,
-      ];
+    if (thread) {
+      threads = threads.map((t) =>
+        t.id === threadId
+          ? {
+              ...t,
+              lastMessageAt: message.timestamp,
+              messages: [
+                ...t.messages.filter((m) => m.id !== message.id),
+                message,
+              ],
+            }
+          : t,
+      );
+      emitChange();
     }
 
+    return message;
+  },
+
+  async loadMessages(threadId: string): Promise<void> {
+    const res = await apiClient.get<any>(`/chat/threads/${threadId}/messages`);
+    if (!res?.items || !Array.isArray(res.items)) return;
+
+    threads = threads.map((t) =>
+      t.id === threadId
+        ? {
+            ...t,
+            messages: res.items.map((m: any) => mapMessage(m, t)),
+            lastMessageAt:
+              res.items[res.items.length - 1]?.createdAt || t.lastMessageAt,
+          }
+        : t,
+    );
     emitChange();
-
-    // Trigger local push notification for demo/feedback
-    weyroNotifications.chatMessageReceived(senderName, text);
-
-    return newMessage;
   },
 
   async syncWithBackend(): Promise<void> {
     try {
       const res = await apiClient.get<any>('/chat/threads');
       if (res?.items && Array.isArray(res.items)) {
-        threads = res.items.map((item: any) => ({
-          id: item.id,
-          requestId: item.requestId || '',
-          providerName: item.provider?.businessName || 'Provider',
-          customerName: `${item.customer?.firstName || 'Customer'} ${item.customer?.lastName || ''}`.trim(),
-          damagedPart: item.request?.title || 'Service Request',
-          vehicle: 'Vehicle',
-          messages: (item.messages || []).map((m: any) => ({
-            id: m.id,
-            threadId: item.id,
-            senderRole: m.senderRole,
-            senderName: m.senderRole === 'CUSTOMER' ? item.customer?.firstName : item.provider?.businessName,
-            text: m.content,
-            timestamp: m.createdAt,
-          })),
-          lastMessageAt: item.lastMessageAt || item.createdAt,
-        }));
+        threads = res.items.map((item: any) => mapThread(item));
         emitChange();
       }
     } catch {

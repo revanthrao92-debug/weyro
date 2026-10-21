@@ -153,7 +153,7 @@ export default function QuotesAndBookingsScreen() {
                       quote={quote}
                       onAccept={() => setSelectedQuote({ requestId, quote })}
                       onChat={() =>
-                        router.push(`/chat?requestId=${requestId}&providerName=${encodeURIComponent(quote.providerName)}`)
+                        router.push(`/chat?requestId=${requestId}&providerId=${quote.providerId}&providerName=${encodeURIComponent(quote.providerName)}`)
                       }
                     />
                   </View>
@@ -178,7 +178,7 @@ export default function QuotesAndBookingsScreen() {
                     onAdvanceMilestone={() => handleAdvanceMilestone(b)}
                     onOpenReview={() => setReviewBooking(b)}
                     onChat={() =>
-                      router.push(`/chat?requestId=${b.requestId}&providerName=${encodeURIComponent(b.providerName)}`)
+                      router.push(`/chat?requestId=${b.requestId}&providerId=${b.providerId}&providerName=${encodeURIComponent(b.providerName)}`)
                     }
                   />
                 ))

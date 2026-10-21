@@ -6,6 +6,7 @@ import { offlineQueue, OfflineSyncStatus } from './offline-queue';
 
 export interface DamageRequestQuote {
   id: string;
+  providerId: string;
   providerName: string;
   providerType: 'MECHANIC' | 'PARTS_DEALER' | 'GARAGE';
   distanceNote: string;
@@ -51,6 +52,7 @@ export interface BookingRecord {
   id: string;
   requestId: string;
   quoteId: string;
+  providerId: string;
   customerName: string;
   vehicle: string;
   damagedPart: string;
@@ -89,6 +91,7 @@ function emitChange() {
 function mapQuote(q: any): DamageRequestQuote {
   return {
     id: q.id,
+    providerId: q.providerId || q.provider?.id || '',
     providerName: q.provider?.businessName || 'Provider',
     providerType: q.provider?.providerType || 'GARAGE',
     distanceNote: q.provider?.address || 'Local workshop',
@@ -129,6 +132,7 @@ function mapBooking(b: any): BookingRecord {
     id: b.id,
     requestId: b.quotation?.requestId || b.quotation?.request?.id || '',
     quoteId: b.quotationId || b.quotation?.id || '',
+    providerId: b.providerId || b.provider?.id || '',
     customerName: `${b.customer?.firstName || 'Customer'} ${
       b.customer?.lastName || ''
     }`.trim(),

@@ -98,7 +98,7 @@ export default function ProviderFeedScreen() {
                 onOpenQuoteModal={() => setActiveRequest(req)}
                 onOpenChat={() =>
                   router.push(
-                    `/chat?requestId=${req.id}&customerName=${encodeURIComponent(req.customerName)}&role=PROVIDER`,
+                    `/chat?requestId=${req.id}&providerId=${auth.user?.providerProfileId || ''}&customerName=${encodeURIComponent(req.customerName)}&role=PROVIDER`,
                   )
                 }
               />
