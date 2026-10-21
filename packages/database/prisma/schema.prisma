@@ -118,6 +118,7 @@ model User {
   emailVerified   Boolean          @default(false)
   phoneVerified   Boolean          @default(false)
   isActive        Boolean          @default(true)
+  deletedAt       DateTime?
   customerProfile CustomerProfile?
   providerProfile ProviderProfile?
   refreshTokens   RefreshToken[]
@@ -142,6 +143,7 @@ model CustomerProfile {
   bookings       Booking[]
   reviews        Review[]
   threads        Thread[]
+  deletedAt      DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -159,6 +161,7 @@ model Vehicle {
   vinNumber          String?
   fuelType           FuelType         @default(PETROL)
   color              String?
+  deletedAt          DateTime?
   requests           ServiceRequest[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -189,6 +192,7 @@ model ProviderProfile {
   totalReviews          Int                                 @default(0)
   completedJobs         Int                                 @default(0)
   isAvailable           Boolean                             @default(true)
+  deletedAt             DateTime?
   quotations            Quotation[]
   bookings              Booking[]
   reviews               Review[]
@@ -221,6 +225,7 @@ model ServiceRequest {
   isBroadcast     Boolean                               @default(true)
   fulfillmentType String?
   expiresAt       DateTime
+  deletedAt       DateTime?
   quotations      Quotation[]
   media           RequestMedia[]
   threads         Thread[]
@@ -233,6 +238,7 @@ model ServiceRequest {
   @@index([status, urgency])
   @@index([category, status])
   @@index([expiresAt])
+  @@index([deletedAt])
   @@map("service_requests")
 }
 
@@ -242,9 +248,11 @@ model RequestMedia {
   request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   url       String
   fileType  String
+  deletedAt DateTime?
   createdAt DateTime       @default(now())
 
   @@index([requestId])
+  @@index([deletedAt])
   @@map("request_media")
 }
 
@@ -265,6 +273,7 @@ model Quotation {
   notes          String?
   status         QuotationStatus @default(PENDING)
   booking        Booking?
+  deletedAt      DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -272,6 +281,7 @@ model Quotation {
   @@index([requestId])
   @@index([providerId])
   @@index([status, createdAt])
+  @@index([deletedAt])
   @@map("quotations")
 }
 
@@ -290,6 +300,7 @@ model Booking {
   completionNotes String?
   trackingNumber  String?
   carrierName     String?
+  deletedAt       DateTime?
   payments        Payment[]
   review          Review?
   createdAt       DateTime        @default(now())
@@ -298,6 +309,7 @@ model Booking {
   @@index([customerId])
   @@index([providerId])
   @@index([status, createdAt])
+  @@index([deletedAt])
   @@map("bookings")
 }
 
@@ -312,11 +324,16 @@ model Payment {
   gatewayOrderId   String?       @unique
   method           PaymentMethod @default(UPI)
   paidAt           DateTime?
+  // Escrow payout fields
+  payoutReference  String?
+  paidToProviderAt DateTime?
+  deletedAt        DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   @@index([bookingId])
   @@index([status, createdAt])
+  @@index([deletedAt])
   @@map("payments")
 }
 
@@ -331,12 +348,14 @@ model Review {
   rating     Int
   comment    String?
   status     ReviewStatus    @default(ACTIVE)
+  deletedAt  DateTime?
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
   @@index([customerId])
   @@index([providerId])
   @@index([providerId, status])
+  @@index([deletedAt])
   @@map("reviews")
 }
 
@@ -353,11 +372,13 @@ model SparePart {
   stockQuantity    Int             @default(1)
   imageUrl         String?
   isActive         Boolean         @default(true)
+  deletedAt        DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
   @@index([providerId])
   @@index([providerId, isActive])
+  @@index([deletedAt])
   @@map("spare_parts")
 }
 
@@ -368,10 +389,12 @@ model RefreshToken {
   tokenHash String
   revokedAt DateTime?
   expiresAt DateTime
+  deletedAt DateTime?
   createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([tokenHash])
+  @@index([deletedAt])
   @@map("refresh_tokens")
 }
 
@@ -382,6 +405,7 @@ model WebhookEvent {
   eventType   String
   payload     Json
   processedAt DateTime @default(now())
+  deletedAt   DateTime?
 
   @@map("webhook_events")
 }
@@ -395,6 +419,7 @@ model Thread {
   providerId    String
   provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   lastMessageAt DateTime        @default(now())
+  deletedAt     DateTime?
   messages      Message[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -404,6 +429,7 @@ model Thread {
   @@index([providerId])
   @@index([requestId])
   @@index([lastMessageAt])
+  @@index([deletedAt])
   @@map("threads")
 }
 
@@ -416,10 +442,12 @@ model Message {
   content    String
   mediaUrls  String[]  @default([])
   readAt     DateTime?
+  deletedAt  DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([threadId, createdAt])
   @@index([senderId])
+  @@index([deletedAt])
   @@map("messages")
 }
 
@@ -431,10 +459,12 @@ model Notification {
   body      String
   data      Json?
   readAt    DateTime?
+  deletedAt DateTime?
   createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+  @@index([deletedAt])
   @@map("notifications")
 }
 
@@ -444,11 +474,74 @@ model PushToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   deviceOs  String?
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([deletedAt])
   @@map("push_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Audit & integrity models
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actorRole   String?
+  action      String   // e.g. "provider.verify", "payment.release", "booking.status.update"
+  entityType  String   // e.g. "ProviderProfile", "Payment", "Booking"
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  code      String   // 6-digit OTP
+  purpose   String   // "login", "register", "reset_password"
+  attempts  Int      @default(0)
+  maxAttempts Int @default(5)
+  expiresAt DateTime
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otps")
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique  // The idempotency key value (client-generated)
+  endpoint  String   // The API endpoint path
+  method    String   // HTTP method
+  userId    String?  // The user who made the request (if authenticated)
+  status    String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  requestHash String? // Hash of request body for deduplication
+  responseStatus  Int?  // HTTP status of the original response
+  responseBody   Json?  // Serialized response body
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  expiresAt DateTime  // TTL for cleanup (e.g., 24 hours)
+
+  @@index([key])
+  @@index([userId])
+  @@index([endpoint])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
 }
 
 
