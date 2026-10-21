@@ -7,6 +7,8 @@ export const ALLOWED_MIME_TYPES = [
   'image/heic',
 ] as const;
 
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 export const presignedUrlQuerySchema = z
   .object({
     filename: z.string().min(1).max(255),
@@ -19,6 +21,12 @@ export const presignedUrlQuerySchema = z
     folder: z
       .enum(['damage-requests', 'vehicles', 'avatars', 'spare-parts'])
       .default('damage-requests'),
+    fileSize: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_FILE_SIZE, `File size must not exceed ${MAX_FILE_SIZE / (1024 * 1024)} MB`)
+      .optional(),
   })
   .strict();
 

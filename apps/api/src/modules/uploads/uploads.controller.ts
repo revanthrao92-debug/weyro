@@ -10,7 +10,8 @@ import {
   STORAGE_SERVICE,
   StorageService,
 } from './interfaces/storage.interface';
-import { ALLOWED_MIME_TYPES } from './dto/presigned-url.dto';
+import { presignedUrlQuerySchema, MAX_FILE_SIZE } from './dto/presigned-url.dto';
+import { z } from 'zod';
 
 @Controller('uploads')
 export class UploadsController {
@@ -24,6 +25,7 @@ export class UploadsController {
     @Query('filename') filename: string,
     @Query('contentType') contentType: string,
     @Query('folder') folder?: string,
+    @Query('fileSize') fileSize?: string,
   ) {
     if (!filename || filename.trim().length === 0) {
       throw new BadRequestException('filename query parameter is required');
@@ -35,6 +37,19 @@ export class UploadsController {
       );
     }
 
+    // Validate file size if provided
+    if (fileSize !== undefined) {
+      const size = parseInt(fileSize, 10);
+      if (isNaN(size) || size <= 0) {
+        throw new BadRequestException('fileSize must be a positive integer');
+      }
+      if (size > MAX_FILE_SIZE) {
+        throw new BadRequestException(
+          `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)} MB`,
+        );
+      }
+    }
+
     return this.storageService.getPresignedUploadUrl({
       filename: filename.trim(),
       contentType: contentType.trim(),
@@ -42,3 +57,5 @@ export class UploadsController {
     });
   }
 }
+
+export { ALLOWED_MIME_TYPES } from './dto/presigned-url.dto';
