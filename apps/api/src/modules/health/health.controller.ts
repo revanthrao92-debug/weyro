@@ -30,11 +30,10 @@ export class HealthController {
         database: 'connected',
         timestamp: new Date().toISOString(),
       };
-    } catch (err: any) {
+    } catch {
       throw new ServiceUnavailableException({
         status: 'error',
-        database: 'disconnected',
-        error: err?.message || 'Database ping failed',
+        database: 'unavailable',
       });
     }
   }

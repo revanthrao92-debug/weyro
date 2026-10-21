@@ -70,7 +70,10 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
-      if (typeof res === 'object' && res !== null) {
+      if (status >= 500) {
+        errorName = 'Internal Server Error';
+        message = 'An unexpected error occurred';
+      } else if (typeof res === 'object' && res !== null) {
         const resObj = res as any;
         errorName = resObj.error || exception.name;
         message = resObj.message || exception.message;
@@ -83,7 +86,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         `[Request ${requestId}] Unhandled Exception: ${exception.message} on ${request.method} ${request.url}`,
         exception.stack,
       );
-      message = exception.message;
+      message = 'An unexpected error occurred';
     }
 
     response.status(status).json({

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -26,6 +27,15 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
     const phone = dto.phone.trim();
+
+    if (
+      (dto.role === 'PROVIDER' || dto.role === 'BOTH') &&
+      (dto.latitude === undefined || dto.longitude === undefined)
+    ) {
+      throw new BadRequestException(
+        'Provider registration requires latitude and longitude',
+      );
+    }
 
     // Check existing
     const existing = await this.prisma.user.findFirst({
@@ -69,8 +79,8 @@ export class AuthService {
                     dto.description || 'Automotive service & parts specialist',
                   phone,
                   address: dto.address || 'Bengaluru, Karnataka',
-                  latitude: dto.latitude ?? 12.9716,
-                  longitude: dto.longitude ?? 77.5946,
+                  latitude: dto.latitude as number,
+                  longitude: dto.longitude as number,
                   verificationStatus: 'PENDING',
                 },
               }
@@ -220,7 +230,7 @@ export class AuthService {
 
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
     const tokenHash = this.hashToken(rawRefreshToken);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = this.refreshTokenExpiry();
 
     const db = tx || this.prisma;
     await db.refreshToken.create({
@@ -239,6 +249,27 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private refreshTokenExpiry(): Date {
+    const raw = env.JWT_REFRESH_EXPIRES_IN;
+    const match = /^(\d+)([smhd])$/.exec(raw);
+
+    if (!match) {
+      throw new Error(
+        `Invalid JWT_REFRESH_EXPIRES_IN value: "${raw}". Use e.g. 7d, 12h, 30m.`,
+      );
+    }
+
+    const value = Number(match[1]);
+    const unitMs: Record<string, number> = {
+      s: 1000,
+      m: 60_000,
+      h: 3_600_000,
+      d: 86_400_000,
+    };
+
+    return new Date(Date.now() + value * unitMs[match[2]]);
   }
 
   private sanitizeUser(user: any) {

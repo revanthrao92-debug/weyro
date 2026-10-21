@@ -16,10 +16,10 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: z
     .string()
-    .min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z
     .string()
-    .min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z
@@ -35,6 +35,43 @@ export const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.NODE_ENV !== 'production') {
+    return;
+  }
+
+  if (value.CORS_ORIGINS.split(',').map((o) => o.trim()).includes('*')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CORS_ORIGINS'],
+      message: 'CORS_ORIGINS must not contain * in production',
+    });
+  }
+
+  if (value.STORAGE_DRIVER !== 's3') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['STORAGE_DRIVER'],
+      message: 'STORAGE_DRIVER must be s3 in production',
+    });
+  }
+
+  for (const key of [
+    'STORAGE_BUCKET',
+    'STORAGE_ACCESS_KEY',
+    'STORAGE_SECRET_KEY',
+    'RAZORPAY_KEY_ID',
+    'RAZORPAY_KEY_SECRET',
+    'RAZORPAY_WEBHOOK_SECRET',
+  ] as const) {
+    if (!value[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required in production`,
+      });
+    }
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

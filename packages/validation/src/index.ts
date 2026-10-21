@@ -25,7 +25,19 @@ export const RegisterSchema = z
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (
+      (data.role === 'PROVIDER' || data.role === 'BOTH') &&
+      (data.latitude === undefined || data.longitude === undefined)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['latitude'],
+        message: 'Provider registration requires latitude and longitude',
+      });
+    }
+  });
 
 export const LoginSchema = z
   .object({
