@@ -32,7 +32,7 @@ export class DamageRequestsController {
     return this.service.create(user.customerProfileId || user.sub, dto);
   }
 
-  @Get('broadcast-feed')
+  @Get(['broadcast-feed', 'feed'])
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   async getBroadcastFeed(
     @CurrentUser() user: AuthUserPayload,

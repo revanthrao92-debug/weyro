@@ -24,14 +24,45 @@ export class DamageRequestsService {
   }
 
   async create(customerId: string, dto: CreateDamageRequestDto) {
+    let vehicleId = dto.vehicleId;
+    if (!vehicleId) {
+      const make = (dto as any).vehicleMake || 'Universal';
+      const model = (dto as any).vehicleModel || 'Standard';
+      const year = (dto as any).vehicleYear || new Date().getFullYear();
+
+      let vehicle = await this.prisma.vehicle.findFirst({
+        where: { customerId, make, model },
+      });
+
+      if (!vehicle) {
+        vehicle = await this.prisma.vehicle.create({
+          data: {
+            customerId,
+            make,
+            model,
+            year,
+            registrationNumber: `IND-${Math.floor(1000 + Math.random() * 9000)}`,
+            fuelType: 'PETROL',
+          },
+        });
+      }
+      vehicleId = vehicle.id;
+    }
+
+    const rawCategory = (dto.category as any) || 'REPAIR';
+    const category =
+      rawCategory === 'MECHANICAL' || rawCategory === 'BODYWORK'
+        ? 'REPAIR'
+        : rawCategory;
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
     const created = await this.prisma.serviceRequest.create({
       data: {
         customerId,
-        vehicleId: dto.vehicleId,
-        category: (dto.category as any) || 'REPAIR',
+        vehicleId,
+        category,
         title: dto.title,
         description: dto.description,
         address: dto.address,

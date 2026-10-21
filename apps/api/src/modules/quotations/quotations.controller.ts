@@ -72,7 +72,7 @@ export class QuotationsController {
     return this.service.accept(id, user, dto, idempotencyKey);
   }
 
-  @Get('bookings')
+  @Get(['bookings', 'quotations/bookings'])
   async getBookings(
     @CurrentUser() user: AuthUserPayload,
     @Query('cursor') cursor?: string,
@@ -87,7 +87,7 @@ export class QuotationsController {
     );
   }
 
-  @Patch('bookings/:id/status')
+  @Patch(['bookings/:id/status', 'quotations/bookings/:id/status'])
   async updateStatus(
     @Param('id') id: string,
     @CurrentUser() user: AuthUserPayload,
@@ -99,7 +99,7 @@ export class QuotationsController {
     });
   }
 
-  @Post('bookings/:id/reviews')
+  @Post(['bookings/:id/reviews', 'quotations/bookings/:id/reviews'])
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async addReview(
     @Param('id') id: string,

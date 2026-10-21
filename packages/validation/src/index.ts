@@ -57,7 +57,10 @@ export const CreateVehicleSchema = z
 // Service Request validation
 export const CreateServiceRequestSchema = z
   .object({
-    vehicleId: z.string().min(1),
+    vehicleId: z.string().optional(),
+    vehicleMake: z.string().optional(),
+    vehicleModel: z.string().optional(),
+    vehicleYear: z.number().int().optional(),
     category: z
       .enum([
         'REPAIR',
@@ -66,15 +69,17 @@ export const CreateServiceRequestSchema = z
         'TOWING',
         'ROADSIDE',
         'INSPECTION',
+        'MECHANICAL',
+        'BODYWORK',
       ])
       .default('REPAIR'),
-    title: z.string().min(5).max(150),
-    description: z.string().min(10).max(2000),
-    address: z.string().min(5),
+    title: z.string().min(3).max(150),
+    description: z.string().min(5).max(2000),
+    address: z.string().min(3),
     latitude: z.number().min(-90).max(90),
     longitude: z.number().min(-180).max(180),
     urgency: z.enum(['NORMAL', 'URGENT', 'EMERGENCY']).default('NORMAL'),
-    mediaUrls: z.array(z.string().url()).default([]),
+    mediaUrls: z.array(z.string()).default([]),
     damagePhotos: z.array(z.string()).default([]),
     isBroadcast: z.boolean().default(true),
     fulfillmentType: z

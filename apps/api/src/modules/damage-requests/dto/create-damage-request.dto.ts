@@ -6,14 +6,19 @@ import {
 export class CreateDamageRequestDto implements CreateServiceRequestInput {
   static readonly schema = CreateServiceRequestSchema;
 
-  vehicleId!: string;
+  vehicleId?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
   category!:
     | 'REPAIR'
     | 'MAINTENANCE'
     | 'SPARE_PART'
     | 'TOWING'
     | 'ROADSIDE'
-    | 'INSPECTION';
+    | 'INSPECTION'
+    | 'MECHANICAL'
+    | 'BODYWORK';
   title!: string;
   description!: string;
   address!: string;
