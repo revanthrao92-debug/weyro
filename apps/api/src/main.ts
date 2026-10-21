@@ -2,13 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import pino from 'pino';
+import pinoHttp from 'pino-http';
 import { AppModule } from './app.module';
 import { env } from './config/env.config';
-import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { PinoLogger } from './common/logger/pino.logger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+    bufferLogs: true,
   });
 
   app.setGlobalPrefix('api/v1');
@@ -17,8 +20,47 @@ async function bootstrap() {
   // Security headers with helmet
   app.use(helmet());
 
-  // Attach structured Request ID logging middleware
-  app.use(new RequestIdMiddleware().use);
+  // Structured HTTP request logging with pino (includes request ID correlation)
+  app.use(
+    pinoHttp({
+      logger: new PinoLogger('http').logger,
+      level: process.env.LOG_LEVEL || 'info',
+      transport:
+        process.env.NODE_ENV !== 'production'
+          ? {
+              target: 'pino-pretty',
+              options: {
+                colorize: true,
+                translateTime: 'SYS:standard',
+                ignore: 'pid,hostname',
+              },
+            }
+          : undefined,
+      base: {
+        service: 'weyro-api',
+        env: process.env.NODE_ENV || 'development',
+      },
+      // Custom request ID header
+      genReqId: (req) => {
+        return (
+          req.headers['x-request-id'] ||
+          `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+        );
+      },
+      customLogLevel: (res: any, err: any) => {
+        if (res.statusCode >= 500 || err) return 'error';
+        if (res.statusCode >= 400) return 'warn';
+        return 'info';
+      },
+      customSuccessMessage: (req: any, res: any) =>
+        `${req.method} ${req.url} ${res.statusCode}`,
+      customErrorMessage: (req: any, res: any, err: any) =>
+        `${req.method} ${req.url} ${res.statusCode} - ${err?.message}`,
+    }),
+  );
+
+  // Use PinoLogger as the application logger
+  app.useLogger(app.get(PinoLogger));
 
   // Strict CORS allowlist from env
   const allowedOrigins = env.CORS_ORIGINS.split(',')
@@ -58,10 +100,10 @@ async function bootstrap() {
 
   const port = env.PORT;
   await app.listen(port);
-  console.log(`🚀 Weyro API server running on: http://localhost:${port}/api/v1`);
+  app.get(PinoLogger).log(`Weyro API server running on port ${port}`);
   if (env.NODE_ENV !== 'production') {
-    console.log(
-      `📚 OpenAPI Documentation available at: http://localhost:${port}/api/docs`,
+    app.get(PinoLogger).log(
+      `OpenAPI Documentation available at: http://localhost:${port}/api/docs`,
     );
   }
 }

@@ -19,6 +19,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { PinoLogger } from './common/logger/pino.logger';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
       provide: APP_INTERCEPTOR,
       useClass: IdempotencyInterceptor,
     },
+    PinoLogger,
   ],
 })
 export class AppModule {}
