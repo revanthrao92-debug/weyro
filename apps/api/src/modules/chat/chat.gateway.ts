@@ -10,11 +10,34 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
+import { z } from 'zod';
 import { ChatService } from './chat.service';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 
 const allowedOrigins = env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+
+const joinThreadSchema = z
+  .object({ threadId: z.string().uuid() })
+  .strict();
+
+const socketSendMessageSchema = z
+  .object({
+    threadId: z.string().uuid(),
+    content: z.string().min(1).max(2000),
+    mediaUrls: z.array(z.string().url()).max(4).default([]),
+  })
+  .strict();
+
+const socketMarkReadSchema = z
+  .object({
+    threadId: z.string().uuid(),
+    messageIds: z.array(z.string().uuid()).max(100).optional(),
+  })
+  .strict();
+
+const SOCKET_SEND_LIMIT = 30;
+const SOCKET_SEND_WINDOW_MS = 60_000;
 
 @WebSocketGateway({
   cors:
@@ -30,6 +53,7 @@ const allowedOrigins = env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(B
           },
         },
   namespace: '/chat',
+  maxHttpBufferSize: 64 * 1024,
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
@@ -75,17 +99,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('join_thread')
   async handleJoinThread(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { threadId: string },
+    @MessageBody() data: unknown,
   ) {
+    const parsed = joinThreadSchema.safeParse(data);
+    if (!parsed.success) {
+      return { error: 'Invalid payload' };
+    }
+
     const user: AuthUserPayload = client.data.user;
-    if (!user || !data.threadId) {
-      return { error: 'Unauthorized or missing threadId' };
+    if (!user) {
+      return { error: 'Unauthorized' };
     }
 
     try {
-      await this.chatService.verifyParticipant(data.threadId, user);
-      client.join(`thread_${data.threadId}`);
-      return { status: 'joined', threadId: data.threadId };
+      await this.chatService.verifyParticipant(parsed.data.threadId, user);
+      client.join(`thread_${parsed.data.threadId}`);
+      return { status: 'joined', threadId: parsed.data.threadId };
     } catch (err: any) {
       return { error: err.message };
     }
@@ -94,25 +123,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: { threadId: string; content: string; mediaUrls?: string[] },
+    @MessageBody() data: unknown,
   ) {
     const user: AuthUserPayload = client.data.user;
-    if (!user || !data.threadId || !data.content) {
+    if (!user) {
+      return { error: 'Unauthorized' };
+    }
+
+    const now = Date.now();
+    const recentSends: number[] = (client.data.sendTimestamps || []).filter(
+      (timestamp: number) => now - timestamp < SOCKET_SEND_WINDOW_MS,
+    );
+    if (recentSends.length >= SOCKET_SEND_LIMIT) {
+      return { error: 'Rate limit exceeded' };
+    }
+    recentSends.push(now);
+    client.data.sendTimestamps = recentSends;
+
+    const parsed = socketSendMessageSchema.safeParse(data);
+    if (!parsed.success) {
       return { error: 'Invalid payload' };
     }
 
+    const { threadId, content, mediaUrls } = parsed.data;
+
     try {
       const message = await this.chatService.sendMessage(
-        data.threadId,
+        threadId,
         user,
-        data.content,
-        data.mediaUrls || [],
+        content,
+        mediaUrls,
       );
 
       this.server
-        .to(`thread_${data.threadId}`)
-        .emit('new_message', { threadId: data.threadId, message });
+        .to(`thread_${threadId}`)
+        .emit('new_message', { threadId, message });
 
       return { status: 'sent', message };
     } catch (err: any) {
@@ -123,24 +168,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('mark_read')
   async handleMarkRead(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { threadId: string; messageIds?: string[] },
+    @MessageBody() data: unknown,
   ) {
     const user: AuthUserPayload = client.data.user;
-    if (!user || !data.threadId) {
+    if (!user) {
+      return { error: 'Unauthorized' };
+    }
+
+    const parsed = socketMarkReadSchema.safeParse(data);
+    if (!parsed.success) {
       return { error: 'Invalid payload' };
     }
 
-    try {
-      await this.chatService.markMessagesRead(
-        data.threadId,
-        user,
-        data.messageIds,
-      );
+    const { threadId, messageIds } = parsed.data;
 
-      this.server.to(`thread_${data.threadId}`).emit('messages_read', {
-        threadId: data.threadId,
+    try {
+      await this.chatService.markMessagesRead(threadId, user, messageIds);
+
+      this.server.to(`thread_${threadId}`).emit('messages_read', {
+        threadId,
         userId: user.sub,
-        messageIds: data.messageIds,
+        messageIds,
       });
 
       return { status: 'read' };
