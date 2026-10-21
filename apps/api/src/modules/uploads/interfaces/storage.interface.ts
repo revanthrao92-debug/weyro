@@ -13,6 +13,17 @@ export interface PresignedUrlResult {
   expiresInSeconds: number;
 }
 
+export interface PresignedDownloadUrlParams {
+  key: string;
+  expiresInSeconds?: number;
+}
+
+export interface PresignedDownloadUrlResult {
+  downloadUrl: string;
+  key: string;
+  expiresInSeconds: number;
+}
+
 export interface FinalizeImageResult {
   fileUrl: string;
   key: string;
@@ -20,6 +31,9 @@ export interface FinalizeImageResult {
 
 export interface StorageService {
   getPresignedUploadUrl(params: PresignedUrlParams): Promise<PresignedUrlResult>;
+  getPresignedDownloadUrl(
+    params: PresignedDownloadUrlParams,
+  ): Promise<PresignedDownloadUrlResult>;
   finalizeImage(params: {
     key: string;
     contentType: string;

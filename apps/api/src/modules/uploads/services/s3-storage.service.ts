@@ -7,6 +7,8 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   FinalizeImageResult,
+  PresignedDownloadUrlParams,
+  PresignedDownloadUrlResult,
   PresignedUrlParams,
   PresignedUrlResult,
   StorageService,
@@ -96,6 +98,29 @@ export class S3StorageService implements StorageService {
     return {
       uploadUrl,
       fileUrl,
+      key,
+      expiresInSeconds,
+    };
+  }
+
+  async getPresignedDownloadUrl(
+    params: PresignedDownloadUrlParams,
+  ): Promise<PresignedDownloadUrlResult> {
+    const { key, expiresInSeconds = 300 } = params;
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const downloadUrl = await getSignedUrl(this.s3Client, command, {
+      expiresIn: expiresInSeconds,
+    });
+
+    this.logger.log(`Generated presigned download URL for key: ${key}`);
+
+    return {
+      downloadUrl,
       key,
       expiresInSeconds,
     };

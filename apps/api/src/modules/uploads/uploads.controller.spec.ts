@@ -19,6 +19,7 @@ describe('Uploads Module', () => {
   beforeEach(() => {
     mockStorage = {
       getPresignedUploadUrl: jest.fn(),
+      getPresignedDownloadUrl: jest.fn(),
       finalizeImage: jest.fn(),
     };
 

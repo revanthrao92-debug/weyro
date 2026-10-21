@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   FinalizeImageResult,
+  PresignedDownloadUrlParams,
+  PresignedDownloadUrlResult,
   PresignedUrlParams,
   PresignedUrlResult,
   StorageService,
@@ -31,6 +33,17 @@ export class MockStorageService implements StorageService {
       fileUrl: `https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80`,
       key,
       expiresInSeconds: 300,
+    };
+  }
+
+  async getPresignedDownloadUrl(
+    params: PresignedDownloadUrlParams,
+  ): Promise<PresignedDownloadUrlResult> {
+    const { key, expiresInSeconds = 300 } = params;
+    return {
+      downloadUrl: `https://storage.mock.local/download/${key}?sig=mock_presigned_download&expires=${expiresInSeconds}`,
+      key,
+      expiresInSeconds,
     };
   }
 
