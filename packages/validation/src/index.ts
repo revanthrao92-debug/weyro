@@ -174,8 +174,26 @@ export const ReleasePaymentSchema = z
   })
   .strict();
 
+// Phone OTP validation
+export const SendOtpSchema = z
+  .object({
+    phone: z.string().min(10).max(15),
+    purpose: z.enum(['login', 'register', 'reset_password']).default('login'),
+  })
+  .strict();
+
+export const VerifyOtpSchema = z
+  .object({
+    phone: z.string().min(10).max(15),
+    code: z.string().length(6),
+    purpose: z.enum(['login', 'register', 'reset_password']).default('login'),
+  })
+  .strict();
+
 export type CreateReviewInput = z.infer<typeof CreateReviewSchema>;
 export type ReleasePaymentInput = z.infer<typeof ReleasePaymentSchema>;
+export type SendOtpInput = z.infer<typeof SendOtpSchema>;
+export type VerifyOtpInput = z.infer<typeof VerifyOtpSchema>;
 
 // Export inferred types
 export type RegisterInput = z.infer<typeof RegisterSchema>;

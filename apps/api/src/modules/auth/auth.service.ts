@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 
@@ -19,6 +21,8 @@ const DUMMY_HASH =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -200,6 +204,154 @@ export class AuthService {
     }
 
     return this.sanitizeUser(user);
+  }
+
+  /**
+   * Send a 6-digit OTP to the user's phone.
+   * In production this would integrate with an SMS gateway (Twilio, MSG91, etc.).
+   * For now, the code is stored in the DB and can be retrieved in test/dev.
+   */
+  async sendOtp(dto: SendOtpDto) {
+    const phone = dto.phone.trim();
+
+    // Check if an OTP already exists and hasn't expired
+    const existing = await this.prisma.oTP.findUnique({
+      where: { phone },
+    });
+
+    if (existing && existing.expiresAt > new Date() && !existing.verifiedAt) {
+      // Resend not allowed within the same validity window
+      throw new BadRequestException(
+        'An OTP has already been sent to this number. Please wait for it to expire.',
+      );
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.oTP.upsert({
+      where: { phone },
+      update: {
+        code,
+        purpose: dto.purpose,
+        attempts: 0,
+        expiresAt,
+        verifiedAt: null,
+      },
+      create: {
+        phone,
+        code,
+        purpose: dto.purpose || 'login',
+        expiresAt,
+      },
+    });
+
+    // In production, send via SMS gateway here
+    this.logger.log(
+      `OTP for ${phone} (purpose: ${dto.purpose}): ${code}`,
+    );
+
+    return {
+      status: 'sent',
+      phone,
+      expiresInSeconds: 600,
+      // Dev-only: return the code so it can be tested without an SMS gateway
+      ...(env.NODE_ENV !== 'production' ? { code } : {}),
+    };
+  }
+
+  /**
+   * Verify a 6-digit OTP and optionally mark the phone as verified.
+   * On successful verification for login/register, returns JWT tokens.
+   */
+  async verifyOtp(dto: VerifyOtpDto) {
+    const phone = dto.phone.trim();
+
+    const otp = await this.prisma.oTP.findUnique({
+      where: { phone },
+    });
+
+    if (!otp) {
+      throw new BadRequestException('No OTP found for this phone number');
+    }
+
+    if (otp.verifiedAt) {
+      throw new BadRequestException('OTP has already been verified');
+    }
+
+    if (otp.expiresAt < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    if (otp.attempts >= otp.maxAttempts) {
+      throw new BadRequestException('Maximum OTP verification attempts exceeded');
+    }
+
+    // Increment attempts
+    await this.prisma.oTP.update({
+      where: { phone },
+      data: { attempts: otp.attempts + 1 },
+    });
+
+    if (otp.code !== dto.code) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    // Mark OTP as verified
+    await this.prisma.oTP.update({
+      where: { phone },
+      data: { verifiedAt: new Date() },
+    });
+
+    // Find or create user by phone
+    let user = await this.prisma.user.findUnique({
+      where: { phone },
+      include: {
+        customerProfile: true,
+        providerProfile: true,
+      },
+    });
+
+    const isNewUser = !user;
+
+    if (isNewUser) {
+      // Auto-create a customer-profile user for OTP-based login
+      user = await this.prisma.user.create({
+        data: {
+          email: `${phone}@weyro.in`, // placeholder email; user can update later
+          phone,
+          passwordHash: '', // OTP-authenticated users have no password
+          role: 'CUSTOMER',
+          phoneVerified: true,
+          customerProfile: {
+            create: {
+              firstName: 'Customer',
+              lastName: '',
+            },
+          },
+        },
+        include: {
+          customerProfile: true,
+          providerProfile: true,
+        },
+      });
+    } else {
+      // Mark phone as verified for existing users
+      await this.prisma.user.update({
+        where: { id: user!.id },
+        data: { phoneVerified: true },
+      });
+    }
+
+    const tokens = await this.generateTokenPair(user as any);
+
+    return {
+      status: 'verified',
+      isNewUser,
+      user: this.sanitizeUser(user),
+      ...tokens,
+    };
   }
 
   private async generateTokenPair(
