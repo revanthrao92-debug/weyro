@@ -6,16 +6,19 @@
 
 ## 📌 Architecture & Overview
 
-Wyro operates as an automotive marketplace for the Indian landscape—handling vehicle breakdowns, damaged components, and spare part sourcing across INR (₹) pricing, UPI/card payments via Razorpay, +91 mobile authentication, and Indian vehicle makes (Maruti Suzuki, Hyundai, Tata, Mahindra, Honda, Toyota).
+Weyro is an automotive marketplace for the Indian market: damage/repair requests,
+quotations, bookings, INR (₹) payments through Razorpay, and spare-parts listings.
+The mobile app is an Expo SDK 57 / React Native client. The backend is a NestJS 11
+modular monolith backed by PostgreSQL 16 + PostGIS.
 
 ```mermaid
 graph TD
     subgraph Client ["Mobile Client (Expo SDK 57 / React Native)"]
-        UI["UI Screens (Quotes, Post, Explore, Admin)"]
-        Store["State & Hooks (authStore, damageRequestStore)"]
+        UI["Screens (Post, Quotes, Explore, Chat, Admin)"]
+        Store["Stores (auth, damageRequest, chat)"]
         Secure["Token Storage (expo-secure-store)"]
-        Queue["Offline Mutation Queue (Idempotency + Backoff)"]
-        ClientAPI["Typed API Client (Auto-Refresh on 401)"]
+        Queue["Retry Queue (status updates + reviews)"]
+        ClientAPI["API Client (auto-refresh, 30s timeout)"]
     end
 
     subgraph Backend ["Backend API (NestJS 11 / Express)"]
@@ -26,10 +29,10 @@ graph TD
     end
 
     subgraph Data ["Data Layer & External Services"]
-        PG[("PostgreSQL 16 + PostGIS (Spatial GiST Index)")]
-        S3[("S3-Compatible Storage (Presigned PUT URLs)")]
-        RZP["Razorpay Gateway (UPI, Cards, Webhooks)"]
-        ExpoPush["Expo Push Service (Chunked Mobile Dispatch)"]
+        PG[("PostgreSQL 16 + PostGIS (GiST + triggers)")]
+        S3[("S3-compatible storage (presigned PUT + finalize)")]
+        RZP["Razorpay (orders, signature, webhooks)"]
+        ExpoPush["Expo Push Service"]
     end
 
     UI --> Store
@@ -53,54 +56,104 @@ graph TD
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Authentication (JWT + refresh rotation) | ✅ Implemented | bcrypt hashing, constant-time lookup |
-| Role-based access control (CUSTOMER/PROVIDER/BOTH/ADMIN) | ✅ Implemented | Global guards, `@Roles()` decorator |
-| Damage request broadcast | ✅ Implemented | Nationwide when no location; ST_DWithin radius when coords provided |
-| Quotation submission & acceptance | ✅ Implemented | State machine guarded, idempotent acceptance |
-| Booking milestone tracking | ✅ Implemented | CONFIRMED → COMPLETED transitions |
-| Customer reviews & ratings | ✅ Implemented | 5-star with provider avg rating recomputation |
-| Razorpay payment orders & verification | ✅ Implemented | Mock gateway in dev; Razorpay gateway with HMAC |
-| Payment webhook idempotency | ✅ Implemented | Duplicate event detection, HMAC verification |
-| Real-time chat (Socket.IO + rooms) | ✅ Implemented | JWT auth on connect, room authorization |
-| Push notifications (Expo) | ✅ Implemented | Invalid token pruning, in-app notification records |
-| Presigned URL uploads (S3-compatible) | ✅ Implemented | MIME validation, 5-minute URL expiry |
-| EXIF/GPS stripping on uploads | ✅ Implemented | `sharp`-based server-side stripping |
-| Max file size enforcement (10 MB) | ✅ Implemented | API validation + client-side check |
-| Provider verification workflow | ✅ Implemented | PENDING → VERIFIED/REJECTED via admin console |
-| Escrow payment disbursement | 🟡 Partial | Payment status machine (PENDING/AUTHORIZED/CAPTURED/REFUNDED); actual fund disbursement via Razorpay Route is **planned** |
-| RBI PA/PG compliance | 🟡 Partial | Internal milestone states only; full compliance **planned** |
-| GSTIN / trade license verification | 🟡 Planned | Provider documents field exists; validation logic **planned** |
+| Email/password authentication + refresh rotation | ✅ Implemented | bcrypt, hashed refresh tokens, constant-time dummy compare |
+| Role-based access control (CUSTOMER/PROVIDER/BOTH/ADMIN) | ✅ Implemented | Global guards + `@Roles()` |
+| Damage request broadcast | ✅ Implemented | Nationwide feed; `ST_DWithin` radius when coordinates are supplied |
+| Customer request history | ✅ Implemented | `GET /damage-requests/my` |
+| Quotation submission & acceptance | ✅ Implemented | State machine, ownership checks, idempotent acceptance |
+| Booking milestones + tracking metadata | ✅ Implemented | `CONFIRMED → COMPLETED`; tracking number/carrier persisted |
+| Customer reviews & ratings | ✅ Implemented | Provider `avgRating`/`totalReviews` recomputed |
+| Razorpay orders, signature verification, webhooks | ✅ Implemented | Amount/currency checked; duplicate events ignored |
+| Chat | ✅ Implemented (REST) | REST endpoints + JWT-authenticated Socket.IO gateway; mobile uses REST |
+| Push notifications | ✅ Implemented (needs EAS project ID) | Tokens registered only when a real project ID is configured |
+| Presigned uploads + size/MIME checks | ✅ Implemented | 10 MB limit, required `fileSize`, owner-scoped keys, `Content-Length` signed |
+| EXIF/GPS stripping | ✅ Implemented | `POST /uploads/finalize` re-encodes with `sharp`; mobile calls it after upload |
+| Provider verification | ✅ Implemented | Admin-gated, `verifiedBy`/`verifiedAt`/notes audit trail, DB-backed enforcement |
+| Query/body validation | ✅ Implemented | Global Zod pipe; shared schemas in `@weyro/validation` |
+| Rate limiting | ✅ Implemented | Global bucket + tighter per-route write limits |
+| Health/readiness probes | ✅ Implemented | `GET /health`, `GET /ready` |
+| Escrow authorize/capture/release | 🟡 Partial | Payment status machine exists; capture is gateway/webhook driven. Escrow release/payout is **planned** |
+| Provider KYC document validation (GSTIN/trade licence) | 🟡 Partial | Documents field exists; validation workflow is **planned** |
+| Phone OTP login | 🟡 Planned | Phone is stored/contactable; login is email/password |
+| Private media + signed GET URLs | 🟡 Planned | Objects are served from `STORAGE_PUBLIC_URL` today |
+| Request-level idempotency keys | 🟡 Planned | Quotation acceptance is idempotent; create/quote/status keys are planned |
+| Soft delete + full audit log | 🟡 Planned | Provider verification audit is implemented; other tables are hard-deleted |
 
 ---
 
-## ⚡ Quickstart (≤ 5 Commands)
+## ⚡ Quickstart
 
-To bring up the entire Weyro stack locally:
+Requires Node 22 (`nvm use`) and Docker.
 
 ```bash
-# 1. Install all dependencies across monorepo workspaces
+# 1. Install all workspace dependencies from the repo root
 npm install
 
-# 2. Copy environment configuration
-cp .env.example .env && cp apps/api/.env.example apps/api/.env
+# 2. Configure environment
+cp .env.example .env
 
-# 3. Boot PostgreSQL with PostGIS
-docker-compose up -d
+# 3. Start PostgreSQL + PostGIS
+docker compose up -d
 
-# 4. Build shared packages and run database baseline migration
-npm run build:packages && npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+# 4. Generate the Prisma client and apply migrations
+npm run db:generate
+npm run db:migrate
 
-# 5. Start API & Mobile client concurrently
-npm run build && (cd apps/api && npm run start:dev &) && npx expo start
+# 5. (Optional) Seed development data
+npm run db:seed
+
+# 6. Start the API (terminal 1)
+npm run start:dev -w @weyro/api
+
+# 7. Start the mobile app (terminal 2)
+npm start
 ```
+
+The API listens on `http://localhost:4000/api/v1`. OpenAPI docs are available at
+`http://localhost:4000/api/docs` **outside production only**.
+
+For a native development build (required after adding native modules such as
+`expo-location`):
+
+```bash
+npm run ios       # or: npm run android
+# or in the cloud:
+bunx eas-cli build --profile development
+```
+
+`eas.json` intentionally has no submit credentials until the App Store / Play
+listing IDs are real, and `app.json` has no placeholder EAS project ID. Run
+`bunx eas-cli init` to create the project before registering push tokens.
+
+---
+
+## 🧰 Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run lint` | ESLint (Expo config) |
+| `npm run typecheck:all` | Strict typecheck for mobile + all workspaces |
+| `npm test` | API Jest suites |
+| `npm run build` | Build shared packages then the API |
+| `npm run build:api` | Build only `apps/api` |
+| `npm run db:generate` | `prisma generate` |
+| `npm run db:migrate` | `prisma migrate dev` (local) |
+| `npm run db:seed` | Seed the database |
+| `npm run doctor` | `expo-doctor` |
+
+Production migrations should use
+`npx prisma migrate deploy --schema packages/database/prisma/schema.prisma`.
 
 ---
 
 ## 🇮🇳 India Market Localization
 
-- **Currency & Denominations**: Indian Rupee (INR / ₹) calculations across all quotes, bookings, and payments. Razorpay order amounts calculated in paise.
-- **Payment Infrastructure**: Razorpay gateway integration supporting UPI (Google Pay, PhonePe, Paytm, BHIM), Net Banking, Credit/Debit cards, and marketplace webhook idempotency.
-- **Identity & Verification**: +91 E.164 phone number authentication, constant-time dummy password verification preventing timing attacks.
+- **Currency**: INR (₹). Amounts are stored as `Decimal(10,2)` and converted to
+  paise only at the Razorpay boundary.
+- **Payments**: Razorpay orders, HMAC signature verification, and webhook
+  processing. Amount and currency are validated against the stored payment.
+- **Vehicles**: Indian makes/models in seed data.
+- **Phone numbers**: stored in E.164 (`+91`) format. OTP login is planned.
 
 ---
 
@@ -108,39 +161,58 @@ npm run build && (cd apps/api && npm run start:dev &) && npx expo start
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string with PostGIS | **Yes** | `postgresql://postgres:postgres@localhost:5432/weyro?schema=public` |
-| `PORT` | NestJS API listening port | No | `4000` |
-| `JWT_ACCESS_SECRET` | Secret key for signing short-lived JWT access tokens | **Yes** | `dev_access_secret_min_32_chars_long!!` |
+| `NODE_ENV` | `development` / `test` / `production` | No | `development` |
+| `DATABASE_URL` | PostgreSQL connection string with PostGIS | **Yes** | — |
+| `PORT` | API listening port | No | `4000` |
+| `JWT_ACCESS_SECRET` | Access token signing secret (32+ chars) | **Yes** | — |
 | `JWT_ACCESS_EXPIRES_IN` | Access token lifespan | No | `15m` |
-| `JWT_REFRESH_SECRET` | Secret key for rotating stateful refresh tokens | **Yes** | `dev_refresh_secret_min_32_chars_long!!` |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan | No | `30d` |
-| `CORS_ORIGINS` | Comma-separated CORS allowed origins | No | `*` |
-| `RAZORPAY_KEY_ID` | Razorpay API Key ID for INR payments | No | `rzp_test_placeholder` |
-| `RAZORPAY_KEY_SECRET` | Razorpay Key Secret for order creation | No | `placeholder_secret` |
-| `RAZORPAY_WEBHOOK_SECRET` | Secret for HMAC SHA256 webhook verification | No | `placeholder_webhook_secret` |
-| `STORAGE_DRIVER` | Storage driver (`s3` or `local` for test) | No | `local` |
-| `STORAGE_BUCKET` | S3 / MinIO object storage bucket name | No | `weyro-media` |
-| `EXPO_PUBLIC_API_URL` | API base URL for mobile Expo client | No | `http://localhost:4000/api/v1` |
+| `JWT_REFRESH_SECRET` | Refresh token signing secret (32+ chars) | **Yes** | — |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan (`s`/`m`/`h`/`d`) | No | `7d` |
+| `CORS_ORIGINS` | Comma-separated allowlist; `*` rejected in production | No | local Expo/web origins |
+| `STORAGE_DRIVER` | `local` (mock) or `s3`; production must be `s3` | No | `local` |
+| `STORAGE_BUCKET` | S3/MinIO bucket | Production | — |
+| `STORAGE_REGION` | S3 region | No | `ap-south-1` |
+| `STORAGE_ENDPOINT` | S3-compatible endpoint (MinIO) | No | — |
+| `STORAGE_ACCESS_KEY` | S3 access key | Production | — |
+| `STORAGE_SECRET_KEY` | S3 secret key | Production | — |
+| `STORAGE_PUBLIC_URL` | Public base URL used for returned media URLs | Production | S3 URL |
+| `RAZORPAY_KEY_ID` | Razorpay key ID | Production | — |
+| `RAZORPAY_KEY_SECRET` | Razorpay key secret | Production | — |
+| `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook HMAC secret | Production | — |
+| `EXPO_PUBLIC_API_URL` | Mobile API base URL (must include `/api/v1`) | **Yes** for app builds | — |
+
+Production startup fails fast if the required storage, Razorpay, JWT, or CORS
+values are missing or unsafe.
+
+---
+
+## 🔐 Security & Operations Notes
+
+- All mutating routes require a JWT; role and ownership checks run server-side.
+- Providers must be `VERIFIED` in the database (not merely in a JWT claim) to
+  read the broadcast feed or submit quotations.
+- Webhook handlers reject missing event IDs, bad signatures, and amount/currency
+  mismatches; raw request bodies are captured for HMAC verification.
+- 5xx responses never include stack traces or internal error messages.
+- Upload keys are scoped to the authenticated user and finalized through
+  `sharp` to strip EXIF/GPS before the URL is persisted.
+- `helmet` security headers, a strict CORS allowlist, `1 MB` JSON limits, and
+  request-ID structured logging are enabled.
+- Graceful shutdown drains connections (`enableShutdownHooks`).
 
 ---
 
 ## 🛠️ Verification & Testing
 
 ```bash
-# Typecheck entire monorepo (strict mode)
-npm run typecheck:all
-
-# Run ESLint across codebases
 npm run lint
-
-# Run API tests
-npm run test
-
-# Run Expo Doctor SDK conformance check
+npm run typecheck:all
+npm test
 npx expo-doctor
 ```
 
-Interactive OpenAPI documentation is available at `http://localhost:4000/api/docs`.
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, and the API test suite
+against a PostGIS service container.
 
 ---
 
@@ -149,34 +221,51 @@ Interactive OpenAPI documentation is available at `http://localhost:4000/api/doc
 ```
 weyro/
 ├── app.json                      # Expo app configuration
-├── package.json                  # Root workspace config
-├── .env.example                  # Environment variable template
-├── docker-compose.yml            # Local PostgreSQL + PostGIS
+├── package.json                  # Workspaces: apps/*, packages/*
+├── tsconfig.base.json            # Shared strict TypeScript base
+├── .nvmrc / .editorconfig        # Node 22 and editor defaults
 ├── src/                          # Mobile app (Expo Router)
-│   ├── app/                      # Expo Router screens
-│   ├── components/               # Shared UI components
-│   ├── services/                 # API client, auth store, offline queue
+│   ├── app/                      # Screens
+│   ├── components/               # Shared UI
+│   ├── services/                 # API client, stores, upload helper
 │   └── constants/theme.ts        # Design tokens
 ├── apps/
-│   └── api/                      # NestJS backend API
+│   └── api/                      # NestJS API
 ├── packages/
 │   ├── api-contracts/            # Shared TypeScript types
-│   ├── database/                 # Prisma schema + geo queries
-│   └── validation/               # Zod validation schemas
-├── .github/
-│   └── workflows/
-│       └── ci.yml                # CI/CD pipeline
-└── graphify-out/                 # Code knowledge graph (auto-generated)
+│   ├── database/                 # Prisma schema, migrations, geo queries
+│   └── validation/               # Shared Zod schemas
+├── docs/                         # AUDIT.md, SECURITY.md
+├── .github/workflows/ci.yml
+└── graphify-out/                 # Gitignored knowledge graph
 ```
+
+The mobile app intentionally lives at the repository root (`src/`) rather than
+under `apps/mobile`; the workspace layout keeps the API and shared packages
+isolated without a disruptive move.
 
 ---
 
 ## 📱 Mobile UI
 
-The mobile app uses Expo SDK 57 with Expo Router. Screens:
-- `/` — Post Damage Request (photo upload, vehicle details, broadcast)
-- `/quotes` — Quotes & Bookings (accept quotes, milestone tracking, reviews)
-- `/explore` — Provider Feed (browse requests, submit quotes)
-- `/chat` — Real-time chat between customer and provider
-- `/auth` — Login / Register with role selection
-- `/admin` — Operations console (provider verification, escrow ledger)
+- `/` — Post a damage/repair request (photo upload, vehicle details, location)
+- `/quotes` — Quotes, bookings, milestone tracking, reviews
+- `/explore` — Provider feed (browse requests, submit quotes)
+- `/chat` — Customer ↔ provider messaging
+- `/auth` — Login/register with role selection
+- `/admin` — Provider verification and marketplace overview
+
+---
+
+## ⚠️ Known Limitations
+
+- Escrow release and provider payouts are not implemented; capture is gateway
+  driven and the admin ledger is informational.
+- Media is served from a public CDN/bucket URL rather than short-lived signed
+  GET URLs.
+- No soft deletes or general audit log beyond provider verification.
+- Push notifications require an EAS project ID and a development/production
+  build; web push is not registered.
+- The chat client uses REST rather than subscribing to the Socket.IO gateway for
+  live delivery.
+- Phone OTP authentication and GSTIN/trade-licence validation are planned.
