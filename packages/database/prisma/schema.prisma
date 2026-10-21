@@ -182,6 +182,9 @@ model ProviderProfile {
   serviceRadiusKm       Float                               @default(15.0)
   verificationStatus    VerificationStatus                  @default(PENDING)
   verificationDocuments Json?
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  auditorNotes          String?
   avgRating             Float                               @default(0.0)
   totalReviews          Int                                 @default(0)
   completedJobs         Int                                 @default(0)
@@ -366,6 +369,7 @@ model RefreshToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  @@index([tokenHash])
   @@map("refresh_tokens")
 }
 

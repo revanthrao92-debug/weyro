@@ -69,6 +69,7 @@ export class AdminService {
   async verifyProvider(
     id: string,
     dto: VerifyProviderDto,
+    adminUserId?: string,
   ): Promise<ProviderVerificationRecord> {
     const provider = await this.prisma.providerProfile.findUnique({
       where: { id },
@@ -82,6 +83,9 @@ export class AdminService {
       where: { id },
       data: {
         verificationStatus: dto.status as any,
+        verifiedBy: adminUserId,
+        verifiedAt: dto.status === 'VERIFIED' ? new Date() : null,
+        auditorNotes: dto.auditorNotes,
       },
     });
 
