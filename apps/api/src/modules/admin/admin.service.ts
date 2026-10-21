@@ -133,7 +133,9 @@ export class AdminService {
       status:
         payment.status === 'REFUNDED'
           ? 'REFUNDED_TO_CUSTOMER'
-          : 'HELD_IN_ESCROW',
+          : payment.status === 'RELEASED'
+            ? 'RELEASED_TO_PROVIDER'
+            : 'HELD_IN_ESCROW',
       confirmedAt: payment.createdAt.toISOString(),
       completedAt: payment.booking?.completedAt
         ? payment.booking.completedAt.toISOString()

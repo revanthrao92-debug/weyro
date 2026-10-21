@@ -215,6 +215,7 @@ describe('End-to-End Core Integration Suite', () => {
     let paymentsService: PaymentsService;
     let mockPrisma: any;
     let mockGateway: any;
+    let mockNotifications: any;
 
     beforeEach(() => {
       mockPrisma = {
@@ -237,7 +238,11 @@ describe('End-to-End Core Integration Suite', () => {
         verifyWebhookSignature: jest.fn().mockReturnValue(true),
       };
 
-      paymentsService = new PaymentsService(mockPrisma, mockGateway);
+      mockNotifications = {
+        sendPushNotification: jest.fn().mockResolvedValue({}),
+      } as any;
+
+      paymentsService = new PaymentsService(mockPrisma, mockGateway, mockNotifications);
     });
 
     it('rejects duplicate webhook deliveries idempotently without re-executing transitions', async () => {

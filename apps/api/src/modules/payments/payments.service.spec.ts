@@ -8,6 +8,7 @@ describe('PaymentsService', () => {
   let service: PaymentsService;
   let mockPrisma: any;
   let mockGateway: jest.Mocked<PaymentGateway>;
+  let mockNotifications: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -34,7 +35,11 @@ describe('PaymentsService', () => {
       refundPayment: jest.fn(),
     };
 
-    service = new PaymentsService(mockPrisma, mockGateway);
+    mockNotifications = {
+      sendPushNotification: jest.fn().mockResolvedValue({}),
+    } as any;
+
+    service = new PaymentsService(mockPrisma, mockGateway, mockNotifications);
   });
 
   describe('createOrder', () => {

@@ -165,6 +165,18 @@ export const CreateReviewSchema = z
   })
   .strict();
 
+// Escrow release / payout validation
+export const ReleasePaymentSchema = z
+  .object({
+    bookingId: z.string().uuid(),
+    payoutReference: z.string().min(1).max(255),
+    notes: z.string().max(1000).optional(),
+  })
+  .strict();
+
+export type CreateReviewInput = z.infer<typeof CreateReviewSchema>;
+export type ReleasePaymentInput = z.infer<typeof ReleasePaymentSchema>;
+
 // Export inferred types
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
@@ -175,4 +187,3 @@ export type CreateQuotationInput = z.infer<typeof CreateQuotationSchema>;
 export type AcceptQuotationInput = z.infer<typeof AcceptQuotationSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof UpdateBookingStatusSchema>;
 export type VerifyProviderInput = z.infer<typeof VerifyProviderSchema>;
-export type CreateReviewInput = z.infer<typeof CreateReviewSchema>;

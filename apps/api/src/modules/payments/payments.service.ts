@@ -13,11 +13,16 @@ import {
   PAYMENT_GATEWAY,
   PaymentGateway,
 } from './interfaces/payment-gateway.interface';
-import { CreateOrderDto, VerifyPaymentDto } from './dto/payment.dto';
+import {
+  CreateOrderDto,
+  VerifyPaymentDto,
+} from './dto/payment.dto';
+import { ReleasePaymentDto } from './dto/release-payment.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
   validatePaymentTransition,
 } from '../../common/state-machines/state-machines';
+import { NotificationsService } from '../notifications/notifications.service';
 import { env } from '../../config/env.config';
 
 @Injectable()
@@ -27,6 +32,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createOrder(dto: CreateOrderDto, user: AuthUserPayload) {
@@ -338,5 +344,103 @@ export class PaymentsService {
     }
 
     return { status: 'processed', eventId, eventType };
+  }
+
+  /**
+   * Release captured payment funds to the provider (escrow payout).
+   * Only ADMIN or SYSTEM can trigger a release. Requires payment to be CAPTURED.
+   */
+  async releasePayment(
+    dto: ReleasePaymentDto,
+    actor: AuthUserPayload,
+  ) {
+    // Authorization: only admin or system can release escrow funds
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Only administrators can release escrow funds');
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: dto.bookingId },
+      include: {
+        payments: { orderBy: { createdAt: 'desc' } },
+        provider: true,
+        customer: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking ${dto.bookingId} not found`);
+    }
+
+    const payment = booking.payments?.[0];
+    if (!payment) {
+      throw new NotFoundException(`Payment record for booking ${dto.bookingId} not found`);
+    }
+
+    // State machine check: must be CAPTURED to release
+    validatePaymentTransition(payment.status, 'RELEASED', actor.role);
+
+    // Idempotency: if already released, return the existing record
+    if (payment.status === 'RELEASED' && payment.payoutReference) {
+      return {
+        status: 'ALREADY_RELEASED',
+        payment,
+      };
+    }
+
+    const updatedPayment = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'RELEASED',
+          payoutReference: dto.payoutReference,
+          paidToProviderAt: new Date(),
+        },
+      });
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          actorId: actor.sub,
+          actorRole: actor.role,
+          action: 'payment.release',
+          entityType: 'Payment',
+          entityId: payment.id,
+          newValues: {
+            status: 'RELEASED',
+            payoutReference: dto.payoutReference,
+            paidToProviderAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updated;
+    });
+
+    // Notify provider of payout
+    try {
+      if (booking.provider?.userId) {
+        this.notifications
+          .sendPushNotification({
+            userId: booking.provider.userId,
+            title: 'Escrow Payout Released 💰',
+            body: `Payment of ₹${Number(updatedPayment.amount).toLocaleString('en-IN')} for booking #${booking.id.slice(0, 8)} has been released to your account.`,
+            data: {
+              type: 'PAYMENT_RELEASED',
+              bookingId: booking.id,
+              paymentId: updatedPayment.id,
+              payoutReference: dto.payoutReference,
+            },
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
+    return {
+      status: 'RELEASED',
+      payment: updatedPayment,
+    };
   }
 }

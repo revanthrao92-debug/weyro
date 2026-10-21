@@ -4,13 +4,16 @@ import {
   Headers,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreateOrderDto, VerifyPaymentDto } from './dto/payment.dto';
+import { ReleasePaymentDto } from './dto/release-payment.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Throttle } from '@nestjs/throttler';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('payments')
 export class PaymentsController {
@@ -32,6 +35,19 @@ export class PaymentsController {
     @Body() dto: VerifyPaymentDto,
   ) {
     return this.paymentsService.verifyPayment(dto, user);
+  }
+
+  /**
+   * Release escrow funds to the provider (admin only).
+   */
+  @Post('release')
+  @Roles('ADMIN')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async releasePayment(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: ReleasePaymentDto,
+  ) {
+    return this.paymentsService.releasePayment(dto, user);
   }
 
   @Public()

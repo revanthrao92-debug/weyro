@@ -187,7 +187,7 @@ export interface SparePart {
 }
 
 // Payment
-export type PaymentStatus = 'PENDING' | 'AUTHORIZED' | 'CAPTURED' | 'REFUNDED' | 'FAILED';
+export type PaymentStatus = 'PENDING' | 'AUTHORIZED' | 'CAPTURED' | 'RELEASED' | 'REFUNDED' | 'FAILED';
 export type PaymentMethod = 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET';
 
 export interface Payment {

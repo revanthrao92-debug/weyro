@@ -92,6 +92,7 @@ enum PaymentStatus {
   PENDING
   AUTHORIZED
   CAPTURED
+  RELEASED
   REFUNDED
   FAILED
 }
