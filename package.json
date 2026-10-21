@@ -2,7 +2,7 @@
   "name": "weyro",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "description": "Weyro — automotive repair marketplace for India (Expo + NestJS). Broadcast damage requests, provider quotations, bookings, Razorpay payments, chat, push notifications. Production-hardened: auth/privacy guards, Zod validation, rate limits, EXIF stripping, presigned uploads, graceful shutdown, 79 API tests.",
+  "description": "Weyro | India automotive repair marketplace | Expo + NestJS | Damage requests • Quotations • Bookings • Razorpay payments • Chat • Push notifications | Production: auth/privacy guards, Zod validation, rate limits, EXIF stripping, graceful shutdown | 79 API tests",
   "workspaces": [
     "apps/*",
     "packages/*"
