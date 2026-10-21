@@ -358,3 +358,61 @@ differs from a conventional `apps/mobile` layout.
 3. C10 (uploads), I1/I2/I3/I4 (input, errors, lifecycle, env).
 4. I5-I9, I11-I13, schema indexes/audit.
 5. Repo hygiene, tests, docs, remaining nice-to-haves.
+
+---
+
+## Remediation status
+
+Updated as fixes land on `prod-readiness`. "Planned" items are documented in the
+README as known limitations rather than silently claimed as done.
+
+| Finding | Status | Notes |
+|---------|--------|-------|
+| C1 refresh endpoint | Fixed | `07d3cb7` |
+| C2 accept IDOR | Fixed | `6a6a0d8`, regression test `7713fec` |
+| C3 feed quote leak | Fixed | `6a6a0d8`, regression test `7713fec` |
+| C4 detail quote leak | Fixed | `6a6a0d8` |
+| C5 offline fake IDs | Fixed | `a0259dd` — create/quote/accept are server-first |
+| C6 chat ownership / role | Fixed | `2f8b279`, regression test `7713fec` |
+| C7 webhook idempotency | Fixed | `4f31885`, regression test `7713fec` |
+| C8 stale verification | Fixed | `12eb190` — DB-backed `VerifiedProviderGuard` |
+| C9 spare-parts KYC leak | Fixed | `6a6a0d8`, regression test `7713fec` |
+| C10 upload hardening | Mostly fixed | `1f02012` (size, MIME, owner keys, EXIF). Private bucket + signed GET planned |
+| C11 ready error leak | Fixed | `dfa7139` |
+| I1 query/param validation | Fixed | `7511ecb` |
+| I2 exception filter 5xx | Fixed | `dfa7139` |
+| I3 shutdown + rawBody | Fixed | `4f31885` |
+| I4 env validation | Fixed | `dfa7139` |
+| I5 provider coords / refresh ttl | Fixed | `dfa7139` |
+| I6 accept expiry / schedule | Fixed | `8c67266`, `d0eebb8` |
+| I7 booking tracking | Fixed | `b5c9fdd` |
+| I8 quote race / label | Fixed | `0b6cdf5`, regression test `7713fec` |
+| I9 admin audit / ledger | Fixed | `62c5821`, `7dd6336` |
+| I10 escrow | Planned | Documented in README |
+| I11 mobile chat backend | Fixed | `39334a0` |
+| I12 push projectId | Fixed (config-dependent) | `a0259dd`; set EAS project ID with `eas init` |
+| I13 API client timeout / fail-fast | Fixed | `07d3cb7` |
+| I14 idempotency headers | Partial | Both headers sent; request-level keys planned |
+| I15 rate limits | Fixed | `7511ecb` |
+| I16 refresh token index | Fixed | `62c5821` |
+| I17 soft delete / audit | Planned | Documented in README |
+| I18 web localStorage tokens | Accepted risk | Web is a dev-only client; documented |
+| I19 limit/pagination validation | Fixed | `7511ecb` |
+| I20 repo hygiene | Fixed | `8c67266` |
+| I21 unused deps | Fixed | `bd5c414` |
+| I22 README accuracy | Fixed | `cdb0078` |
+| I23 accessibility | Fixed | `347ce2e` |
+| I24 icon path | Fixed | `a0259dd` |
+| I25 tests | Improved | 79 tests incl. authz regressions (`7713fec`); PostGIS e2e still absent |
+| I26 native build config | Fixed | `bd5c414` |
+| N1 decimal money | Accepted, documented | Exact INR `Decimal(10,2)` |
+| N2 pino logging | Planned | Hand-built JSON request logging |
+| N3 Swagger gating | Fixed | `4f31885` |
+| N4 opaque cursors | Planned | Raw-id cursors remain |
+| N5 dependency scanning | Added | Dependabot config; no CI audit gate yet |
+| N6 generated artifacts | Verified ignored | `graphify-out/`, `.claude/` ignored |
+| N7 root mobile layout | Accepted, documented | |
+| N8 body limits | Fixed | `4f31885` |
+| N9 socket payload cap | Fixed | `8eacd55` |
+| N10 phone auth claim | Fixed (docs) | OTP marked planned |
+
