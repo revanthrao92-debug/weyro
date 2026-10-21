@@ -46,8 +46,10 @@ example
 /android
 
 # backend & build outputs
-apps/api/dist/
-apps/api/node_modules/
+apps/*/dist/
+apps/*/node_modules/
+packages/*/dist/
+coverage/
 
 # local knowledge & agent scratch files
 graphify-out/

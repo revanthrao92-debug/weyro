@@ -43,7 +43,14 @@
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
+  "engines": {
+    "node": ">=22 <23",
+    "npm": ">=10"
+  },
   "scripts": {
+    "db:generate": "npm run db:generate -w @weyro/database",
+    "db:migrate": "npm run db:migrate -w @weyro/database",
+    "db:seed": "npm run db:seed -w @weyro/database",
     "build:packages": "npm run build -w @weyro/api-contracts && npm run build -w @weyro/validation && npm run build -w @weyro/database",
     "build:api": "npm run build -w @weyro/api",
     "build": "npm run build:packages && npm run build:api",
