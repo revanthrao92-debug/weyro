@@ -164,15 +164,18 @@ describe('NotificationsService', () => {
 
   describe('getUserNotifications', () => {
     it('returns cursor-paginated notifications', async () => {
+      const now = new Date().toISOString();
       mockPrisma.notification.findMany.mockResolvedValue([
-        { id: 'notif-1', title: 'N1' },
-        { id: 'notif-2', title: 'N2' },
+        { id: 'notif-1', title: 'N1', createdAt: new Date(now) },
+        { id: 'notif-2', title: 'N2', createdAt: new Date(now) },
       ]);
 
       const result = await service.getUserNotifications('user-1', undefined, 2);
 
       expect(result.items).toHaveLength(2);
-      expect(result.nextCursor).toBe('notif-2');
+      expect(result.nextCursor).toBe(
+        Buffer.from(JSON.stringify({ createdAt: now, id: 'notif-2' })).toString('base64url'),
+      );
     });
   });
 

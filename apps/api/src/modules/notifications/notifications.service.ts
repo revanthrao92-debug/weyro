@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 import { RegisterPushTokenDto } from './dto/notifications.dto';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class NotificationsService {
@@ -110,18 +115,26 @@ export class NotificationsService {
     limit: number = 20,
   ) {
     const boundedLimit = Math.min(50, Math.max(1, limit));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
+
     const items = await this.prisma.notification.findMany({
-      where: { userId },
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        userId,
+      },
       take: boundedLimit,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc', id: 'desc' },
     });
 
     return {
       items,
       nextCursor:
-        items.length === boundedLimit ? items[items.length - 1].id : null,
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 

@@ -7,6 +7,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { getProviderFeedQuery } from '@weyro/database';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class DamageRequestsService {
@@ -104,8 +109,13 @@ export class DamageRequestsService {
     }
 
     const boundedLimit = Math.min(50, Math.max(1, limit));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
+
     const items = await this.prisma.serviceRequest.findMany({
-      where: { customerId },
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        customerId,
+      },
       include: {
         media: true,
         vehicle: true,
@@ -114,16 +124,19 @@ export class DamageRequestsService {
           orderBy: { createdAt: 'desc' },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc', id: 'desc' },
       take: boundedLimit,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
     });
 
     return {
       items: items.map((item) => this.formatRequest(item)),
       nextCursor:
-        items.length === boundedLimit ? items[items.length - 1].id : null,
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 
@@ -172,7 +185,10 @@ export class DamageRequestsService {
       };
     }
 
+    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
+
     const where: any = {
+      ...buildCursorWhere(cursorTuple),
       status: 'OPEN',
       isBroadcast: true,
       expiresAt: { gt: new Date() },
@@ -198,10 +214,8 @@ export class DamageRequestsService {
           ? { where: { providerId: params.providerId } }
           : false,
       },
-      orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       take: boundedLimit,
-      skip: params.cursor ? 1 : 0,
-      cursor: params.cursor ? { id: params.cursor } : undefined,
     });
 
     const items = requests.map((req) => ({
@@ -211,7 +225,13 @@ export class DamageRequestsService {
 
     return {
       items,
-      nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 

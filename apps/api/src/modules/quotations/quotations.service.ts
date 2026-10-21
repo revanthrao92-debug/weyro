@@ -17,6 +17,11 @@ import {
   validateServiceRequestTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class QuotationsService {
@@ -163,36 +168,52 @@ export class QuotationsService {
       user.customerProfileId && request.customerId === user.customerProfileId;
     const isAdmin = user.role === 'ADMIN';
     const boundedLimit = Math.min(50, Math.max(1, limit));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
 
     // If customer: can see all quotes on their own request
     if (isCustomerOwner || isAdmin) {
       const items = await this.prisma.quotation.findMany({
-        where: { requestId },
+        where: {
+          ...buildCursorWhere(cursorTuple),
+          requestId,
+        },
         include: { provider: true },
         take: boundedLimit,
-        skip: cursor ? 1 : 0,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc', id: 'desc' },
       });
       return {
         items,
-        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+        nextCursor:
+          items.length === boundedLimit
+            ? encodeCursor({
+                createdAt: items[items.length - 1].createdAt.toISOString(),
+                id: items[items.length - 1].id,
+              })
+            : null,
       };
     }
 
     // If provider: can only see their own quote on this request
     if (user.providerProfileId) {
       const items = await this.prisma.quotation.findMany({
-        where: { requestId, providerId: user.providerProfileId },
+        where: {
+          ...buildCursorWhere(cursorTuple),
+          requestId,
+          providerId: user.providerProfileId,
+        },
         include: { provider: true },
         take: boundedLimit,
-        skip: cursor ? 1 : 0,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc', id: 'desc' },
       });
       return {
         items,
-        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+        nextCursor:
+          items.length === boundedLimit
+            ? encodeCursor({
+                createdAt: items[items.length - 1].createdAt.toISOString(),
+                id: items[items.length - 1].id,
+              })
+            : null,
       };
     }
 
@@ -375,12 +396,15 @@ export class QuotationsService {
     }
 
     const boundedLimit = Math.min(50, Math.max(1, limit));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
 
     const items = await this.prisma.booking.findMany({
-      where,
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        ...where,
+      },
       take: boundedLimit,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: { createdAt: 'desc', id: 'desc' },
       include: {
         customer: true,
         provider: true,
@@ -390,12 +414,17 @@ export class QuotationsService {
         payments: true,
         review: true,
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     return {
       items,
-      nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 

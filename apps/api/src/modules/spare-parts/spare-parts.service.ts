@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSparePartDto } from './dto/spare-parts.dto';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class SparePartsService {
@@ -16,6 +21,7 @@ export class SparePartsService {
   }) {
     const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
     const where: any = { isActive: true };
+    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
 
     if (params.condition) {
       where.condition = params.condition;
@@ -37,10 +43,12 @@ export class SparePartsService {
     }
 
     const items = await this.prisma.sparePart.findMany({
-      where,
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        ...where,
+      },
       take: boundedLimit,
-      skip: params.cursor ? 1 : 0,
-      cursor: params.cursor ? { id: params.cursor } : undefined,
+      orderBy: { createdAt: 'desc', id: 'desc' },
       include: {
         provider: {
           select: {
@@ -52,12 +60,17 @@ export class SparePartsService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     return {
       items,
-      nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 

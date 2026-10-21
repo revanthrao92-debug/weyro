@@ -7,6 +7,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { CreateThreadDto } from './dto/chat.dto';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class ChatService {
@@ -91,6 +96,7 @@ export class ChatService {
   ) {
     const boundedLimit = Math.min(50, Math.max(1, limit));
     const where: any = {};
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
 
     if (user.role === 'ADMIN') {
       // admin sees all
@@ -112,10 +118,12 @@ export class ChatService {
     }
 
     const items = await this.prisma.thread.findMany({
-      where,
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        ...where,
+      },
       take: boundedLimit,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: { createdAt: 'desc', id: 'desc' },
       include: {
         customer: {
           select: {
@@ -136,13 +144,17 @@ export class ChatService {
           orderBy: { createdAt: 'desc' },
         },
       },
-      orderBy: { lastMessageAt: 'desc' },
     });
 
     return {
       items,
       nextCursor:
-        items.length === boundedLimit ? items[items.length - 1].id : null,
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
     };
   }
 
