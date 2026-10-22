@@ -10,4 +10,5 @@ module.exports = {
   ...base,
   testPathIgnorePatterns: [],
   testRegex: '.*e2e-.*\\.spec\\.ts$',
+  setupFiles: ['<rootDir>/test/e2e-setup.ts'],
 };
