@@ -62,6 +62,7 @@ describe('HTTP E2E flows (Postgres)', () => {
   let sparePartOrderId: string | undefined;
   let webhookOrderId: string | undefined;
   let webhookEventId: string | undefined;
+  let cancelledOrderId: string | undefined;
 
   const http = () => request(app.getHttpServer());
 
@@ -155,6 +156,11 @@ describe('HTTP E2E flows (Postgres)', () => {
     if (webhookOrderId) {
       await prisma.sparePartOrder.deleteMany({
         where: { id: webhookOrderId },
+      });
+    }
+    if (cancelledOrderId) {
+      await prisma.sparePartOrder.deleteMany({
+        where: { id: cancelledOrderId },
       });
     }
     if (webhookEventId) {
@@ -499,6 +505,77 @@ describe('HTTP E2E flows (Postgres)', () => {
         where: { id: sparePartId },
       });
       expect(afterDuplicate.stockQuantity).toBe(2);
+    });
+
+    it('lets the customer cancel a pending order without touching stock', async () => {
+      const created = await http()
+        .post(`${API}/spare-parts/${sparePartId}/orders`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ quantity: 1 });
+
+      expect(created.status).toBe(201);
+      cancelledOrderId = created.body.orderId;
+
+      const cancelled = await http()
+        .post(`${API}/spare-parts/orders/${cancelledOrderId}/cancel`)
+        .set('Authorization', `Bearer ${customer.accessToken}`);
+
+      expect(cancelled.status).toBe(201);
+      expect(cancelled.body.status).toBe('CANCELLED');
+
+      const [order, part] = await Promise.all([
+        prisma.sparePartOrder.findUniqueOrThrow({
+          where: { id: cancelledOrderId },
+        }),
+        prisma.sparePart.findUniqueOrThrow({ where: { id: sparePartId } }),
+      ]);
+
+      expect(order.status).toBe('CANCELLED');
+      expect(part.stockQuantity).toBe(2);
+    });
+
+    it('refunds a paid order as admin and restores stock', async () => {
+      // Promote the dealer account to ADMIN and obtain a fresh token; the
+      // previously issued dealer JWT keeps its PROVIDER role.
+      await prisma.user.update({
+        where: { id: dealer.userId },
+        data: { role: 'ADMIN' },
+      });
+
+      const login = await http().post(`${API}/auth/login`).send({
+        emailOrPhone: `e2e-dealer-${suffix}@example.com`,
+        password,
+      });
+      expect(login.status).toBe(201);
+
+      const refund = await http()
+        .post(`${API}/spare-parts/orders/${webhookOrderId}/refund`)
+        .set('Authorization', `Bearer ${login.body.accessToken}`);
+
+      expect(refund.status).toBe(201);
+      expect(refund.body.status).toBe('REFUNDED');
+      expect(typeof refund.body.refundId).toBe('string');
+
+      const [order, part] = await Promise.all([
+        prisma.sparePartOrder.findUniqueOrThrow({
+          where: { id: webhookOrderId },
+        }),
+        prisma.sparePart.findUniqueOrThrow({ where: { id: sparePartId } }),
+      ]);
+
+      expect(order.status).toBe('REFUNDED');
+      expect(part.stockQuantity).toBe(3);
+
+      // A second refund must be a no-op, not a second gateway call.
+      const repeated = await http()
+        .post(`${API}/spare-parts/orders/${webhookOrderId}/refund`)
+        .set('Authorization', `Bearer ${login.body.accessToken}`);
+
+      expect(repeated.status).toBe(201);
+      expect(repeated.body).toEqual({
+        orderId: webhookOrderId,
+        status: 'REFUNDED',
+      });
     });
   });
 });

@@ -70,6 +70,7 @@ describe('SparePartsService order flow', () => {
         findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -317,6 +318,149 @@ describe('SparePartsService order flow', () => {
     expect(args.select).toHaveProperty('gatewayOrderId', true);
     expect(args.select).toHaveProperty('gatewayPaymentId', true);
     expect(result.items[0].gatewayPaymentId).toBe('pay_1');
+  });
+
+  describe('cancel and refund', () => {
+    const pendingOrder = {
+      id: 'order-1',
+      deletedAt: null,
+      customerId: 'cust-1',
+      sparePartId: 'part-1',
+      quantity: 2,
+      totalAmount: 3000,
+      status: 'PENDING',
+      gatewayPaymentId: null,
+    };
+
+    it('cancels a pending order owned by the customer', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue(pendingOrder);
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.cancelOrder('order-1', 'cust-1', false);
+
+      expect(result).toEqual({ orderId: 'order-1', status: 'CANCELLED' });
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: 'order-1', status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+    });
+
+    it('refuses cancellation by a different customer', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue(pendingOrder);
+
+      await expect(
+        service.cancelOrder('order-1', 'cust-other', false),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(mockPrisma.sparePartOrder.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('treats repeated cancellation as idempotent', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'CANCELLED',
+      });
+
+      const result = await service.cancelOrder('order-1', 'cust-1', false);
+
+      expect(result.status).toBe('CANCELLED');
+      expect(mockPrisma.sparePartOrder.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('refuses to cancel a paid order (refund path instead)', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'PAID',
+      });
+
+      await expect(
+        service.cancelOrder('order-1', 'cust-1', false),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('refunds a paid part order and restores stock', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'PAID',
+        gatewayPaymentId: 'pay_1',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.sparePart.findUnique = jest
+        .fn()
+        .mockResolvedValue({ kind: 'PART' });
+      mockPrisma.sparePart.update.mockResolvedValue({ stockQuantity: 5 });
+      (mockGateway.refundPayment as jest.Mock).mockResolvedValue({
+        refundId: 'rfnd_1',
+        status: 'processed',
+      });
+
+      const result = await service.refundOrder('order-1');
+
+      expect(result).toEqual({
+        orderId: 'order-1',
+        status: 'REFUNDED',
+        refundId: 'rfnd_1',
+      });
+      expect(mockGateway.refundPayment).toHaveBeenCalledWith({
+        paymentId: 'pay_1',
+        amountInPaise: 300000,
+        notes: expect.objectContaining({ orderId: 'order-1' }),
+      });
+      expect(mockPrisma.sparePart.update).toHaveBeenCalledWith({
+        where: { id: 'part-1' },
+        data: { stockQuantity: { increment: 2 } },
+      });
+    });
+
+    it('does not restore stock when refunding a package', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'PAID',
+        gatewayPaymentId: 'pay_1',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.sparePart.findUnique = jest
+        .fn()
+        .mockResolvedValue({ kind: 'PACKAGE' });
+      (mockGateway.refundPayment as jest.Mock).mockResolvedValue({
+        refundId: 'rfnd_pkg',
+        status: 'processed',
+      });
+
+      const result = await service.refundOrder('order-1');
+
+      expect(result.status).toBe('REFUNDED');
+      expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to refund an unpaid order', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue(pendingOrder);
+
+      await expect(service.refundOrder('order-1')).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(mockGateway.refundPayment).not.toHaveBeenCalled();
+    });
+
+    it('reverts to PAID when the gateway refund fails', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'PAID',
+        gatewayPaymentId: 'pay_1',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+      (mockGateway.refundPayment as jest.Mock).mockRejectedValue(
+        new Error('gateway down'),
+      );
+
+      await expect(service.refundOrder('order-1')).rejects.toThrow(
+        'gateway down',
+      );
+
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'order-1', status: 'REFUNDED' },
+        data: { status: 'PAID' },
+      });
+    });
   });
 
   describe('findOrderDetail role matrix', () => {

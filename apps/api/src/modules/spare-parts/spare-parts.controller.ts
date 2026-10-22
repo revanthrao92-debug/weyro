@@ -144,4 +144,25 @@ export class SparePartsController {
       dto,
     );
   }
+
+  @Post('orders/:orderId/cancel')
+  @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async cancelOrder(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.cancelOrder(
+      orderId,
+      user.customerProfileId || null,
+      user.role === 'ADMIN',
+    );
+  }
+
+  @Post('orders/:orderId/refund')
+  @Roles('ADMIN')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async refundOrder(@Param('orderId') orderId: string) {
+    return this.service.refundOrder(orderId);
+  }
 }

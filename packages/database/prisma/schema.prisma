@@ -122,6 +122,7 @@ enum SparePartOrderStatus {
   PAID
   CANCELLED
   FAILED
+  REFUNDED
 }
 
 enum ShopListingKind {

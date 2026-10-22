@@ -286,6 +286,116 @@ export class SparePartsService {
     return updated;
   }
 
+  async cancelOrder(
+    orderId: string,
+    customerId: string | null,
+    isAdmin: boolean,
+  ) {
+    const order = await this.prisma.sparePartOrder.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order || order.deletedAt) {
+      throw new NotFoundException(`Spare part order ${orderId} not found`);
+    }
+
+    if (!isAdmin && order.customerId !== customerId) {
+      throw new ForbiddenException('Only the order customer can cancel it');
+    }
+
+    // Cancelling is idempotent for an already-cancelled order
+    if (order.status === 'CANCELLED') {
+      return { orderId: order.id, status: 'CANCELLED' };
+    }
+
+    // Pending orders never reserved stock, so cancellation is a status flip.
+    // Paid orders must go through the refund path instead.
+    if (order.status !== 'PENDING') {
+      throw new ConflictException(
+        `Cannot cancel an order in ${order.status} status`,
+      );
+    }
+
+    const claimed = await this.prisma.sparePartOrder.updateMany({
+      where: { id: order.id, status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+
+    if (claimed.count === 0) {
+      throw new ConflictException('Order is no longer cancellable');
+    }
+
+    return { orderId: order.id, status: 'CANCELLED' };
+  }
+
+  async refundOrder(orderId: string) {
+    const order = await this.prisma.sparePartOrder.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order || order.deletedAt) {
+      throw new NotFoundException(`Spare part order ${orderId} not found`);
+    }
+
+    if (order.status === 'REFUNDED') {
+      return { orderId: order.id, status: 'REFUNDED' };
+    }
+
+    if (order.status !== 'PAID') {
+      throw new ConflictException(
+        `Cannot refund an order in ${order.status} status`,
+      );
+    }
+
+    if (!order.gatewayPaymentId) {
+      throw new ConflictException('Order has no captured payment to refund');
+    }
+
+    // Claim the transition first so concurrent admin actions cannot issue two
+    // gateway refunds. Reverted below if the gateway call fails.
+    const claimed = await this.prisma.sparePartOrder.updateMany({
+      where: { id: order.id, status: 'PAID' },
+      data: { status: 'REFUNDED' },
+    });
+
+    if (claimed.count === 0) {
+      throw new ConflictException('Order is no longer refundable');
+    }
+
+    try {
+      const refund = await this.gateway.refundPayment({
+        paymentId: order.gatewayPaymentId,
+        amountInPaise: Math.round(Number(order.totalAmount) * 100),
+        notes: { orderId: order.id, reason: 'admin_refund' },
+      });
+
+      // Return reserved stock for physical parts; packages never held stock
+      const part = await this.prisma.sparePart.findUnique({
+        where: { id: order.sparePartId },
+        select: { kind: true },
+      });
+
+      if (part?.kind !== 'PACKAGE') {
+        await this.prisma.sparePart.update({
+          where: { id: order.sparePartId },
+          data: { stockQuantity: { increment: order.quantity } },
+        });
+      }
+
+      return {
+        orderId: order.id,
+        status: 'REFUNDED',
+        refundId: refund.refundId,
+      };
+    } catch (error) {
+      await this.prisma.sparePartOrder.updateMany({
+        where: { id: order.id, status: 'REFUNDED' },
+        data: { status: 'PAID' },
+      });
+      throw error;
+    }
+  }
+
   async findMyOrders(customerId: string) {
     return this.prisma.sparePartOrder.findMany({
       where: { customerId, deletedAt: null },
