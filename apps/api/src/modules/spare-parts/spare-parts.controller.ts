@@ -47,7 +47,6 @@ export class SparePartsController {
     });
   }
 
-  @Public()
   @Get('orders/my')
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async findMyOrders(@CurrentUser() user: AuthUserPayload) {
