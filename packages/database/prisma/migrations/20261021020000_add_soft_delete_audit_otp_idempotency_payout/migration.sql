@@ -6,7 +6,6 @@ CREATE TABLE "push_tokens" (
     "userId" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "deviceOs" TEXT,
-    "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
