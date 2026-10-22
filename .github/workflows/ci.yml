@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared packages
+        run: npm run build:packages
+
       - name: Run ESLint (mobile app)
         run: npm run lint -w @weyro/mobile
 
@@ -69,6 +72,7 @@ jobs:
         run: npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
         env:
           DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+          DIRECT_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
 
       - name: Run API tests
         run: npm run test -w @weyro/api
@@ -99,7 +103,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run npm audit (production deps only)
+      - name: Fail on critical vulnerabilities
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Report high vulnerabilities (non-blocking)
         run: npm audit --omit=dev --audit-level=high || true
 
   expo-doctor:

@@ -9,7 +9,7 @@
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "start:prod": "node dist/main.js",
     "test": "jest",
-    "test:e2e": "jest --testPathPattern 'e2e-postgis'",
+    "test:e2e": "jest --config jest-e2e.config.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
