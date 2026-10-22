@@ -320,10 +320,18 @@ export default function SparePartsDetailScreen() {
             {part.stockQuantity > 0 ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Checkout is not yet available for spare parts"
-                disabled
-                style={styles.disabledBuyBtn}>
-                <ThemedText style={styles.disabledBuyText}>Checkout Coming Soon</ThemedText>
+                accessibilityLabel="Buy this spare part"
+                style={[styles.buyBtn, { backgroundColor: theme.primary }]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/spare-parts/checkout',
+                    params: { id: part.id },
+                  })
+                }>
+                <ThemedText
+                  style={[styles.buyText, { color: theme.inverseText }]}>
+                  Buy Now
+                </ThemedText>
               </Pressable>
             ) : (
               <Pressable
@@ -544,6 +552,17 @@ const makeStyles = (
     fontSize: 15,
     fontWeight: '700',
     color: theme.textSecondary,
+  },
+  buyBtn: {
+    paddingVertical: Spacing.three,
+    borderRadius: BorderRadius.large,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  buyText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   spacer: {
     height: Spacing.four,
