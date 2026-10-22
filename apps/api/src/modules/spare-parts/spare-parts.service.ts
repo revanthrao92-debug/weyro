@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSparePartDto } from './dto/spare-parts.dto';
+import { computeProviderBadge } from '@weyro/api-contracts';
 import {
   buildCursorWhere,
   decodeCursor,
@@ -54,16 +55,30 @@ export class SparePartsService {
           select: {
             id: true,
             businessName: true,
-            phone: true,
-            address: true,
+            verificationStatus: true,
             avgRating: true,
+            completedJobs: true,
+            isAvailable: true,
           },
         },
       },
     });
 
+    const itemsWithBadge = items.map((item: any) => ({
+      ...item,
+      provider: {
+        ...item.provider,
+        badge: computeProviderBadge({
+          verificationStatus: item.provider.verificationStatus,
+          avgRating: item.provider.avgRating,
+          completedJobs: item.provider.completedJobs,
+          isAvailable: item.provider.isAvailable,
+        }),
+      },
+    }));
+
     return {
-      items,
+      items: itemsWithBadge,
       nextCursor:
         items.length === boundedLimit
           ? encodeCursor({
@@ -82,9 +97,10 @@ export class SparePartsService {
           select: {
             id: true,
             businessName: true,
-            phone: true,
-            address: true,
+            verificationStatus: true,
             avgRating: true,
+            completedJobs: true,
+            isAvailable: true,
           },
         },
       },
@@ -94,7 +110,18 @@ export class SparePartsService {
       throw new NotFoundException(`Spare part with ID ${id} not found`);
     }
 
-    return part;
+    return {
+      ...part,
+      provider: {
+        ...part.provider,
+        badge: computeProviderBadge({
+          verificationStatus: part.provider.verificationStatus,
+          avgRating: part.provider.avgRating,
+          completedJobs: part.provider.completedJobs,
+          isAvailable: part.provider.isAvailable,
+        }),
+      },
+    };
   }
 
   async create(providerId: string, dto: CreateSparePartDto) {

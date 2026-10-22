@@ -107,6 +107,41 @@ export const PROVIDER_TYPE_CATEGORIES: Record<ProviderType, ServiceCategory[]> =
   ROADSIDE: ['ROADSIDE'],
 };
 
+/**
+ * Provider trust tier, derived from existing verification + performance fields.
+ * No new database columns required.
+ */
+export type ProviderBadge = 'PLATINUM' | 'GOLD' | 'SILVER' | null;
+
+/**
+ * Compute a provider's trust badge from verification status, rating, and job count.
+ * Kept pure so it can be used by both API and mobile without Prisma coupling.
+ */
+export function computeProviderBadge(provider: {
+  verificationStatus: VerificationStatus;
+  avgRating: number;
+  completedJobs: number;
+  isAvailable: boolean;
+}): ProviderBadge {
+  if (!provider.isAvailable || provider.verificationStatus !== 'VERIFIED') {
+    return null;
+  }
+
+  if (provider.avgRating >= 4.5 && provider.completedJobs >= 100) {
+    return 'PLATINUM';
+  }
+
+  if (provider.avgRating >= 4.0 && provider.completedJobs >= 50) {
+    return 'GOLD';
+  }
+
+  if (provider.avgRating >= 3.5 && provider.completedJobs >= 20) {
+    return 'SILVER';
+  }
+
+  return null;
+}
+
 export interface ProviderProfile {
   id: string;
   userId: string;
@@ -124,6 +159,7 @@ export interface ProviderProfile {
   totalReviews: number;
   completedJobs: number;
   isAvailable: boolean;
+  badge?: ProviderBadge;
   towingVehicleTypes?: TowingVehicleType[];
   maxVehicleWeightKg?: number;
   towingBaseFee?: number;
