@@ -163,6 +163,28 @@ export default function AdminScreen() {
             </Pressable>
           </View>
 
+          {/* platform activity */}
+          <View style={[styles.section, Elevation.low, { backgroundColor: theme.card, borderRadius: BorderRadius.xlarge }]}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              ACTIVITY & TRAFFIC LOGS
+            </ThemedText>
+            <Pressable
+              onPress={() => router.push('/admin/traffic')}
+              accessibilityRole="button"
+              accessibilityLabel="View platform activity and traffic"
+              style={{
+                alignSelf: 'flex-start',
+                paddingVertical: Spacing.one,
+                paddingHorizontal: Spacing.two,
+                borderRadius: 8,
+                backgroundColor: theme.primary,
+              }}>
+              <ThemedText type="smallBold" style={{ color: theme.inverseText }}>
+                View Activity & Traffic
+              </ThemedText>
+            </Pressable>
+          </View>
+
           {/* Partner Verifications */}
           <View style={[styles.section, Elevation.low, { backgroundColor: theme.card, borderRadius: BorderRadius.xlarge }]}>
             <ThemedText type="smallBold" style={styles.sectionTitle}>
