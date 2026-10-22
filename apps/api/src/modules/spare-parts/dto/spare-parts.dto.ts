@@ -10,6 +10,9 @@ export const createSparePartSchema = z
     price: z.number().positive(),
     stockQuantity: z.number().int().min(0).default(1),
     imageUrl: z.string().url().optional(),
+    kind: z.enum(['PART', 'PACKAGE']).default('PART'),
+    description: z.string().max(500).optional(),
+    estimatedMinutes: z.number().int().min(15).max(480).optional(),
   })
   .strict();
 
@@ -24,6 +27,9 @@ export class CreateSparePartDto implements z.infer<typeof createSparePartSchema>
   price!: number;
   stockQuantity!: number;
   imageUrl?: string;
+  kind!: 'PART' | 'PACKAGE';
+  description?: string;
+  estimatedMinutes?: number;
 }
 
 export const createSparePartOrderSchema = z

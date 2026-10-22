@@ -28,6 +28,7 @@ export const sparePartsQuerySchema = cursorPaginationSchema.extend({
   make: z.string().min(1).max(50).optional(),
   model: z.string().min(1).max(50).optional(),
   condition: z.enum(['OEM', 'AFTERMARKET', 'USED']).optional(),
+  kind: z.enum(['PART', 'PACKAGE']).optional(),
 });
 
 export const bookingsQuerySchema = cursorPaginationSchema.extend({

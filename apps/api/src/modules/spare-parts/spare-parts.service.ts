@@ -32,6 +32,7 @@ export class SparePartsService {
     make?: string;
     model?: string;
     condition?: string;
+    kind?: string;
     cursor?: string;
     limit?: number;
   }) {
@@ -41,6 +42,10 @@ export class SparePartsService {
 
     if (params.condition) {
       where.condition = params.condition;
+    }
+
+    if (params.kind) {
+      where.kind = params.kind;
     }
 
     if (params.search) {
@@ -151,6 +156,9 @@ export class SparePartsService {
         price: dto.price,
         stockQuantity: dto.stockQuantity,
         imageUrl: dto.imageUrl,
+        kind: dto.kind ?? 'PART',
+        description: dto.description,
+        estimatedMinutes: dto.estimatedMinutes,
       },
     });
   }
@@ -168,13 +176,16 @@ export class SparePartsService {
       throw new NotFoundException(`Spare part with ID ${partId} not found`);
     }
 
-    if (part.stockQuantity < dto.quantity) {
+    // Packages are booked once; stock checks only apply to physical parts
+    const quantity = part.kind === 'PACKAGE' ? 1 : dto.quantity;
+
+    if (part.stockQuantity < quantity) {
       throw new ConflictException(
         `Only ${part.stockQuantity} unit(s) left in stock`,
       );
     }
 
-    const totalAmount = Number(part.price) * dto.quantity;
+    const totalAmount = Number(part.price) * quantity;
 
     const existingPending = await this.prisma.sparePartOrder.findFirst({
       where: {
@@ -210,7 +221,7 @@ export class SparePartsService {
         sparePartId: partId,
         providerId: part.providerId,
         customerId,
-        quantity: dto.quantity,
+        quantity,
         unitPrice: part.price,
         totalAmount,
         currency: 'INR',
@@ -265,14 +276,21 @@ export class SparePartsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      // Atomically reserve stock; fails if sold out between order and payment
-      const part = await tx.sparePart.update({
+      const part = await tx.sparePart.findUnique({
         where: { id: order.sparePartId },
-        data: { stockQuantity: { decrement: order.quantity } },
+        select: { kind: true },
       });
 
-      if (part.stockQuantity < 0) {
-        throw new ConflictException('Insufficient stock to complete this order');
+      // Packages have no stock semantics; parts atomically reserve stock
+      if (part?.kind !== 'PACKAGE') {
+        const updatedPart = await tx.sparePart.update({
+          where: { id: order.sparePartId },
+          data: { stockQuantity: { decrement: order.quantity } },
+        });
+
+        if (updatedPart.stockQuantity < 0) {
+          throw new ConflictException('Insufficient stock to complete this order');
+        }
       }
 
       return tx.sparePartOrder.update({

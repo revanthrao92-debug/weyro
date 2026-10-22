@@ -179,7 +179,10 @@ describe('SparePartsService order flow', () => {
     });
     (mockGateway.verifyPaymentSignature as jest.Mock).mockReturnValue(true);
     const tx = {
-      sparePart: { update: jest.fn().mockResolvedValue({ stockQuantity: 3 }) },
+      sparePart: {
+        findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
+        update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+      },
       sparePartOrder: {
         update: jest.fn().mockResolvedValue({ id: 'order-1', status: 'PAID' }),
       },
@@ -193,6 +196,7 @@ describe('SparePartsService order flow', () => {
     });
 
     expect(result.status).toBe('PAID');
+    expect(tx.sparePart.findUnique).toHaveBeenCalled();
     expect(tx.sparePart.update).toHaveBeenCalledWith({
       where: { id: 'part-1' },
       data: { stockQuantity: { decrement: 2 } },
@@ -202,6 +206,69 @@ describe('SparePartsService order flow', () => {
         data: expect.objectContaining({ status: 'PAID' }),
       }),
     );
+  });
+
+  it('packages are booked once regardless of requested quantity', async () => {
+    mockPrisma.sparePart.findFirst.mockResolvedValue({
+      id: 'pkg-1',
+      kind: 'PACKAGE',
+      price: 2500,
+      stockQuantity: 1,
+      providerId: 'prov-1',
+    });
+    (mockGateway.createOrder as jest.Mock).mockResolvedValue({
+      orderId: 'order_gw_2',
+      amount: 250000,
+      currency: 'INR',
+    });
+    mockPrisma.sparePartOrder.create.mockResolvedValue({
+      id: 'order-2',
+      quantity: 1,
+      totalAmount: 2500,
+      currency: 'INR',
+    });
+
+    const result = await service.createOrder('pkg-1', 'cust-1', {
+      quantity: 5,
+    });
+
+    expect(result.quantity).toBe(1);
+    expect(mockPrisma.sparePartOrder.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ quantity: 1 }),
+      }),
+    );
+  });
+
+  it('does not decrement stock for packages on successful payment', async () => {
+    mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+      id: 'order-pkg',
+      status: 'PENDING',
+      customerId: 'cust-1',
+      gatewayOrderId: 'order_gw_1',
+      quantity: 1,
+      sparePartId: 'pkg-1',
+    });
+    (mockGateway.verifyPaymentSignature as jest.Mock).mockReturnValue(true);
+    const tx = {
+      sparePart: {
+        findUnique: jest.fn().mockResolvedValue({ kind: 'PACKAGE' }),
+        update: jest.fn(),
+      },
+      sparePartOrder: {
+        update: jest.fn().mockResolvedValue({ id: 'order-pkg', status: 'PAID' }),
+      },
+    };
+    mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(tx));
+
+    const result = await service.verifyOrderPayment('order-pkg', 'cust-1', {
+      razorpayOrderId: 'order_gw_1',
+      razorpayPaymentId: 'pay_pkg',
+      razorpaySignature: 'validsignature123',
+    });
+
+    expect(result.status).toBe('PAID');
+    expect(tx.sparePart.update).not.toHaveBeenCalled();
   });
 
   it('masks provider details in customer order history', async () => {

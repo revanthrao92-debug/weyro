@@ -41,6 +41,7 @@ export class SparePartsController {
       make: query.make,
       model: query.model,
       condition: query.condition,
+      kind: query.kind,
       cursor: query.cursor,
       limit: query.limit,
     });
