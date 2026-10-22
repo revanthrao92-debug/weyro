@@ -77,6 +77,31 @@ jobs:
           JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
           JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
 
+      - name: Run PostGIS e2e tests
+        run: npm run test:e2e -w @weyro/api
+        env:
+          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+          JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
+          JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (production deps only)
+        run: npm audit --omit=dev --audit-level=high || true
+
   expo-doctor:
     runs-on: ubuntu-latest
     steps:

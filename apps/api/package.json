@@ -9,6 +9,7 @@
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "start:prod": "node dist/main.js",
     "test": "jest",
+    "test:e2e": "jest --testPathPattern 'e2e-postgis'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.2.7",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
