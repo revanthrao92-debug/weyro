@@ -4,9 +4,11 @@ import { PaymentsService } from './payments.service';
 import { PAYMENT_GATEWAY } from './interfaces/payment-gateway.interface';
 import { RazorpayPaymentGateway } from './gateways/razorpay.gateway';
 import { MockPaymentGateway } from './gateways/mock.gateway';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { env } from '../../config/env.config';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

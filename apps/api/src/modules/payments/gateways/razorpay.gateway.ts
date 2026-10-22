@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 import {
@@ -18,11 +18,16 @@ export class RazorpayPaymentGateway implements PaymentGateway {
   private readonly keySecret: string;
   private readonly webhookSecret: string;
 
-  constructor(options?: {
-    keyId?: string;
-    keySecret?: string;
-    webhookSecret?: string;
-  }) {
+  constructor(
+    // Options exist for direct construction in tests; as a Nest provider this
+    // dependency must be optional or the app cannot boot with Razorpay keys set.
+    @Optional()
+    options?: {
+      keyId?: string;
+      keySecret?: string;
+      webhookSecret?: string;
+    },
+  ) {
     const keyId = options?.keyId || env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
     const keySecret = options?.keySecret || env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
     const webhookSecret =

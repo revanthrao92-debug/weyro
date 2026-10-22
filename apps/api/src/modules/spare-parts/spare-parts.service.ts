@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,7 +27,7 @@ import { env } from '../../config/env.config';
 export class SparePartsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly gateway: PaymentGateway,
+    @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
   ) {}
 
   async findAll(params: {
@@ -71,7 +72,7 @@ export class SparePartsService {
         ...where,
       },
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         provider: {
           select: {
@@ -349,7 +350,7 @@ export class SparePartsService {
     const items = await this.prisma.sparePartOrder.findMany({
       where,
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
         quantity: true,
@@ -395,7 +396,7 @@ export class SparePartsService {
     const items = await this.prisma.sparePartOrder.findMany({
       where,
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
         quantity: true,

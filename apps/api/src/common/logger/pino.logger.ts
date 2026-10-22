@@ -1,4 +1,4 @@
-import { Injectable, LoggerService } from '@nestjs/common';
+import { Injectable, LoggerService, Optional } from '@nestjs/common';
 import pino from 'pino';
 
 /**
@@ -10,7 +10,9 @@ import pino from 'pino';
 export class PinoLogger implements LoggerService {
   readonly logger: pino.Logger;
 
-  constructor(context?: string) {
+  // Registered as a provider, so the optional context cannot be resolved as a
+  // dependency; Nest must fall back to the default logger instance.
+  constructor(@Optional() context?: string) {
     this.logger = pino({
       level: process.env.LOG_LEVEL || 'info',
       transport:
