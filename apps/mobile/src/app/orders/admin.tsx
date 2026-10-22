@@ -33,7 +33,13 @@ interface AdminOrderItem {
   provider: { businessName: string } | null;
 }
 
-type StatusFilter = 'ALL' | 'PENDING' | 'PAID' | 'CANCELLED' | 'FAILED';
+type StatusFilter =
+  | 'ALL'
+  | 'PENDING'
+  | 'PAID'
+  | 'CANCELLED'
+  | 'FAILED'
+  | 'REFUNDED';
 
 const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -41,6 +47,7 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'PAID', label: 'Paid' },
   { key: 'CANCELLED', label: 'Cancelled' },
   { key: 'FAILED', label: 'Failed' },
+  { key: 'REFUNDED', label: 'Refunded' },
 ];
 
 const STATUS_TONE: Record<string, 'positive' | 'warning' | 'negative'> = {
@@ -48,6 +55,7 @@ const STATUS_TONE: Record<string, 'positive' | 'warning' | 'negative'> = {
   PENDING: 'warning',
   CANCELLED: 'negative',
   FAILED: 'negative',
+  REFUNDED: 'warning',
 };
 
 const rupees = (amount: number) => `₹${Number(amount).toLocaleString('en-IN')}`;

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -49,6 +50,7 @@ const STATUS_TONE: Record<string, 'positive' | 'warning' | 'negative'> = {
   PENDING: 'warning',
   CANCELLED: 'negative',
   FAILED: 'negative',
+  REFUNDED: 'warning',
 };
 
 const rupees = (amount: number) => `₹${Number(amount).toLocaleString('en-IN')}`;
@@ -75,6 +77,7 @@ export default function AdminOrderDetailScreen() {
 
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefunding, setIsRefunding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
@@ -102,6 +105,38 @@ export default function AdminOrderDetailScreen() {
 
   const styles = makeStyles(theme);
   const tone = order ? STATUS_TONE[order.status] || 'warning' : 'warning';
+
+  const confirmRefund = useCallback(() => {
+    if (!order) return;
+
+    Alert.alert(
+      'Refund this order?',
+      `₹${Number(order.totalAmount).toLocaleString('en-IN')} will be refunded through the payment gateway and stock will be restored.`,
+      [
+        { text: 'Keep payment', style: 'cancel' },
+        {
+          text: 'Refund',
+          style: 'destructive',
+          onPress: async () => {
+            setIsRefunding(true);
+            try {
+              await apiClient.post(
+                `/spare-parts/orders/${order.id}/refund`,
+              );
+              await fetchOrder();
+            } catch (err: any) {
+              Alert.alert(
+                'Refund failed',
+                err?.message || 'The gateway did not accept the refund.',
+              );
+            } finally {
+              setIsRefunding(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [order, fetchOrder]);
 
   return (
     <KeyboardAvoidingView
@@ -196,6 +231,19 @@ export default function AdminOrderDetailScreen() {
                 <Row label="Gateway Payment" value={order.gatewayPaymentId || '—'} styles={styles} />
                 <Row label="Paid At" value={stamp(order.paidAt)} styles={styles} />
               </View>
+
+              {order.status === 'PAID' && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Refund this payment"
+                  disabled={isRefunding}
+                  onPress={confirmRefund}
+                  style={styles.refundBtn}>
+                  <ThemedText type="smallBold" style={styles.refundText}>
+                    {isRefunding ? 'Refunding…' : 'Refund payment'}
+                  </ThemedText>
+                </Pressable>
+              )}
 
               <ThemedText type="smallBold" style={styles.sectionLabel}>
                 TIMELINE
@@ -358,5 +406,16 @@ const makeStyles = (theme: NonNullable<ReturnType<typeof useTheme>>) =>
       color: theme.primary,
       fontWeight: '700',
       fontSize: 13,
+    },
+    refundBtn: {
+      marginTop: Spacing.two,
+      paddingVertical: Spacing.two,
+      borderRadius: BorderRadius.medium,
+      borderWidth: 1,
+      borderColor: theme.danger,
+      alignItems: 'center',
+    },
+    refundText: {
+      color: theme.danger,
     },
   });

@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -73,6 +74,7 @@ const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pending',
   PAID: 'Paid',
   FAILED: 'Failed',
+  REFUNDED: 'Refunded',
 };
 
 const STATUS_TONE: Record<string, 'neutral' | 'positive' | 'warning' | 'negative' | 'progress'> = {
@@ -88,6 +90,7 @@ const STATUS_TONE: Record<string, 'neutral' | 'positive' | 'warning' | 'negative
   PENDING: 'warning',
   PAID: 'positive',
   FAILED: 'negative',
+  REFUNDED: 'neutral',
 };
 
 const rupees = (amount: number) => `₹${Number(amount).toLocaleString('en-IN')}`;
@@ -138,6 +141,41 @@ export default function HistoryScreen() {
     [theme],
   );
 
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const cancelOrder = useCallback(
+    (order: SparePartOrderItem) => {
+      Alert.alert(
+        'Cancel this order?',
+        `${order.sparePart?.name || 'This part'} will not be purchased. No payment has been taken for pending orders.`,
+        [
+          { text: 'Keep order', style: 'cancel' },
+          {
+            text: 'Cancel order',
+            style: 'destructive',
+            onPress: async () => {
+              setCancellingId(order.id);
+              try {
+                await apiClient.post(
+                  `/spare-parts/orders/${order.id}/cancel`,
+                );
+                await refresh();
+              } catch (err: any) {
+                Alert.alert(
+                  'Unable to cancel',
+                  err?.message || 'Please try again.',
+                );
+              } finally {
+                setCancellingId(null);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [refresh],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: HistoryItem }) => {
       if (activeTab === 'parts') {
@@ -156,6 +194,21 @@ export default function HistoryScreen() {
               status={order.status}
               imageUrl={order.sparePart?.imageUrl || undefined}
             />
+            {order.status === 'PENDING' && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Cancel order for ${order.sparePart?.name}`}
+                disabled={cancellingId === order.id}
+                onPress={() => cancelOrder(order)}
+                style={styles.cancelBtn}>
+                <ThemedText
+                  type="smallBold"
+                  style={styles.cancelBtnText}
+                  themeColor="danger">
+                  {cancellingId === order.id ? 'Cancelling…' : 'Cancel order'}
+                </ThemedText>
+              </Pressable>
+            )}
           </Pressable>
         );
       }
@@ -199,7 +252,7 @@ export default function HistoryScreen() {
         </Pressable>
       );
     },
-    [activeTab, styles],
+    [activeTab, styles, cancellingId, cancelOrder],
   );
 
   return (
@@ -493,5 +546,13 @@ const makeStyles = (theme: NonNullable<ReturnType<typeof useTheme>>) =>
       color: theme.primary,
       fontWeight: '700',
       fontSize: 13,
+    },
+    cancelBtn: {
+      alignSelf: 'flex-end',
+      paddingVertical: Spacing.one,
+      paddingHorizontal: Spacing.two,
+    },
+    cancelBtnText: {
+      fontSize: 12,
     },
   });
