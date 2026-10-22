@@ -117,6 +117,13 @@ enum ReviewStatus {
   REMOVED
 }
 
+enum SparePartOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  FAILED
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -150,6 +157,7 @@ model CustomerProfile {
   requests       ServiceRequest[]
   bookings       Booking[]
   reviews        Review[]
+  sparePartOrders SparePartOrder[]
   threads        Thread[]
   deletedAt      DateTime?
   createdAt      DateTime         @default(now())
@@ -210,6 +218,7 @@ model ProviderProfile {
   bookings              Booking[]
   reviews               Review[]
   spareParts            SparePart[]
+  sparePartOrders       SparePartOrder[]
   threads               Thread[]
   createdAt             DateTime                               @default(now())
   updatedAt             DateTime                               @updatedAt
@@ -400,6 +409,7 @@ model SparePart {
   imageUrl         String?
   isActive         Boolean         @default(true)
   deletedAt        DateTime?
+  orders           SparePartOrder[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -407,6 +417,34 @@ model SparePart {
   @@index([providerId, isActive])
   @@index([deletedAt])
   @@map("spare_parts")
+}
+
+model SparePartOrder {
+  id               String               @id @default(uuid())
+  sparePartId      String
+  sparePart        SparePart            @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
+  providerId       String
+  provider         ProviderProfile      @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  customerId       String
+  customer         CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  quantity         Int                  @default(1)
+  unitPrice        Decimal              @db.Decimal(10, 2)
+  totalAmount      Decimal              @db.Decimal(10, 2)
+  currency         String               @default("INR")
+  status           SparePartOrderStatus @default(PENDING)
+  gatewayOrderId   String?              @unique
+  gatewayPaymentId String?
+  paidAt           DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([sparePartId])
+  @@index([status, createdAt])
+  @@index([deletedAt])
+  @@map("spare_part_orders")
 }
 
 model RefreshToken {

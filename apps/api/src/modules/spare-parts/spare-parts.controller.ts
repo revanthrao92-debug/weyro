@@ -19,6 +19,10 @@ import {
   SparePartsQuery,
   sparePartsQuerySchema,
 } from '../../common/dto/query.dto';
+import {
+  CreateSparePartOrderDto,
+  VerifySparePartOrderDto,
+} from './dto/spare-parts.dto';
 
 @Controller('spare-parts')
 export class SparePartsController {
@@ -41,6 +45,15 @@ export class SparePartsController {
   }
 
   @Public()
+  @Get('orders/my')
+  @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  async findMyOrders(@CurrentUser() user: AuthUserPayload) {
+    if (!user.customerProfileId) {
+      throw new ForbiddenException('Customer profile required');
+    }
+    return this.service.findMyOrders(user.customerProfileId);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -57,5 +70,33 @@ export class SparePartsController {
       throw new ForbiddenException('Provider profile required to list spare parts');
     }
     return this.service.create(user.providerProfileId || user.sub, dto);
+  }
+
+  @Post(':id/orders')
+  @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async createOrder(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: CreateSparePartOrderDto,
+  ) {
+    if (!user.customerProfileId) {
+      throw new ForbiddenException('Customer profile required to purchase');
+    }
+    return this.service.createOrder(id, user.customerProfileId, dto);
+  }
+
+  @Post('orders/:orderId/verify')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async verifyOrder(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: VerifySparePartOrderDto,
+  ) {
+    return this.service.verifyOrderPayment(
+      orderId,
+      user.role === 'ADMIN' ? 'ADMIN' : user.customerProfileId || null,
+      dto,
+    );
   }
 }
