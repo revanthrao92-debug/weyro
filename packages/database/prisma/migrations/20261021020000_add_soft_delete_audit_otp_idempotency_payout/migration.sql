@@ -1,4 +1,21 @@
 -- Add soft delete (deletedAt) to all existing tables
+-- Create missing push_tokens table. The model existed in schema.prisma but was
+-- never created by the init migration, so `migrate deploy` failed here.
+CREATE TABLE "push_tokens" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "deviceOs" TEXT,
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "push_tokens_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "push_tokens_token_key" ON "push_tokens"("token");
+CREATE INDEX "push_tokens_userId_idx" ON "push_tokens"("userId");
+ALTER TABLE "push_tokens" ADD CONSTRAINT "push_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
 ALTER TABLE "users" ADD COLUMN "deletedAt" TIMESTAMP(3);
 ALTER TABLE "customer_profiles" ADD COLUMN "deletedAt" TIMESTAMP(3);
 ALTER TABLE "vehicles" ADD COLUMN "deletedAt" TIMESTAMP(3);
