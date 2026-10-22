@@ -301,6 +301,21 @@ export default function SparePartsScreen() {
               </Pressable>
             </View>
           )}
+          {(
+            auth.user?.role === 'PROVIDER' ||
+            auth.user?.role === 'BOTH' ||
+            auth.user?.role === 'ADMIN'
+          ) && (
+            <View style={[styles.entryRow, { marginTop: Spacing.one * -1 }]}>
+              <Pressable
+                onPress={() => router.push('/orders/dealer')}
+                accessibilityRole="button"
+                accessibilityLabel="View orders received"
+                style={styles.createBtn}>
+                <ThemedText style={styles.createBtnText}>Orders Received</ThemedText>
+              </Pressable>
+            </View>
+          )}
           {/* Search */}
           <View style={styles.searchBar}>
             <TextInput
