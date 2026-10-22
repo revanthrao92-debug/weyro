@@ -3,10 +3,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Elevation, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -37,6 +39,7 @@ const INITIAL_METRICS: AdminOverviewMetrics = {
 
 export default function AdminScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const safeAreaInsets = useSafeAreaInsets();
   const offlineStatus = useOfflineQueue();
 
@@ -137,6 +140,28 @@ export default function AdminScreen() {
           />
 
           <AdminOverviewCards metrics={metrics} />
+
+          {/* Spare Part Orders */}
+          <View style={[styles.section, Elevation.low, { backgroundColor: theme.card, borderRadius: BorderRadius.xlarge }]}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              SPARE PART ORDERS
+            </ThemedText>
+            <Pressable
+              onPress={() => router.push('/orders/admin')}
+              accessibilityRole="button"
+              accessibilityLabel="View all spare part orders"
+              style={{
+                alignSelf: 'flex-start',
+                paddingVertical: Spacing.one,
+                paddingHorizontal: Spacing.two,
+                borderRadius: 8,
+                backgroundColor: theme.primary,
+              }}>
+              <ThemedText type="smallBold" style={{ color: theme.inverseText }}>
+                View All Orders
+              </ThemedText>
+            </Pressable>
+          </View>
 
           {/* Partner Verifications */}
           <View style={[styles.section, Elevation.low, { backgroundColor: theme.card, borderRadius: BorderRadius.xlarge }]}>
