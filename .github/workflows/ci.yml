@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Run ESLint (mobile app)
-        run: npx expo lint
+        run: npm run lint -w @weyro/mobile
 
       - name: Run TypeScript typecheck (all workspaces)
         run: npm run typecheck:all
@@ -118,4 +118,4 @@ jobs:
         run: npm ci
 
       - name: Run Expo Doctor
-        run: npx expo-doctor
+        run: npm run doctor -w @weyro/mobile
