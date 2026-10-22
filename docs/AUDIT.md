@@ -385,17 +385,17 @@ README as known limitations rather than silently claimed as done.
 | I4 env validation | Fixed | `dfa7139` |
 | I5 provider coords / refresh ttl | Fixed | `dfa7139` |
 | I6 accept expiry / schedule | Fixed | `8c67266`, `d0eebb8` |
-| I7 booking tracking | Fixed | `b5c9fdd` |
+| I7 booking tracking | Fixed | `b5c9fdd`; live provider location + server-side ETA via `/bookings/:id/tracking` and Socket.IO `/tracking` |
 | I8 quote race / label | Fixed | `0b6cdf5`, regression test `7713fec` |
 | I9 admin audit / ledger | Fixed | `62c5821`, `7dd6336` |
-| I10 escrow | Planned | Documented in README |
+| I10 escrow | Fixed | Admin release with manual `payoutReference`, payment transition + audit log; automated gateway payout planned |
 | I11 mobile chat backend | Fixed | `39334a0` |
 | I12 push projectId | Fixed (config-dependent) | `a0259dd`; set EAS project ID with `eas init` |
 | I13 API client timeout / fail-fast | Fixed | `07d3cb7` |
-| I14 idempotency headers | Partial | Both headers sent; request-level keys planned |
+| I14 idempotency headers | Fixed | Interceptor/middleware enforce request-level keys |
 | I15 rate limits | Fixed | `7511ecb` |
 | I16 refresh token index | Fixed | `62c5821` |
-| I17 soft delete / audit | Planned | Documented in README |
+| I17 soft delete / audit | Fixed | `deletedAt` filters, `softDelete()` helper, `audit_logs` table |
 | I18 web localStorage tokens | Accepted risk | Web is a dev-only client; documented |
 | I19 limit/pagination validation | Fixed | `7511ecb` |
 | I20 repo hygiene | Fixed | `8c67266` |
@@ -403,16 +403,17 @@ README as known limitations rather than silently claimed as done.
 | I22 README accuracy | Fixed | `cdb0078` |
 | I23 accessibility | Fixed | `347ce2e` |
 | I24 icon path | Fixed | `a0259dd` |
-| I25 tests | Improved | 79 tests incl. authz regressions (`7713fec`); PostGIS e2e still absent |
+| I25 tests | Improved | 89 unit tests incl. authz/towing/tracking regressions; PostGIS e2e suite runs in CI |
 | I26 native build config | Fixed | `bd5c414` |
 | N1 decimal money | Accepted, documented | Exact INR `Decimal(10,2)` |
-| N2 pino logging | Planned | Hand-built JSON request logging |
+| N2 pino logging | Fixed | Structured pino request logging |
 | N3 Swagger gating | Fixed | `4f31885` |
-| N4 opaque cursors | Planned | Raw-id cursors remain |
-| N5 dependency scanning | Added | Dependabot config; no CI audit gate yet |
+| N4 opaque cursors | Fixed | `(createdAt, id)` base64url cursors |
+| N5 dependency scanning | Added | Dependabot config + CI audit gate (critical) |
 | N6 generated artifacts | Verified ignored | `graphify-out/`, `.claude/` ignored |
 | N7 root mobile layout | Accepted, documented | |
 | N8 body limits | Fixed | `4f31885` |
 | N9 socket payload cap | Fixed | `8eacd55` |
-| N10 phone auth claim | Fixed (docs) | OTP marked planned |
+| N10 phone auth claim | Fixed | OTP endpoints implemented and documented |
+| T1 towing end-to-end | Fixed | Distance tariff (provider overrides), equipment/capacity matching, feed filtering, live tracking |
 

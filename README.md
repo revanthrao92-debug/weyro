@@ -59,8 +59,11 @@ graph TD
 | Email/password authentication + refresh rotation | ✅ Implemented | bcrypt, hashed refresh tokens, constant-time dummy compare |
 | Role-based access control (CUSTOMER/PROVIDER/BOTH/ADMIN) | ✅ Implemented | Global guards + `@Roles()` |
 | Damage request broadcast | ✅ Implemented | Nationwide feed; `ST_DWithin` radius when coordinates are supplied |
+| Provider type / capability feed filtering | ✅ Implemented | Requests are matched to provider category, towing equipment, and max vehicle weight |
+| Towing requests + distance-based pricing | ✅ Implemented | Pickup → dropoff distance; platform tariff (₹500 base + ₹40/km) with provider overrides |
+| Live provider tracking + ETA | ✅ Implemented | `PATCH /bookings/:id/location`, `GET /bookings/:id/tracking`, Socket.IO `/tracking` namespace |
 | Customer request history | ✅ Implemented | `GET /damage-requests/my` |
-| Quotation submission & acceptance | ✅ Implemented | State machine, ownership checks, idempotent acceptance |
+| Quotation submission & acceptance | ✅ Implemented | State machine, ownership checks, idempotent acceptance; towing quotes priced from distance |
 | Booking milestones + tracking metadata | ✅ Implemented | `CONFIRMED → COMPLETED`; tracking number/carrier persisted |
 | Customer reviews & ratings | ✅ Implemented | Provider `avgRating`/`totalReviews` recomputed |
 | Razorpay orders, signature verification, webhooks | ✅ Implemented | Amount/currency checked; duplicate events ignored |
@@ -72,12 +75,12 @@ graph TD
 | Query/body validation | ✅ Implemented | Global Zod pipe; shared schemas in `@weyro/validation` |
 | Rate limiting | ✅ Implemented | Global bucket + tighter per-route write limits |
 | Health/readiness probes | ✅ Implemented | `GET /health`, `GET /ready` |
-| Escrow authorize/capture/release | 🟡 Partial | Payment status machine exists; capture is gateway/webhook driven. Escrow release/payout is **planned** |
+| Escrow capture/release | ✅ Implemented | Webhook capture + admin release with payout reference and audit log; gateway auto-payout is **planned** |
 | Provider KYC document validation (GSTIN/trade licence) | 🟡 Partial | Documents field exists; validation workflow is **planned** |
-| Phone OTP login | 🟡 Planned | Phone is stored/contactable; login is email/password |
+| Phone OTP login | ✅ Implemented | `POST /auth/send-otp`, `POST /auth/verify-otp` |
 | Private media + signed GET URLs | 🟡 Planned | Objects are served from `STORAGE_PUBLIC_URL` today |
-| Request-level idempotency keys | 🟡 Planned | Quotation acceptance is idempotent; create/quote/status keys are planned |
-| Soft delete + full audit log | 🟡 Planned | Provider verification audit is implemented; other tables are hard-deleted |
+| Request-level idempotency keys | ✅ Implemented | `Idempotency-Key` / `X-Idempotency-Key` interceptor + middleware |
+| Soft delete + audit log | ✅ Implemented | `deletedAt` filters, `softDelete()` helper, `audit_logs` table |
 
 ---
 
@@ -153,7 +156,9 @@ Production migrations should use
 - **Payments**: Razorpay orders, HMAC signature verification, and webhook
   processing. Amount and currency are validated against the stored payment.
 - **Vehicles**: Indian makes/models in seed data.
-- **Phone numbers**: stored in E.164 (`+91`) format. OTP login is planned.
+- **Phone numbers**: stored in E.164 (`+91`) format; OTP login is supported.
+- **Towing**: distance-based tariff in INR (₹500 base + ₹40/km, ₹500 minimum).
+  Providers may override the base/per-km fee during registration.
 
 ---
 
@@ -259,13 +264,15 @@ isolated without a disruptive move.
 
 ## ⚠️ Known Limitations
 
-- Escrow release and provider payouts are not implemented; capture is gateway
-  driven and the admin ledger is informational.
+- Escrow release is recorded by an admin with a manual `payoutReference`;
+  automated gateway transfers to provider accounts are not implemented.
 - Media is served from a public CDN/bucket URL rather than short-lived signed
   GET URLs.
-- No soft deletes or general audit log beyond provider verification.
 - Push notifications require an EAS project ID and a development/production
   build; web push is not registered.
 - The chat client uses REST rather than subscribing to the Socket.IO gateway for
   live delivery.
-- Phone OTP authentication and GSTIN/trade-licence validation are planned.
+- Live tracking shares foreground location only and displays ETA plus a
+  last-updated timestamp; an in-app map view and background tracking are not
+  implemented.
+- GSTIN/trade-licence validation is planned.
