@@ -7,6 +7,7 @@ import {
   estimateTowingFare,
   haversineDistanceKm,
   PROVIDER_TYPE_CATEGORIES,
+  ROADSIDE_TARIFF,
 } from '@weyro/api-contracts';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
@@ -83,6 +84,14 @@ export class DamageRequestsService {
         ? estimateTowingFare(towingDistanceKm)
         : undefined;
 
+    // Roadside assist: flat-rate estimate from the shared tariff
+    const isRoadside = category === 'ROADSIDE';
+    const roadsideKind = isRoadside ? dto.roadsideKind : undefined;
+    const estimatedFare =
+      isRoadside && roadsideKind
+        ? ROADSIDE_TARIFF[roadsideKind]
+        : undefined;
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
@@ -108,6 +117,8 @@ export class DamageRequestsService {
         vehicleWeightKg: isTowing ? dto.vehicleWeightKg : undefined,
         towingDistanceKm,
         towingEstimatedFare,
+        roadsideKind,
+        estimatedFare,
         expiresAt,
         media:
           (dto.mediaUrls?.length || dto.damagePhotos?.length)

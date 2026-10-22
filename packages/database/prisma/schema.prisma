@@ -129,6 +129,12 @@ enum ShopListingKind {
   PACKAGE
 }
 
+enum RoadsideKind {
+  BATTERY
+  TYRE
+  FUEL
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -251,6 +257,9 @@ model ServiceRequest {
   status              ServiceRequestStatus                   @default(OPEN)
   isBroadcast         Boolean                                @default(true)
   fulfillmentType     String?
+  // Roadside assist sub-kind (null for towing / repair requests)
+  roadsideKind        RoadsideKind?
+  estimatedFare       Decimal?                               @db.Decimal(10, 2)
   // Towing fields
   dropoffAddress      String?
   dropoffLatitude     Float?

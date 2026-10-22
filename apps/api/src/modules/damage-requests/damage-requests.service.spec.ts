@@ -57,6 +57,71 @@ describe('DamageRequestsService', () => {
       expect(result.damagePhotos).toEqual(['https://img.com/1.jpg']);
     });
 
+    it('tags roadside requests with the flat-rate estimate for their kind', async () => {
+      const mockCreated = {
+        id: 'req-rs',
+        title: 'Battery dead',
+        media: [],
+        vehicle: { id: 'veh-1' },
+      };
+      mockPrisma.serviceRequest.create.mockResolvedValue(mockCreated);
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        title: 'Battery dead',
+        description: 'Battery not starting in basement',
+        address: 'MG Road, Bengaluru',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        category: 'ROADSIDE',
+        roadsideKind: 'BATTERY',
+        urgency: 'URGENT',
+        isBroadcast: true,
+      } as any);
+
+      expect(mockPrisma.serviceRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: 'ROADSIDE',
+            roadsideKind: 'BATTERY',
+            estimatedFare: 299,
+          }),
+        }),
+      );
+    });
+
+    it('never sets roadside fields on towing requests', async () => {
+      const mockCreated = {
+        id: 'req-tow',
+        title: 'Tow needed',
+        media: [],
+        vehicle: { id: 'veh-1' },
+      };
+      mockPrisma.serviceRequest.create.mockResolvedValue(mockCreated);
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        title: 'Tow needed',
+        description: 'Car stuck on highway, needs flatbed',
+        address: 'NH48, Bengaluru',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        category: 'TOWING',
+        fulfillmentType: 'TOW_TO_GARAGE',
+        dropoffAddress: 'Workshop 2nd Cross',
+        dropoffLatitude: 12.98,
+        dropoffLongitude: 77.6,
+        towingVehicleType: 'FLATBED',
+        urgency: 'URGENT',
+        isBroadcast: true,
+      } as any);
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.roadsideKind).toBeUndefined();
+      expect(data.estimatedFare).toBeUndefined();
+      expect(data.dropoffAddress).toBe('Workshop 2nd Cross');
+    });
+
     it('passes the towing category through without remapping', async () => {
       mockPrisma.serviceRequest.create.mockResolvedValue({
         id: 'req-tow-1',

@@ -121,6 +121,8 @@ export const CreateServiceRequestSchema = z
     towingVehicleType: z
       .enum(['FLATBED', 'HOOK_AND_CHAIN', 'MOTORCYCLE', 'ANY'])
       .optional(),
+    // Roadside assist kind (required when category === 'ROADSIDE')
+    roadsideKind: z.enum(['BATTERY', 'TYRE', 'FUEL']).optional(),
     vehicleWeightKg: z.number().int().min(50).max(50000).optional(),
     expiresInDays: z.number().int().min(1).max(30).optional(),
   })

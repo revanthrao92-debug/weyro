@@ -71,6 +71,16 @@ export const TOWING_TARIFF = {
   minimumFare: 500,
 } as const;
 
+/**
+ * Flat rates for roadside assist, applied on top of (not instead of) the
+ * quotation flow: providers see the estimate and may confirm it as-is.
+ */
+export const ROADSIDE_TARIFF = {
+  BATTERY: 299,
+  TYRE: 399,
+  FUEL: 249,
+} as const;
+
 export function haversineDistanceKm(
   from: { latitude: number; longitude: number },
   to: { latitude: number; longitude: number },

@@ -11,7 +11,9 @@ import {
   CreateSparePartOrderDto,
   VerifySparePartOrderDto,
 } from './dto/spare-parts.dto';
-import { computeProviderBadge } from '@weyro/api-contracts';
+import {
+  computeProviderBadge,
+} from '@weyro/api-contracts';
 import { PAYMENT_GATEWAY, PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 import {
   buildCursorWhere,

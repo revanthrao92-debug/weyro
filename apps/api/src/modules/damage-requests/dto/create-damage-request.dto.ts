@@ -37,6 +37,7 @@ export class CreateDamageRequestDto implements CreateServiceRequestInput {
   dropoffLatitude?: number;
   dropoffLongitude?: number;
   towingVehicleType?: 'FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY';
+  roadsideKind?: 'BATTERY' | 'TYRE' | 'FUEL';
   vehicleWeightKg?: number;
   expiresInDays?: number;
 }
