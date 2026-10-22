@@ -48,6 +48,13 @@ enum ServiceCategory {
   INSPECTION
 }
 
+enum TowingVehicleType {
+  FLATBED
+  HOOK_AND_CHAIN
+  MOTORCYCLE
+  ANY
+}
+
 enum Urgency {
   NORMAL
   URGENT
@@ -172,9 +179,9 @@ model Vehicle {
 }
 
 model ProviderProfile {
-  id                    String                              @id @default(uuid())
-  userId                String                              @unique
-  user                  User                                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String                                 @id @default(uuid())
+  userId                String                                 @unique
+  user                  User                                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName          String
   providerType          ProviderType
   description           String
@@ -183,24 +190,29 @@ model ProviderProfile {
   latitude              Float
   longitude             Float
   location              Unsupported("geography(Point, 4326)")?
-  serviceRadiusKm       Float                               @default(15.0)
-  verificationStatus    VerificationStatus                  @default(PENDING)
+  serviceRadiusKm       Float                                  @default(15.0)
+  verificationStatus    VerificationStatus                     @default(PENDING)
+  // Towing / roadside capabilities
+  towingVehicleTypes    TowingVehicleType[]                    @default([])
+  maxVehicleWeightKg    Int?
+  towingBaseFee         Decimal?                               @db.Decimal(10, 2)
+  towingPerKmFee        Decimal?                               @db.Decimal(10, 2)
   verificationDocuments Json?
   verifiedBy            String?
   verifiedAt            DateTime?
   auditorNotes          String?
-  avgRating             Float                               @default(0.0)
-  totalReviews          Int                                 @default(0)
-  completedJobs         Int                                 @default(0)
-  isAvailable           Boolean                             @default(true)
+  avgRating             Float                                  @default(0.0)
+  totalReviews          Int                                    @default(0)
+  completedJobs         Int                                    @default(0)
+  isAvailable           Boolean                                @default(true)
   deletedAt             DateTime?
   quotations            Quotation[]
   bookings              Booking[]
   reviews               Review[]
   spareParts            SparePart[]
   threads               Thread[]
-  createdAt             DateTime                            @default(now())
-  updatedAt             DateTime                            @updatedAt
+  createdAt             DateTime                               @default(now())
+  updatedAt             DateTime                               @updatedAt
 
   @@index([verificationStatus])
   @@index([providerType])
@@ -209,29 +221,38 @@ model ProviderProfile {
 }
 
 model ServiceRequest {
-  id              String                                @id @default(uuid())
-  customerId      String
-  customer        CustomerProfile                       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  vehicleId       String
-  vehicle         Vehicle                               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  category        ServiceCategory
-  title           String
-  description     String
-  address         String
-  latitude        Float
-  longitude       Float
-  location        Unsupported("geography(Point, 4326)")?
-  urgency         Urgency                               @default(NORMAL)
-  status          ServiceRequestStatus                  @default(OPEN)
-  isBroadcast     Boolean                               @default(true)
-  fulfillmentType String?
-  expiresAt       DateTime
-  deletedAt       DateTime?
-  quotations      Quotation[]
-  media           RequestMedia[]
-  threads         Thread[]
-  createdAt       DateTime                              @default(now())
-  updatedAt       DateTime                              @updatedAt
+  id                  String                                 @id @default(uuid())
+  customerId          String
+  customer            CustomerProfile                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicleId           String
+  vehicle             Vehicle                                @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  category            ServiceCategory
+  title               String
+  description         String
+  address             String
+  latitude            Float
+  longitude           Float
+  location            Unsupported("geography(Point, 4326)")?
+  urgency             Urgency                                @default(NORMAL)
+  status              ServiceRequestStatus                   @default(OPEN)
+  isBroadcast         Boolean                                @default(true)
+  fulfillmentType     String?
+  // Towing fields
+  dropoffAddress      String?
+  dropoffLatitude     Float?
+  dropoffLongitude    Float?
+  dropoffLocation     Unsupported("geography(Point, 4326)")?
+  towingVehicleType   TowingVehicleType?
+  vehicleWeightKg     Int?
+  towingDistanceKm    Float?
+  towingEstimatedFare Decimal?                               @db.Decimal(10, 2)
+  expiresAt           DateTime
+  deletedAt           DateTime?
+  quotations          Quotation[]
+  media               RequestMedia[]
+  threads             Thread[]
+  createdAt           DateTime                               @default(now())
+  updatedAt           DateTime                               @updatedAt
 
   @@index([customerId])
   @@index([vehicleId])
@@ -287,25 +308,30 @@ model Quotation {
 }
 
 model Booking {
-  id              String          @id @default(uuid())
-  quotationId     String          @unique
-  quotation       Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
-  customerId      String
-  customer        CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  providerId      String
-  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  status          BookingStatus   @default(CONFIRMED)
-  scheduledAt     DateTime?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  completionNotes String?
-  trackingNumber  String?
-  carrierName     String?
-  deletedAt       DateTime?
-  payments        Payment[]
-  review          Review?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                        String          @id @default(uuid())
+  quotationId               String          @unique
+  quotation                 Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  customerId                String
+  customer                  CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  providerId                String
+  provider                  ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  status                    BookingStatus   @default(CONFIRMED)
+  scheduledAt               DateTime?
+  startedAt                 DateTime?
+  completedAt               DateTime?
+  completionNotes           String?
+  trackingNumber            String?
+  carrierName               String?
+  // Live tracking (updated by the provider while the job is active)
+  providerLatitude          Float?
+  providerLongitude         Float?
+  providerLocationUpdatedAt DateTime?
+  etaMinutes                Int?
+  deletedAt                 DateTime?
+  payments                  Payment[]
+  review                    Review?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
 
   @@index([customerId])
   @@index([providerId])
@@ -400,12 +426,12 @@ model RefreshToken {
 }
 
 model WebhookEvent {
-  id          String   @id @default(uuid())
-  eventId     String   @unique
-  provider    String   @default("RAZORPAY")
+  id          String    @id @default(uuid())
+  eventId     String    @unique
+  provider    String    @default("RAZORPAY")
   eventType   String
   payload     Json
-  processedAt DateTime @default(now())
+  processedAt DateTime  @default(now())
   deletedAt   DateTime?
 
   @@map("webhook_events")
@@ -470,14 +496,14 @@ model Notification {
 }
 
 model PushToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token     String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
   deviceOs  String?
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId])
   @@index([deletedAt])
@@ -489,17 +515,17 @@ model PushToken {
 // ---------------------------------------------------------------------------
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  actorId     String?
-  actorRole   String?
-  action      String   // e.g. "provider.verify", "payment.release", "booking.status.update"
-  entityType  String   // e.g. "ProviderProfile", "Payment", "Booking"
-  entityId    String
-  oldValues   Json?
-  newValues   Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorRole  String?
+  action     String // e.g. "provider.verify", "payment.release", "booking.status.update"
+  entityType String // e.g. "ProviderProfile", "Payment", "Booking"
+  entityId   String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([actorId])
   @@index([action])
@@ -509,39 +535,36 @@ model AuditLog {
 }
 
 model OTP {
-  id        String   @id @default(uuid())
-  phone     String   @unique
-  code      String   // 6-digit OTP
-  purpose   String   // "login", "register", "reset_password"
-  attempts  Int      @default(0)
-  maxAttempts Int @default(5)
-  expiresAt DateTime
-  verifiedAt DateTime?
-  createdAt DateTime @default(now())
+  id          String    @id @default(uuid())
+  phone       String    @unique
+  code        String // 6-digit OTP
+  purpose     String // "login", "register", "reset_password"
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([expiresAt])
   @@map("otps")
 }
 
 model IdempotencyKey {
-  id        String   @id @default(uuid())
-  key       String   @unique  // The idempotency key value (client-generated)
-  endpoint  String   // The API endpoint path
-  method    String   // HTTP method
-  userId    String?  // The user who made the request (if authenticated)
-  status    String   @default("PENDING") // PENDING, PROCESSED, FAILED
-  requestHash String? // Hash of request body for deduplication
-  responseStatus  Int?  // HTTP status of the original response
-  responseBody   Json?  // Serialized response body
-  createdAt DateTime @default(now())
-  processedAt DateTime?
-  expiresAt DateTime  // TTL for cleanup (e.g., 24 hours)
+  id             String    @id @default(uuid())
+  key            String    @unique // The idempotency key value (client-generated)
+  endpoint       String // The API endpoint path
+  method         String // HTTP method
+  userId         String? // The user who made the request (if authenticated)
+  status         String    @default("PENDING") // PENDING, PROCESSED, FAILED
+  requestHash    String? // Hash of request body for deduplication
+  responseStatus Int? // HTTP status of the original response
+  responseBody   Json? // Serialized response body
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+  expiresAt      DateTime // TTL for cleanup (e.g., 24 hours)
 
   @@index([userId])
   @@index([endpoint])
   @@index([expiresAt])
   @@map("idempotency_keys")
 }
-
-
-

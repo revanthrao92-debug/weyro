@@ -158,6 +158,42 @@ async function main() {
     include: { providerProfile: true },
   });
 
+  const provider3User = await prisma.user.upsert({
+    where: { email: 'dispatch@bengalurutow24.in' },
+    update: { passwordHash },
+    create: {
+      email: 'dispatch@bengalurutow24.in',
+      phone: '+919845067788',
+      passwordHash,
+      role: 'PROVIDER',
+      emailVerified: true,
+      phoneVerified: true,
+      isActive: true,
+      providerProfile: {
+        create: {
+          businessName: 'Bengaluru Tow 24x7',
+          providerType: 'TOWING',
+          description: '24x7 flatbed and hook-and-chain towing across Bengaluru with live driver tracking.',
+          phone: '+919845067788',
+          address: 'Hosur Road, Bommanahalli, Bengaluru, Karnataka 560068',
+          latitude: 12.9010,
+          longitude: 77.6220,
+          serviceRadiusKm: 40,
+          verificationStatus: 'VERIFIED',
+          avgRating: 4.7,
+          totalReviews: 39,
+          completedJobs: 210,
+          isAvailable: true,
+          towingVehicleTypes: ['FLATBED', 'HOOK_AND_CHAIN'],
+          maxVehicleWeightKg: 3500,
+          towingBaseFee: 500,
+          towingPerKmFee: 40,
+        },
+      },
+    },
+    include: { providerProfile: true },
+  });
+
   // 5. Create Active Service Request
   let request = await prisma.serviceRequest.findFirst({
     where: { customerId: customerProfileId, title: 'Front Bumper & Headlight Assembly Replacement' },
@@ -189,6 +225,51 @@ async function main() {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+  }
+
+  // 5b. Create an open towing request for the towing feed
+  let towingRequest = await prisma.serviceRequest.findFirst({
+    where: {
+      customerId: customerProfileId,
+      title: 'Vehicle Towing Required - Flatbed',
+    },
+  });
+
+  if (!towingRequest) {
+    towingRequest = await prisma.serviceRequest.create({
+      data: {
+        customerId: customerProfileId,
+        vehicleId: vehicle.id,
+        category: 'TOWING',
+        title: 'Vehicle Towing Required - Flatbed',
+        description:
+          'Sedan will not start after overheating. Needs a flatbed tow to the workshop in Koramangala.',
+        address: 'Indiranagar, Bengaluru, Karnataka',
+        latitude: 12.9784,
+        longitude: 77.6408,
+        urgency: 'EMERGENCY',
+        status: 'OPEN',
+        isBroadcast: true,
+        fulfillmentType: 'TOW_TO_GARAGE',
+        dropoffAddress: '5th Block, Koramangala, Bengaluru, Karnataka 560095',
+        dropoffLatitude: 12.9352,
+        dropoffLongitude: 77.6245,
+        towingVehicleType: 'FLATBED',
+        vehicleWeightKg: 1450,
+        towingDistanceKm: 5.12,
+        towingEstimatedFare: 705,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await prisma.$executeRaw`
+      UPDATE "service_requests"
+      SET "dropoffLocation" = ST_SetSRID(
+        ST_MakePoint(${77.6245}, ${12.9352}),
+        4326
+      )::geography
+      WHERE "id" = ${towingRequest.id}
+    `;
   }
 
   // 6. Create Verified Quotation and Booking
@@ -242,6 +323,9 @@ async function main() {
     console.log(`📋 Created confirmed booking in INR: ${booking.id}`);
   }
 
+  console.log(
+    `🚛 Towing provider ready: ${provider3User.providerProfile?.businessName} (${towingRequest.towingDistanceKm} km demo request)`,
+  );
   console.log(`✅ Seeding complete. All mock US/USD data replaced with India (INR/UPI/+91).`);
 }
 

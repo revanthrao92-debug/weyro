@@ -86,6 +86,10 @@ export class AuthService {
                   latitude: dto.latitude as number,
                   longitude: dto.longitude as number,
                   verificationStatus: 'PENDING',
+                  towingVehicleTypes: dto.towingVehicleTypes ?? [],
+                  maxVehicleWeightKg: dto.maxVehicleWeightKg,
+                  towingBaseFee: dto.towingBaseFee,
+                  towingPerKmFee: dto.towingPerKmFee,
                 },
               }
             : undefined,

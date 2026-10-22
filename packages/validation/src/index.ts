@@ -24,6 +24,13 @@ export const RegisterSchema = z
     address: z.string().optional(),
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),
+    towingVehicleTypes: z
+      .array(z.enum(['FLATBED', 'HOOK_AND_CHAIN', 'MOTORCYCLE', 'ANY']))
+      .max(4)
+      .optional(),
+    maxVehicleWeightKg: z.number().int().min(50).max(50000).optional(),
+    towingBaseFee: z.number().min(0).max(100000).optional(),
+    towingPerKmFee: z.number().min(0).max(10000).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -35,6 +42,16 @@ export const RegisterSchema = z
         code: z.ZodIssueCode.custom,
         path: ['latitude'],
         message: 'Provider registration requires latitude and longitude',
+      });
+    }
+    if (
+      data.providerType === 'TOWING' &&
+      (!data.towingVehicleTypes || data.towingVehicleTypes.length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['towingVehicleTypes'],
+        message: 'Select at least one towing vehicle type',
       });
     }
   });
@@ -97,9 +114,45 @@ export const CreateServiceRequestSchema = z
     fulfillmentType: z
       .enum(['ON_SITE', 'WORKSHOP_VISIT', 'PARTS_SHIPPING', 'TOW_TO_GARAGE'])
       .optional(),
+    // Towing details (required when category === 'TOWING')
+    dropoffAddress: z.string().min(3).max(500).optional(),
+    dropoffLatitude: z.number().min(-90).max(90).optional(),
+    dropoffLongitude: z.number().min(-180).max(180).optional(),
+    towingVehicleType: z
+      .enum(['FLATBED', 'HOOK_AND_CHAIN', 'MOTORCYCLE', 'ANY'])
+      .optional(),
+    vehicleWeightKg: z.number().int().min(50).max(50000).optional(),
     expiresInDays: z.number().int().min(1).max(30).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.category !== 'TOWING') return;
+
+    if (data.dropoffAddress === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dropoffAddress'],
+        message: 'Towing requests require a dropoff address',
+      });
+    }
+    if (
+      data.dropoffLatitude === undefined ||
+      data.dropoffLongitude === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dropoffLatitude'],
+        message: 'Towing requests require dropoff coordinates',
+      });
+    }
+    if (data.towingVehicleType === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['towingVehicleType'],
+        message: 'Select the towing equipment required',
+      });
+    }
+  });
 
 // Quotation validation (Note: totalCost is computed server-side, providerId is derived from JWT)
 export const CreateQuotationSchema = z
@@ -114,6 +167,15 @@ export const CreateQuotationSchema = z
       .enum(['PICKUP', 'DOORSTEP_DELIVERY', 'PARTS_COURIER', 'ON_SITE_FITMENT'])
       .optional(),
     notes: z.string().max(1000).optional(),
+  })
+  .strict();
+
+// Live provider tracking
+export const UpdateBookingLocationSchema = z
+  .object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    etaMinutes: z.number().int().min(0).max(24 * 60).optional(),
   })
   .strict();
 
@@ -204,4 +266,5 @@ export type CreateServiceRequestInput = z.infer<typeof CreateServiceRequestSchem
 export type CreateQuotationInput = z.infer<typeof CreateQuotationSchema>;
 export type AcceptQuotationInput = z.infer<typeof AcceptQuotationSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof UpdateBookingStatusSchema>;
+export type UpdateBookingLocationInput = z.infer<typeof UpdateBookingLocationSchema>;
 export type VerifyProviderInput = z.infer<typeof VerifyProviderSchema>;

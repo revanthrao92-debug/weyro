@@ -59,6 +59,54 @@ export type ProviderType =
 
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
+export type TowingVehicleType = 'FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY';
+
+/**
+ * Platform towing tariff. Providers may override with their own base/per-km
+ * fees; this is the fallback used to show customers an upfront estimate.
+ */
+export const TOWING_TARIFF = {
+  baseFee: 500,
+  perKmFee: 40,
+  minimumFare: 500,
+} as const;
+
+export function haversineDistanceKm(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+): number {
+  const R = 6371;
+  const dLat = ((to.latitude - from.latitude) * Math.PI) / 180;
+  const dLng = ((to.longitude - from.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((from.latitude * Math.PI) / 180) *
+      Math.cos((to.latitude * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return Number((2 * R * Math.asin(Math.sqrt(a))).toFixed(2));
+}
+
+export function estimateTowingFare(
+  distanceKm: number,
+  tariff: { baseFee: number; perKmFee: number; minimumFare: number } = TOWING_TARIFF,
+): number {
+  const raw = tariff.baseFee + tariff.perKmFee * Math.max(0, distanceKm);
+  return Math.max(tariff.minimumFare, Math.round(raw));
+}
+
+/**
+ * Which request categories a provider type is eligible to see/quote on.
+ * Used by the broadcast feed and by client-side filtering.
+ */
+export const PROVIDER_TYPE_CATEGORIES: Record<ProviderType, ServiceCategory[]> = {
+  MECHANIC: ['REPAIR', 'MAINTENANCE', 'INSPECTION'],
+  GARAGE: ['REPAIR', 'MAINTENANCE', 'INSPECTION'],
+  AUTHORIZED_CENTER: ['REPAIR', 'MAINTENANCE', 'INSPECTION'],
+  PARTS_DEALER: ['SPARE_PART'],
+  TOWING: ['TOWING'],
+  ROADSIDE: ['ROADSIDE'],
+};
+
 export interface ProviderProfile {
   id: string;
   userId: string;
@@ -76,6 +124,10 @@ export interface ProviderProfile {
   totalReviews: number;
   completedJobs: number;
   isAvailable: boolean;
+  towingVehicleTypes?: TowingVehicleType[];
+  maxVehicleWeightKg?: number;
+  towingBaseFee?: number;
+  towingPerKmFee?: number;
 }
 
 // Service Request
@@ -118,6 +170,13 @@ export interface ServiceRequest {
   damagePhotos: string[];
   isBroadcast: boolean;
   fulfillmentType?: 'ON_SITE' | 'WORKSHOP_VISIT' | 'PARTS_SHIPPING' | 'TOW_TO_GARAGE';
+  dropoffAddress?: string;
+  dropoffLatitude?: number;
+  dropoffLongitude?: number;
+  towingVehicleType?: TowingVehicleType;
+  vehicleWeightKg?: number;
+  towingDistanceKm?: number;
+  towingEstimatedFare?: number;
   expiresAt: string;
   createdAt: string;
   quotationsCount?: number;

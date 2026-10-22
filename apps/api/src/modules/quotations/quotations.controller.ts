@@ -14,6 +14,8 @@ import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
+import { UpdateBookingLocationDto } from './dto/update-booking-location.dto';
+import { TrackingGateway } from './tracking.gateway';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -29,7 +31,10 @@ import {
 
 @Controller()
 export class QuotationsController {
-  constructor(private readonly service: QuotationsService) {}
+  constructor(
+    private readonly service: QuotationsService,
+    private readonly tracking: TrackingGateway,
+  ) {}
 
   @Post('damage-requests/:requestId/quotations')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
@@ -93,10 +98,46 @@ export class QuotationsController {
     @CurrentUser() user: AuthUserPayload,
     @Body() body: UpdateBookingStatusDto,
   ) {
-    return this.service.updateStatus(id, user, body.status, {
+    const updated = await this.service.updateStatus(id, user, body.status, {
       trackingNumber: body.trackingNumber,
       carrierName: body.carrierName,
     });
+    this.tracking.emitStatus(id, updated.status);
+    return updated;
+  }
+
+  @Patch(['bookings/:id/location', 'quotations/bookings/:id/location'])
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async updateLocation(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Body() body: UpdateBookingLocationDto,
+  ) {
+    const location = await this.service.updateLocation(id, user, {
+      latitude: body.latitude,
+      longitude: body.longitude,
+      etaMinutes: body.etaMinutes,
+    });
+
+    this.tracking.emitLocation(id, {
+      latitude: location.providerLatitude as number,
+      longitude: location.providerLongitude as number,
+      etaMinutes: location.etaMinutes ?? null,
+      updatedAt: (
+        location.providerLocationUpdatedAt ?? new Date()
+      ).toISOString(),
+    });
+
+    return location;
+  }
+
+  @Get(['bookings/:id/tracking', 'quotations/bookings/:id/tracking'])
+  async getTracking(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.getTracking(id, user);
   }
 
   @Post(['bookings/:id/reviews', 'quotations/bookings/:id/reviews'])

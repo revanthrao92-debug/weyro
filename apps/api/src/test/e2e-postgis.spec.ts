@@ -130,6 +130,59 @@ describe('PostGIS & Soft Delete E2E', () => {
       expect(rows).toHaveLength(1);
       expect(Number(rows[0].distance)).toBeCloseTo(0, 3);
     });
+
+    it('stores towing dropoff geography and fare fields', async () => {
+      const request = await prisma.serviceRequest.create({
+        data: {
+          customerId: customerProfileId,
+          vehicleId,
+          category: 'TOWING',
+          title: 'E2E towing request',
+          description: 'Flatbed tow required',
+          address: 'Indiranagar, Bengaluru',
+          latitude: 12.9784,
+          longitude: 77.6408,
+          urgency: 'URGENT',
+          status: 'OPEN',
+          isBroadcast: true,
+          fulfillmentType: 'TOW_TO_GARAGE',
+          dropoffAddress: 'Koramangala, Bengaluru',
+          dropoffLatitude: 12.9352,
+          dropoffLongitude: 77.6245,
+          towingVehicleType: 'FLATBED',
+          vehicleWeightKg: 1450,
+          towingDistanceKm: 5.12,
+          towingEstimatedFare: 705,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      await prisma.$executeRaw`
+        UPDATE "service_requests"
+        SET "dropoffLocation" = ST_SetSRID(
+          ST_MakePoint(77.6245, 12.9352),
+          4326
+        )::geography
+        WHERE "id" = ${request.id}
+      `;
+
+      const rows = await prisma.$queryRaw<
+        Array<{ distance: number; fare: number }>
+      >`
+        SELECT
+          ST_Distance(
+            "dropoffLocation",
+            ST_GeogFromText('SRID=4326;POINT(77.6408 12.9784)')
+          ) / 1000 AS distance,
+          "towingEstimatedFare" AS fare
+        FROM "service_requests"
+        WHERE "id" = ${request.id}
+      `;
+
+      expect(rows).toHaveLength(1);
+      expect(Number(rows[0].distance)).toBeGreaterThan(5);
+      expect(Number(rows[0].fare)).toBe(705);
+    });
   });
 
   describe('Soft delete behavior', () => {

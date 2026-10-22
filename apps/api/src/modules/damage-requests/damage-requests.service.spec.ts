@@ -12,7 +12,11 @@ describe('DamageRequestsService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
       },
+      providerProfile: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       $queryRaw: jest.fn(),
+      $executeRaw: jest.fn().mockResolvedValue(1),
     };
 
     service = new DamageRequestsService(mockPrisma);
@@ -82,6 +86,38 @@ describe('DamageRequestsService', () => {
         }),
       );
     });
+
+    it('computes a distance-based fare and persists dropoff for towing', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({
+        id: 'req-tow-2',
+        media: [],
+        vehicle: { id: 'veh-1' },
+      });
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        category: 'TOWING',
+        title: 'Vehicle towing required',
+        description: 'Tow from Indiranagar to Whitefield.',
+        address: 'Indiranagar, Bengaluru',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        dropoffAddress: 'Whitefield, Bengaluru',
+        dropoffLatitude: 12.9698,
+        dropoffLongitude: 77.7499,
+        towingVehicleType: 'FLATBED',
+        vehicleWeightKg: 1800,
+        damagePhotos: [],
+      } as any);
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.dropoffAddress).toBe('Whitefield, Bengaluru');
+      expect(data.towingVehicleType).toBe('FLATBED');
+      expect(data.vehicleWeightKg).toBe(1800);
+      expect(data.towingDistanceKm).toBeGreaterThan(0);
+      expect(data.towingEstimatedFare).toBeGreaterThanOrEqual(500);
+      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+    });
   });
 
   describe('getBroadcastFeed', () => {
@@ -130,6 +166,51 @@ describe('DamageRequestsService', () => {
 
       expect(mockPrisma.$queryRaw).toHaveBeenCalled();
       expect(result.items[0].distanceKm).toBe(3.45);
+    });
+
+    it('filters the feed by provider type and towing capability', async () => {
+      mockPrisma.providerProfile.findUnique.mockResolvedValue({
+        providerType: 'TOWING',
+        towingVehicleTypes: ['FLATBED'],
+        maxVehicleWeightKg: 3500,
+      });
+      mockPrisma.serviceRequest.findMany.mockResolvedValue([]);
+
+      await service.getBroadcastFeed({ providerId: 'prov-tow' });
+
+      const where = mockPrisma.serviceRequest.findMany.mock.calls[0][0].where;
+      expect(where.category).toEqual({ in: ['TOWING'] });
+      expect(where.OR).toEqual(
+        expect.arrayContaining([
+          { towingVehicleType: null },
+          { towingVehicleType: 'ANY' },
+          { towingVehicleType: { in: ['FLATBED'] } },
+        ]),
+      );
+      expect(where.AND).toEqual([
+        {
+          OR: [
+            { vehicleWeightKg: null },
+            { vehicleWeightKg: { lte: 3500 } },
+          ],
+        },
+      ]);
+    });
+
+    it('returns an empty feed when the category does not match the provider type', async () => {
+      mockPrisma.providerProfile.findUnique.mockResolvedValue({
+        providerType: 'PARTS_DEALER',
+        towingVehicleTypes: [],
+        maxVehicleWeightKg: null,
+      });
+
+      const result = await service.getBroadcastFeed({
+        providerId: 'prov-parts',
+        category: 'TOWING',
+      });
+
+      expect(result).toEqual({ items: [], nextCursor: null });
+      expect(mockPrisma.serviceRequest.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -180,6 +261,9 @@ describe('DamageRequestsService authorization regressions', () => {
       serviceRequest: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+      },
+      providerProfile: {
+        findUnique: jest.fn().mockResolvedValue(null),
       },
       $queryRaw: jest.fn(),
     };
@@ -290,5 +374,23 @@ describe('DamageRequestsService authorization regressions', () => {
 
     expect(result).toEqual({ items: [], nextCursor: null });
     expect(mockPrisma.serviceRequest.findMany).not.toHaveBeenCalled();
+  });
+
+  it('forbids a provider from opening a request outside its category', async () => {
+    mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+      id: 'req-tow',
+      customerId: 'cust-1',
+      category: 'TOWING',
+      address: '1 Main Road, Whitefield, Bengaluru',
+      customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
+      quotations: [],
+    });
+    mockPrisma.providerProfile.findUnique.mockResolvedValue({
+      providerType: 'MECHANIC',
+    });
+
+    await expect(
+      service.findOne('req-tow', providerUser as any),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

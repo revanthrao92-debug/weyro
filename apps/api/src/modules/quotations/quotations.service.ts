@@ -18,6 +18,12 @@ import {
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
+  estimateTowingFare,
+  haversineDistanceKm,
+  PROVIDER_TYPE_CATEGORIES,
+  TOWING_TARIFF,
+} from '@weyro/api-contracts';
+import {
   buildCursorWhere,
   decodeCursor,
   encodeCursor,
@@ -57,11 +63,83 @@ export class QuotationsService {
       throw new BadRequestException('Cannot submit quotation: request has expired');
     }
 
-    // Compute total cost server-side
-    const parts = Number(dto.partsCost || 0);
-    const labour = Number(dto.labourCost || 0);
-    const shipping = Number(dto.shippingCost || 0);
-    const totalCost = parts + labour + shipping;
+    const providerProfile = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: {
+        providerType: true,
+        towingVehicleTypes: true,
+        maxVehicleWeightKg: true,
+        towingBaseFee: true,
+        towingPerKmFee: true,
+      },
+    });
+
+    // Enforce category / equipment / capacity matching before quoting.
+    if (providerProfile) {
+      const allowedCategories =
+        PROVIDER_TYPE_CATEGORIES[providerProfile.providerType];
+      if (
+        allowedCategories &&
+        !allowedCategories.includes(request.category)
+      ) {
+        throw new ForbiddenException(
+          'This request does not match your provider service category',
+        );
+      }
+
+      if (request.category === 'TOWING') {
+        const supported = providerProfile.towingVehicleTypes ?? [];
+        if (
+          supported.length > 0 &&
+          !supported.includes('ANY') &&
+          request.towingVehicleType &&
+          request.towingVehicleType !== 'ANY' &&
+          !supported.includes(request.towingVehicleType)
+        ) {
+          throw new BadRequestException(
+            'Your towing equipment does not match this request',
+          );
+        }
+
+        if (
+          typeof providerProfile.maxVehicleWeightKg === 'number' &&
+          typeof request.vehicleWeightKg === 'number' &&
+          request.vehicleWeightKg > providerProfile.maxVehicleWeightKg
+        ) {
+          throw new BadRequestException(
+            'This vehicle exceeds your maximum towing capacity',
+          );
+        }
+      }
+    }
+
+    // Compute total cost server-side. Towing is priced from distance using the
+    // provider's tariff (falling back to the platform tariff) rather than a
+    // free-form job quote.
+    let parts = Number(dto.partsCost || 0);
+    let labour = Number(dto.labourCost || 0);
+    let shipping = Number(dto.shippingCost || 0);
+    let totalCost = parts + labour + shipping;
+
+    if (request.category === 'TOWING') {
+      const baseFee =
+        providerProfile?.towingBaseFee != null
+          ? Number(providerProfile.towingBaseFee)
+          : TOWING_TARIFF.baseFee;
+      const perKmFee =
+        providerProfile?.towingPerKmFee != null
+          ? Number(providerProfile.towingPerKmFee)
+          : TOWING_TARIFF.perKmFee;
+
+      totalCost = estimateTowingFare(request.towingDistanceKm ?? 0, {
+        baseFee,
+        perKmFee,
+        minimumFare: TOWING_TARIFF.minimumFare,
+      });
+      parts = 0;
+      labour = totalCost;
+      shipping = 0;
+    }
 
     // The unique constraint on (requestId, providerId) is the source of truth for
     // duplicate quotes. Re-check request state inside the transaction so a request
@@ -562,6 +640,123 @@ export class QuotationsService {
     }
 
     return updated;
+  }
+
+  async updateLocation(
+    bookingId: string,
+    user: AuthUserPayload,
+    input: { latitude: number; longitude: number; etaMinutes?: number },
+  ) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { quotation: { include: { request: true } } },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+    }
+
+    const isProviderOwner =
+      user.providerProfileId && booking.providerId === user.providerProfileId;
+    const isAdmin = user.role === 'ADMIN';
+
+    if (!isProviderOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'Only the assigned provider can share location for this booking',
+      );
+    }
+
+    if (
+      booking.status === 'COMPLETED' ||
+      booking.status === 'CANCELLED' ||
+      booking.status === 'DISPUTED'
+    ) {
+      throw new BadRequestException(
+        `Cannot share location for a ${booking.status.toLowerCase()} booking`,
+      );
+    }
+
+    const request = booking.quotation?.request;
+    let etaMinutes = input.etaMinutes;
+    if (etaMinutes === undefined && request) {
+      const isTowing = request.category === 'TOWING';
+      const headingToDropoff =
+        isTowing && booking.status === 'IN_PROGRESS';
+      const destination =
+        headingToDropoff &&
+        typeof request.dropoffLatitude === 'number' &&
+        typeof request.dropoffLongitude === 'number'
+          ? {
+              latitude: request.dropoffLatitude,
+              longitude: request.dropoffLongitude,
+            }
+          : { latitude: request.latitude, longitude: request.longitude };
+
+      // Assume 30 km/h average city speed for a conservative ETA.
+      const distanceKm = haversineDistanceKm(
+        { latitude: input.latitude, longitude: input.longitude },
+        destination,
+      );
+      etaMinutes = Math.max(1, Math.ceil((distanceKm / 30) * 60));
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        providerLatitude: input.latitude,
+        providerLongitude: input.longitude,
+        providerLocationUpdatedAt: new Date(),
+        etaMinutes: etaMinutes ?? booking.etaMinutes,
+      },
+      select: {
+        id: true,
+        status: true,
+        providerLatitude: true,
+        providerLongitude: true,
+        providerLocationUpdatedAt: true,
+        etaMinutes: true,
+      },
+    });
+
+    return updated;
+  }
+
+  async getTracking(bookingId: string, user: AuthUserPayload) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        status: true,
+        customerId: true,
+        providerId: true,
+        providerLatitude: true,
+        providerLongitude: true,
+        providerLocationUpdatedAt: true,
+        etaMinutes: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+    }
+
+    const canAccess =
+      user.role === 'ADMIN' ||
+      (user.customerProfileId && user.customerProfileId === booking.customerId) ||
+      (user.providerProfileId && user.providerProfileId === booking.providerId);
+
+    if (!canAccess) {
+      throw new ForbiddenException('You do not have access to this booking');
+    }
+
+    return {
+      bookingId: booking.id,
+      status: booking.status,
+      providerLatitude: booking.providerLatitude,
+      providerLongitude: booking.providerLongitude,
+      providerLocationUpdatedAt: booking.providerLocationUpdatedAt,
+      etaMinutes: booking.etaMinutes,
+    };
   }
 
   async addReview(

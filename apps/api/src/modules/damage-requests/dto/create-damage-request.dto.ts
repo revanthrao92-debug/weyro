@@ -33,5 +33,10 @@ export class CreateDamageRequestDto implements CreateServiceRequestInput {
     | 'WORKSHOP_VISIT'
     | 'PARTS_SHIPPING'
     | 'TOW_TO_GARAGE';
+  dropoffAddress?: string;
+  dropoffLatitude?: number;
+  dropoffLongitude?: number;
+  towingVehicleType?: 'FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY';
+  vehicleWeightKg?: number;
   expiresInDays?: number;
 }

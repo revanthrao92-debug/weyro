@@ -133,6 +133,12 @@ export interface ProviderFeedQueryParams {
   providerLng?: number;
   radiusKm?: number;
   category?: string;
+  /** Categories the provider is eligible for (from PROVIDER_TYPE_CATEGORIES). */
+  categories?: string[];
+  /** Towing equipment the provider supports; omit when unrestricted. */
+  towingVehicleTypes?: string[];
+  /** Provider's maximum vehicle weight; omit when unrestricted. */
+  maxVehicleWeightKg?: number;
   limit?: number;
   cursorCreatedAt?: Date;
   cursorId?: string;
@@ -150,6 +156,9 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     providerLng,
     radiusKm = 25,
     category,
+    categories,
+    towingVehicleTypes,
+    maxVehicleWeightKg,
     limit = 20,
     cursorCreatedAt,
     cursorId,
@@ -162,6 +171,35 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     ? Prisma.sql`ST_SetSRID(ST_MakePoint(${providerLng}, ${providerLat}), 4326)::geography`
     : null;
 
+  const categorySql = categories?.length
+    ? Prisma.sql`AND sr.category IN (${Prisma.join(
+        categories.map((c) => Prisma.sql`${c}::"ServiceCategory"`),
+      )})`
+    : category
+      ? Prisma.sql`AND sr.category = ${category}::"ServiceCategory"`
+      : Prisma.empty;
+
+  const towingSql =
+    towingVehicleTypes?.length
+      ? Prisma.sql`AND (
+          sr.category <> 'TOWING'
+          OR sr."towingVehicleType" IS NULL
+          OR sr."towingVehicleType" = 'ANY'
+          OR sr."towingVehicleType" IN (${Prisma.join(
+            towingVehicleTypes.map((t) => Prisma.sql`${t}::"TowingVehicleType"`),
+          )})
+        )`
+      : Prisma.empty;
+
+  const weightSql =
+    typeof maxVehicleWeightKg === 'number'
+      ? Prisma.sql`AND (
+          sr.category <> 'TOWING'
+          OR sr."vehicleWeightKg" IS NULL
+          OR sr."vehicleWeightKg" <= ${maxVehicleWeightKg}
+        )`
+      : Prisma.empty;
+
   return Prisma.sql`
     SELECT 
       sr.id,
@@ -173,6 +211,13 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       sr."isBroadcast",
       (SELECT COALESCE(array_agg(rm.url), ARRAY[]::text[]) FROM request_media rm WHERE rm."requestId" = sr.id) AS "damagePhotos",
       sr."fulfillmentType",
+      sr."dropoffAddress",
+      sr."dropoffLatitude",
+      sr."dropoffLongitude",
+      sr."towingVehicleType",
+      sr."vehicleWeightKg",
+      sr."towingDistanceKm",
+      sr."towingEstimatedFare",
       sr.address,
       sr.latitude,
       sr.longitude,
@@ -192,7 +237,9 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     FROM service_requests sr
     WHERE sr.status = 'OPEN'
       AND sr."expiresAt" > NOW()
-      ${category ? Prisma.sql`AND sr.category = ${category}::"ServiceCategory"` : Prisma.empty}
+      ${categorySql}
+      ${towingSql}
+      ${weightSql}
       ${
         hasCoordinates && pointGeog
           ? Prisma.sql`AND (

@@ -3,6 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  estimateTowingFare,
+  haversineDistanceKm,
+  PROVIDER_TYPE_CATEGORIES,
+} from '@weyro/api-contracts';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
@@ -60,6 +65,24 @@ export class DamageRequestsService {
         ? 'REPAIR'
         : rawCategory;
 
+    const isTowing = category === 'TOWING';
+    const towingDistanceKm =
+      isTowing &&
+      typeof dto.dropoffLatitude === 'number' &&
+      typeof dto.dropoffLongitude === 'number'
+        ? haversineDistanceKm(
+            { latitude: dto.latitude, longitude: dto.longitude },
+            {
+              latitude: dto.dropoffLatitude,
+              longitude: dto.dropoffLongitude,
+            },
+          )
+        : undefined;
+    const towingEstimatedFare =
+      towingDistanceKm !== undefined
+        ? estimateTowingFare(towingDistanceKm)
+        : undefined;
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
@@ -76,7 +99,15 @@ export class DamageRequestsService {
         urgency: dto.urgency || 'URGENT',
         status: 'OPEN',
         isBroadcast: dto.isBroadcast !== false,
-        fulfillmentType: dto.fulfillmentType || 'PARTS_SHIPPING',
+        fulfillmentType:
+          dto.fulfillmentType || (isTowing ? 'TOW_TO_GARAGE' : 'PARTS_SHIPPING'),
+        dropoffAddress: isTowing ? dto.dropoffAddress : undefined,
+        dropoffLatitude: isTowing ? dto.dropoffLatitude : undefined,
+        dropoffLongitude: isTowing ? dto.dropoffLongitude : undefined,
+        towingVehicleType: isTowing ? dto.towingVehicleType : undefined,
+        vehicleWeightKg: isTowing ? dto.vehicleWeightKg : undefined,
+        towingDistanceKm,
+        towingEstimatedFare,
         expiresAt,
         media:
           (dto.mediaUrls?.length || dto.damagePhotos?.length)
@@ -94,6 +125,22 @@ export class DamageRequestsService {
         quotations: true,
       },
     });
+
+    // `dropoffLocation` is an Unsupported(...) column, so write it via raw SQL.
+    if (
+      isTowing &&
+      typeof dto.dropoffLongitude === 'number' &&
+      typeof dto.dropoffLatitude === 'number'
+    ) {
+      await this.prisma.$executeRaw`
+        UPDATE "service_requests"
+        SET "dropoffLocation" = ST_SetSRID(
+          ST_MakePoint(${dto.dropoffLongitude}, ${dto.dropoffLatitude}),
+          4326
+        )::geography
+        WHERE "id" = ${created.id}
+      `;
+    }
 
     return this.formatRequest(created);
   }
@@ -151,6 +198,41 @@ export class DamageRequestsService {
   }) {
     const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
 
+    // Match requests to what this provider can actually service.
+    const provider = params.providerId
+      ? await this.prisma.providerProfile.findUnique({
+          where: { id: params.providerId },
+          select: {
+            providerType: true,
+            towingVehicleTypes: true,
+            maxVehicleWeightKg: true,
+          },
+        })
+      : null;
+
+    const allowedCategories = provider
+      ? PROVIDER_TYPE_CATEGORIES[provider.providerType]
+      : undefined;
+
+    let categories: string[] | undefined;
+    if (allowedCategories) {
+      categories = params.category
+        ? allowedCategories.filter((c) => c === params.category)
+        : [...allowedCategories];
+      if (categories.length === 0) {
+        return { items: [], nextCursor: null };
+      }
+    } else if (params.category) {
+      categories = [params.category];
+    }
+
+    const towingVehicleTypes =
+      provider?.towingVehicleTypes?.length &&
+      !provider.towingVehicleTypes.includes('ANY')
+        ? provider.towingVehicleTypes
+        : undefined;
+    const maxVehicleWeightKg = provider?.maxVehicleWeightKg ?? undefined;
+
     if (
       typeof params.providerLat === 'number' &&
       typeof params.providerLng === 'number'
@@ -167,7 +249,9 @@ export class DamageRequestsService {
         providerLat: params.providerLat,
         providerLng: params.providerLng,
         radiusKm: params.radiusKm || 25,
-        category: params.category,
+        categories,
+        towingVehicleTypes,
+        maxVehicleWeightKg,
         limit: boundedLimit,
         cursorCreatedAt: cursorItem?.createdAt,
         cursorId: cursorItem?.id,
@@ -193,8 +277,25 @@ export class DamageRequestsService {
       isBroadcast: true,
       expiresAt: { gt: new Date() },
     };
-    if (params.category) {
-      where.category = params.category;
+    if (categories) {
+      where.category = { in: categories };
+    }
+    if (towingVehicleTypes) {
+      where.OR = [
+        { towingVehicleType: null },
+        { towingVehicleType: 'ANY' },
+        { towingVehicleType: { in: towingVehicleTypes } },
+      ];
+    }
+    if (typeof maxVehicleWeightKg === 'number') {
+      where.AND = [
+        {
+          OR: [
+            { vehicleWeightKg: null },
+            { vehicleWeightKg: { lte: maxVehicleWeightKg } },
+          ],
+        },
+      ];
     }
 
     const requests = await this.prisma.serviceRequest.findMany({
@@ -278,6 +379,26 @@ export class DamageRequestsService {
     );
 
     const hasAcceptedBooking = Boolean(acceptedQuotationForProvider);
+
+    // Providers can only open requests that match their service category.
+    if (
+      user.providerProfileId &&
+      !isCustomerOwner &&
+      !isAdmin
+    ) {
+      const provider = await this.prisma.providerProfile.findUnique({
+        where: { id: user.providerProfileId },
+        select: { providerType: true },
+      });
+      const eligible = provider
+        ? PROVIDER_TYPE_CATEGORIES[provider.providerType]
+        : undefined;
+      if (eligible && !eligible.includes(found.category)) {
+        throw new ForbiddenException(
+          'This request does not match your provider service category',
+        );
+      }
+    }
 
     // If caller is customer: must be the owner
     if (user.role === 'CUSTOMER' && !isCustomerOwner && !isAdmin) {

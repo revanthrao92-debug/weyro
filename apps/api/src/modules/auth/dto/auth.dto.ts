@@ -27,6 +27,10 @@ export class RegisterDto implements RegisterInput {
   address?: string;
   latitude?: number;
   longitude?: number;
+  towingVehicleTypes?: ('FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY')[];
+  maxVehicleWeightKg?: number;
+  towingBaseFee?: number;
+  towingPerKmFee?: number;
 }
 
 export class LoginDto implements LoginInput {
