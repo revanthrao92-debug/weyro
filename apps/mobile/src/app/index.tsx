@@ -20,6 +20,10 @@ import { useAuth } from '@/services/auth-store';
 import { DamageVehicleSection } from '@/components/damage-post/DamageVehicleSection';
 import { DamagePhotoUploader } from '@/components/damage-post/DamagePhotoUploader';
 import { DamageFulfillmentSection } from '@/components/damage-post/DamageFulfillmentSection';
+import {
+  DamageCategorySection,
+  PostServiceCategory,
+} from '@/components/damage-post/DamageCategorySection';
 
 export default function PostDamageScreen() {
   const router = useRouter();
@@ -30,14 +34,24 @@ export default function PostDamageScreen() {
   const [vehicleMake, setVehicleMake] = useState('Maruti Suzuki');
   const [vehicleModel, setVehicleModel] = useState('Swift');
   const [vehicleYear, setVehicleYear] = useState('2023');
+  const [category, setCategoryState] = useState<PostServiceCategory>('REPAIR');
   const [selectedPart, setSelectedPart] = useState('Front Bumper & Grille');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'NORMAL' | 'URGENT' | 'EMERGENCY'>('URGENT');
   const [fulfillmentType, setFulfillmentType] = useState<
-    'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE'
+    'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE'
   >('PARTS_SHIPPING');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isTowing = category === 'TOWING';
+
+  const setCategory = (next: PostServiceCategory) => {
+    setCategoryState(next);
+    if (next === 'TOWING') {
+      setFulfillmentType('TOW_TO_GARAGE');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!description.trim() && !photoUri) {
@@ -81,8 +95,13 @@ export default function PostDamageScreen() {
         vehicleMake: vehicleMake.trim() || 'Generic',
         vehicleModel: vehicleModel.trim() || 'Vehicle',
         vehicleYear: parseInt(vehicleYear, 10) || new Date().getFullYear(),
-        damagedPart: selectedPart,
-        description: description.trim() || `${selectedPart} replacement required.`,
+        category,
+        damagedPart: isTowing ? 'Vehicle towing required' : selectedPart,
+        description:
+          description.trim() ||
+          (isTowing
+            ? 'Vehicle towing required.'
+            : `${selectedPart} replacement required.`),
         urgency,
         fulfillmentType,
         damagePhotos: photoUri ? [photoUri] : [],
@@ -93,7 +112,9 @@ export default function PostDamageScreen() {
 
       Alert.alert(
         'Request Broadcast Live! 🚀',
-        'Your repair request has been dispatched to local workshops and verified parts dealers.',
+        isTowing
+          ? 'Your towing request has been dispatched to verified towing operators near you.'
+          : 'Your repair request has been dispatched to local workshops and verified parts dealers.',
         [{ text: 'View Bids', onPress: () => router.push('/quotes') }],
       );
     } catch {
@@ -118,12 +139,19 @@ export default function PostDamageScreen() {
         <View style={styles.contentWrapper}>
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.headerTitle}>
-              Post Car Damage
+              {isTowing ? 'Request a Tow' : 'Post Car Damage'}
             </ThemedText>
             <ThemedText style={styles.headerSubtitle} themeColor="textSecondary">
-              Broadcast your vehicle issue to verified workshops and parts suppliers across India.
+              {isTowing
+                ? 'Broadcast your towing request to verified towing operators near you.'
+                : 'Broadcast your vehicle issue to verified workshops and parts suppliers across India.'}
             </ThemedText>
           </View>
+
+          <DamageCategorySection
+            category={category}
+            setCategory={setCategory}
+          />
 
           <DamageVehicleSection
             vehicleMake={vehicleMake}
@@ -136,6 +164,7 @@ export default function PostDamageScreen() {
             setSelectedPart={setSelectedPart}
             description={description}
             setDescription={setDescription}
+            isTowing={isTowing}
           />
 
           <DamagePhotoUploader

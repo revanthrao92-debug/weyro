@@ -7,8 +7,10 @@ import { useTheme } from '@/hooks/use-theme';
 interface DamageFulfillmentSectionProps {
   urgency: 'NORMAL' | 'URGENT' | 'EMERGENCY';
   setUrgency: (u: 'NORMAL' | 'URGENT' | 'EMERGENCY') => void;
-  fulfillmentType: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE';
-  setFulfillmentType: (f: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE') => void;
+  fulfillmentType: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE';
+  setFulfillmentType: (
+    f: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE',
+  ) => void;
 }
 
 const URGENCIES: { key: 'NORMAL' | 'URGENT' | 'EMERGENCY'; label: string; desc: string }[] = [
@@ -18,13 +20,14 @@ const URGENCIES: { key: 'NORMAL' | 'URGENT' | 'EMERGENCY'; label: string; desc: 
 ];
 
 const FULFILLMENTS: {
-  key: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE';
+  key: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE';
   label: string;
   icon: string;
 }[] = [
   { key: 'PARTS_SHIPPING', label: 'Courier Parts', icon: '📦' },
   { key: 'WORKSHOP_VISIT', label: 'Garage Visit', icon: '🔧' },
   { key: 'ON_SITE', label: 'Doorstep Tech', icon: '🚐' },
+  { key: 'TOW_TO_GARAGE', label: 'Tow to Garage', icon: '🚛' },
 ];
 
 export function DamageFulfillmentSection({
@@ -110,11 +113,13 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
     marginBottom: Spacing.two,
   },
   pill: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderRadius: 8,

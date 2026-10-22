@@ -26,6 +26,7 @@ interface DamageVehicleSectionProps {
   setSelectedPart: (p: string) => void;
   description: string;
   setDescription: (d: string) => void;
+  isTowing?: boolean;
 }
 
 export function DamageVehicleSection({
@@ -39,13 +40,14 @@ export function DamageVehicleSection({
   setSelectedPart,
   description,
   setDescription,
+  isTowing = false,
 }: DamageVehicleSectionProps) {
   const theme = useTheme();
 
   return (
     <View style={[styles.section, Elevation.low, { borderRadius: BorderRadius.large, backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold" style={styles.sectionTitle}>
-        1. VEHICLE DETAILS & DAMAGED PART
+        2. VEHICLE DETAILS {isTowing ? '& TOWING INFO' : '& DAMAGED PART'}
       </ThemedText>
 
       <View style={styles.row}>
@@ -82,38 +84,48 @@ export function DamageVehicleSection({
         </View>
       </View>
 
-      <ThemedText style={styles.inputLabel}>Select Damaged Component</ThemedText>
-      <View style={styles.chipsContainer}>
-        {COMMON_DAMAGED_PARTS.map((part) => {
-          const isSelected = selectedPart === part;
-          return (
-            <Pressable
-              key={part}
-              onPress={() => setSelectedPart(part)}
-              style={[
-                styles.partChip,
-                { borderColor: isSelected ? theme.primary : theme.border },
-                isSelected && { backgroundColor: theme.primarySurface },
-              ]}>
-              <ThemedText
-                style={[
-                  styles.chipText,
-                  isSelected && { color: theme.primary, fontWeight: '700' },
-                ]}>
-                {part}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
+      {!isTowing && (
+        <>
+          <ThemedText style={styles.inputLabel}>Select Damaged Component</ThemedText>
+          <View style={styles.chipsContainer}>
+            {COMMON_DAMAGED_PARTS.map((part) => {
+              const isSelected = selectedPart === part;
+              return (
+                <Pressable
+                  key={part}
+                  onPress={() => setSelectedPart(part)}
+                  style={[
+                    styles.partChip,
+                    { borderColor: isSelected ? theme.primary : theme.border },
+                    isSelected && { backgroundColor: theme.primarySurface },
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.chipText,
+                      isSelected && { color: theme.primary, fontWeight: '700' },
+                    ]}>
+                    {part}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
 
-      <ThemedText style={styles.inputLabel}>Damage Description</ThemedText>
+      <ThemedText style={styles.inputLabel}>
+        {isTowing ? 'Towing Details' : 'Damage Description'}
+      </ThemedText>
       <TextInput
         style={[
           styles.textArea,
           { borderColor: theme.border, color: theme.text },
         ]}
-        placeholder="Describe the damage, symptoms, or specific replacement part needed..."
+        placeholder={
+          isTowing
+            ? 'Where is the vehicle, where should it be towed, and is it driveable?'
+            : 'Describe the damage, symptoms, or specific replacement part needed...'
+        }
         placeholderTextColor={theme.textSecondary}
         multiline
         numberOfLines={3}

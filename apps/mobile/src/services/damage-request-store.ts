@@ -18,16 +18,31 @@ export interface DamageRequestQuote {
   createdAt: string;
 }
 
+export type ServiceCategory =
+  | 'REPAIR'
+  | 'MAINTENANCE'
+  | 'SPARE_PART'
+  | 'TOWING'
+  | 'ROADSIDE'
+  | 'INSPECTION';
+
+export type FulfillmentType =
+  | 'WORKSHOP_VISIT'
+  | 'ON_SITE'
+  | 'PARTS_SHIPPING'
+  | 'TOW_TO_GARAGE';
+
 export interface DamageBroadcastRequest {
   id: string;
   customerName: string;
   vehicleMake: string;
   vehicleModel: string;
   vehicleYear: number;
+  category: ServiceCategory;
   damagedPart: string;
   description: string;
   urgency: 'NORMAL' | 'URGENT' | 'EMERGENCY';
-  fulfillmentType: 'WORKSHOP_VISIT' | 'ON_SITE' | 'PARTS_SHIPPING';
+  fulfillmentType: FulfillmentType;
   damagePhotos: string[];
   isBroadcast: true;
   broadcastScope: 'BROADCAST_ALL';
@@ -64,7 +79,7 @@ export interface BookingRecord {
   deliveryAddress: string;
   scheduledDate: string;
   status: BookingMilestoneStatus;
-  fulfillmentType: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE';
+  fulfillmentType: FulfillmentType;
   trackingNumber?: string;
   carrierName?: string;
   review?: BookingReview;
@@ -113,6 +128,7 @@ function mapRequest(item: any): DamageBroadcastRequest {
     vehicleMake: item.vehicle?.make || 'Unknown',
     vehicleModel: item.vehicle?.model || 'Vehicle',
     vehicleYear: item.vehicle?.year || new Date().getFullYear(),
+    category: item.category || 'REPAIR',
     damagedPart: item.title,
     description: item.description,
     urgency: item.urgency,
@@ -279,10 +295,11 @@ export const damageRequestStore = {
     vehicleMake: string;
     vehicleModel: string;
     vehicleYear: number;
+    category: ServiceCategory;
     damagedPart: string;
     description: string;
     urgency: 'NORMAL' | 'URGENT' | 'EMERGENCY';
-    fulfillmentType: 'WORKSHOP_VISIT' | 'ON_SITE' | 'PARTS_SHIPPING';
+    fulfillmentType: FulfillmentType;
     damagePhotos: string[];
     latitude: number;
     longitude: number;
@@ -292,7 +309,7 @@ export const damageRequestStore = {
       vehicleMake: params.vehicleMake,
       vehicleModel: params.vehicleModel,
       vehicleYear: params.vehicleYear,
-      category: 'MECHANICAL',
+      category: params.category,
       title: params.damagedPart,
       description: params.description,
       urgency: params.urgency,

@@ -52,6 +52,36 @@ describe('DamageRequestsService', () => {
 
       expect(result.damagePhotos).toEqual(['https://img.com/1.jpg']);
     });
+
+    it('passes the towing category through without remapping', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({
+        id: 'req-tow-1',
+        media: [],
+        vehicle: { id: 'veh-1' },
+      });
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        category: 'TOWING',
+        title: 'Vehicle towing required',
+        description: 'Breakdown on Outer Ring Road, tow to Indiranagar.',
+        address: 'Outer Ring Road, Bengaluru',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        urgency: 'EMERGENCY',
+        fulfillmentType: 'TOW_TO_GARAGE',
+        damagePhotos: [],
+      } as any);
+
+      expect(mockPrisma.serviceRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: 'TOWING',
+            fulfillmentType: 'TOW_TO_GARAGE',
+          }),
+        }),
+      );
+    });
   });
 
   describe('getBroadcastFeed', () => {
