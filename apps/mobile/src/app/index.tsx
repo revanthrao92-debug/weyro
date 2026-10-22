@@ -26,6 +26,10 @@ import {
   TowingVehicleType,
 } from '@/components/damage-post/TowingDetailsSection';
 import {
+  RoadsideDetailsSection,
+  RoadsideKind,
+} from '@/components/damage-post/RoadsideDetailsSection';
+import {
   DamageCategorySection,
   PostServiceCategory,
 } from '@/components/damage-post/DamageCategorySection';
@@ -54,6 +58,8 @@ export default function PostDamageScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTowing = category === 'TOWING';
+  const [roadsideKind, setRoadsideKind] = useState<RoadsideKind | null>(null);
+  const isRoadside = category === 'ROADSIDE';
 
   const geocodeAddress = async (address: string) => {
     const results = await Location.geocodeAsync(address.trim());
@@ -99,6 +105,14 @@ export default function PostDamageScreen() {
       Alert.alert(
         'Details Required',
         'Please upload a damage photo or describe the issue so mechanics can accurately quote.',
+      );
+      return;
+    }
+
+    if (isRoadside && !roadsideKind) {
+      Alert.alert(
+        'Assist Type Required',
+        'Tell us what happened — battery, tyre, or fuel — so the right providers get the request.',
       );
       return;
     }
@@ -185,7 +199,16 @@ export default function PostDamageScreen() {
           isTowing && vehicleWeightKg.trim()
             ? parseInt(vehicleWeightKg, 10) || undefined
             : undefined,
+        roadsideKind: isRoadside ? roadsideKind || undefined : undefined,
       });
+
+      const roadsideSummary =
+        created.roadsideKind &&
+        created.estimatedFare !== undefined
+          ? `\n\nFlat-rate estimate: ₹${created.estimatedFare.toLocaleString(
+              'en-IN',
+            )} (final quote from the operator may vary).`
+          : '';
 
       const towingSummary =
         created.towingDistanceKm !== undefined &&
@@ -201,7 +224,9 @@ export default function PostDamageScreen() {
         'Request Broadcast Live! 🚀',
         isTowing
           ? `Your towing request has been dispatched to verified towing operators near you.${towingSummary}`
-          : 'Your repair request has been dispatched to local workshops and verified parts dealers.',
+          : isRoadside
+            ? `Your roadside assist request has been dispatched to verified providers near you.${roadsideSummary}`
+            : 'Your repair request has been dispatched to local workshops and verified parts dealers.',
         [{ text: 'View Bids', onPress: () => router.push('/quotes') }],
       );
     } catch {
@@ -226,14 +251,41 @@ export default function PostDamageScreen() {
         <View style={styles.contentWrapper}>
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.headerTitle}>
-              {isTowing ? 'Request a Tow' : 'Post Car Damage'}
+              {isTowing
+                ? 'Request a Tow'
+                : isRoadside
+                  ? 'Roadside Assist'
+                  : 'Post Car Damage'}
             </ThemedText>
             <ThemedText style={styles.headerSubtitle} themeColor="textSecondary">
               {isTowing
                 ? 'Broadcast your towing request to verified towing operators near you.'
-                : 'Broadcast your vehicle issue to verified workshops and parts suppliers across India.'}
+                : isRoadside
+                  ? 'Flat-rate on-site assist: battery, tyre or fuel — dispatched to verified providers near you.'
+                  : 'Broadcast your vehicle issue to verified workshops and parts suppliers across India.'}
             </ThemedText>
           </View>
+
+          {/* Shop quick link — makes the two services explicit */}
+          <Pressable
+            onPress={() => router.push('/spare-parts')}
+            accessibilityRole="button"
+            accessibilityLabel="Open the shop for parts and service packages"
+            style={{
+              alignSelf: 'flex-start',
+              marginTop: Spacing.two,
+              marginBottom: Spacing.one,
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: theme.primary,
+              backgroundColor: theme.primarySurface,
+            }}>
+            <ThemedText type="smallBold" style={{ color: theme.primary }}>
+              🛒 Browse the Shop — parts &amp; service packages
+            </ThemedText>
+          </Pressable>
 
           <DamageCategorySection
             category={category}
@@ -268,6 +320,13 @@ export default function PostDamageScreen() {
               vehicleWeightKg={vehicleWeightKg}
               setVehicleWeightKg={setVehicleWeightKg}
               onEstimate={handleEstimateTowingFare}
+            />
+          )}
+
+          {isRoadside && (
+            <RoadsideDetailsSection
+              kind={roadsideKind}
+              setKind={setRoadsideKind}
             />
           )}
 

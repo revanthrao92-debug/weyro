@@ -12,8 +12,9 @@ export type ProviderType =
   | 'TOWING'
   | 'ROADSIDE';
 
-export type TowingVehicleType =
-  | 'FLATBED'
+export type RoadsideKind = 'BATTERY' | 'TYRE' | 'FUEL';
+
+export type TowingVehicleType =  | 'FLATBED'
   | 'HOOK_AND_CHAIN'
   | 'MOTORCYCLE'
   | 'ANY';
@@ -69,6 +70,8 @@ export interface DamageBroadcastRequest {
   vehicleWeightKg?: number;
   towingDistanceKm?: number;
   towingEstimatedFare?: number;
+  roadsideKind?: RoadsideKind;
+  estimatedFare?: number;
   createdAt: string;
 }
 
@@ -354,6 +357,7 @@ export const damageRequestStore = {
     dropoffLongitude?: number;
     towingVehicleType?: TowingVehicleType;
     vehicleWeightKg?: number;
+    roadsideKind?: RoadsideKind;
   }): Promise<DamageBroadcastRequest> {
     const created = await apiClient.post<any>('/damage-requests', {
       vehicleMake: params.vehicleMake,
@@ -373,10 +377,15 @@ export const damageRequestStore = {
       dropoffLongitude: params.dropoffLongitude,
       towingVehicleType: params.towingVehicleType,
       vehicleWeightKg: params.vehicleWeightKg,
+      roadsideKind: params.roadsideKind,
     });
 
     const newReq: DamageBroadcastRequest = {
       ...mapRequest(created),
+      roadsideKind: (created as any).roadsideKind,
+      estimatedFare: (created as any).estimatedFare !== undefined && created.estimatedFare !== null
+        ? Number((created as any).estimatedFare)
+        : undefined,
       customerName: params.customerName,
     };
 
