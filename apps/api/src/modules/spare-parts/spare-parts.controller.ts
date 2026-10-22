@@ -18,6 +18,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
   SparePartsQuery,
   sparePartsQuerySchema,
+  SparePartOrderQuery,
+  sparePartOrderQuerySchema,
 } from '../../common/dto/query.dto';
 import {
   CreateSparePartOrderDto,
@@ -52,6 +54,49 @@ export class SparePartsController {
       throw new ForbiddenException('Customer profile required');
     }
     return this.service.findMyOrders(user.customerProfileId);
+  }
+
+  @Get('orders/dealer')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async findDealerOrders(
+    @CurrentUser() user: AuthUserPayload,
+    @Query(new ZodValidationPipe(sparePartOrderQuerySchema))
+    query: SparePartOrderQuery,
+  ) {
+    if (!user.providerProfileId && user.role !== 'ADMIN') {
+      throw new ForbiddenException('Provider profile required');
+    }
+    return this.service.findDealerOrders(user.providerProfileId || user.sub, {
+      status: query.status,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+  }
+
+  @Get('orders/admin/all')
+  @Roles('ADMIN')
+  async findAdminOrders(
+    @Query(new ZodValidationPipe(sparePartOrderQuerySchema))
+    query: SparePartOrderQuery,
+  ) {
+    return this.service.findAdminOrders({
+      status: query.status,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+  }
+
+  @Get('orders/:orderId')
+  @Roles('CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN')
+  async findOrderDetail(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.findOrderDetail(orderId, {
+      role: user.role,
+      customerProfileId: user.customerProfileId,
+      providerProfileId: user.providerProfileId,
+    });
   }
 
   @Get(':id')

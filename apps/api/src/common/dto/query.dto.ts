@@ -43,6 +43,12 @@ export const bookingsQuerySchema = cursorPaginationSchema.extend({
     .optional(),
 });
 
+export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
+  status: z
+    .enum(['PENDING', 'PAID', 'CANCELLED', 'FAILED'])
+    .optional(),
+});
+
 export const providerAdminQuerySchema = z
   .object({
     status: z.enum(['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED']).optional(),
@@ -53,4 +59,5 @@ export type CursorPaginationQuery = z.infer<typeof cursorPaginationSchema>;
 export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export type SparePartsQuery = z.infer<typeof sparePartsQuerySchema>;
 export type BookingsQuery = z.infer<typeof bookingsQuerySchema>;
+export type SparePartOrderQuery = z.infer<typeof sparePartOrderQuerySchema>;
 export type ProviderAdminQuery = z.infer<typeof providerAdminQuerySchema>;

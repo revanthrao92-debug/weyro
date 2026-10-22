@@ -309,4 +309,192 @@ export class SparePartsService {
       },
     });
   }
+
+  async findDealerOrders(
+    providerId: string,
+    params: { status?: string; cursor?: string; limit?: number },
+  ) {
+    const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
+    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
+    const where: any = {
+      providerId,
+      deletedAt: null,
+      ...buildCursorWhere(cursorTuple),
+    };
+
+    if (params.status) {
+      where.status = params.status;
+    }
+
+    const items = await this.prisma.sparePartOrder.findMany({
+      where,
+      take: boundedLimit,
+      orderBy: { createdAt: 'desc', id: 'desc' },
+      select: {
+        id: true,
+        quantity: true,
+        unitPrice: true,
+        totalAmount: true,
+        currency: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        sparePart: {
+          select: { id: true, name: true, partNumber: true, imageUrl: true },
+        },
+        customer: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return {
+      items,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
+    };
+  }
+
+  async findAdminOrders(params: { status?: string; cursor?: string; limit?: number }) {
+    const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
+    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
+    const where: any = {
+      deletedAt: null,
+      ...buildCursorWhere(cursorTuple),
+    };
+
+    if (params.status) {
+      where.status = params.status;
+    }
+
+    const items = await this.prisma.sparePartOrder.findMany({
+      where,
+      take: boundedLimit,
+      orderBy: { createdAt: 'desc', id: 'desc' },
+      select: {
+        id: true,
+        quantity: true,
+        unitPrice: true,
+        totalAmount: true,
+        currency: true,
+        status: true,
+        gatewayOrderId: true,
+        gatewayPaymentId: true,
+        paidAt: true,
+        createdAt: true,
+        sparePart: {
+          select: { id: true, name: true, partNumber: true },
+        },
+        customer: {
+          select: { firstName: true, lastName: true },
+        },
+        provider: {
+          select: { businessName: true },
+        },
+      },
+    });
+
+    return {
+      items,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
+    };
+  }
+
+  async findOrderDetail(
+    orderId: string,
+    user: { role: string; customerProfileId?: string | null; providerProfileId?: string | null },
+  ) {
+    const order = await this.prisma.sparePartOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        quantity: true,
+        unitPrice: true,
+        totalAmount: true,
+        currency: true,
+        status: true,
+        gatewayOrderId: true,
+        gatewayPaymentId: true,
+        paidAt: true,
+        createdAt: true,
+        deletedAt: true,
+        customerId: true,
+        providerId: true,
+        sparePart: {
+          select: { id: true, name: true, partNumber: true, imageUrl: true },
+        },
+        customer: {
+          select: { firstName: true, lastName: true },
+        },
+        provider: {
+          select: {
+            businessName: true,
+            verificationStatus: true,
+            avgRating: true,
+            completedJobs: true,
+            isAvailable: true,
+          },
+        },
+      },
+    });
+
+    if (!order || order.deletedAt) {
+      throw new NotFoundException(`Spare part order ${orderId} not found`);
+    }
+
+    const isAdmin = user.role === 'ADMIN';
+    const isCustomer =
+      !!user.customerProfileId && order.customerId === user.customerProfileId;
+    const isDealer =
+      !!user.providerProfileId && order.providerId === user.providerProfileId;
+
+    if (!isAdmin && !isCustomer && !isDealer) {
+      throw new ForbiddenException('You do not have access to this order');
+    }
+
+    if (isDealer) {
+      // Dealer sees the part, itself, and customer names only
+      const { customerId: _c, providerId: _p, provider: _prov, gatewayOrderId: _go, gatewayPaymentId: _gp, ...dealerView } = order;
+      return {
+        ...dealerView,
+        customer: order.customer,
+      };
+    }
+
+    if (isCustomer && !isAdmin) {
+      // Customer: provider masked to business name + badge, no gateway internals
+      const {
+        gatewayOrderId: _go,
+        gatewayPaymentId: _gp,
+        customerId: _c,
+        providerId: _p,
+        ...customerView
+      } = order;
+      return {
+        ...customerView,
+        provider: {
+          businessName: order.provider.businessName,
+          badge: computeProviderBadge({
+            verificationStatus: order.provider.verificationStatus,
+            avgRating: order.provider.avgRating,
+            completedJobs: order.provider.completedJobs,
+            isAvailable: order.provider.isAvailable,
+          }),
+        },
+      };
+    }
+
+    return order;
+  }
 }

@@ -212,4 +212,124 @@ describe('SparePartsService order flow', () => {
     expect(args.select.sparePart.select).not.toHaveProperty('provider');
     expect(Object.keys(args.select)).not.toContain('providerId');
   });
+
+  it('dealer order list shows customer names but no phone, user id, or gateway fields', async () => {
+    mockPrisma.sparePartOrder.findMany.mockResolvedValue([
+      {
+        id: 'o1',
+        customer: { firstName: 'A', lastName: 'B' },
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+      },
+    ]);
+    const result = await service.findDealerOrders('prov-1', { status: 'PAID' });
+
+    const args = mockPrisma.sparePartOrder.findMany.mock.calls[0][0];
+    expect(args.where).toMatchObject({ providerId: 'prov-1', status: 'PAID' });
+    expect(args.select.customer.select).toEqual({
+      firstName: true,
+      lastName: true,
+    });
+    expect(args.select).not.toHaveProperty('gatewayOrderId');
+    expect(args.select).not.toHaveProperty('gatewayPaymentId');
+    expect(result.items[0]).not.toHaveProperty('phone');
+  });
+
+  it('admin order list includes gateway reconciliation fields', async () => {
+    mockPrisma.sparePartOrder.findMany.mockResolvedValue([
+      {
+        id: 'o1',
+        gatewayOrderId: 'order_gw',
+        gatewayPaymentId: 'pay_1',
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+      },
+    ]);
+    const result = await service.findAdminOrders({});
+
+    const args = mockPrisma.sparePartOrder.findMany.mock.calls[0][0];
+    expect(args.where).not.toHaveProperty('providerId');
+    expect(args.select).toHaveProperty('gatewayOrderId', true);
+    expect(args.select).toHaveProperty('gatewayPaymentId', true);
+    expect(result.items[0].gatewayPaymentId).toBe('pay_1');
+  });
+
+  describe('findOrderDetail role matrix', () => {
+    const baseOrder = {
+      id: 'order-1',
+      deletedAt: null,
+      customerId: 'cust-1',
+      providerId: 'prov-1',
+      quantity: 1,
+      unitPrice: 100,
+      totalAmount: 100,
+      currency: 'INR',
+      status: 'PAID',
+      gatewayOrderId: 'order_gw',
+      gatewayPaymentId: 'pay_1',
+      paidAt: new Date(),
+      createdAt: new Date(),
+      sparePart: { id: 'part-1', name: 'Part', partNumber: 'P1', imageUrl: null },
+      customer: { firstName: 'First', lastName: 'Last' },
+      provider: {
+        businessName: 'Parts Co',
+        verificationStatus: 'VERIFIED',
+        avgRating: 4.6,
+        completedJobs: 120,
+        isAvailable: true,
+      },
+    };
+
+    beforeEach(() => {
+      mockPrisma.sparePartOrder.findUnique.mockImplementation(async () => ({
+        ...baseOrder,
+      }));
+    });
+
+    it('customer gets provider business name + badge but no gateway phone or ids', async () => {
+      const detail = await service.findOrderDetail('order-1', {
+        role: 'CUSTOMER',
+        customerProfileId: 'cust-1',
+        providerProfileId: null,
+      });
+
+      expect(detail.provider.businessName).toBe('Parts Co');
+      expect(detail.provider.badge).toBe('PLATINUM');
+      expect(detail).not.toHaveProperty('gatewayPaymentId');
+      expect(detail).not.toHaveProperty('customerId');
+      expect(detail).not.toHaveProperty('providerId');
+    });
+
+    it('dealer gets customer names but no gateway internals or provider block', async () => {
+      const detail = await service.findOrderDetail('order-1', {
+        role: 'PROVIDER',
+        customerProfileId: null,
+        providerProfileId: 'prov-1',
+      });
+
+      expect(detail.customer).toEqual({ firstName: 'First', lastName: 'Last' });
+      expect(detail).not.toHaveProperty('gatewayOrderId');
+      expect(detail).not.toHaveProperty('provider');
+    });
+
+    it('admin gets the full reconciliation record', async () => {
+      const detail = await service.findOrderDetail('order-1', {
+        role: 'ADMIN',
+        customerProfileId: null,
+        providerProfileId: null,
+      });
+
+      expect(detail.gatewayOrderId).toBe('order_gw');
+      expect(detail.customerId).toBe('cust-1');
+      expect(detail.provider).toBeDefined();
+    });
+
+    it('rejects unrelated roles with 403', async () => {
+      await expect(
+        service.findOrderDetail('order-1', {
+          role: 'CUSTOMER',
+          customerProfileId: 'someone-else',
+          providerProfileId: null,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+  });
 });
