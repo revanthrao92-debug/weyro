@@ -284,13 +284,22 @@ export default function SparePartsScreen() {
             auth.user?.role === 'BOTH' ||
             auth.user?.role === 'ADMIN'
           ) && (
-            <Pressable
-              onPress={() => router.push('/spare-parts/create')}
-              accessibilityRole="button"
-              accessibilityLabel="List a new spare part"
-              style={styles.createBtn}>
-              <ThemedText style={styles.createBtnText}>+ List a Spare Part</ThemedText>
-            </Pressable>
+            <View style={styles.entryRow}>
+              <Pressable
+                onPress={() => router.push('/spare-parts/create')}
+                accessibilityRole="button"
+                accessibilityLabel="List a new spare part"
+                style={styles.createBtn}>
+                <ThemedText style={styles.createBtnText}>+ List a Spare Part</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/history')}
+                accessibilityRole="button"
+                accessibilityLabel="View my service history"
+                style={styles.createBtn}>
+                <ThemedText style={styles.createBtnText}>My History</ThemedText>
+              </Pressable>
+            </View>
           )}
           {/* Search */}
           <View style={styles.searchBar}>
@@ -638,7 +647,10 @@ const makeStyles = (
     borderWidth: 1,
     borderColor: theme.primary,
     backgroundColor: theme.primarySurface,
-    alignSelf: 'flex-start',
+  },
+  entryRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
     marginBottom: Spacing.two,
   },
   createBtnText: {
