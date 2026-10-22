@@ -11,6 +11,8 @@ interface DamageFulfillmentSectionProps {
   setFulfillmentType: (
     f: 'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE',
   ) => void;
+  sectionNumber?: number;
+  hideServiceMode?: boolean;
 }
 
 const URGENCIES: { key: 'NORMAL' | 'URGENT' | 'EMERGENCY'; label: string; desc: string }[] = [
@@ -35,13 +37,15 @@ export function DamageFulfillmentSection({
   setUrgency,
   fulfillmentType,
   setFulfillmentType,
+  sectionNumber = 3,
+  hideServiceMode = false,
 }: DamageFulfillmentSectionProps) {
   const theme = useTheme();
 
   return (
     <View style={[styles.section, Elevation.low, { borderRadius: BorderRadius.large, backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold" style={styles.sectionTitle}>
-        3. URGENCY & PREFERRED FULFILLMENT
+        {sectionNumber}. URGENCY{hideServiceMode ? '' : ' & PREFERRED FULFILLMENT'}
       </ThemedText>
 
       <ThemedText style={styles.label}>Repair Timeline</ThemedText>
@@ -71,7 +75,7 @@ export function DamageFulfillmentSection({
 
       <ThemedText style={styles.label}>Service Mode</ThemedText>
       <View style={styles.row}>
-        {FULFILLMENTS.map((f) => {
+        {!hideServiceMode && FULFILLMENTS.map((f) => {
           const isSelected = fulfillmentType === f.key;
           return (
             <Pressable

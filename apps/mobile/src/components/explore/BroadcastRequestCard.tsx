@@ -73,6 +73,32 @@ export function BroadcastRequestCard({
         {request.description}
       </ThemedText>
 
+      {request.category === 'TOWING' && (
+        <View style={[styles.towingBox, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+          {request.dropoffAddress && (
+            <ThemedText style={styles.towingLine} themeColor="textSecondary">
+              Dropoff: <ThemedText type="smallBold">{request.dropoffAddress}</ThemedText>
+            </ThemedText>
+          )}
+          <ThemedText style={styles.towingLine} themeColor="textSecondary">
+            Equipment:{' '}
+            <ThemedText type="smallBold">
+              {request.towingVehicleType?.replace(/_/g, ' ') || 'Any'}
+            </ThemedText>
+            {request.vehicleWeightKg
+              ? ` · ${request.vehicleWeightKg} kg`
+              : ''}
+          </ThemedText>
+          {request.towingDistanceKm !== undefined && (
+            <ThemedText style={[styles.towingFare, { color: theme.primary }]}>
+              {request.towingDistanceKm.toFixed(1)} km · ₹
+              {(request.towingEstimatedFare ?? 0).toLocaleString('en-IN')}{' '}
+              platform estimate
+            </ThemedText>
+          )}
+        </View>
+      )}
+
       <View style={[styles.metaRow, { borderColor: theme.border }]}>
         <ThemedText style={styles.metaText}>
           Fulfillment: <ThemedText type="smallBold">{request.fulfillmentType.replace(/_/g, ' ')}</ThemedText>
@@ -144,6 +170,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginBottom: Spacing.two,
+  },
+  towingBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: Spacing.two,
+    marginBottom: Spacing.two,
+    gap: 2,
+  },
+  towingLine: {
+    fontSize: 11,
+  },
+  towingFare: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
   },
   metaRow: {
     flexDirection: 'row',

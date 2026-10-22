@@ -8,6 +8,14 @@ export interface AuthUser extends UserSessionProfile {
   refreshToken?: string;
 }
 
+export type ProviderTypeOption =
+  | 'MECHANIC'
+  | 'GARAGE'
+  | 'AUTHORIZED_CENTER'
+  | 'PARTS_DEALER'
+  | 'TOWING'
+  | 'ROADSIDE';
+
 export interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -139,6 +147,13 @@ export const authStore = {
     role: UserRole;
     name: string;
     businessName?: string;
+    providerType?: ProviderTypeOption;
+    latitude?: number;
+    longitude?: number;
+    towingVehicleTypes?: ('FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY')[];
+    maxVehicleWeightKg?: number;
+    towingBaseFee?: number;
+    towingPerKmFee?: number;
   }): Promise<AuthUser> {
     isAuthLoading = true;
     emitChange();
@@ -158,6 +173,14 @@ export const authStore = {
           firstName,
           lastName,
           businessName: params.businessName?.trim(),
+          providerType: params.providerType,
+          latitude: params.latitude,
+          longitude: params.longitude,
+          address: params.businessName?.trim() || params.name.trim(),
+          towingVehicleTypes: params.towingVehicleTypes,
+          maxVehicleWeightKg: params.maxVehicleWeightKg,
+          towingBaseFee: params.towingBaseFee,
+          towingPerKmFee: params.towingPerKmFee,
         },
         { skipAuth: true },
       );

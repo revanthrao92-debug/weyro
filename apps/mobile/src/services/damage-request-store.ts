@@ -4,11 +4,25 @@ import { weyroNotifications } from './notifications';
 import { ApiClientError, apiClient } from './api-client';
 import { offlineQueue, OfflineSyncStatus } from './offline-queue';
 
+export type ProviderType =
+  | 'MECHANIC'
+  | 'GARAGE'
+  | 'AUTHORIZED_CENTER'
+  | 'PARTS_DEALER'
+  | 'TOWING'
+  | 'ROADSIDE';
+
+export type TowingVehicleType =
+  | 'FLATBED'
+  | 'HOOK_AND_CHAIN'
+  | 'MOTORCYCLE'
+  | 'ANY';
+
 export interface DamageRequestQuote {
   id: string;
   providerId: string;
   providerName: string;
-  providerType: 'MECHANIC' | 'PARTS_DEALER' | 'GARAGE';
+  providerType: ProviderType;
   distanceNote: string;
   estimatedCost: number;
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
@@ -48,6 +62,13 @@ export interface DamageBroadcastRequest {
   broadcastScope: 'BROADCAST_ALL';
   status: 'OPEN' | 'QUOTES_RECEIVED' | 'ACCEPTED' | 'COMPLETED';
   quotes: DamageRequestQuote[];
+  dropoffAddress?: string;
+  dropoffLatitude?: number;
+  dropoffLongitude?: number;
+  towingVehicleType?: TowingVehicleType;
+  vehicleWeightKg?: number;
+  towingDistanceKm?: number;
+  towingEstimatedFare?: number;
   createdAt: string;
 }
 
@@ -72,16 +93,21 @@ export interface BookingRecord {
   vehicle: string;
   damagedPart: string;
   providerName: string;
-  providerType: 'MECHANIC' | 'PARTS_DEALER' | 'GARAGE';
+  providerType: ProviderType;
   totalCost: number;
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
   eta: string;
   deliveryAddress: string;
   scheduledDate: string;
   status: BookingMilestoneStatus;
+  category: ServiceCategory;
   fulfillmentType: FulfillmentType;
   trackingNumber?: string;
   carrierName?: string;
+  providerLatitude?: number;
+  providerLongitude?: number;
+  providerLocationUpdatedAt?: string;
+  etaMinutes?: number;
   review?: BookingReview;
   confirmedAt: string;
   completedAt?: string;
@@ -138,6 +164,20 @@ function mapRequest(item: any): DamageBroadcastRequest {
     broadcastScope: 'BROADCAST_ALL',
     status: item.status,
     quotes: (item.quotations || []).map(mapQuote),
+    dropoffAddress: item.dropoffAddress || undefined,
+    dropoffLatitude: item.dropoffLatitude ?? undefined,
+    dropoffLongitude: item.dropoffLongitude ?? undefined,
+    towingVehicleType: item.towingVehicleType || undefined,
+    vehicleWeightKg: item.vehicleWeightKg ?? undefined,
+    towingDistanceKm:
+      item.towingDistanceKm !== null && item.towingDistanceKm !== undefined
+        ? Number(item.towingDistanceKm)
+        : undefined,
+    towingEstimatedFare:
+      item.towingEstimatedFare !== null &&
+      item.towingEstimatedFare !== undefined
+        ? Number(item.towingEstimatedFare)
+        : undefined,
     createdAt: item.createdAt,
   };
 }
@@ -169,8 +209,13 @@ function mapBooking(b: any): BookingRecord {
         : rawStatus === 'IN_PROGRESS'
           ? 'OUT_FOR_DELIVERY_OR_TESTING'
           : (rawStatus as BookingMilestoneStatus),
+    category: b.quotation?.request?.category || 'REPAIR',
     fulfillmentType:
       b.quotation?.request?.fulfillmentType || 'WORKSHOP_VISIT',
+    providerLatitude: b.providerLatitude ?? undefined,
+    providerLongitude: b.providerLongitude ?? undefined,
+    providerLocationUpdatedAt: b.providerLocationUpdatedAt || undefined,
+    etaMinutes: b.etaMinutes ?? undefined,
     review: b.review
       ? {
           rating: b.review.rating,
@@ -304,6 +349,11 @@ export const damageRequestStore = {
     latitude: number;
     longitude: number;
     address: string;
+    dropoffAddress?: string;
+    dropoffLatitude?: number;
+    dropoffLongitude?: number;
+    towingVehicleType?: TowingVehicleType;
+    vehicleWeightKg?: number;
   }): Promise<DamageBroadcastRequest> {
     const created = await apiClient.post<any>('/damage-requests', {
       vehicleMake: params.vehicleMake,
@@ -318,6 +368,11 @@ export const damageRequestStore = {
       longitude: params.longitude,
       address: params.address,
       mediaUrls: params.damagePhotos,
+      dropoffAddress: params.dropoffAddress,
+      dropoffLatitude: params.dropoffLatitude,
+      dropoffLongitude: params.dropoffLongitude,
+      towingVehicleType: params.towingVehicleType,
+      vehicleWeightKg: params.vehicleWeightKg,
     });
 
     const newReq: DamageBroadcastRequest = {
@@ -429,6 +484,34 @@ export const damageRequestStore = {
     emitChange();
 
     return newBooking;
+  },
+
+  applyBookingTracking(
+    bookingId: string,
+    update: {
+      latitude: number;
+      longitude: number;
+      etaMinutes: number | null;
+      updatedAt: string;
+    },
+  ): void {
+    const index = bookings.findIndex((b) => b.id === bookingId);
+    if (index === -1) return;
+
+    const target = bookings[index];
+    bookings = [
+      ...bookings.slice(0, index),
+      {
+        ...target,
+        providerLatitude: update.latitude,
+        providerLongitude: update.longitude,
+        providerLocationUpdatedAt: update.updatedAt,
+        etaMinutes: update.etaMinutes ?? target.etaMinutes,
+      },
+      ...bookings.slice(index + 1),
+    ];
+    persistState();
+    emitChange();
   },
 
   updateBookingStatus(

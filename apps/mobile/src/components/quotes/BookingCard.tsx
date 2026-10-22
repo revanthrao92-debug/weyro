@@ -3,13 +3,25 @@ import { StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Elevation, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocationSharing } from '@/hooks/use-location-sharing';
 import { BookingRecord, BookingMilestoneStatus } from '@/services/damage-request-store';
 
 interface BookingCardProps {
   booking: BookingRecord;
+  canShareLocation?: boolean;
   onAdvanceMilestone: () => void;
   onOpenReview: () => void;
   onChat: () => void;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes === 1) return '1 min ago';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours === 1 ? '1 hr ago' : `${hours} hrs ago`;
 }
 
 const MILESTONE_STEPS: { key: BookingMilestoneStatus; label: string }[] = [
@@ -36,12 +48,19 @@ function getMilestoneIndex(status: BookingMilestoneStatus): number {
 
 export function BookingCard({
   booking,
+  canShareLocation = false,
   onAdvanceMilestone,
   onOpenReview,
   onChat,
 }: BookingCardProps) {
   const theme = useTheme();
   const currentIndex = getMilestoneIndex(booking.status);
+  const isActive =
+    booking.status === 'DISPATCHED_OR_IN_BAY' ||
+    booking.status === 'OUT_FOR_DELIVERY_OR_TESTING';
+  const locationSharing = useLocationSharing(
+    canShareLocation && isActive ? booking.id : undefined,
+  );
 
   return (
     <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }, Elevation.low, { borderRadius: BorderRadius.large }]}>
@@ -71,6 +90,29 @@ export function BookingCard({
           </ThemedText>
         )}
       </View>
+
+      {(booking.etaMinutes != null ||
+        booking.providerLocationUpdatedAt) && (
+        <View
+          style={[
+            styles.trackingPanel,
+            {
+              borderColor: theme.border,
+              backgroundColor: theme.backgroundElement,
+            },
+          ]}>
+          <ThemedText style={[styles.trackingEta, { color: theme.primary }]}>
+            {booking.etaMinutes != null
+              ? `🚚 ETA ~${booking.etaMinutes} min`
+              : '📍 Live location shared'}
+          </ThemedText>
+          {booking.providerLocationUpdatedAt && (
+            <ThemedText style={styles.trackingUpdated} themeColor="textSecondary">
+              Updated {formatRelativeTime(booking.providerLocationUpdatedAt)}
+            </ThemedText>
+          )}
+        </View>
+      )}
 
       {/* Stepper Progress */}
       <View style={[styles.stepperContainer, { borderColor: theme.border }]}>
@@ -140,6 +182,46 @@ export function BookingCard({
           </Pressable>
         )}
       </View>
+
+      {canShareLocation && isActive && (
+        <View style={styles.shareRow}>
+          <Pressable
+            onPress={
+              locationSharing.isSharing
+                ? locationSharing.stop
+                : () => {
+                    void locationSharing.start();
+                  }
+            }
+            accessibilityRole="button"
+            accessibilityLabel={
+              locationSharing.isSharing
+                ? 'Stop sharing live location'
+                : 'Share live location'
+            }
+            style={[
+              styles.shareBtn,
+              {
+                borderColor: theme.primary,
+                backgroundColor: locationSharing.isSharing
+                  ? theme.primarySurface
+                  : 'transparent',
+              },
+            ]}>
+            <ThemedText
+              style={[styles.shareBtnText, { color: theme.primary }]}>
+              {locationSharing.isSharing
+                ? '⏹ Stop Sharing Location'
+                : '📍 Share Live Location'}
+            </ThemedText>
+          </Pressable>
+          {locationSharing.error && (
+            <ThemedText style={styles.shareError} themeColor="textSecondary">
+              {locationSharing.error}
+            </ThemedText>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -184,6 +266,40 @@ const styles = StyleSheet.create({
   trackingText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  trackingPanel: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    marginBottom: Spacing.two,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trackingEta: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  trackingUpdated: {
+    fontSize: 11,
+  },
+  shareRow: {
+    marginTop: Spacing.two,
+  },
+  shareBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  shareBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  shareError: {
+    fontSize: 11,
+    marginTop: 4,
   },
   stepperContainer: {
     flexDirection: 'row',

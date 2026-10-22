@@ -12,13 +12,43 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Elevation, BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { authStore, useAuth } from '@/services/auth-store';
+import { authStore, useAuth, type ProviderTypeOption } from '@/services/auth-store';
 import { UserRole } from '@weyro/api-contracts';
+
+const PROVIDER_TYPES: { value: ProviderTypeOption; label: string }[] = [
+  { value: 'MECHANIC', label: 'Mechanic' },
+  { value: 'GARAGE', label: 'Garage' },
+  { value: 'AUTHORIZED_CENTER', label: 'Authorized Center' },
+  { value: 'PARTS_DEALER', label: 'Parts Dealer' },
+  { value: 'TOWING', label: 'Towing' },
+  { value: 'ROADSIDE', label: 'Roadside Assist' },
+];
+
+const TOWING_EQUIPMENT: {
+  value: 'FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY';
+  label: string;
+}[] = [
+  { value: 'FLATBED', label: 'Flatbed' },
+  { value: 'HOOK_AND_CHAIN', label: 'Hook & Chain' },
+  { value: 'MOTORCYCLE', label: 'Motorcycle' },
+  { value: 'ANY', label: 'Any' },
+];
+
+function parseOptionalPositiveInt(value: string): number | undefined {
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseOptionalPositiveNumber(value: string): number | undefined {
+  const parsed = Number.parseFloat(value.trim());
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -34,7 +64,24 @@ export default function AuthScreen() {
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('CUSTOMER');
+  const [providerType, setProviderType] = useState<ProviderTypeOption>('MECHANIC');
+  const [towingVehicleTypes, setTowingVehicleTypes] = useState<
+    ('FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY')[]
+  >([]);
+  const [maxVehicleWeightKg, setMaxVehicleWeightKg] = useState('');
+  const [towingBaseFee, setTowingBaseFee] = useState('');
+  const [towingPerKmFee, setTowingPerKmFee] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleTowingEquipment = (
+    value: 'FLATBED' | 'HOOK_AND_CHAIN' | 'MOTORCYCLE' | 'ANY',
+  ) => {
+    setTowingVehicleTypes((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
+    );
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -76,6 +123,38 @@ export default function AuthScreen() {
           setSubmitting(false);
           return;
         }
+        let providerCoords: { latitude: number; longitude: number } | undefined;
+
+        if (selectedRole === 'PROVIDER') {
+          if (providerType === 'TOWING' && towingVehicleTypes.length === 0) {
+            Alert.alert(
+              'Towing Equipment Required',
+              'Select at least one towing vehicle type you can operate.',
+            );
+            setSubmitting(false);
+            return;
+          }
+
+          const { status } =
+            await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert(
+              'Location Required',
+              'Providers must allow location access so nearby customers can find you.',
+            );
+            setSubmitting(false);
+            return;
+          }
+
+          const position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          providerCoords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        }
+
         await authStore.register({
           email: email.trim(),
           phone: phone.trim().startsWith('+91') ? phone.trim() : `+91${phone.trim()}`,
@@ -83,6 +162,25 @@ export default function AuthScreen() {
           role: selectedRole,
           name: name.trim(),
           businessName: businessName.trim() || undefined,
+          providerType: selectedRole === 'PROVIDER' ? providerType : undefined,
+          latitude: providerCoords?.latitude,
+          longitude: providerCoords?.longitude,
+          towingVehicleTypes:
+            selectedRole === 'PROVIDER' && providerType === 'TOWING'
+              ? towingVehicleTypes
+              : undefined,
+          maxVehicleWeightKg:
+            selectedRole === 'PROVIDER' && providerType === 'TOWING'
+              ? parseOptionalPositiveInt(maxVehicleWeightKg)
+              : undefined,
+          towingBaseFee:
+            selectedRole === 'PROVIDER' && providerType === 'TOWING'
+              ? parseOptionalPositiveNumber(towingBaseFee)
+              : undefined,
+          towingPerKmFee:
+            selectedRole === 'PROVIDER' && providerType === 'TOWING'
+              ? parseOptionalPositiveNumber(towingPerKmFee)
+              : undefined,
         });
         Alert.alert('Account Created', `Registered as ${selectedRole}!`);
       }
@@ -299,7 +397,7 @@ export default function AuthScreen() {
                           { color: theme.textSecondary },
                           selectedRole === r && { color: theme.primary, fontWeight: '700' },
                         ]}>
-                        {r === 'CUSTOMER' ? 'Vehicle Owner' : 'Garage / Parts Dealer'}
+                        {r === 'CUSTOMER' ? 'Vehicle Owner' : 'Service Provider'}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -320,6 +418,142 @@ export default function AuthScreen() {
                       value={businessName}
                       onChangeText={setBusinessName}
                     />
+
+                    <ThemedText style={styles.inputLabel}>
+                      Provider Type
+                    </ThemedText>
+                    <View style={styles.rolePickerRow}>
+                      {PROVIDER_TYPES.map((type) => (
+                        <Pressable
+                          key={type.value}
+                          style={[
+                            styles.roleChoice,
+                            {
+                              borderColor: theme.border,
+                              backgroundColor: theme.backgroundElement,
+                            },
+                            providerType === type.value && [
+                              styles.roleChoiceActive,
+                              {
+                                borderColor: theme.primary,
+                                backgroundColor: theme.primarySurface,
+                              },
+                            ],
+                          ]}
+                          onPress={() => setProviderType(type.value)}>
+                          <ThemedText
+                            style={[
+                              styles.roleChoiceText,
+                              { color: theme.textSecondary },
+                              providerType === type.value && {
+                                color: theme.primary,
+                                fontWeight: '700',
+                              },
+                            ]}>
+                            {type.label}
+                          </ThemedText>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {providerType === 'TOWING' && (
+                      <>
+                        <ThemedText style={styles.inputLabel}>
+                          Towing Equipment
+                        </ThemedText>
+                        <View style={styles.rolePickerRow}>
+                          {TOWING_EQUIPMENT.map((equipment) => (
+                            <Pressable
+                              key={equipment.value}
+                              style={[
+                                styles.roleChoice,
+                                {
+                                  borderColor: theme.border,
+                                  backgroundColor: theme.backgroundElement,
+                                },
+                                towingVehicleTypes.includes(equipment.value) && [
+                                  styles.roleChoiceActive,
+                                  {
+                                    borderColor: theme.primary,
+                                    backgroundColor: theme.primarySurface,
+                                  },
+                                ],
+                              ]}
+                              onPress={() =>
+                                toggleTowingEquipment(equipment.value)
+                              }>
+                              <ThemedText
+                                style={[
+                                  styles.roleChoiceText,
+                                  { color: theme.textSecondary },
+                                  towingVehicleTypes.includes(
+                                    equipment.value,
+                                  ) && {
+                                    color: theme.primary,
+                                    fontWeight: '700',
+                                  },
+                                ]}>
+                                {equipment.label}
+                              </ThemedText>
+                            </Pressable>
+                          ))}
+                        </View>
+
+                        <ThemedText style={styles.inputLabel}>
+                          Max Vehicle Weight (kg, optional)
+                        </ThemedText>
+                        <TextInput
+                          style={[
+                            styles.textInput,
+                            {
+                              color: theme.text,
+                              borderColor: theme.backgroundElement,
+                            },
+                          ]}
+                          placeholder="e.g. 3500"
+                          placeholderTextColor={theme.textSecondary}
+                          keyboardType="number-pad"
+                          value={maxVehicleWeightKg}
+                          onChangeText={setMaxVehicleWeightKg}
+                        />
+
+                        <ThemedText style={styles.inputLabel}>
+                          Base Fee (₹, optional)
+                        </ThemedText>
+                        <TextInput
+                          style={[
+                            styles.textInput,
+                            {
+                              color: theme.text,
+                              borderColor: theme.backgroundElement,
+                            },
+                          ]}
+                          placeholder="Defaults to platform tariff"
+                          placeholderTextColor={theme.textSecondary}
+                          keyboardType="decimal-pad"
+                          value={towingBaseFee}
+                          onChangeText={setTowingBaseFee}
+                        />
+
+                        <ThemedText style={styles.inputLabel}>
+                          Per-Km Fee (₹, optional)
+                        </ThemedText>
+                        <TextInput
+                          style={[
+                            styles.textInput,
+                            {
+                              color: theme.text,
+                              borderColor: theme.backgroundElement,
+                            },
+                          ]}
+                          placeholder="Defaults to platform tariff"
+                          placeholderTextColor={theme.textSecondary}
+                          keyboardType="decimal-pad"
+                          value={towingPerKmFee}
+                          onChangeText={setTowingPerKmFee}
+                        />
+                      </>
+                    )}
                   </>
                 )}
               </>

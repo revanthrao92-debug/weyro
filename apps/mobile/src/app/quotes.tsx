@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -27,6 +27,11 @@ import { BookingCard } from '@/components/quotes/BookingCard';
 import { AcceptQuoteModal } from '@/components/quotes/AcceptQuoteModal';
 import { BookingReviewModal } from '@/components/quotes/BookingReviewModal';
 import { EmptyListCard } from '@/components/quotes/EmptyListCard';
+import { useAuth } from '@/services/auth-store';
+import {
+  fetchBookingTracking,
+  subscribeToBookingTracking,
+} from '@/services/tracking';
 
 export default function QuotesAndBookingsScreen() {
   const router = useRouter();
@@ -35,6 +40,63 @@ export default function QuotesAndBookingsScreen() {
 
   const requests = useDamageRequests();
   const bookings = useBookings();
+  const auth = useAuth();
+
+  const activeBookingIds = bookings
+    .filter(
+      (booking) =>
+        booking.status === 'DISPATCHED_OR_IN_BAY' ||
+        booking.status === 'OUT_FOR_DELIVERY_OR_TESTING',
+    )
+    .map((booking) => booking.id)
+    .join(',');
+
+  // Live tracking: hydrate from REST, then subscribe to socket updates.
+  useEffect(() => {
+    if (!auth.isAuthenticated || !activeBookingIds) return;
+
+    let cancelled = false;
+    const unsubscribers: (() => void)[] = [];
+    const ids = activeBookingIds.split(',');
+
+    void (async () => {
+      for (const id of ids) {
+        try {
+          const snapshot = await fetchBookingTracking(id);
+          if (
+            !cancelled &&
+            snapshot.providerLatitude != null &&
+            snapshot.providerLongitude != null &&
+            snapshot.providerLocationUpdatedAt
+          ) {
+            damageRequestStore.applyBookingTracking(id, {
+              latitude: snapshot.providerLatitude,
+              longitude: snapshot.providerLongitude,
+              etaMinutes: snapshot.etaMinutes,
+              updatedAt: snapshot.providerLocationUpdatedAt,
+            });
+          }
+
+          const unsubscribe = await subscribeToBookingTracking(id, (update) => {
+            damageRequestStore.applyBookingTracking(id, update);
+          });
+
+          if (cancelled) {
+            unsubscribe();
+          } else {
+            unsubscribers.push(unsubscribe);
+          }
+        } catch {
+          // Tracking is best-effort; the booking remains usable without it.
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [activeBookingIds, auth.isAuthenticated]);
 
   const [activeTab, setActiveTab] = useState<'QUOTES' | 'BOOKINGS'>('QUOTES');
   const [selectedQuote, setSelectedQuote] = useState<{
@@ -181,6 +243,7 @@ export default function QuotesAndBookingsScreen() {
                   <BookingCard
                     key={b.id}
                     booking={b}
+                    canShareLocation={Boolean(auth.user?.providerProfileId)}
                     onAdvanceMilestone={() => handleAdvanceMilestone(b)}
                     onOpenReview={() => setReviewBooking(b)}
                     onChat={() =>

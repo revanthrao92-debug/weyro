@@ -43,7 +43,7 @@ export default function ProviderFeedScreen() {
     if (!activeRequest) return;
 
     try {
-      await damageRequestStore.submitQuote(activeRequest.id, {
+      const quote = await damageRequestStore.submitQuote(activeRequest.id, {
         providerName: auth.user?.name || 'Verified Workshop Partner',
         providerType: 'GARAGE',
         estimatedCost: data.estimatedCost,
@@ -53,9 +53,15 @@ export default function ProviderFeedScreen() {
       });
 
       setActiveRequest(null);
+
+      const finalCost = quote?.estimatedCost ?? data.estimatedCost;
       Alert.alert(
         'Quote Dispatched! 🚀',
-        `Your bid of ₹${data.estimatedCost.toLocaleString('en-IN')} has been delivered to the customer.`,
+        activeRequest.category === 'TOWING'
+          ? `Your distance-based tow quote of ₹${finalCost.toLocaleString(
+              'en-IN',
+            )} has been delivered to the customer.`
+          : `Your bid of ₹${finalCost.toLocaleString('en-IN')} has been delivered to the customer.`,
       );
     } catch {
       Alert.alert(

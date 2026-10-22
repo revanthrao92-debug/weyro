@@ -33,15 +33,21 @@ export function QuoteSubmissionModal({
 
   if (!request) return null;
 
+  const isTowing = request.category === 'TOWING';
+
   const handleSubmit = () => {
-    const cost = parseFloat(costInput);
-    if (isNaN(cost) || cost <= 0) {
-      Alert.alert('Invalid Amount', 'Please specify a valid quotation cost in INR (₹).');
-      return;
+    if (!isTowing) {
+      const cost = parseFloat(costInput);
+      if (isNaN(cost) || cost <= 0) {
+        Alert.alert('Invalid Amount', 'Please specify a valid quotation cost in INR (₹).');
+        return;
+      }
     }
 
     onSubmit({
-      estimatedCost: cost,
+      estimatedCost: isTowing
+        ? request.towingEstimatedFare ?? 0
+        : parseFloat(costInput),
       partCondition,
       eta: etaInput.trim() || '1 - 2 days',
       notes: notesInput.trim(),
@@ -65,44 +71,68 @@ export function QuoteSubmissionModal({
             {request.damagedPart} • {request.vehicleMake} {request.vehicleModel}
           </ThemedText>
 
-          <ThemedText style={styles.label}>Quoted Total Cost (₹ INR)</ThemedText>
-          <TextInput
-            style={[styles.input, { borderColor: theme.border, color: theme.text }]}
-            value={costInput}
-            onChangeText={setCostInput}
-            keyboardType="numeric"
-            placeholder="e.g. 4500"
-            placeholderTextColor={theme.textSecondary}
-            accessibilityLabel="Quoted total cost in Indian rupees"
-          />
+          {isTowing ? (
+            <View
+              style={[
+                styles.towingNotice,
+                { borderColor: theme.border, backgroundColor: theme.backgroundElement },
+              ]}>
+              <ThemedText style={styles.towingTitle} themeColor="textSecondary">
+                Distance-based towing fare
+              </ThemedText>
+              <ThemedText style={[styles.towingFare, { color: theme.primary }]}>
+                {request.towingDistanceKm !== undefined
+                  ? `${request.towingDistanceKm.toFixed(1)} km · ~₹${(
+                      request.towingEstimatedFare ?? 0
+                    ).toLocaleString('en-IN')} platform estimate`
+                  : 'Platform estimate pending distance'}
+              </ThemedText>
+              <ThemedText style={styles.towingHint} themeColor="textSecondary">
+                Your registered base + per-km tariff is applied automatically.
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              <ThemedText style={styles.label}>Quoted Total Cost (₹ INR)</ThemedText>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                value={costInput}
+                onChangeText={setCostInput}
+                keyboardType="numeric"
+                placeholder="e.g. 4500"
+                placeholderTextColor={theme.textSecondary}
+                accessibilityLabel="Quoted total cost in Indian rupees"
+              />
 
-          <ThemedText style={styles.label}>Component Condition</ThemedText>
-          <View style={styles.chipsRow} accessibilityRole="radiogroup">
-            {CONDITIONS.map((cond) => {
-              const isSelected = partCondition === cond;
-              return (
-                <Pressable
-                  key={cond}
-                  onPress={() => setPartCondition(cond)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`${cond} condition`}
-                  style={[
-                    styles.chip,
-                    { borderColor: isSelected ? theme.primary : theme.border },
-                    isSelected && { backgroundColor: theme.primarySurface },
-                  ]}>
-                  <ThemedText
-                    style={[
-                      styles.chipText,
-                      isSelected && { color: theme.primary, fontWeight: '700' },
-                    ]}>
-                    {cond}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
+              <ThemedText style={styles.label}>Component Condition</ThemedText>
+              <View style={styles.chipsRow} accessibilityRole="radiogroup">
+                {CONDITIONS.map((cond) => {
+                  const isSelected = partCondition === cond;
+                  return (
+                    <Pressable
+                      key={cond}
+                      onPress={() => setPartCondition(cond)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={`${cond} condition`}
+                      style={[
+                        styles.chip,
+                        { borderColor: isSelected ? theme.primary : theme.border },
+                        isSelected && { backgroundColor: theme.primarySurface },
+                      ]}>
+                      <ThemedText
+                        style={[
+                          styles.chipText,
+                          isSelected && { color: theme.primary, fontWeight: '700' },
+                        ]}>
+                        {cond}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           <ThemedText style={styles.label}>Estimated Delivery / Fitment Turnaround</ThemedText>
           <TextInput
@@ -207,6 +237,24 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
+  },
+  towingNotice: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: Spacing.two,
+    marginBottom: Spacing.two,
+    gap: 2,
+  },
+  towingTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  towingFare: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  towingHint: {
+    fontSize: 11,
   },
   buttonRow: {
     flexDirection: 'row',

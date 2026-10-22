@@ -17,9 +17,14 @@ import { BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/t
 import { useTheme } from '@/hooks/use-theme';
 import { damageRequestStore } from '@/services/damage-request-store';
 import { useAuth } from '@/services/auth-store';
+import { haversineDistanceKm, estimateTowingFare } from '@weyro/api-contracts';
 import { DamageVehicleSection } from '@/components/damage-post/DamageVehicleSection';
 import { DamagePhotoUploader } from '@/components/damage-post/DamagePhotoUploader';
 import { DamageFulfillmentSection } from '@/components/damage-post/DamageFulfillmentSection';
+import {
+  TowingDetailsSection,
+  TowingVehicleType,
+} from '@/components/damage-post/TowingDetailsSection';
 import {
   DamageCategorySection,
   PostServiceCategory,
@@ -42,9 +47,45 @@ export default function PostDamageScreen() {
     'PARTS_SHIPPING' | 'WORKSHOP_VISIT' | 'ON_SITE' | 'TOW_TO_GARAGE'
   >('PARTS_SHIPPING');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [towingVehicleType, setTowingVehicleType] =
+    useState<TowingVehicleType>('FLATBED');
+  const [dropoffAddress, setDropoffAddress] = useState('');
+  const [vehicleWeightKg, setVehicleWeightKg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTowing = category === 'TOWING';
+
+  const geocodeAddress = async (address: string) => {
+    const results = await Location.geocodeAsync(address.trim());
+    return results[0];
+  };
+
+  const handleEstimateTowingFare = async () => {
+    if (dropoffAddress.trim().length < 3) return null;
+
+    const [position, dropoff] = await Promise.all([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      geocodeAddress(dropoffAddress),
+    ]);
+
+    if (!dropoff) {
+      Alert.alert(
+        'Address Not Found',
+        'We could not locate that dropoff address. Please make it more specific.',
+      );
+      return null;
+    }
+
+    const distanceKm = haversineDistanceKm(
+      {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      },
+      { latitude: dropoff.latitude, longitude: dropoff.longitude },
+    );
+
+    return { distanceKm, fare: estimateTowingFare(distanceKm) };
+  };
 
   const setCategory = (next: PostServiceCategory) => {
     setCategoryState(next);
@@ -77,6 +118,34 @@ export default function PostDamageScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
+      let dropoff:
+        | { latitude: number; longitude: number }
+        | undefined;
+
+      if (isTowing) {
+        if (dropoffAddress.trim().length < 3) {
+          Alert.alert(
+            'Dropoff Required',
+            'Enter the address where the vehicle should be towed.',
+          );
+          return;
+        }
+
+        const geocoded = await geocodeAddress(dropoffAddress);
+        if (!geocoded) {
+          Alert.alert(
+            'Address Not Found',
+            'We could not locate that dropoff address. Please make it more specific.',
+          );
+          return;
+        }
+
+        dropoff = {
+          latitude: geocoded.latitude,
+          longitude: geocoded.longitude,
+        };
+      }
+
       let address = 'Current location';
       try {
         const [place] = await Location.reverseGeocodeAsync(position.coords);
@@ -90,7 +159,7 @@ export default function PostDamageScreen() {
         // Reverse geocoding is best-effort; coordinates are still valid.
       }
 
-      await damageRequestStore.createBroadcastRequest({
+      const created = await damageRequestStore.createBroadcastRequest({
         customerName: auth.user?.name || 'Customer',
         vehicleMake: vehicleMake.trim() || 'Generic',
         vehicleModel: vehicleModel.trim() || 'Vehicle',
@@ -108,12 +177,30 @@ export default function PostDamageScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         address,
+        dropoffAddress: isTowing ? dropoffAddress.trim() : undefined,
+        dropoffLatitude: dropoff?.latitude,
+        dropoffLongitude: dropoff?.longitude,
+        towingVehicleType: isTowing ? towingVehicleType : undefined,
+        vehicleWeightKg:
+          isTowing && vehicleWeightKg.trim()
+            ? parseInt(vehicleWeightKg, 10) || undefined
+            : undefined,
       });
+
+      const towingSummary =
+        created.towingDistanceKm !== undefined &&
+        created.towingEstimatedFare !== undefined
+          ? `\n\nEstimated distance: ${created.towingDistanceKm.toFixed(
+              1,
+            )} km\nEstimated fare: ₹${created.towingEstimatedFare.toLocaleString(
+              'en-IN',
+            )} (final quote from the operator may vary).`
+          : '';
 
       Alert.alert(
         'Request Broadcast Live! 🚀',
         isTowing
-          ? 'Your towing request has been dispatched to verified towing operators near you.'
+          ? `Your towing request has been dispatched to verified towing operators near you.${towingSummary}`
           : 'Your repair request has been dispatched to local workshops and verified parts dealers.',
         [{ text: 'View Bids', onPress: () => router.push('/quotes') }],
       );
@@ -172,11 +259,25 @@ export default function PostDamageScreen() {
             setPhotoUri={setPhotoUri}
           />
 
+          {isTowing && (
+            <TowingDetailsSection
+              vehicleType={towingVehicleType}
+              setVehicleType={setTowingVehicleType}
+              dropoffAddress={dropoffAddress}
+              setDropoffAddress={setDropoffAddress}
+              vehicleWeightKg={vehicleWeightKg}
+              setVehicleWeightKg={setVehicleWeightKg}
+              onEstimate={handleEstimateTowingFare}
+            />
+          )}
+
           <DamageFulfillmentSection
             urgency={urgency}
             setUrgency={setUrgency}
             fulfillmentType={fulfillmentType}
             setFulfillmentType={setFulfillmentType}
+            sectionNumber={isTowing ? 4 : 3}
+            hideServiceMode={isTowing}
           />
         </View>
       </ScrollView>
