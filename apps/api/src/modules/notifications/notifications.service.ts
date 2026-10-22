@@ -123,7 +123,7 @@ export class NotificationsService {
         userId,
       },
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     return {

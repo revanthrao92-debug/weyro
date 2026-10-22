@@ -123,7 +123,7 @@ export class ChatService {
         ...where,
       },
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         customer: {
           select: {

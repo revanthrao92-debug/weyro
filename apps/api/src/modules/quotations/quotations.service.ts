@@ -257,7 +257,7 @@ export class QuotationsService {
         },
         include: { provider: true },
         take: boundedLimit,
-        orderBy: { createdAt: 'desc', id: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
       return {
         items,
@@ -281,7 +281,7 @@ export class QuotationsService {
         },
         include: { provider: true },
         take: boundedLimit,
-        orderBy: { createdAt: 'desc', id: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
       return {
         items,
@@ -482,7 +482,7 @@ export class QuotationsService {
         ...where,
       },
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         customer: true,
         provider: true,

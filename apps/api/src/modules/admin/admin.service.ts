@@ -162,7 +162,7 @@ export class AdminService {
     const items = await this.prisma.auditLog.findMany({
       where,
       take: boundedLimit,
-      orderBy: { createdAt: 'desc', id: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
         actorId: true,
