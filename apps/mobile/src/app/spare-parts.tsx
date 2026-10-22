@@ -19,6 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Elevation, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/services/api-client';
+import { useAuth } from '@/services/auth-store';
 
 interface SparePartProvider {
   id: string;
@@ -61,6 +62,7 @@ export default function SparePartsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const auth = useAuth();
 
   const [search, setSearch] = useState('');
   const [condition, setCondition] = useState<'OEM' | 'AFTERMARKET' | 'USED' | ''>('');
@@ -277,6 +279,19 @@ export default function SparePartsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.contentWrapper, { maxWidth: MaxContentWidth }]}>
+          {(
+            auth.user?.role === 'PROVIDER' ||
+            auth.user?.role === 'BOTH' ||
+            auth.user?.role === 'ADMIN'
+          ) && (
+            <Pressable
+              onPress={() => router.push('/spare-parts/create')}
+              accessibilityRole="button"
+              accessibilityLabel="List a new spare part"
+              style={styles.createBtn}>
+              <ThemedText style={styles.createBtnText}>+ List a Spare Part</ThemedText>
+            </Pressable>
+          )}
           {/* Search */}
           <View style={styles.searchBar}>
             <TextInput
@@ -615,5 +630,20 @@ const makeStyles = (
     fontSize: 13,
     fontWeight: '700',
     color: theme.text,
+  },
+  createBtn: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: BorderRadius.medium,
+    borderWidth: 1,
+    borderColor: theme.primary,
+    backgroundColor: theme.primarySurface,
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.two,
+  },
+  createBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.primary,
   },
 });
