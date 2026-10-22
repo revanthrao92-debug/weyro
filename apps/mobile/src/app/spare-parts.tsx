@@ -29,6 +29,7 @@ interface SparePartProvider {
 
 interface SparePartItem {
   id: string;
+  kind?: 'PART' | 'PACKAGE';
   name: string;
   partNumber: string;
   compatibleMakes: string[];
@@ -66,6 +67,7 @@ export default function SparePartsScreen() {
 
   const [search, setSearch] = useState('');
   const [condition, setCondition] = useState<'OEM' | 'AFTERMARKET' | 'USED' | ''>('');
+  const [listingKind, setListingKind] = useState<'PART' | 'PACKAGE'>('PART');
   const [items, setItems] = useState<SparePartItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +94,7 @@ export default function SparePartsScreen() {
           params: {
             search: search.trim() || undefined,
             condition: condition || undefined,
+            kind: listingKind || undefined,
             cursor: opts.loadMore ? (nextCursor ?? undefined) : undefined,
             limit: 20,
           },
@@ -119,7 +122,7 @@ export default function SparePartsScreen() {
         initialLoad.current = false;
       }
     },
-    [search, condition, isLoading, hasMore, nextCursor],
+    [search, condition, listingKind, isLoading, hasMore, nextCursor],
   );
 
   // Initial load + reload when filters change
@@ -130,7 +133,7 @@ export default function SparePartsScreen() {
       return;
     }
     void fetchParts({ refresh: true });
-  }, [search, condition, fetchParts]);
+  }, [search, condition, listingKind, fetchParts]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -200,7 +203,14 @@ export default function SparePartsScreen() {
             #{item.partNumber}
           </ThemedText>
           <View style={styles.conditionRow}>
-            {CONDITIONS.map((c) => (
+            {item.kind === 'PACKAGE' ? (
+              <View style={[styles.conditionChip, { borderColor: theme.primary, backgroundColor: theme.primarySurface }]}>
+                <ThemedText style={[styles.conditionChipText, { color: theme.primary }]}>
+                  Service Package
+                </ThemedText>
+              </View>
+            ) : (
+              CONDITIONS.map((c) => (
               <Pressable
                 key={c.key}
                 accessibilityRole="button"
@@ -222,7 +232,8 @@ export default function SparePartsScreen() {
                   {c.label}
                 </ThemedText>
               </Pressable>
-            ))}
+              ))
+            )}
           </View>
           <View style={styles.priceRow}>
             <ThemedText style={[styles.price, { color: theme.primary }]}>
@@ -231,6 +242,11 @@ export default function SparePartsScreen() {
             {item.stockQuantity === 0 && (
               <ThemedText style={styles.outOfStock} themeColor="danger">
                 Out of stock
+              </ThemedText>
+            )}
+            {item.kind === 'PART' && item.stockQuantity > 0 && item.stockQuantity <= 3 && (
+              <ThemedText style={styles.outOfStock} themeColor="warning">
+                Only {item.stockQuantity} left
               </ThemedText>
             )}
           </View>
@@ -279,6 +295,31 @@ export default function SparePartsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.contentWrapper, { maxWidth: MaxContentWidth }]}>
+          {/* Kind switch: Parts | Packages */}
+          <View style={styles.kindSwitch}>
+            {([['PART', 'Parts'], ['PACKAGE', 'Packages']] as const).map(
+              ([key, label]) => (
+                <Pressable
+                  key={key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: listingKind === key }}
+                  onPress={() => {
+                    setListingKind(key);
+                    initialLoad.current = true;
+                  }}
+                  style={[styles.kindTab, listingKind === key && styles.kindTabActive]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={[
+                      styles.kindTabText,
+                      listingKind === key && { color: theme.inverseText },
+                    ]}>
+                    {label}
+                  </ThemedText>
+                </Pressable>
+              ),
+            )}
+          </View>
           {(
             auth.user?.role === 'PROVIDER' ||
             auth.user?.role === 'BOTH' ||
@@ -672,5 +713,24 @@ const makeStyles = (
     fontSize: 13,
     fontWeight: '700',
     color: theme.primary,
+  },
+  kindSwitch: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+    marginBottom: Spacing.two,
+  },
+  kindTab: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    borderRadius: BorderRadius.round,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  kindTabActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  kindTabText: {
+    color: theme.text,
   },
 });

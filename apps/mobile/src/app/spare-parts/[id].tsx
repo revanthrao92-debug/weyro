@@ -32,6 +32,9 @@ interface SparePartDetail {
   condition: 'OEM' | 'AFTERMARKET' | 'USED';
   price: number;
   stockQuantity: number;
+  kind?: 'PART' | 'PACKAGE';
+  description?: string | null;
+  estimatedMinutes?: number | null;
   imageUrl?: string | null;
   isActive: boolean;
   provider: SparePartDetailProvider;
@@ -234,12 +237,24 @@ export default function SparePartsDetailScreen() {
             Part #{part.partNumber}
           </ThemedText>
 
-          {/* Condition chips */}
+          {/* Condition chips (packages show a bookable chip instead) */}
           <ThemedText style={styles.sectionTitle} themeColor="textSecondary">
             Condition
           </ThemedText>
           <View style={styles.chipRow}>
-            {CONDITIONS.map((c) => (
+            {part.kind === 'PACKAGE' ? (
+              <View
+                style={[
+                  styles.conditionChip,
+                  { borderColor: theme.primary, backgroundColor: theme.primarySurface },
+                ]}>
+                <ThemedText
+                  style={[styles.conditionChipText, { color: theme.primary }]}>
+                  Service Package
+                </ThemedText>
+              </View>
+            ) : (
+              CONDITIONS.map((c) => (
               <Pressable
                 key={c.key}
                 accessibilityRole="button"
@@ -261,7 +276,8 @@ export default function SparePartsDetailScreen() {
                   {c.label}
                 </ThemedText>
               </Pressable>
-            ))}
+              ))
+            )}
           </View>
 
           {/* Price + stock */}
@@ -269,7 +285,11 @@ export default function SparePartsDetailScreen() {
             <ThemedText style={[styles.price, { color: theme.primary }]}>
               ₹{part.price.toLocaleString('en-IN')}
             </ThemedText>
-            {part.stockQuantity === 0 ? (
+            {part.kind === 'PACKAGE' ? (
+              <ThemedText style={styles.inStock} themeColor="success">
+                Bookable service
+              </ThemedText>
+            ) : part.stockQuantity === 0 ? (
               <ThemedText style={styles.outOfStock} themeColor="danger">
                 Out of stock
               </ThemedText>
@@ -279,6 +299,24 @@ export default function SparePartsDetailScreen() {
               </ThemedText>
             )}
           </View>
+
+          {/* Package description / duration */}
+          {part.kind === 'PACKAGE' && (part.description || part.estimatedMinutes) && (
+            <View style={styles.compatibleBox}>
+              <ThemedText style={styles.compatibleLabel} themeColor="textSecondary">
+                What&apos;s included
+              </ThemedText>
+              <ThemedText style={styles.compatibleValue}>
+                {part.description || '—'}
+              </ThemedText>
+              <ThemedText style={styles.compatibleLabel} themeColor="textSecondary">
+                Estimated duration
+              </ThemedText>
+              <ThemedText style={styles.compatibleValue}>
+                {part.estimatedMinutes ? `≈ ${part.estimatedMinutes} minutes` : '—'}
+              </ThemedText>
+            </View>
+          )}
 
           {/* Compatible makes/models */}
           <ThemedText style={styles.sectionTitle} themeColor="textSecondary">

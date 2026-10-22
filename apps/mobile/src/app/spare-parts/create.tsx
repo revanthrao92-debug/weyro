@@ -33,6 +33,9 @@ export default function CreateSparePartScreen() {
   const [compatibleMakes, setCompatibleMakes] = useState('');
   const [compatibleModels, setCompatibleModels] = useState('');
   const [condition, setCondition] = useState<'OEM' | 'AFTERMARKET' | 'USED'>('OEM');
+  const [listingKind, setListingKind] = useState<'PART' | 'PACKAGE'>('PART');
+  const [description, setDescription] = useState('');
+  const [estimatedMinutes, setEstimatedMinutes] = useState('');
   const [price, setPrice] = useState('');
   const [stockQuantity, setStockQuantity] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -55,7 +58,10 @@ export default function CreateSparePartScreen() {
       return;
     }
 
-    const stockNum = Number.parseInt(stockQuantity, 10);
+    const stockNum =
+      listingKind === 'PACKAGE' && !stockQuantity.trim()
+        ? 1
+        : Number.parseInt(stockQuantity, 10);
     if (!Number.isFinite(stockNum) || stockNum < 0) {
       setError('Please enter a valid stock quantity.');
       return;
@@ -76,6 +82,24 @@ export default function CreateSparePartScreen() {
       return;
     }
 
+    if (listingKind === 'PACKAGE' && description.trim().length < 10) {
+      setError('Please describe what the package includes (10+ characters).');
+      return;
+    }
+
+    let estimatedMinutesParsed: number | undefined;
+    if (listingKind === 'PACKAGE' && estimatedMinutes.trim()) {
+      estimatedMinutesParsed = Number.parseInt(estimatedMinutes, 10);
+      if (
+        !Number.isFinite(estimatedMinutesParsed) ||
+        estimatedMinutesParsed < 15 ||
+        estimatedMinutesParsed > 480
+      ) {
+        setError('Estimated duration must be 15–480 minutes.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -88,11 +112,16 @@ export default function CreateSparePartScreen() {
         price: priceNum,
         stockQuantity: stockNum,
         imageUrl: imageUrlTrimmed || undefined,
+        kind: listingKind,
+        description: listingKind === 'PACKAGE' ? description.trim() : undefined,
+        estimatedMinutes: estimatedMinutesParsed,
       });
 
       Alert.alert(
-        'Spare Part Listed',
-        'Your spare part is now live in the catalog.',
+        listingKind === 'PACKAGE' ? 'Package Listed' : 'Spare Part Listed',
+        listingKind === 'PACKAGE'
+          ? 'Your service package is now live in the catalog.'
+          : 'Your spare part is now live in the catalog.',
         [
           {
             text: 'OK',
@@ -136,8 +165,37 @@ export default function CreateSparePartScreen() {
               <ThemedText style={styles.backText}>‹</ThemedText>
             </Pressable>
             <ThemedText type="smallBold" style={styles.headerTitle}>
-              List a Spare Part
+              List in Shop
             </ThemedText>
+          </View>
+
+          {/* Listing kind */}
+          <View style={styles.chipRow}>
+            {([['PART', 'Spare Part'], ['PACKAGE', 'Service Package']] as const).map(
+              ([key, label]) => (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: listingKind === key }}
+                  onPress={() => setListingKind(key)}
+                  style={[
+                    styles.conditionChip,
+                    {
+                      borderColor: listingKind === key ? theme.primary : theme.border,
+                      backgroundColor:
+                        listingKind === key ? theme.primarySurface : 'transparent',
+                    },
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.conditionChipText,
+                      listingKind === key && { color: theme.primary },
+                    ]}>
+                    {label}
+                  </ThemedText>
+                </Pressable>
+              ),
+            )}
           </View>
 
           {/* Error */}
@@ -252,20 +310,58 @@ export default function CreateSparePartScreen() {
             onChangeText={setPrice}
           />
 
-          {/* Stock Quantity */}
-          <ThemedText style={styles.label}>Stock Quantity</ThemedText>
-          <TextInput
-            accessibilityLabel="Stock quantity"
-            style={[
-              styles.input,
-              { color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="e.g. 5"
-            placeholderTextColor={theme.textSecondary}
-            keyboardType="numeric"
-            value={stockQuantity}
-            onChangeText={setStockQuantity}
-          />
+          {/* Stock Quantity — parts only */}
+          {listingKind !== 'PACKAGE' && (
+            <>
+              <ThemedText style={styles.label}>Stock Quantity</ThemedText>
+              <TextInput
+                accessibilityLabel="Stock quantity"
+                style={[
+                  styles.input,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
+                placeholder="e.g. 5"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={stockQuantity}
+                onChangeText={setStockQuantity}
+              />
+            </>
+          )}
+
+          {/* Package-only fields */}
+          {listingKind === 'PACKAGE' && (
+            <>
+              <ThemedText style={styles.label}>What&apos;s included</ThemedText>
+              <TextInput
+                accessibilityLabel="Package description"
+                style={[
+                  styles.input,
+                  styles.multiline,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
+                placeholder="e.g. Oil change, filter, 21-point check"
+                placeholderTextColor={theme.textSecondary}
+                multiline
+                numberOfLines={3}
+                value={description}
+                onChangeText={setDescription}
+              />
+              <ThemedText style={styles.label}>Estimated Duration (minutes, optional)</ThemedText>
+              <TextInput
+                accessibilityLabel="Estimated duration in minutes"
+                style={[
+                  styles.input,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
+                placeholder="e.g. 90"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={estimatedMinutes}
+                onChangeText={setEstimatedMinutes}
+              />
+            </>
+          )}
 
           {/* Image URL */}
           <ThemedText style={styles.label}>Image URL (optional)</ThemedText>
@@ -385,6 +481,10 @@ const makeStyles = (
   conditionChipText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  multiline: {
+    height: 80,
+    textAlignVertical: 'top',
   },
   submitBtn: {
     paddingVertical: Spacing.three,
