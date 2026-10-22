@@ -60,6 +60,8 @@ describe('HTTP E2E flows (Postgres)', () => {
   let bookingId: string | undefined;
   let sparePartId: string | undefined;
   let sparePartOrderId: string | undefined;
+  let webhookOrderId: string | undefined;
+  let webhookEventId: string | undefined;
 
   const http = () => request(app.getHttpServer());
 
@@ -148,6 +150,16 @@ describe('HTTP E2E flows (Postgres)', () => {
     if (sparePartOrderId) {
       await prisma.sparePartOrder.deleteMany({
         where: { id: sparePartOrderId },
+      });
+    }
+    if (webhookOrderId) {
+      await prisma.sparePartOrder.deleteMany({
+        where: { id: webhookOrderId },
+      });
+    }
+    if (webhookEventId) {
+      await prisma.webhookEvent.deleteMany({
+        where: { eventId: webhookEventId },
       });
     }
     if (sparePartId) {
@@ -421,6 +433,72 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(order).toBeDefined();
       expect(order.status).toBe('PAID');
       expect(order.sparePart.name).toBe('E2E Brake Pad Set');
+    });
+
+    it('captures a part payment through the Razorpay webhook, once', async () => {
+      const created = await http()
+        .post(`${API}/spare-parts/${sparePartId}/orders`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ quantity: 1 });
+
+      expect(created.status).toBe(201);
+
+      const order = await prisma.sparePartOrder.findUniqueOrThrow({
+        where: { id: created.body.orderId },
+      });
+
+      webhookOrderId = order.id;
+      webhookEventId = `evt_e2e_${suffix}`;
+
+      const payload = {
+        id: webhookEventId,
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: `pay_wh_${suffix}`,
+              order_id: order.gatewayOrderId,
+              amount: 150000, // ₹1500 in paise
+              currency: 'INR',
+            },
+          },
+        },
+      };
+
+      const delivered = await http()
+        .post(`${API}/payments/webhook`)
+        .set('x-razorpay-signature', `mock_webhook_${suffix}`)
+        .send(payload);
+
+      expect(delivered.status).toBe(201);
+      expect(delivered.body.status).toBe('processed');
+
+      const [settled, part] = await Promise.all([
+        prisma.sparePartOrder.findUniqueOrThrow({ where: { id: order.id } }),
+        prisma.sparePart.findUniqueOrThrow({ where: { id: sparePartId } }),
+      ]);
+
+      expect(settled.status).toBe('PAID');
+      expect(settled.gatewayPaymentId).toBe(`pay_wh_${suffix}`);
+      expect(part.stockQuantity).toBe(2);
+
+      // Gateway retries must not double-settle or double-decrement.
+      const duplicate = await http()
+        .post(`${API}/payments/webhook`)
+        .set('x-razorpay-signature', `mock_webhook_${suffix}`)
+        .send(payload);
+
+      expect(duplicate.status).toBe(201);
+      expect(duplicate.body).toEqual({
+        status: 'ignored',
+        reason: 'duplicate',
+        eventId: webhookEventId,
+      });
+
+      const afterDuplicate = await prisma.sparePart.findUniqueOrThrow({
+        where: { id: sparePartId },
+      });
+      expect(afterDuplicate.stockQuantity).toBe(2);
     });
   });
 });

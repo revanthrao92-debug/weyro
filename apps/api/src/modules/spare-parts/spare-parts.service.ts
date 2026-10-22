@@ -15,6 +15,7 @@ import {
 import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
+import { settleSparePartOrder } from './spare-part-settlement';
 import { PAYMENT_GATEWAY, PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 import {
   buildCursorWhere,
@@ -278,36 +279,11 @@ export class SparePartsService {
       throw new BadRequestException('Invalid payment signature');
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const part = await tx.sparePart.findUnique({
-        where: { id: order.sparePartId },
-        select: { kind: true },
-      });
+    const updated = await this.prisma.$transaction((tx) =>
+      settleSparePartOrder(tx, order, dto.razorpayPaymentId, dto.razorpayOrderId),
+    );
 
-      // Packages have no stock semantics; parts atomically reserve stock
-      if (part?.kind !== 'PACKAGE') {
-        const updatedPart = await tx.sparePart.update({
-          where: { id: order.sparePartId },
-          data: { stockQuantity: { decrement: order.quantity } },
-        });
-
-        if (updatedPart.stockQuantity < 0) {
-          throw new ConflictException('Insufficient stock to complete this order');
-        }
-      }
-
-      return tx.sparePartOrder.update({
-        where: { id: order.id },
-        data: {
-          status: 'PAID',
-          gatewayPaymentId: dto.razorpayPaymentId,
-          gatewayOrderId: dto.razorpayOrderId,
-          paidAt: new Date(),
-        },
-      });
-    });
-
-    return { orderId: updated.id, status: updated.status };
+    return updated;
   }
 
   async findMyOrders(customerId: string) {

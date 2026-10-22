@@ -396,6 +396,158 @@ describe('PaymentsService', () => {
         data: { status: 'REFUNDED' },
       });
     });
+
+    it('settles a spare-part order on payment.captured', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.sparePartOrder = {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'spo-1',
+          sparePartId: 'part-1',
+          quantity: 2,
+          status: 'PENDING',
+          totalAmount: 3000,
+          currency: 'INR',
+        }),
+        update: jest.fn().mockResolvedValue({ id: 'spo-1', status: 'PAID' }),
+        updateMany: jest.fn(),
+      };
+      mockPrisma.sparePart = {
+        findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
+        update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+      };
+
+      const payload = {
+        id: 'evt_sp_captured',
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_sp_123',
+              order_id: 'order_sp_123',
+              amount: 300000,
+              currency: 'INR',
+            },
+          },
+        },
+      };
+
+      const result = await service.handleWebhook('{}', 'valid_sig', payload);
+
+      expect(result.status).toBe('processed');
+      expect(mockPrisma.sparePart.update).toHaveBeenCalledWith({
+        where: { id: 'part-1' },
+        data: { stockQuantity: { decrement: 2 } },
+      });
+      expect(mockPrisma.sparePartOrder.update).toHaveBeenCalledWith({
+        where: { id: 'spo-1' },
+        data: expect.objectContaining({
+          status: 'PAID',
+          gatewayPaymentId: 'pay_sp_123',
+        }),
+      });
+    });
+
+    it('does not decrement stock for a package webhook capture', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.sparePartOrder = {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'spo-pkg',
+          sparePartId: 'pkg-1',
+          quantity: 1,
+          status: 'PENDING',
+          totalAmount: 2500,
+          currency: 'INR',
+        }),
+        update: jest.fn().mockResolvedValue({ id: 'spo-pkg', status: 'PAID' }),
+        updateMany: jest.fn(),
+      };
+      mockPrisma.sparePart = {
+        findUnique: jest.fn().mockResolvedValue({ kind: 'PACKAGE' }),
+        update: jest.fn(),
+      };
+
+      await service.handleWebhook('{}', 'valid_sig', {
+        id: 'evt_sp_pkg',
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_pkg_123',
+              order_id: 'order_pkg_123',
+              amount: 250000,
+              currency: 'INR',
+            },
+          },
+        },
+      });
+
+      expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
+      expect(mockPrisma.sparePartOrder.update).toHaveBeenCalled();
+    });
+
+    it('rejects spare-part webhooks whose amount does not match the order', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.sparePartOrder = {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'spo-1',
+          status: 'PENDING',
+          totalAmount: 3000,
+          currency: 'INR',
+        }),
+        updateMany: jest.fn(),
+      };
+
+      await expect(
+        service.handleWebhook('{}', 'valid_sig', {
+          id: 'evt_sp_bad_amount',
+          event: 'payment.captured',
+          payload: {
+            payment: {
+              entity: {
+                id: 'pay_sp_123',
+                order_id: 'order_sp_123',
+                amount: 100,
+                currency: 'INR',
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrisma.webhookEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('marks a pending spare-part order FAILED on payment.failed', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.sparePartOrder = {
+        findUnique: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      };
+
+      const result = await service.handleWebhook('{}', 'valid_sig', {
+        id: 'evt_sp_failed',
+        event: 'payment.failed',
+        payload: {
+          payment: {
+            entity: { id: 'pay_sp_failed', order_id: 'order_sp_123' },
+          },
+        },
+      });
+
+      expect(result.status).toBe('processed');
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { gatewayOrderId: 'order_sp_123', status: 'PENDING' },
+        data: { status: 'FAILED' },
+      });
+    });
   });
 
   describe('Razorpay HMAC Verification', () => {

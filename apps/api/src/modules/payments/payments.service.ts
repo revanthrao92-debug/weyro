@@ -23,6 +23,7 @@ import {
   validatePaymentTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
+import { settleSparePartOrder } from '../spare-parts/spare-part-settlement';
 import { env } from '../../config/env.config';
 
 @Injectable()
@@ -219,6 +220,14 @@ export class PaymentsService {
         where: { gatewayOrderId: orderId },
       });
 
+      // Spare-part orders are a separate settlement track with the same
+      // gateway order namespace.
+      const sparePartOrder = payment
+        ? null
+        : await this.prisma.sparePartOrder.findUnique({
+            where: { gatewayOrderId: orderId },
+          });
+
       if (payment) {
         const expectedMinorUnits = Math.round(Number(payment.amount) * 100);
         if (
@@ -230,6 +239,21 @@ export class PaymentsService {
           );
           throw new BadRequestException(
             'Webhook amount or currency does not match the stored payment',
+          );
+        }
+      } else if (sparePartOrder) {
+        const expectedMinorUnits = Math.round(
+          Number(sparePartOrder.totalAmount) * 100,
+        );
+        if (
+          Number(entity.amount) !== expectedMinorUnits ||
+          entity.currency !== sparePartOrder.currency
+        ) {
+          this.logger.warn(
+            `Rejected webhook ${eventId}: amount/currency mismatch for spare part order ${sparePartOrder.id}`,
+          );
+          throw new BadRequestException(
+            'Webhook amount or currency does not match the stored order',
           );
         }
       }
@@ -281,6 +305,34 @@ export class PaymentsService {
             });
             this.logger.log(`Payment ${payment.id} transitioned to CAPTURED via webhook`);
           }
+
+          // Spare-part orders are settled by the same captured event when no
+          // booking payment owns the gateway order id.
+          if (!payment) {
+            const sparePartOrder = await this.prisma.sparePartOrder.findUnique({
+              where: { gatewayOrderId: orderId },
+              select: {
+                id: true,
+                sparePartId: true,
+                quantity: true,
+                status: true,
+              },
+            });
+
+            if (sparePartOrder && sparePartOrder.status === 'PENDING') {
+              const settled = await this.prisma.$transaction((tx) =>
+                settleSparePartOrder(
+                  tx,
+                  sparePartOrder,
+                  gatewayPaymentId,
+                  orderId,
+                ),
+              );
+              this.logger.log(
+                `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status})`,
+              );
+            }
+          }
         }
         break;
       }
@@ -299,6 +351,18 @@ export class PaymentsService {
               data: { status: 'FAILED' },
             });
             this.logger.warn(`Payment ${payment.id} transitioned to FAILED via webhook`);
+          }
+
+          if (!payment) {
+            const failedOrders = await this.prisma.sparePartOrder.updateMany({
+              where: { gatewayOrderId: orderId, status: 'PENDING' },
+              data: { status: 'FAILED' },
+            });
+            if (failedOrders.count > 0) {
+              this.logger.warn(
+                `Spare part order(s) for gateway order ${orderId} transitioned to FAILED via webhook`,
+              );
+            }
           }
         }
         break;
