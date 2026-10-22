@@ -49,6 +49,10 @@ export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
     .optional(),
 });
 
+export const adminActivityQuerySchema = cursorPaginationSchema.extend({
+  action: z.string().max(100).optional(),
+});
+
 export const providerAdminQuerySchema = z
   .object({
     status: z.enum(['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED']).optional(),
@@ -61,3 +65,4 @@ export type SparePartsQuery = z.infer<typeof sparePartsQuerySchema>;
 export type BookingsQuery = z.infer<typeof bookingsQuerySchema>;
 export type SparePartOrderQuery = z.infer<typeof sparePartOrderQuerySchema>;
 export type ProviderAdminQuery = z.infer<typeof providerAdminQuerySchema>;
+export type AdminActivityQuery = z.infer<typeof adminActivityQuerySchema>;

@@ -17,6 +17,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
   ProviderAdminQuery,
   providerAdminQuerySchema,
+  AdminActivityQuery,
+  adminActivityQuerySchema,
 } from '../../common/dto/query.dto';
 
 @Controller('admin')
@@ -50,5 +52,22 @@ export class AdminController {
   @Get('escrow-ledger')
   async getEscrowLedger() {
     return this.service.getEscrowLedger();
+  }
+
+  @Get('activity-logs')
+  async getActivityLogs(
+    @Query(new ZodValidationPipe(adminActivityQuerySchema))
+    query: AdminActivityQuery,
+  ) {
+    return this.service.getActivityLogs({
+      action: query.action,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+  }
+
+  @Get('activity-stats')
+  async getActivityStats() {
+    return this.service.getActivityStats();
   }
 }

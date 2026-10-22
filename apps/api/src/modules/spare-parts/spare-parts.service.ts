@@ -435,7 +435,12 @@ export class SparePartsService {
           select: { id: true, name: true, partNumber: true, imageUrl: true },
         },
         customer: {
-          select: { firstName: true, lastName: true },
+          select: {
+            firstName: true,
+            lastName: true,
+            // Admin-only contact fields; stripped for customer/dealer views below
+            user: { select: { email: true, phone: true } },
+          },
         },
         provider: {
           select: {
@@ -468,7 +473,10 @@ export class SparePartsService {
       const { customerId: _c, providerId: _p, provider: _prov, gatewayOrderId: _go, gatewayPaymentId: _gp, ...dealerView } = order;
       return {
         ...dealerView,
-        customer: order.customer,
+        customer: {
+          firstName: order.customer.firstName,
+          lastName: order.customer.lastName,
+        },
       };
     }
 
@@ -481,8 +489,14 @@ export class SparePartsService {
         providerId: _p,
         ...customerView
       } = order;
+      // Customer must never see their own contact details mirrored
+      // from the provider/ops context beyond names
       return {
         ...customerView,
+        customer: {
+          firstName: order.customer.firstName,
+          lastName: order.customer.lastName,
+        },
         provider: {
           businessName: order.provider.businessName,
           badge: computeProviderBadge({

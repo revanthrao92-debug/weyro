@@ -268,7 +268,7 @@ describe('SparePartsService order flow', () => {
       paidAt: new Date(),
       createdAt: new Date(),
       sparePart: { id: 'part-1', name: 'Part', partNumber: 'P1', imageUrl: null },
-      customer: { firstName: 'First', lastName: 'Last' },
+      customer: { firstName: 'First', lastName: 'Last', user: { email: 'c@x.com', phone: '9999' } },
       provider: {
         businessName: 'Parts Co',
         verificationStatus: 'VERIFIED',
@@ -306,11 +306,12 @@ describe('SparePartsService order flow', () => {
       });
 
       expect(detail.customer).toEqual({ firstName: 'First', lastName: 'Last' });
+      expect((detail as any).customer.user).toBeUndefined();
       expect(detail).not.toHaveProperty('gatewayOrderId');
       expect(detail).not.toHaveProperty('provider');
     });
 
-    it('admin gets the full reconciliation record', async () => {
+    it('admin gets the full reconciliation record including customer contact', async () => {
       const detail = await service.findOrderDetail('order-1', {
         role: 'ADMIN',
         customerProfileId: null,
@@ -320,6 +321,7 @@ describe('SparePartsService order flow', () => {
       expect(detail.gatewayOrderId).toBe('order_gw');
       expect(detail.customerId).toBe('cust-1');
       expect(detail.provider).toBeDefined();
+      expect((detail as any).customer?.user).toBeDefined();
     });
 
     it('rejects unrelated roles with 403', async () => {

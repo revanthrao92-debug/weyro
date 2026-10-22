@@ -6,6 +6,11 @@ import {
   EscrowLedgerEntry,
   ProviderVerificationRecord,
 } from '@weyro/api-contracts';
+import {
+  buildCursorWhere,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/utils/cursor';
 
 @Injectable()
 export class AdminService {
@@ -141,5 +146,121 @@ export class AdminService {
         ? payment.booking.completedAt.toISOString()
         : undefined,
     }));
+  }
+
+  async getActivityLogs(params: { action?: string; cursor?: string; limit?: number }) {
+    const boundedLimit = Math.min(100, Math.max(1, params.limit || 20));
+    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
+    const where: any = {
+      ...buildCursorWhere(cursorTuple),
+    };
+
+    if (params.action) {
+      where.action = params.action;
+    }
+
+    const items = await this.prisma.auditLog.findMany({
+      where,
+      take: boundedLimit,
+      orderBy: { createdAt: 'desc', id: 'desc' },
+      select: {
+        id: true,
+        actorId: true,
+        actorRole: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        oldValues: true,
+        newValues: true,
+        ipAddress: true,
+        userAgent: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      items: items.map((log) => ({
+        ...log,
+        newValues: log.newValues ?? undefined,
+        oldValues: log.oldValues ?? undefined,
+        createdAt: log.createdAt.toISOString(),
+      })),
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
+    };
+  }
+
+  /**
+   * Traffic snapshot: per-day volumes of the last 7 days for each service
+   * surface, plus selected totals. Server-aggregated so the console does not
+   * need to slice large client-side lists.
+   */
+  async getActivityStats() {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - 6);
+    since.setUTCHours(0, 0, 0, 0);
+
+    const dayOf = (date: Date) => {
+      const key = date.toISOString().slice(0, 10);
+      return key;
+    };
+
+    const aggregate = async (
+      model: 'serviceRequest' | 'booking' | 'quotation' | 'sparePartOrder',
+    ) => {
+      const rows = await (this.prisma as any)[model].findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      });
+      const counts: Record<string, number> = {};
+      for (const row of rows) {
+        const key = dayOf(row.createdAt);
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      return counts;
+    };
+
+    const [
+      requests,
+      bookings,
+      quotations,
+      sparePartOrders,
+      totalUsers,
+      totalProviders,
+    ] = await Promise.all([
+      aggregate('serviceRequest'),
+      aggregate('booking'),
+      aggregate('quotation'),
+      aggregate('sparePartOrder'),
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.providerProfile.count({ where: { deletedAt: null } }),
+    ]);
+
+    const days: { date: string; requests: number; bookings: number; quotations: number; sparePartOrders: number }[] = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      days.push({
+        date: key,
+        requests: requests[key] || 0,
+        bookings: bookings[key] || 0,
+        quotations: quotations[key] || 0,
+        sparePartOrders: sparePartOrders[key] || 0,
+      });
+    }
+
+    return {
+      days,
+      totals: {
+        users: totalUsers,
+        providers: totalProviders,
+      },
+    };
   }
 }
