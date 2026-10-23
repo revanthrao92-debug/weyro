@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useBroadcastFeed, useCreateQuotation } from '@/hooks/useRequests';
+import { Button } from '@/components/ui/Button';
 
 export default function BroadcastFeedScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
@@ -89,7 +90,7 @@ function FeedRequestCard({ item, onQuote }: { item: any; onQuote: (id: string) =
       <View style={styles.info}>
         <Text style={styles.requestTitle}>{item.title}</Text>
         <Text style={styles.requestCategory}>
-          {item.category.charAt(0).toUpperCase() + item.category.slice(1).toLowerCase()}
+          {item.category.charAt(0).toUpperCase() + item.category.slice(1).toLowerCase().replace('_', ' ')}
         </Text>
         <Text style={styles.requestAddress}>{item.address}</Text>
         <Text style={[styles.requestUrgency, { color: item.urgency === 'EMERGENCY' ? '#EF4444' : '#9CA3AF' }]}>
@@ -173,11 +174,6 @@ const styles = {
     fontSize: 14,
     color: '#374151',
     marginBottom: 4,
-  },
-  requestUrgency: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: (p: { urgency: string }) => (p.urgency === 'EMERGENCY' ? '#EF4444' : '#9CA3AF'),
   },
   quoteButton: {
     backgroundColor: '#208AEF',

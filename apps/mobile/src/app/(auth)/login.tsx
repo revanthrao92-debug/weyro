@@ -88,8 +88,8 @@ export default function LoginScreen() {
 }
 
 const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 24 },
-  header: { marginBottom: 40 },
+  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 20 },
+  header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#6B7280' },
   form: { gap: 16 },
@@ -108,7 +108,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   footer: { marginTop: 24, flexDirection: 'row', justifyContent: 'center', gap: 12 },

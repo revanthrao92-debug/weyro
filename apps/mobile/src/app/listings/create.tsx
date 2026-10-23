@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useCreateSparePart } from '@/hooks/useParts';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function CreateListingScreen() {
   const [form, setForm] = useState<{
@@ -59,7 +60,7 @@ export default function CreateListingScreen() {
         description: description || undefined,
       });
       Alert.alert('Success', 'Part listed successfully');
-      router.replace('/listings');
+      router.replace('/my-listings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to create listing');
     } finally {
@@ -130,7 +131,7 @@ export default function CreateListingScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Price (₹)</Text>
+          <Text style={styles.label}>Price Price (₹)</Text>
           <Input
             style={styles.input}
             placeholder="0"
@@ -165,13 +166,12 @@ export default function CreateListingScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          {submitting ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.buttonText}>List Part</Text>
-          )}
-        </TouchableOpacity>
+        <Button
+          title="List Part"
+          onPress={handleSubmit}
+          disabled={submitting}
+          loading={submitting}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -179,7 +179,7 @@ export default function CreateListingScreen() {
 
 const styles = {
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 24, minHeight: '100%', gap: 20 },
+  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
   header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827' },
   subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
@@ -222,7 +222,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 } as any;

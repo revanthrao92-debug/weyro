@@ -32,7 +32,7 @@ export default function RequestDetailScreen() {
 
   if (!request) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>Request not found</Text>
       </View>
     );
@@ -69,7 +69,7 @@ export default function RequestDetailScreen() {
         data: {},
       });
       Alert.alert('Success', 'Quotation accepted. Booking created!');
-      router.replace(`/bookings/placeholder`);
+      router.replace(`/bookings`);
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to accept quotation');
     }

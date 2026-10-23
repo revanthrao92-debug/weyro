@@ -16,14 +16,14 @@ import {
   type ProviderProfile,
 } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function ProviderProfileScreen() {
   const { user } = useAuth();
   const { data: profile, isLoading } = useProviderProfile();
-const updateProfile = useUpdateProviderProfile();
+  const updateProfile = useUpdateProviderProfile();
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [businessName, setBusinessName] = useState(profile?.businessName ?? '');
   const [description, setDescription] = useState(profile?.description ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
@@ -64,7 +64,7 @@ const updateProfile = useUpdateProviderProfile();
 
   if (!profile) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>No provider profile found</Text>
       </View>
     );
@@ -159,13 +159,12 @@ const updateProfile = useUpdateProviderProfile();
           )}
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSave} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Save changes</Text>
-          )}
-        </TouchableOpacity>
+        <Button
+          title="Save changes"
+          onPress={handleSave}
+          disabled={saving}
+          loading={saving}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -203,7 +202,7 @@ function StatItem({ label, value }: { label: string; value: string }) {
 
 const styles = {
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 24, minHeight: '100%', gap: 20 },
+  scrollContent: { padding: 20, minHeight: '100%', gap: 20 },
   header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827' },
   subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
@@ -313,7 +312,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 } as any;

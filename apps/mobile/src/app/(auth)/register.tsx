@@ -193,7 +193,7 @@ export default function RegisterScreen() {
 
 const styles = {
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 24, minHeight: '100%', gap: 20 },
+  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
   header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827' },
   subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
@@ -236,7 +236,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   footer: { marginTop: 24, alignItems: 'center' },

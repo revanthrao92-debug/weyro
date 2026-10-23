@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useAddresses, useReplaceAddresses } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 type Address = {
   id?: string;
@@ -21,7 +22,7 @@ type Address = {
 
 export default function AddressesScreen() {
   const { data, isLoading, refetch } = useAddresses();
-const replaceAddresses = useReplaceAddresses();
+  const replaceAddresses = useReplaceAddresses();
   const [saving, setSaving] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newAddress, setNewAddress] = useState('');
@@ -123,13 +124,12 @@ const replaceAddresses = useReplaceAddresses();
             keyboardType="numeric"
           />
         </View>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddAddress} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.addButtonText}>Add Address</Text>
-          )}
-        </TouchableOpacity>
+        <Button
+          title="Add Address"
+          onPress={handleAddAddress}
+          disabled={saving}
+          loading={saving}
+        />
       </View>
 
       <View style={styles.listHeader}>
@@ -202,12 +202,12 @@ const styles = {
     textTransform: 'uppercase',
   },
   input: {
-    height: 52,
+    height: 56,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
     color: '#111827',
     backgroundColor: '#F9FAFB',
     marginBottom: 12,
@@ -219,16 +219,6 @@ const styles = {
   },
   coordInput: {
     flex: 1,
-  },
-  addButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   listHeader: {
     paddingHorizontal: 16,
@@ -251,7 +241,7 @@ const styles = {
     borderColor: '#E5E7EB',
     padding: 16,
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

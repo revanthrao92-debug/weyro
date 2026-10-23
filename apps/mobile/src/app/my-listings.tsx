@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useMyParts, useDeleteSparePart } from '@/hooks/useParts';
 import { SparePart } from '@/hooks/useParts';
+import { Button } from '@/components/ui/Button';
 
 export default function MyListingsScreen() {
   const router = useRouter();
@@ -201,4 +202,3 @@ const styles = {
     color: '#208AEF',
   },
 } as any;
-

@@ -6,12 +6,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useBooking } from '@/hooks/useBookings';
 import { usePayments } from '@/hooks/usePayments';
-import { Input } from '@/components/ui/Input';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 type PayParams = { id: string };
 
@@ -34,7 +36,7 @@ export default function CheckoutScreen() {
 
   if (!booking) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>Booking not found</Text>
       </View>
     );
@@ -110,18 +112,19 @@ export default function CheckoutScreen() {
             <View style={styles.orderSection}>
               <Text style={styles.label}>Razorpay Order Created</Text>
               <Text style={styles.orderId}>{order.orderId}</Text>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handlePay}>
-                <Text style={styles.buttonText}>Open Razorpay Checkout</Text>
-              </TouchableOpacity>
+              <Button
+                title="Open Razorpay Checkout"
+                onPress={handlePay}
+                variant="secondary"
+              />
             </View>
           ) : (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleCreateOrder} disabled={payLoading}>
-              {payLoading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Create Payment Order</Text>
-              )}
-            </TouchableOpacity>
+            <Button
+              title="Create Payment Order"
+              onPress={handleCreateOrder}
+              disabled={payLoading}
+              loading={payLoading}
+            />
           )}
 
           <View style={styles.verifySection}>
@@ -140,9 +143,11 @@ export default function CheckoutScreen() {
               onChangeText={setSignature}
               autoCompleteType="off"
             />
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleVerify}>
-              <Text style={styles.buttonText}>Verify Payment</Text>
-            </TouchableOpacity>
+            <Button
+              title="Verify Payment"
+              onPress={handleVerify}
+              variant="secondary"
+            />
           </View>
         </View>
       </View>
@@ -183,23 +188,6 @@ const styles = {
     color: '#111827',
     fontFamily: 'monospace',
     marginBottom: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  secondaryButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
   },
   input: {
     height: 56,

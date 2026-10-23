@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -76,6 +76,7 @@ const styles = {
     marginBottom: 12,
   },
   filterRow: {
+    paddingHorizontal: 16,
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',

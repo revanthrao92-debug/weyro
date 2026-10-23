@@ -10,8 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Button } from '@/components/ui/Button';
 
-// Configure how notifications are handled when the app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -38,10 +38,8 @@ export default function PushTokenScreen() {
         const expoPushToken = await Notifications.getExpoPushTokenAsync();
         const token = expoPushToken.data;
 
-        // Store token locally
         await SecureStore.setItemAsync('weyro_push_token', token);
 
-        // Register with backend
         const deviceOs = RNPlatform.OS === 'ios' ? 'ios' : 'android';
         await registerPushToken({ token, deviceOs });
 
@@ -74,13 +72,12 @@ export default function PushTokenScreen() {
   }, [user]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <Text style={{ fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 16 }}>
-        Push Notifications
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Enable Push Notifications</Text>
-      </TouchableOpacity>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={styles.title}>Push Notifications</Text>
+      <Button
+        title="Enable Push Notifications"
+        onPress={handleRegister}
+      />
       <TouchableOpacity style={styles.secondaryButton} onPress={handleDelete}>
         <Text style={styles.secondaryButtonText}>Disable Push Notifications</Text>
       </TouchableOpacity>
@@ -89,12 +86,19 @@ export default function PushTokenScreen() {
 }
 
 const styles = {
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 16,
+  },
   button: {
     backgroundColor: '#208AEF',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
+    marginBottom: 12,
   },
   buttonText: {
     color: '#FFFFFF',
@@ -107,7 +111,6 @@ const styles = {
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
-    marginTop: 12,
   },
   secondaryButtonText: {
     color: '#6B7280',

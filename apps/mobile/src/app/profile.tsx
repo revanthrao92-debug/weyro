@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -11,14 +10,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
 import { useCustomerProfile, useUpdateCustomerProfile } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();
   const { data: profile, isLoading } = useCustomerProfile();
-const updateProfile = useUpdateCustomerProfile();
+  const updateProfile = useUpdateCustomerProfile();
   const [firstName, setFirstName] = useState(profile?.firstName ?? '');
   const [lastName, setLastName] = useState(profile?.lastName ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? '');
@@ -107,13 +106,12 @@ const updateProfile = useUpdateCustomerProfile();
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSave} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Save changes</Text>
-          )}
-        </TouchableOpacity>
+        <Button
+          title="Save changes"
+          onPress={handleSave}
+          disabled={saving}
+          loading={saving}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -121,7 +119,7 @@ const updateProfile = useUpdateCustomerProfile();
 
 const styles = {
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 24, minHeight: '100%', gap: 20 },
+  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
   header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827' },
   subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
@@ -159,7 +157,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 } as any;

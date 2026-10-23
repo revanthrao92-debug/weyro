@@ -11,6 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
 import { TrackingMap } from '@/components/booking/TrackingMap';
+import { Button } from '@/components/ui/Button';
 
 type BookingDetailParams = { id: string };
 
@@ -31,7 +32,7 @@ export default function BookingDetailScreen() {
 
   if (isError || !booking) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>Booking not found</Text>
       </View>
     );
@@ -66,7 +67,6 @@ export default function BookingDetailScreen() {
   };
 
   const handleTrackLocation = () => {
-    // Placeholder: would integrate with location permissions and socket tracking
     Alert.alert(
       'Live Tracking',
       'Provider location tracking will appear here once the job is en route.'
@@ -135,21 +135,25 @@ export default function BookingDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Live Tracking</Text>
             <TrackingMap />
-            <TouchableOpacity style={styles.trackButton} onPress={handleTrackLocation}>
-              <Text style={styles.trackButtonText}>Refresh Provider Location</Text>
-            </TouchableOpacity>
+            <Button
+              title="Refresh Provider Location"
+              onPress={handleTrackLocation}
+              variant="secondary"
+            />
           </View>
         )}
 
         {canUpdate && nextStatus && (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleUpdateStatus}>
-              <Text style={styles.buttonText}>
-                {booking.status === 'CONFIRMED' ? 'Mark En Route'
+            <Button
+              title={
+                booking.status === 'CONFIRMED' ? 'Mark En Route'
                   : booking.status === 'PROVIDER_EN_ROUTE' ? 'Mark In Progress'
-                  : 'Mark Completed'}
-              </Text>
-            </TouchableOpacity>
+                  : 'Mark Completed'
+              }
+              onPress={handleUpdateStatus}
+              variant="primary"
+            />
           </View>
         )}
       </View>
@@ -251,32 +255,9 @@ const styles = {
     fontWeight: '700',
     color: '#10B981',
   },
-  trackButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  trackButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   actions: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 20,
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
   },
 } as any;

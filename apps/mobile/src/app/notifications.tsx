@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNotifications, type AppNotification } from '@/hooks/useNotifications';
 import { useRouter } from 'expo-router';
+import { Button } from '@/components/ui/Button';
 
 export default function NotificationsScreen() {
   const {
@@ -90,7 +91,7 @@ export default function NotificationsScreen() {
 }
 
 type NotificationItemProps = {
-  item: NonNull<AppNotification>;
+  item: AppNotification;
   onPress: () => void;
   isRead: boolean;
 };

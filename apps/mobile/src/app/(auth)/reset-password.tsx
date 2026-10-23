@@ -94,11 +94,11 @@ export default function ResetPasswordScreen() {
 }
 
 const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 24 },
-  header: { marginBottom: 32 },
+  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 20 },
+  header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#6B7280' },
-  form: { gap: 20 },
+  form: { gap: 16 },
   label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
   input: {
     height: 56,
@@ -115,7 +115,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 } as any;

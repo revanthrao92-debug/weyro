@@ -12,6 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSparePart, useUpdateSparePart, useDeleteSparePart } from '@/hooks/useParts';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 type ListingParams = { id: string };
 
@@ -51,15 +52,12 @@ export default function EditListingScreen() {
 
   if (!part) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>Part not found</Text>
       </View>
     );
   }
 
-  // Initialize form from part data
-  // (using useEffect would be cleaner but keeping it simple)
-  
   const handleSave = async () => {
     setSubmitting(true);
     try {
@@ -74,7 +72,7 @@ export default function EditListingScreen() {
         isActive: form.isActive,
       });
       Alert.alert('Success', 'Listing updated');
-      router.replace('/listings');
+      router.replace('/my-listings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to update listing');
     } finally {
@@ -97,7 +95,7 @@ export default function EditListingScreen() {
     try {
       await deletePart.mutateAsync(part.id);
       Alert.alert('Success', 'Listing deleted');
-      router.replace('/listings');
+      router.replace('/my-listings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to delete listing');
     }
@@ -150,7 +148,7 @@ export default function EditListingScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Price (₹)</Text>
+          <Text style={styles.label}>Price Price (₹)</Text>
           <Input
             style={styles.input}
             placeholder="Price"
@@ -189,13 +187,12 @@ export default function EditListingScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSave} disabled={submitting}>
-          {submitting ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+        <Button
+          title="Save Changes"
+          onPress={handleSave}
+          disabled={submitting}
+          loading={submitting}
+        />
 
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
           <Text style={styles.deleteText}>Delete Listing</Text>
@@ -207,7 +204,7 @@ export default function EditListingScreen() {
 
 const styles = {
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 24, minHeight: '100%', gap: 20 },
+  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
   header: { marginBottom: 24 },
   title: { fontSize: 32, fontWeight: '800', color: '#111827' },
   subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
@@ -279,7 +276,7 @@ const styles = {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 20,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   deleteButton: {

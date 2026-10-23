@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
-  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +17,7 @@ import {
   type Vehicle,
 } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function VehiclesScreen() {
   const { user } = useAuth();
@@ -103,9 +102,7 @@ export default function VehiclesScreen() {
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
       <View style={styles.header}>
         <Text style={styles.title}>My Vehicles</Text>
-        <Text style={styles.subtitle}>
-          Manage your garage
-        </Text>
+        <Text style={styles.subtitle}>Manage your garage</Text>
       </View>
 
       {vehicles.length === 0 ? (
@@ -134,77 +131,27 @@ export default function VehiclesScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Add Vehicle</Text>
             <View style={styles.modalForm}>
-              <Input
-                style={styles.input}
-                placeholder="Make (e.g. Maruti)"
-                value={make}
-                onChangeText={setMake}
-              />
-              <Input
-                style={styles.input}
-                placeholder="Model (e.g. Swift)"
-                value={model}
-                onChangeText={setModel}
-              />
-              <Input
-                style={styles.input}
-                placeholder="Year (e.g. 2021)"
-                value={year}
-                onChangeText={setYear}
-                keyboardType="numeric"
-              />
-              <Input
-                style={styles.input}
-                placeholder="Registration Number (e.g. KA01AB1234)"
-                value={reg}
-                onChangeText={setReg}
-                autoCapitalize="characters"
-              />
-              <Input
-                style={styles.input}
-                placeholder="VIN Number (optional)"
-                value={vin}
-                onChangeText={setVin}
-              />
+              <Input style={styles.input} placeholder="Make (e.g. Maruti)" value={make} onChangeText={setMake} />
+              <Input style={styles.input} placeholder="Model (e.g. Swift)" value={model} onChangeText={setModel} />
+              <Input style={styles.input} placeholder="Year (e.g. 2021)" value={year} onChangeText={setYear} keyboardType="numeric" />
+              <Input style={styles.input} placeholder="Registration Number (e.g. KA01AB1234)" value={reg} onChangeText={setReg} autoCapitalize="characters" />
+              <Input style={styles.input} placeholder="VIN Number (optional)" value={vin} onChangeText={setVin} />
               <Text style={styles.label}>Fuel Type</Text>
               <View style={styles.fuelSelector}>
                 {['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'].map((f) => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[
-                      styles.fuelOption,
-                      fuel === f && styles.fuelOptionSelected,
-                    ]}
-                    onPress={() => setFuel(f as any)}
-                  >
+                  <TouchableOpacity key={f} style={[styles.fuelOption, fuel === f && styles.fuelOptionSelected]} onPress={() => setFuel(f as any)}>
                     <Text style={styles.fuelText}>{f}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Input
-                style={styles.input}
-                placeholder="Color (optional)"
-                value={color}
-                onChangeText={setColor}
-              />
+              <Input style={styles.input} placeholder="Color (optional)" value={color} onChangeText={setColor} />
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowAdd(false)}
-              >
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAdd(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleAddVehicle}
-                disabled={adding}
-              >
-                {adding ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={styles.saveText}>Add Vehicle</Text>
-                )}
+              <TouchableOpacity style={styles.saveButton} onPress={handleAddVehicle} disabled={adding}>
+                {adding ? (<ActivityIndicator size="small" color="white" />) : (<Text style={styles.saveText}>Add Vehicle</Text>)}
               </TouchableOpacity>
             </View>
           </View>
@@ -218,25 +165,18 @@ function VehicleItem({ item, onDelete }: { item: Vehicle; onDelete: (id: string)
   return (
     <View style={styles.item}>
       <View style={styles.itemContent}>
-        <Text style={styles.itemTitle}>
-          {item.make} {item.model} ({item.year})
-        </Text>
+        <Text style={styles.itemTitle}>{item.make} {item.model} ({item.year})</Text>
         <Text style={styles.itemReg}>{item.registrationNumber}</Text>
-        <Text style={styles.itemMeta}>
-          {item.fuelType} • {item.color || 'N/A'}
-        </Text>
+        <Text style={styles.itemMeta}>{item.fuelType} • {item.color || 'N/A'}</Text>
       </View>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => onDelete(item.id)}
-      >
+      <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)}>
         <Text style={styles.removeText}>Remove</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingBottom: 12,
@@ -278,7 +218,7 @@ const styles = {
     borderColor: '#E5E7EB',
     padding: 16,
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -333,12 +273,12 @@ const styles = {
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   modal: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 12,
+    padding: 20,
     width: '100%',
     maxWidth: 400,
     maxHeight: '90%',
@@ -360,12 +300,12 @@ const styles = {
     marginBottom: 6,
   },
   input: {
-    height: 52,
+    height: 56,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
     color: '#111827',
     backgroundColor: '#F9FAFB',
   },
@@ -398,15 +338,15 @@ const styles = {
     marginTop: 8,
   },
   cancelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
     backgroundColor: '#F3F4F6',
   },
   cancelText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 12,
     fontWeight: '600',
+    color: '#EF4444',
   },
   saveButton: {
     paddingHorizontal: 20,
@@ -419,4 +359,4 @@ const styles = {
     fontWeight: '600',
     fontSize: 14,
   },
-} as any;
+});

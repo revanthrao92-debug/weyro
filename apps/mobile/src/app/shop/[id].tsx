@@ -11,6 +11,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSparePart, useCreateSparePartOrder } from '@/hooks/useParts';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
+import { Button } from '@/components/ui/Button';
 
 type PartParams = { id: string };
 
@@ -31,7 +32,7 @@ export default function PartDetailScreen() {
 
   if (!part) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
         <Text>Part not found</Text>
       </View>
     );
@@ -108,19 +109,12 @@ export default function PartDetailScreen() {
           <Text style={styles.stockText}>
             {inStock ? `In Stock (${part.stockQuantity} available)` : 'Out of Stock'}
           </Text>
-          <TouchableOpacity
-            style={[styles.orderButton, !inStock ? styles.orderButtonDisabled : {}]}
+          <Button
+            title={inStock ? 'Create Order' : 'Out of Stock'}
             onPress={handleOrder}
             disabled={!inStock || ordering}
-          >
-            {ordering ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={styles.orderButtonText}>
-                {inStock ? 'Create Order' : 'Out of Stock'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={ordering}
+          />
         </View>
       </View>
     </ScrollView>
@@ -219,21 +213,7 @@ const styles = {
   stockText: {
     fontSize: 14,
     fontWeight: '600',
-    color: (p: { stockQuantity: number }) => (p.stockQuantity > 0 ? '#10B981' : '#EF4444'),
+    color: '#6B7280',
     marginBottom: 12,
-  },
-  orderButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  orderButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  orderButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
   },
 } as any;

@@ -5,12 +5,12 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function ShopScreen() {
   const [search, setSearch] = useState('');
@@ -32,7 +32,7 @@ export default function ShopScreen() {
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
       <View style={styles.header}>
         <Text style={styles.title}>Spare Parts</Text>
-        <Text style={styles.subtitle}>Genuine parts &amp; accessories</Text>
+        <Text style={styles.subtitle}>Genuine parts & accessories</Text>
       </View>
 
       <View style={styles.filterBar}>
@@ -99,7 +99,7 @@ function StockBadge({ stock }: { stock: number }) {
   const color = stock > 0 ? '#10B981' : '#EF4444';
   const label = stock > 0 ? `In Stock (${stock})` : 'Out of Stock';
   return (
-    <View style={[styles.stockBadge, { backgroundColor: color + '1a' }]}>
+    <View style={[styles.stockBadge, { backgroundColor: `${color}1a` }]}>
       <Text style={[styles.stockText, { color }]}>{label}</Text>
     </View>
   );
@@ -127,32 +127,32 @@ const styles = {
   },
   searchInput: {
     flex: 2,
-    height: 52,
+    height: 56,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
     color: '#111827',
     backgroundColor: '#FFFFFF',
   },
   makeInput: {
     flex: 1,
-    height: 52,
+    height: 56,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
     color: '#111827',
     backgroundColor: '#FFFFFF',
   },
   filterButton: {
     backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    width: 70,
+    width: 80,
   },
   filterButtonText: {
     color: '#FFFFFF',

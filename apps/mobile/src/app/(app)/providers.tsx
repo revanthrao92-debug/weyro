@@ -25,7 +25,7 @@ export default function ProvidersScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => router.push(`/admin/providers/${item.id}`)}
+            onPress={() => router.push(`/provider/${item.id}`)}
             accessibilityLabel={`View provider ${item.businessName}`}
             accessibilityRole="button"
           >
