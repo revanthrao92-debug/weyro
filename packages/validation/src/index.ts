@@ -254,10 +254,20 @@ export const VerifyOtpSchema = z
   })
   .strict();
 
+// Password reset validation
+export const ResetPasswordSchema = z
+  .object({
+    phone: z.string().min(10).max(15),
+    code: z.string().length(6),
+    newPassword: z.string().min(8),
+  })
+  .strict();
+
 export type CreateReviewInput = z.infer<typeof CreateReviewSchema>;
 export type ReleasePaymentInput = z.infer<typeof ReleasePaymentSchema>;
 export type SendOtpInput = z.infer<typeof SendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof VerifyOtpSchema>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
 
 // Export inferred types
 export type RegisterInput = z.infer<typeof RegisterSchema>;

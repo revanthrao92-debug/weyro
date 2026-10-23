@@ -2,9 +2,11 @@ import {
   RegisterSchema,
   LoginSchema,
   RefreshTokenSchema,
+  ResetPasswordSchema,
   RegisterInput,
   LoginInput,
   RefreshTokenInput,
+  ResetPasswordInput,
 } from '@weyro/validation';
 
 export class RegisterDto implements RegisterInput {
@@ -43,4 +45,12 @@ export class LoginDto implements LoginInput {
 export class RefreshTokenDto implements RefreshTokenInput {
   static readonly schema = RefreshTokenSchema;
   refreshToken!: string;
+}
+
+export class ResetPasswordDto implements ResetPasswordInput {
+  static readonly schema = ResetPasswordSchema;
+
+  phone!: string;
+  code!: string;
+  newPassword!: string;
 }

@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
@@ -356,6 +356,69 @@ export class AuthService {
       user: this.sanitizeUser(user),
       ...tokens,
     };
+  }
+
+  /**
+   * Reset a user's password after OTP verification (purpose: 'reset_password').
+   * Verifies the OTP, then updates the password hash and marks the OTP as used.
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const phone = dto.phone.trim();
+
+    const otp = await this.prisma.oTP.findUnique({
+      where: { phone },
+    });
+
+    if (!otp) {
+      throw new BadRequestException('No OTP found for this phone number');
+    }
+
+    if (otp.verifiedAt) {
+      throw new BadRequestException('OTP has already been used');
+    }
+
+    if (otp.expiresAt < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    if (otp.attempts >= otp.maxAttempts) {
+      throw new BadRequestException('Maximum OTP verification attempts exceeded');
+    }
+
+    if (otp.purpose !== 'reset_password') {
+      throw new BadRequestException('OTP was not issued for password reset');
+    }
+
+    if (otp.code !== dto.code) {
+      await this.prisma.oTP.update({
+        where: { phone },
+        data: { attempts: otp.attempts + 1 },
+      });
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found for this phone number');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      this.prisma.oTP.update({
+        where: { phone },
+        data: { verifiedAt: new Date() },
+      }),
+    ]);
+
+    return { status: 'reset', phone };
   }
 
   private async generateTokenPair(
