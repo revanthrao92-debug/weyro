@@ -1,16 +1,45 @@
-import { useState } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation } from '@/hooks/useRequests';
+import {
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Button,
+  StatusPill,
+  Skeleton,
+  ErrorState,
+  EmptyState,
+} from '@/components/ui';
+import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
 type RequestParams = { id: string };
+
+function labelize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
+}
+
+function statusTone(status: string): StatusTone {
+  switch (status) {
+    case 'OPEN':
+    case 'QUOTES_RECEIVED':
+      return 'info';
+    case 'ACCEPTED':
+    case 'COMPLETED':
+      return 'success';
+    case 'CANCELLED':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
 
 export default function RequestDetailScreen() {
   const router = useRouter();
@@ -24,22 +53,28 @@ export default function RequestDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Request" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="50%" height={18} />
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width="100%" height={12} style={{ marginTop: spacing.sm }} />
+          ))}
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!request) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>Request not found</Text>
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Request" />
+        <ErrorState title="Request not found" message="This request may have been removed." />
+      </ScreenContainer>
     );
   }
 
   const canCancel = request.status === 'OPEN' || request.status === 'QUOTES_RECEIVED';
-  const canAccept = quotes.some((q) => q.status === 'PENDING');
 
   const handleCancel = async () => {
     const confirmed = await new Promise<boolean>((resolve) => {
@@ -76,88 +111,52 @@ export default function RequestDetailScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Request #{request.id.slice(0, 8)}</Text>
-        <StatusBadge status={request.status} />
-      </View>
-
-      <View style={styles.scrollContent}>
-        <View style={styles.card}>
+    <ScreenContainer padded={false}>
+      <AppHeader title={`Request #${request.id.slice(0, 8)}`} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <Card>
           <Text style={styles.sectionTitle}>Request Details</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Category</Text>
-            <Text style={styles.detailValue}>
-              {request.category.charAt(0).toUpperCase() + request.category.slice(1).toLowerCase()}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Title</Text>
-            <Text style={styles.detailValue}>{request.title}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Description</Text>
-            <Text style={styles.detailValue}>{request.description}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Address</Text>
-            <Text style={styles.detailValue}>{request.address}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Urgency</Text>
-            <Text style={styles.detailValue}>{request.urgency}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Status</Text>
-            <Text style={styles.detailValue}>{request.status}</Text>
-          </View>
-        </View>
+          <DetailRow label="Category" value={labelize(request.category)} />
+          <DetailRow label="Title" value={request.title} />
+          <DetailRow label="Description" value={request.description} />
+          <DetailRow label="Address" value={request.address} />
+          <DetailRow label="Urgency" value={request.urgency} last />
+        </Card>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Quotes ({quotes.length})</Text>
-          {quotes.length === 0 ? (
-            <Text style={styles.emptyQuotes}>No quotes yet</Text>
+        <Card>
+          <View style={styles.quotesHeader}>
+            <Text style={styles.sectionTitle}>Quotes</Text>
+            <StatusPill label={`${quotes.length}`} tone="neutral" />
+          </View>
+          {quotesLoading ? (
+            <Skeleton width="100%" height={48} radius={radii.md} />
+          ) : quotes.length === 0 ? (
+            <EmptyState title="No quotes yet" message="Providers will send quotes here." />
           ) : (
             <FlatList
               data={quotes}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <QuoteCard quote={item} onAccept={handleAccept} />
-              )}
+              scrollEnabled={false}
+              renderItem={({ item }) => <QuoteCard quote={item} onAccept={handleAccept} />}
             />
           )}
-        </View>
+        </Card>
 
         {canCancel && (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Text style={styles.cancelText}>Cancel Request</Text>
-          </TouchableOpacity>
+          <Button title="Cancel Request" variant="destructive" onPress={handleCancel} />
         )}
-      </View>
-    </View>
+      </ScrollView>
+    </ScreenContainer>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const color = getStatusColor(status);
+function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={[styles.badge, { backgroundColor: color.bg }]}>
-      <Text style={[styles.badgeText, { color: color.text }]}>
-        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
-      </Text>
+    <View style={[styles.detailRow, last && styles.detailRowLast]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'OPEN': return { bg: '#EFF6FF', text: '#208AEF' };
-    case 'QUOTES_RECEIVED': return { bg: '#FFF7ED', text: '#F59E0B' };
-    case 'ACCEPTED': return { bg: '#ECFDF5', text: '#10B981' };
-    case 'CANCELLED': return { bg: '#FEF2F2', text: '#EF4444' };
-    case 'COMPLETED': return { bg: '#ECFDF5', text: '#10B981' };
-    default: return { bg: '#F3F4F6', text: '#6B7280' };
-  }
 }
 
 function QuoteCard({ quote, onAccept }: { quote: any; onAccept: (q: any) => void }) {
@@ -166,138 +165,60 @@ function QuoteCard({ quote, onAccept }: { quote: any; onAccept: (q: any) => void
       <View style={styles.quoteInfo}>
         <Text style={styles.quoteProvider}>Provider</Text>
         <Text style={styles.quoteAmount}>₹{quote.totalCost.toLocaleString()}</Text>
-        <Text style={styles.quoteStatus}>{quote.status}</Text>
+        <StatusPill label={labelize(quote.status)} tone={statusTone(quote.status)} />
         {quote.warrantyDays !== undefined && (
           <Text style={styles.quoteWarranty}>{quote.warrantyDays} days warranty</Text>
         )}
       </View>
-      <TouchableOpacity style={styles.acceptButton} onPress={() => onAccept(quote)}>
-        <Text style={styles.acceptText}>Accept</Text>
-      </TouchableOpacity>
+      <Button title="Accept" onPress={() => onAccept(quote)} style={styles.acceptBtn} />
     </View>
   );
 }
 
-const styles = {
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 12,
-  },
+const styles = StyleSheet.create({
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#6B7280',
-    marginBottom: 10,
+    ...typography.label,
+    color: palette.textSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: palette.surfaceAlt,
+    gap: spacing.md,
   },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
+  detailRowLast: { borderBottomWidth: 0 },
+  detailLabel: { ...typography.caption, color: palette.textSecondary },
   detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.captionMedium,
+    color: palette.textPrimary,
+    flex: 1,
+    textAlign: 'right',
   },
-  emptyQuotes: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  quotesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   quoteCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.surfaceAlt,
+    gap: spacing.md,
   },
   quoteInfo: { flex: 1 },
-  quoteProvider: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  quoteAmount: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  quoteStatus: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 4,
-  },
-  quoteWarranty: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  acceptButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  acceptText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  cancelButton: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-  },
-  cancelText: {
-    color: '#EF4444',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-} as any;
+  quoteProvider: { ...typography.caption, color: palette.textSecondary },
+  quoteAmount: { ...typography.title, color: palette.textPrimary, marginBottom: spacing.xs },
+  quoteWarranty: { ...typography.label, color: palette.success, marginTop: spacing.xs },
+  acceptBtn: { minWidth: 96 },
+});

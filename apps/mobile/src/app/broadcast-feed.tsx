@@ -1,30 +1,44 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Platform,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useBroadcastFeed, useCreateQuotation } from '@/hooks/useRequests';
-import { Button } from '@/components/ui/Button';
+import {
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Chip,
+  Button,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
+
+const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
+
+function labelize(c: string) {
+  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase().replace('_', ' ');
+}
 
 export default function BroadcastFeedScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading, refetch } = useBroadcastFeed({ category: categoryFilter });
+  const { data, isLoading } = useBroadcastFeed({ category: categoryFilter });
   const createQuotation = useCreateQuotation();
 
   const requests = data?.items ?? [];
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Opportunities" subtitle="Nearby service requests" />
+        {[0, 1, 2].map((i) => (
+          <Card key={i} style={styles.skeletonCard}>
+            <Skeleton width="60%" height={18} />
+            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
+          </Card>
+        ))}
+      </ScreenContainer>
     );
   }
 
@@ -47,148 +61,73 @@ export default function BroadcastFeedScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Opportunities</Text>
-        <Text style={styles.subtitle}>Nearby service requests</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="Opportunities" subtitle="Nearby service requests" />
 
       <View style={styles.filterRow}>
-        {['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'].map((c) => (
-          <TouchableOpacity
+        {CATEGORIES.map((c) => (
+          <Chip
             key={c}
-            style={[styles.filterChip, categoryFilter === c && styles.filterChipActive]}
+            label={labelize(c)}
+            selected={categoryFilter === c}
             onPress={() => setCategoryFilter(c)}
-          >
-            <Text style={[styles.filterText, categoryFilter === c && styles.filterTextActive]}>
-              {c.charAt(0).toUpperCase() + c.slice(1).toLowerCase().replace('_', ' ')}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 
       {requests.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No requests found</Text>
-        </View>
+        <EmptyState title="No requests found" message="Nearby requests will appear here." />
       ) : (
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <FeedRequestCard item={item} onQuote={handleQuote} />
           )}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 function FeedRequestCard({ item, onQuote }: { item: any; onQuote: (id: string) => void }) {
   return (
-    <View style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.info}>
-        <Text style={styles.requestTitle}>{item.title}</Text>
-        <Text style={styles.requestCategory}>
-          {item.category.charAt(0).toUpperCase() + item.category.slice(1).toLowerCase().replace('_', ' ')}
+        <Text style={styles.requestTitle} numberOfLines={1}>
+          {item.title}
         </Text>
-        <Text style={styles.requestAddress}>{item.address}</Text>
-        <Text style={[styles.requestUrgency, { color: item.urgency === 'EMERGENCY' ? '#EF4444' : '#9CA3AF' }]}>
-          {item.urgency}
+        <Text style={styles.requestCategory}>{labelize(item.category)}</Text>
+        <Text style={styles.requestAddress} numberOfLines={1}>
+          {item.address}
         </Text>
+        <View style={styles.urgencyRow}>
+          <StatusPill
+            label={item.urgency}
+            tone={item.urgency === 'EMERGENCY' ? 'danger' : 'neutral'}
+          />
+        </View>
       </View>
-      <TouchableOpacity style={styles.quoteButton} onPress={() => onQuote(item.id)}>
-        <Text style={styles.quoteText}>Quote</Text>
-      </TouchableOpacity>
-    </View>
+      <Button title="Quote" onPress={() => onQuote(item.id)} style={styles.quoteBtn} />
+    </Card>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
+const styles = StyleSheet.create({
   filterRow: {
-    paddingHorizontal: 16,
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  filterChipActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#208AEF',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  filterTextActive: {
-    color: '#208AEF',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  list: { paddingBottom: spacing.xl },
+  skeletonCard: { marginBottom: spacing.md },
+  card: { marginBottom: spacing.md },
   info: { flex: 1 },
-  requestTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  requestCategory: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  requestAddress: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 4,
-  },
-  quoteButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  quoteText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-} as any;
+  requestTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  requestCategory: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  requestAddress: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  urgencyRow: { flexDirection: 'row', marginTop: spacing.sm },
+  quoteBtn: { minWidth: 88 },
+});

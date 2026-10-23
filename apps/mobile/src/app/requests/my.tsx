@@ -1,177 +1,141 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMyRequests } from '@/hooks/useRequests';
+import {
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Chip,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+  Button,
+} from '@/components/ui';
+import { StatusTone, palette, spacing, typography } from '@/theme';
+
+const FILTERS = ['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'];
+
+function labelize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
+}
+
+function statusTone(status: string): StatusTone {
+  switch (status) {
+    case 'OPEN':
+    case 'QUOTES_RECEIVED':
+      return 'info';
+    case 'ACCEPTED':
+    case 'COMPLETED':
+      return 'success';
+    case 'CANCELLED':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
 
 export default function MyRequestsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading, refetch } = useMyRequests();
+  const { data, isLoading } = useMyRequests();
 
   const requests = data?.items ?? [];
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="My Requests" subtitle="Your service requests" />
+        {[0, 1, 2].map((i) => (
+          <Card key={i} style={styles.skeletonCard}>
+            <Skeleton width="60%" height={18} />
+            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
+            <Skeleton width="70%" height={12} style={{ marginTop: spacing.xs }} />
+          </Card>
+        ))}
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Requests</Text>
-        <Text style={styles.subtitle}>Your service requests</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="My Requests" subtitle="Your service requests" />
 
       <View style={styles.filterRow}>
-        {['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'].map((s) => (
-          <TouchableOpacity
+        {FILTERS.map((s) => (
+          <Chip
             key={s}
-            style={[styles.filterChip, statusFilter === s && styles.filterChipActive]}
+            label={labelize(s)}
+            selected={statusFilter === s}
             onPress={() => setStatusFilter(s)}
-          >
-            <Text style={[styles.filterText, statusFilter === s && styles.filterTextActive]}>
-              {s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 
       {requests.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No requests found</Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/requests/create')}>
-            <Text style={styles.emptyButtonText}>Create Request</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          title="No requests yet"
+          message="Create a request to get quotes from nearby mechanics."
+          action={<Button title="Create Request" onPress={() => router.push('/requests/create')} />}
+        />
       ) : (
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <RequestCard item={item} onPress={() => router.push(`/requests/${item.id}`)} />
           )}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 function RequestCard({ item, onPress }: { item: any; onPress: () => void }) {
+  const tone = statusTone(item.status);
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <View style={styles.cardContent}>
-        <Text style={styles.requestTitle}>{item.title}</Text>
-        <Text style={styles.requestCategory}>
-          {item.category.charAt(0).toUpperCase() + item.category.slice(1).toLowerCase()}
+    <TouchableOpacity
+      style={styles.cardTouch}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Request ${item.title}`}
+    >
+      <Card>
+        <View style={styles.cardTop}>
+          <Text style={styles.requestTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <StatusPill label={labelize(item.status)} tone={tone} />
+        </View>
+        <Text style={styles.requestCategory}>{labelize(item.category)}</Text>
+        <Text style={styles.requestAddress} numberOfLines={1}>
+          {item.address}
         </Text>
-        <Text style={styles.requestAddress}>{item.address}</Text>
-        <Text style={styles.requestStatus}>{item.status}</Text>
-      </View>
+      </Card>
     </TouchableOpacity>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
+const styles = StyleSheet.create({
   filterRow: {
-    paddingHorizontal: 16,
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  filterChipActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#208AEF',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  filterTextActive: {
-    color: '#208AEF',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  cardContent: { flex: 1 },
-  requestTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  requestCategory: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  requestAddress: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 4,
-  },
-  requestStatus: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
+  list: { paddingBottom: spacing.xl },
+  skeletonCard: { marginBottom: spacing.md },
+  cardTouch: { marginBottom: spacing.md },
+  card: { marginBottom: spacing.md },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 40,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  emptyButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    backgroundColor: '#FFFFFF',
-  },
-  emptyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
-} as any;
+  requestTitle: { ...typography.bodyMedium, color: palette.textPrimary, flex: 1 },
+  requestCategory: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },
+  requestAddress: { ...typography.caption, color: palette.textSecondary },
+});
