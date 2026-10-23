@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import * as Notifications from 'expo-notifications';
+import { Platform as RNPlatform } from 'react-native';
 import { apiClient, setAccessToken } from '@/services/api-client';
 import { tokenStorage } from '@/services/token-storage';
 import {
@@ -61,12 +63,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(token);
       const me = await apiClient<AuthUser>('/auth/me');
       setUser(me);
+
+      // Auto-register push token if stored locally
+      await registerStoredPushToken();
     } catch {
       // Token invalid or expired — clear and stay unauthenticated
       await tokenStorage.clearAll();
       setAccessToken(null);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function registerStoredPushToken() {
+    try {
+      const stored = await SecureStore.getItemAsync('weyro_push_token');
+      if (!stored) return;
+
+      const deviceOs = RNPlatform.OS === 'ios' ? 'ios' : 'android';
+      await apiClient('/notifications/push-token', {
+        method: 'POST',
+        body: JSON.stringify({ token: stored, deviceOs }),
+      }).catch(() => {
+        // Non-blocking: token registration failure shouldn't block auth
+      });
+    } catch {
+      // Non-blocking
     }
   }
 

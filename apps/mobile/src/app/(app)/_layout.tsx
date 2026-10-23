@@ -18,8 +18,8 @@ export default function AppLayout() {
             options={{ title: 'Escrow Ledger' }}
           />
           <Tabs.Screen
-            name="activity"
-            options={{ title: 'Activity' }}
+            name="notifications"
+            options={{ title: 'Notifications' }}
           />
           <Tabs.Screen
             name="profile"
@@ -42,6 +42,10 @@ export default function AppLayout() {
             options={{ title: 'Messages' }}
           />
           <Tabs.Screen
+            name="notifications"
+            options={{ title: 'Notifications' }}
+          />
+          <Tabs.Screen
             name="profile"
             options={{ title: 'Profile' }}
           />
@@ -58,6 +62,10 @@ export default function AppLayout() {
             options={{ title: 'Messages' }}
           />
           <Tabs.Screen name="shop" options={{ title: 'Shop' }} />
+          <Tabs.Screen
+            name="notifications"
+            options={{ title: 'Notifications' }}
+          />
           <Tabs.Screen
             name="profile"
             options={{ title: 'Profile' }}
