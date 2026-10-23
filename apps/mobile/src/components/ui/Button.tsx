@@ -1,4 +1,5 @@
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { useState } from 'react';
 
 export interface ButtonProps {
   title: string;
@@ -17,26 +18,37 @@ export function Button({
   accessibilityLabel,
   loading,
 }: ButtonProps) {
+  const [isPressed, setIsPressed] = useState(false);
+  const isDisabled = disabled || loading;
+
   const baseStyles = [
     styles.button,
+    isPressed && !isDisabled && styles.buttonPressed,
     variant === 'destructive' && styles.buttonDestructive,
     variant === 'secondary' && styles.buttonSecondary,
-    disabled && styles.buttonDisabled,
+    isDisabled && styles.buttonDisabled,
+  ];
+
+  const textStyles = [
+    styles.buttonText,
+    variant === 'destructive' && styles.buttonTextDestructive,
   ];
 
   return (
     <TouchableOpacity
       style={baseStyles}
-      onPress={disabled || loading ? undefined : onPress}
-      disabled={disabled || loading}
+      onPressIn={() => !isDisabled && setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      onPress={isDisabled ? undefined : onPress}
+      disabled={isDisabled}
       accessibilityLabel={accessibilityLabel || title}
       accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       {loading ? (
         <Text style={[styles.buttonText, styles.buttonTextLoading]}>…</Text>
       ) : (
-        <Text style={styles.buttonText}>{title}</Text>
+        <Text style={textStyles}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -44,26 +56,40 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#208AEF',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
+    minWidth: 44,
+    minHeight: 44,
+  },
+  buttonPressed: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFF7ED',
   },
   buttonDestructive: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EF4444',
   },
   buttonSecondary: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
   },
   buttonDisabled: {
     opacity: 0.5,
+    borderColor: '#E5E7EB',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#208AEF',
     fontWeight: '600',
     fontSize: 16,
   },
+  buttonTextDestructive: {
+    color: '#EF4444',
+  },
   buttonTextLoading: {
-    color: '#FFFFFF',
+    color: '#208AEF',
   },
 });
