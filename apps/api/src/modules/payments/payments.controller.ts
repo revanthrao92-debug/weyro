@@ -51,6 +51,9 @@ export class PaymentsController {
   }
 
   @Public()
+  // Razorpay batches captured payments and retries; gateway traffic must not
+  // share the 100/min default bucket that user requests are limited by.
+  @Throttle({ default: { limit: 300, ttl: 60000 } })
   @Post('webhook')
   async webhook(
     @Req() req: any,
