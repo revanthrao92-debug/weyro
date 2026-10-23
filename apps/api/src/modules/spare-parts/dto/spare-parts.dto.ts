@@ -32,6 +32,32 @@ export class CreateSparePartDto implements z.infer<typeof createSparePartSchema>
   estimatedMinutes?: number;
 }
 
+export const updateSparePartSchema = createSparePartSchema
+  .partial()
+  .extend({
+    isActive: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });
+
+export class UpdateSparePartDto implements z.infer<typeof updateSparePartSchema> {
+  static readonly schema = updateSparePartSchema;
+
+  name?: string;
+  partNumber?: string;
+  compatibleMakes?: string[];
+  compatibleModels?: string[];
+  condition?: 'OEM' | 'AFTERMARKET' | 'USED';
+  price?: number;
+  stockQuantity?: number;
+  imageUrl?: string;
+  kind?: 'PART' | 'PACKAGE';
+  description?: string;
+  estimatedMinutes?: number;
+  isActive?: boolean;
+}
+
 export const createSparePartOrderSchema = z
   .object({
     quantity: z.number().int().min(1).max(10).default(1),

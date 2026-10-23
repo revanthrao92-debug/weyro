@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateSparePartDto,
   CreateSparePartOrderDto,
+  UpdateSparePartDto,
   VerifySparePartOrderDto,
 } from './dto/spare-parts.dto';
 import {
@@ -199,13 +200,108 @@ export class SparePartsService {
         compatibleModels: dto.compatibleModels,
         condition: dto.condition as any,
         price: dto.price,
-        stockQuantity: dto.stockQuantity,
+        stockQuantity: dto.kind === 'PACKAGE' ? 1 : dto.stockQuantity,
         imageUrl: dto.imageUrl,
         kind: dto.kind ?? 'PART',
         description: dto.description,
         estimatedMinutes: dto.estimatedMinutes,
       },
     });
+  }
+
+  async findMine(
+    providerId: string | undefined,
+    role: string,
+    cursor?: string,
+    limit?: number,
+  ) {
+    const boundedLimit = Math.min(50, Math.max(1, limit || 20));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
+
+    const items = await this.prisma.sparePart.findMany({
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        deletedAt: null,
+        ...(role === 'ADMIN' && !providerId
+          ? {}
+          : { providerId: providerId ?? 'none' }),
+      },
+      take: boundedLimit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        _count: { select: { orders: true } },
+      },
+    });
+
+    return {
+      items: items.map(({ _count, ...item }) => ({
+        ...item,
+        ordersCount: _count.orders,
+      })),
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
+    };
+  }
+
+  private async assertOwnership(
+    id: string,
+    user: { role: string; providerProfileId?: string },
+  ) {
+    const part = await this.prisma.sparePart.findFirst({
+      where: { id, deletedAt: null },
+    });
+
+    if (!part) {
+      throw new NotFoundException(`Spare part with ID ${id} not found`);
+    }
+
+    if (
+      user.role !== 'ADMIN' &&
+      (!user.providerProfileId || part.providerId !== user.providerProfileId)
+    ) {
+      throw new ForbiddenException('You do not own this listing');
+    }
+
+    return part;
+  }
+
+  async update(
+    id: string,
+    user: { role: string; providerProfileId?: string },
+    dto: UpdateSparePartDto,
+  ) {
+    const part = await this.assertOwnership(id, user);
+    const kind = dto.kind ?? part.kind;
+
+    return this.prisma.sparePart.update({
+      where: { id },
+      data: {
+        ...dto,
+        condition: dto.condition as any,
+        stockQuantity:
+          kind === 'PACKAGE'
+            ? 1
+            : dto.stockQuantity !== undefined
+              ? dto.stockQuantity
+              : undefined,
+      },
+    });
+  }
+
+  async remove(id: string, user: { role: string; providerProfileId?: string }) {
+    await this.assertOwnership(id, user);
+
+    await this.prisma.sparePart.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    return { deleted: true };
   }
 
   async createOrder(

@@ -1,14 +1,21 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import { SparePartsService } from './spare-parts.service';
-import { CreateSparePartDto } from './dto/spare-parts.dto';
+import {
+  CreateSparePartDto,
+  CreateSparePartOrderDto,
+  UpdateSparePartDto,
+  VerifySparePartOrderDto,
+} from './dto/spare-parts.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -16,15 +23,13 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
+  CursorPaginationQuery,
+  cursorPaginationSchema,
   SparePartsQuery,
   sparePartsQuerySchema,
   SparePartOrderQuery,
   sparePartOrderQuerySchema,
 } from '../../common/dto/query.dto';
-import {
-  CreateSparePartOrderDto,
-  VerifySparePartOrderDto,
-} from './dto/spare-parts.dto';
 
 @Controller('spare-parts')
 export class SparePartsController {
@@ -45,6 +50,21 @@ export class SparePartsController {
       cursor: query.cursor,
       limit: query.limit,
     });
+  }
+
+  @Get('mine')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async findMine(
+    @CurrentUser() user: AuthUserPayload,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
+  ) {
+    return this.service.findMine(
+      user.providerProfileId,
+      user.role,
+      query.cursor,
+      query.limit,
+    );
   }
 
   @Get('orders/my')
@@ -115,6 +135,25 @@ export class SparePartsController {
       throw new ForbiddenException('Provider profile required to list spare parts');
     }
     return this.service.create(user.providerProfileId || user.sub, dto);
+  }
+
+  @Patch(':id')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async update(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: UpdateSparePartDto,
+  ) {
+    return this.service.update(id, user, dto);
+  }
+
+  @Delete(':id')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.remove(id, user);
   }
 
   @Post(':id/orders')
