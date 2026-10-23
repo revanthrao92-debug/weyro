@@ -6,14 +6,46 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
 import { TrackingMap } from '@/components/booking/TrackingMap';
-import { Button } from '@/components/ui/Button';
+import {
+  ScreenContainer,
+  AppHeader,
+  Button,
+  Card,
+  StatusPill,
+  Skeleton,
+  EmptyState,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 type BookingDetailParams = { id: string };
+
+function labelize(s: string) {
+  return s.replace(/_/g, ' ');
+}
+
+function statusTone(status: string) {
+  switch (status) {
+    case 'CONFIRMED':
+    case 'PROVIDER_EN_ROUTE':
+    case 'IN_PROGRESS':
+      return 'info';
+    case 'COMPLETED':
+      return 'success';
+    case 'CANCELLED':
+      return 'danger';
+    case 'DISPUTED':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
 
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<BookingDetailParams>();
@@ -24,17 +56,27 @@ export default function BookingDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Booking" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="60%" height={18} />
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width="100%" height={12} style={{ marginTop: spacing.sm }} />
+          ))}
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (isError || !booking) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>Booking not found</Text>
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Booking" />
+        <EmptyState
+          title="Booking not found"
+          message="This booking may have been removed."
+        />
+      </ScreenContainer>
     );
   }
 
@@ -74,25 +116,27 @@ export default function BookingDetailScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
-      </View>
-
-      <View style={styles.scrollContent}>
-        <View style={styles.card}>
+    <ScreenContainer padded={false}>
+      <AppHeader title={`Booking #${booking.id.slice(0, 8)}`} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <Card>
           <Text style={styles.sectionTitle}>Status</Text>
           <View style={styles.statusRow}>
-            <Text style={styles.statusValue}>{booking.status.replace(/_/g, ' ')}</Text>
+            <StatusPill
+              label={labelize(booking.status)}
+              tone={statusTone(booking.status)}
+            />
           </View>
 
           {booking.provider && (
             <View style={styles.providerRow}>
               <Text style={styles.sectionTitle}>Provider</Text>
-              <Text style={styles.providerName}>{booking.provider.businessName}</Text>
-              <Text style={styles.providerMeta}>
-                {booking.provider.totalReviews} reviews • {booking.provider.completedJobs} jobs
-              </Text>
+              <View style={styles.providerInfo}>
+                <Text style={styles.providerName}>{booking.provider.businessName}</Text>
+                <Text style={styles.providerMeta}>
+                  {booking.provider.totalReviews} reviews • {booking.provider.completedJobs} jobs
+                </Text>
+              </View>
             </View>
           )}
 
@@ -113,10 +157,10 @@ export default function BookingDetailScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </Card>
 
         {booking.payment && (
-          <View style={styles.card}>
+          <Card>
             <CostBreakdown
               parts={booking.payment.amount}
               labour={0}
@@ -128,136 +172,89 @@ export default function BookingDetailScreen() {
                 {booking.payment.status.charAt(0).toUpperCase() + booking.payment.status.slice(1)}
               </Text>
             </View>
-          </View>
+          </Card>
         )}
 
         {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
-          <View style={styles.card}>
+          <Card>
             <Text style={styles.sectionTitle}>Live Tracking</Text>
             <TrackingMap />
-            <Button
-              title="Refresh Provider Location"
-              onPress={handleTrackLocation}
-              variant="secondary"
-            />
-          </View>
+            <View style={styles.trackerActions}>
+              <Button
+                title="Refresh Provider Location"
+                onPress={handleTrackLocation}
+                variant="secondary"
+              />
+            </View>
+          </Card>
         )}
 
         {canUpdate && nextStatus && (
           <View style={styles.actions}>
             <Button
               title={
-                booking.status === 'CONFIRMED' ? 'Mark En Route'
-                  : booking.status === 'PROVIDER_EN_ROUTE' ? 'Mark In Progress'
-                  : 'Mark Completed'
+                booking.status === 'CONFIRMED'
+                  ? 'Mark En Route'
+                  : booking.status === 'PROVIDER_EN_ROUTE'
+                    ? 'Mark In Progress'
+                    : 'Mark Completed'
               }
               onPress={handleUpdateStatus}
               variant="primary"
             />
           </View>
         )}
-      </View>
-    </View>
+      </ScrollView>
+    </ScreenContainer>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 12,
-  },
+const styles = StyleSheet.create({
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#6B7280',
-    marginBottom: 10,
+    ...typography.label,
+    color: palette.textSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  statusValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#208AEF',
-  },
+  statusPill: {},
   providerRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  providerName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  providerMeta: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
+  providerInfo: { flex: 1 },
+  providerName: { ...typography.bodyMedium, color: palette.textPrimary },
+  providerMeta: { ...typography.caption, color: palette.textSecondary },
   customerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
+  customerName: { ...typography.bodyMedium, color: palette.textPrimary },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  metaLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  metaValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
+  metaLabel: { ...typography.caption, color: palette.textSecondary },
+  metaValue: { ...typography.captionMedium, color: palette.textPrimary },
   paymentStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
-  paymentStatusLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  paymentStatusValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-} as any;
+  paymentStatusLabel: { ...typography.caption, color: palette.textSecondary },
+  paymentStatusValue: { ...typography.captionMedium, color: palette.success },
+  trackerActions: { marginTop: spacing.md },
+  actions: { marginTop: spacing.lg },
+});

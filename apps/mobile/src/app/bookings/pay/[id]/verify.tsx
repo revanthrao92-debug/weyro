@@ -1,9 +1,13 @@
-import { View, Text } from 'react-native';
+import { ScreenContainer, AppHeader, EmptyState } from '@/components/ui';
 
 export default function PaymentVerifyScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <Text>Payment Verification</Text>
-    </View>
+    <ScreenContainer>
+      <AppHeader title="Payment Verification" />
+      <EmptyState
+        title="Payment Verification"
+        message="Verify your payment here."
+      />
+    </ScreenContainer>
   );
 }

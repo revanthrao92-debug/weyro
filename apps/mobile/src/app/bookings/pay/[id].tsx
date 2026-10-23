@@ -1,19 +1,11 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  TextInput,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { View, Text, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useBooking } from '@/hooks/useBookings';
 import { usePayments } from '@/hooks/usePayments';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Input, Button, ScreenContainer, AppHeader, Card, SkeletonBlock, EmptyState } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 type PayParams = { id: string };
 
@@ -28,17 +20,21 @@ export default function CheckoutScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Payment" />
+        <Card style={styles.skeletonCard}>
+          <SkeletonBlock lines={3} />
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!booking) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>Booking not found</Text>
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Payment" />
+        <EmptyState title="Booking not found" message="This booking may have been removed." />
+      </ScreenContainer>
     );
   }
 
@@ -96,108 +92,78 @@ export default function CheckoutScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={{ padding: 20 }}>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 }}>
-          Payment
-        </Text>
-        <Text style={{ fontSize: 16, color: '#6B7280', marginBottom: 20 }}>
-          Booking #{booking.id.slice(0, 8)}
-        </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+    >
+      <ScreenContainer padded={false}>
+        <AppHeader title="Payment" />
+        <ScrollView contentContainerStyle={styles.body}>
+          <Card>
+            <CostBreakdown parts={amount} labour={0} total={amount} />
 
-        <View style={styles.card}>
-          <CostBreakdown parts={amount} labour={0} total={amount} />
-
-          {order ? (
-            <View style={styles.orderSection}>
-              <Text style={styles.label}>Razorpay Order Created</Text>
-              <Text style={styles.orderId}>{order.orderId}</Text>
+            {order ? (
+              <View style={styles.orderSection}>
+                <Text style={styles.label}>Razorpay Order Created</Text>
+                <Text style={styles.orderId}>{order.orderId}</Text>
+                <Button
+                  title="Open Razorpay Checkout"
+                  onPress={handlePay}
+                  variant="secondary"
+                  style={styles.checkoutBtn}
+                />
+              </View>
+            ) : (
               <Button
-                title="Open Razorpay Checkout"
-                onPress={handlePay}
-                variant="secondary"
+                title="Create Payment Order"
+                onPress={handleCreateOrder}
+                disabled={payLoading}
+                loading={payLoading}
               />
-            </View>
-          ) : (
-            <Button
-              title="Create Payment Order"
-              onPress={handleCreateOrder}
-              disabled={payLoading}
-              loading={payLoading}
-            />
-          )}
+            )}
 
-          <View style={styles.verifySection}>
-            <Text style={styles.label}>Verify Payment (Dev Mode)</Text>
-            <Input
-              style={styles.input}
-              placeholder="Razorpay Payment ID"
-              value={paymentId}
-              onChangeText={setPaymentId}
-              autoCompleteType="off"
-            />
-            <Input
-              style={styles.input}
-              placeholder="Signature"
-              value={signature}
-              onChangeText={setSignature}
-              autoCompleteType="off"
-            />
-            <Button
-              title="Verify Payment"
-              onPress={handleVerify}
-              variant="secondary"
-            />
-          </View>
-        </View>
-      </View>
-    </ScrollView>
+            <View style={styles.verifySection}>
+              <Text style={styles.label}>Verify Payment (Dev Mode)</Text>
+              <Input
+                label="Razorpay Payment ID"
+                placeholder="Payment ID"
+                value={paymentId}
+                onChangeText={setPaymentId}
+                autoCompleteType="off"
+              />
+              <Input
+                label="Signature"
+                placeholder="Signature"
+                value={signature}
+                onChangeText={setSignature}
+                autoCompleteType="off"
+              />
+              <Button title="Verify Payment" onPress={handleVerify} variant="secondary" />
+            </View>
+          </Card>
+        </ScrollView>
+      </ScreenContainer>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 12,
-  },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
   orderSection: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: palette.surfaceAlt,
   },
   verifySection: {
-    marginTop: 20,
-    paddingTop: 16,
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: palette.surfaceAlt,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  orderId: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    fontFamily: 'monospace',
-    marginBottom: 12,
-  },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 12,
-  },
-} as any;
+  label: { ...typography.captionMedium, color: palette.textSecondary },
+  orderId: { ...typography.captionMedium, color: palette.textPrimary, fontFamily: 'monospace', marginBottom: spacing.md },
+  checkoutBtn: { alignSelf: 'flex-start' },
+});

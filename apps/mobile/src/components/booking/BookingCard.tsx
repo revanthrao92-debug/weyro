@@ -1,20 +1,45 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Booking } from '@/hooks/useBookings';
+import { StatusPill } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export type BookingCardProps = {
   booking: Booking;
   onPress: (id: string) => void;
 };
 
+function statusTone(status: string) {
+  switch (status) {
+    case 'CONFIRMED':
+    case 'PROVIDER_EN_ROUTE':
+    case 'IN_PROGRESS':
+      return 'info';
+    case 'COMPLETED':
+      return 'success';
+    case 'CANCELLED':
+      return 'danger';
+    case 'DISPUTED':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+function labelize(s: string) {
+  return s.replace(/_/g, ' ');
+}
+
 export function BookingCard({ booking, onPress }: BookingCardProps) {
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => onPress(booking.id)}
+      accessibilityRole="button"
+      accessibilityLabel={`Booking ${booking.id.slice(0, 8)}, ${labelize(booking.status)}`}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
-        <StatusBadge status={booking.status} />
+        <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
       </View>
 
       {booking.provider && (
@@ -27,114 +52,78 @@ export function BookingCard({ booking, onPress }: BookingCardProps) {
       {booking.payment && (
         <View style={styles.paymentRow}>
           <Text style={styles.label}>Amount</Text>
-          <Text style={styles.amount}>
-            ₹{booking.payment.amount.toLocaleString()}
-          </Text>
-          <Text style={styles.paymentStatus}>
-            {booking.payment.status.charAt(0).toUpperCase() + booking.payment.status.slice(1)}
-          </Text>
+          <View style={styles.amountWrapper}>
+            <Text style={styles.amount}>₹{booking.payment.amount.toLocaleString()}</Text>
+            <StatusPill
+              label={labelize(booking.payment.status)}
+              tone={statusTone(booking.payment.status)}
+            />
+          </View>
         </View>
       )}
 
       <View style={styles.metaRow}>
-        <Text style={styles.meta}>{booking.status}</Text>
-        <Text style={styles.meta}>
-          {new Date(booking.createdAt).toLocaleDateString()}
-        </Text>
+        <Text style={styles.meta}>{labelize(booking.status)}</Text>
+        <Text style={styles.meta}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const color = getStatusColor(status);
-  return (
-    <View style={[styles.badge, { backgroundColor: color.bg }]}>
-      <Text style={[styles.badgeText, { color: color.text }]}>
-        {status.replace(/_/g, ' ')}
-      </Text>
-    </View>
-  );
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'CONFIRMED': return { bg: '#EFF6FF', text: '#208AEF' };
-    case 'PROVIDER_EN_ROUTE': return { bg: '#FFF7ED', text: '#F59E0B' };
-    case 'IN_PROGRESS': return { bg: '#EFF6FF', text: '#208AEF' };
-    case 'COMPLETED': return { bg: '#ECFDF5', text: '#10B981' };
-    case 'CANCELLED': return { bg: '#FEF2F2', text: '#EF4444' };
-    case 'DISPUTED': return { bg: '#FDF4FF', text: '#8B5CF6' };
-    default: return { bg: '#F3F4F6', text: '#6B7280' };
-  }
-}
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: palette.border,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
   },
   providerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   paymentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
   },
   label: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.caption,
+    color: palette.textSecondary,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
+  },
+  amountWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   amount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  paymentStatus: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#10B981',
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   meta: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    ...typography.caption,
+    color: palette.textMuted,
   },
 });

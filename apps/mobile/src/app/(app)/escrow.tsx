@@ -1,9 +1,10 @@
-import { View, Text } from 'react-native';
+import { ScreenContainer, AppHeader, EmptyState } from '@/components/ui';
 
 export default function EscrowScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <Text>Escrow Ledger</Text>
-    </View>
+    <ScreenContainer>
+      <AppHeader title="Escrow Ledger" />
+      <EmptyState title="Escrow Ledger" message="Payment escrow details will appear here." />
+    </ScreenContainer>
   );
 }

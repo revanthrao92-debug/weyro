@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
-import {
-  View,
-  FlatList,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
+import { FlatList, Text, View, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { useBookings } from '@/hooks/useBookings';
 import { BookingCard } from '@/components/booking/BookingCard';
+import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton } from '@/components/ui';
+import { spacing, typography } from '@/theme';
 
 export default function BookingsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
@@ -17,33 +12,34 @@ export default function BookingsScreen() {
 
   const bookings = data?.items ?? [];
 
+  if (isLoading) {
+    return (
+      <ScreenContainer>
+        <AppHeader title="My Bookings" />
+        {[0, 1, 2].map((i) => (
+          <BookingCardSkeleton key={i} />
+        ))}
+      </ScreenContainer>
+    );
+  }
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Bookings</Text>
-        <View style={styles.filterRow}>
-          {['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((s) => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.filterChip, statusFilter === s && styles.filterChipActive]}
-              onPress={() => setStatusFilter(s)}
-            >
-              <Text style={[styles.filterText, statusFilter === s && styles.filterTextActive]}>
-                {s.replace(/_/g, ' ')}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+    <ScreenContainer>
+      <AppHeader title="My Bookings" />
+
+      <View style={styles.filterRow}>
+        {['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((s) => (
+          <Chip
+            key={s}
+            label={s.replace(/_/g, ' ')}
+            selected={statusFilter === s}
+            onPress={() => setStatusFilter(s)}
+          />
+        ))}
       </View>
 
-      {isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#208AEF" />
-        </View>
-      ) : bookings.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No bookings found</Text>
-        </View>
+      {bookings.length === 0 ? (
+        <EmptyState title="No bookings found" message="Your bookings will appear here." />
       ) : (
         <FlatList
           data={bookings}
@@ -52,65 +48,41 @@ export default function BookingsScreen() {
             <BookingCard booking={item} onPress={(id) => {}} />
           )}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={async () => {
-              setRefreshing(true);
-              await refetch();
-              setRefreshing(false);
-            }} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                await refetch();
+                setRefreshing(false);
+              }}
+            />
+          }
+          ListEmptyComponent={
+            <EmptyState title="No bookings found" message="Your bookings will appear here." />
           }
         />
       )}
+    </ScreenContainer>
+  );
+}
+
+function BookingCardSkeleton() {
+  return (
+    <View style={styles.skeletonCard}>
+      <Skeleton width="55%" height={18} />
+      <Skeleton width="70%" height={14} style={{ marginTop: spacing.sm }} />
+      <Skeleton width="60%" height={14} style={{ marginTop: spacing.xs }} />
+      <Skeleton width="100%" height={12} style={{ marginTop: spacing.xs }} />
     </View>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 12,
-  },
+const styles = StyleSheet.create({
   filterRow: {
-    paddingHorizontal: 16,
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  filterChipActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#208AEF',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  filterTextActive: {
-    color: '#208AEF',
-  },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-} as any;
+  skeletonCard: { marginBottom: spacing.md },
+});
