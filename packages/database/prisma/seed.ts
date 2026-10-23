@@ -323,6 +323,216 @@ async function main() {
     console.log(`📋 Created confirmed booking in INR: ${booking.id}`);
   }
 
+  // 7. Shop catalogue: demo parts from both dealers plus two service packages
+  type SparePartSeed = {
+    name: string;
+    partNumber: string;
+    compatibleMakes: string[];
+    compatibleModels: string[];
+    condition: 'OEM' | 'AFTERMARKET' | 'USED';
+    price: number;
+    stockQuantity: number;
+    kind?: 'PART' | 'PACKAGE';
+    description: string;
+    estimatedMinutes?: number;
+    imageUrl?: string;
+  };
+
+  const upsertSparePart = async (providerId: string, data: SparePartSeed) => {
+    const existing = await prisma.sparePart.findFirst({
+      where: { providerId, partNumber: data.partNumber },
+    });
+
+    if (existing) {
+      return prisma.sparePart.update({ where: { id: existing.id }, data });
+    }
+
+    return prisma.sparePart.create({ data: { providerId, ...data } });
+  };
+
+  const dealerParts: SparePartSeed[] = [
+    {
+      name: 'Front Bumper Assembly',
+      partNumber: 'APX-HY-CRT-FB01',
+      compatibleMakes: ['Hyundai'],
+      compatibleModels: ['Creta 2020-2024'],
+      condition: 'OEM',
+      price: 8499,
+      stockQuantity: 4,
+      description:
+        'Genuine Hyundai front bumper with sensor cut-outs and primer finish. Fitment included at partner workshops.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      name: 'LED Projector Headlamp (Right)',
+      partNumber: 'APX-HY-CRT-HL02',
+      compatibleMakes: ['Hyundai'],
+      compatibleModels: ['Creta 2020-2024'],
+      condition: 'OEM',
+      price: 12999,
+      stockQuantity: 2,
+      description:
+        'Right-side LED projector headlamp unit with DRL. Comes with a 1-year manufacturer warranty.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      name: 'Front Brake Pad Set',
+      partNumber: 'APX-MR-SWT-BP03',
+      compatibleMakes: ['Maruti Suzuki'],
+      compatibleModels: ['Swift', 'Dzire'],
+      condition: 'AFTERMARKET',
+      price: 1899,
+      stockQuantity: 12,
+      description:
+        'Low-dust ceramic brake pads for swift city driving. Sold as a front-axle set.',
+    },
+    {
+      name: 'Engine Air Filter',
+      partNumber: 'APX-HN-CTY-AF04',
+      compatibleMakes: ['Honda'],
+      compatibleModels: ['City'],
+      condition: 'AFTERMARKET',
+      price: 749,
+      stockQuantity: 20,
+      description:
+        'High-flow engine air filter with OEM-equivalent fitment. Recommended replacement every 15,000 km.',
+    },
+  ];
+
+  const garageParts: SparePartSeed[] = [
+    {
+      name: 'Fully Synthetic Engine Oil 5W-30 (4L)',
+      partNumber: 'KMW-OIL-5W30-4L',
+      compatibleMakes: ['Hyundai', 'Maruti Suzuki', 'Honda'],
+      compatibleModels: ['Universal'],
+      condition: 'AFTERMARKET',
+      price: 2899,
+      stockQuantity: 10,
+      description:
+        'API SP certified fully synthetic engine oil. Suitable for petrol and diesel passenger cars.',
+    },
+    {
+      name: 'Suspension Lower Arm',
+      partNumber: 'KMW-HY-I20-LA01',
+      compatibleMakes: ['Hyundai'],
+      compatibleModels: ['i20'],
+      condition: 'OEM',
+      price: 4299,
+      stockQuantity: 3,
+      description:
+        'OEM front lower control arm with pressed bushings. Recommended to replace in pairs.',
+    },
+    {
+      name: 'Clutch Plate Kit',
+      partNumber: 'KMW-MR-BAL-CP01',
+      compatibleMakes: ['Maruti Suzuki'],
+      compatibleModels: ['Baleno'],
+      condition: 'OEM',
+      price: 5499,
+      stockQuantity: 2,
+      description:
+        'Clutch disc, pressure plate and release bearing kit for 1.2L petrol Baleno.',
+    },
+    {
+      name: 'Wiper Blade Set (24"/16")',
+      partNumber: 'KMW-UNI-WB-01',
+      compatibleMakes: ['Hyundai', 'Maruti Suzuki', 'Honda'],
+      compatibleModels: ['Universal'],
+      condition: 'AFTERMARKET',
+      price: 899,
+      stockQuantity: 15,
+      description:
+        'Beam-style all-weather wiper blades with adapters for common hook arms.',
+    },
+  ];
+
+  const garagePackages: SparePartSeed[] = [
+    {
+      name: 'Monsoon Care Package',
+      partNumber: 'KMW-PKG-MONSOON',
+      compatibleMakes: ['Universal'],
+      compatibleModels: ['Universal'],
+      condition: 'AFTERMARKET',
+      price: 3499,
+      stockQuantity: 1,
+      kind: 'PACKAGE',
+      estimatedMinutes: 60,
+      description:
+        'Underbody anti-rust spray, brake inspection, wiper check and cabin sanitisation at our Koramangala workshop.',
+    },
+    {
+      name: 'Pre-Delivery Inspection Package',
+      partNumber: 'KMW-PKG-PDI',
+      compatibleMakes: ['Universal'],
+      compatibleModels: ['Universal'],
+      condition: 'AFTERMARKET',
+      price: 1999,
+      stockQuantity: 1,
+      kind: 'PACKAGE',
+      estimatedMinutes: 45,
+      description:
+        '45-minute, 30-point inspection with fluid top-up and a written condition report for used-car purchases.',
+    },
+  ];
+
+  const dealerPartRows = await Promise.all(
+    dealerParts.map((part) =>
+      upsertSparePart(provider1User.providerProfile!.id, part),
+    ),
+  );
+  const garagePartRows = await Promise.all(
+    garageParts.map((part) =>
+      upsertSparePart(provider2User.providerProfile!.id, part),
+    ),
+  );
+
+  await Promise.all(
+    garagePackages.map((pkg) =>
+      upsertSparePart(provider2User.providerProfile!.id, pkg),
+    ),
+  );
+
+  console.log(
+    `🛒 Shop catalogue ready: ${dealerPartRows.length + garagePartRows.length} parts, ${garagePackages.length} packages`,
+  );
+
+  // 8. One completed shop order so history/dashboard/payout flows have data
+  const completedPart = dealerPartRows[0];
+  const existingCompletedOrder = await prisma.sparePartOrder.findFirst({
+    where: {
+      customerId: customerProfileId,
+      sparePartId: completedPart.id,
+      status: 'PAID',
+    },
+  });
+
+  if (!existingCompletedOrder) {
+    await prisma.sparePartOrder.create({
+      data: {
+        sparePartId: completedPart.id,
+        providerId: completedPart.providerId,
+        customerId: customerProfileId,
+        quantity: 1,
+        unitPrice: completedPart.price,
+        totalAmount: completedPart.price,
+        currency: 'INR',
+        status: 'PAID',
+        gatewayOrderId: 'order_demo_spare_01',
+        gatewayPaymentId: 'pay_demo_spare_01',
+        paidAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await prisma.sparePart.update({
+      where: { id: completedPart.id },
+      data: { stockQuantity: { decrement: 1 } },
+    });
+  }
+
+  console.log(`🧾 Completed shop order ready: ${completedPart.name}`);
+
   console.log(
     `🚛 Towing provider ready: ${provider3User.providerProfile?.businessName} (${towingRequest.towingDistanceKm} km demo request)`,
   );

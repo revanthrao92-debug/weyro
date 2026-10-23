@@ -88,6 +88,14 @@ jobs:
           JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
           JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
 
+      - name: Validate demo seeds are idempotent
+        run: |
+          npm run db:seed -w @weyro/database
+          npm run db:seed -w @weyro/database
+        env:
+          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+          DIRECT_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+
   npm-audit:
     runs-on: ubuntu-latest
     steps:
