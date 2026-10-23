@@ -1,4 +1,6 @@
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ScreenContainer, Card, AppHeader, EmptyState } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export default function ActivityScreen() {
   const activities = [
@@ -8,41 +10,31 @@ export default function ActivityScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Activity Logs</Text>
-        <Text style={styles.subtitle}>Platform activity audit trail</Text>
-      </View>
-
+    <ScreenContainer>
+      <AppHeader title="Activity Logs" subtitle="Platform activity audit trail" />
       <FlatList
         data={activities}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <EmptyState title="No activity yet" message="Platform events will show up here." />
+        }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <Text style={styles.action}>{item.action}</Text>
             <Text style={styles.actor}>{item.actor}</Text>
             <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
-          </View>
+          </Card>
         )}
       />
-    </View>
+    </ScreenContainer>
   );
 }
 
-const styles = {
-  header: { padding: 20, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  action: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  actor: { fontSize: 13, color: '#6B7280', marginBottom: 2 },
-  timestamp: { fontSize: 12, color: '#9CA3AF' },
-} as any;
+const styles = StyleSheet.create({
+  list: { paddingBottom: spacing.xl },
+  card: { marginBottom: spacing.md },
+  action: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: 2 },
+  actor: { ...typography.caption, color: palette.textSecondary, marginBottom: 2 },
+  timestamp: { ...typography.label, color: palette.textMuted },
+});

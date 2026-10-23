@@ -1,11 +1,23 @@
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { palette, fontFamilyMedium } from '@/theme';
 
 export default function AppLayout() {
   const { role } = useAuth();
 
   return (
-    <Tabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: palette.accent,
+        tabBarInactiveTintColor: palette.textMuted,
+        tabBarStyle: {
+          backgroundColor: palette.surface,
+          borderTopColor: palette.border,
+        },
+        tabBarLabelStyle: { fontFamily: fontFamilyMedium, fontSize: 11 },
+      }}
+    >
       {role === 'ADMIN' ? (
         <>
           <Tabs.Screen name="index" options={{ title: 'Overview' }} />

@@ -1,8 +1,9 @@
 import { Stack } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthProvider } from '@/hooks/useAuth';
+import { palette } from '@/theme';
 
 const queryClient = new QueryClient();
 
@@ -21,8 +22,8 @@ function AuthRouter() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
@@ -43,3 +44,7 @@ function AuthRouter() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
+});
