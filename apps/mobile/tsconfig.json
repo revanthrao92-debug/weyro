@@ -6,9 +6,10 @@
     "types": ["react-native"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "react-native-maps": ["./src/types/react-native-maps.d.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "expo-env.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "expo-env.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
