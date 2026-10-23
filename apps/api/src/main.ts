@@ -17,6 +17,20 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
 
+  // Behind a load balancer Express only sees the proxy socket. Without this,
+  // the per-IP throttler would bucket every user under one address.
+  if (env.TRUST_PROXY) {
+    const trustProxy = env.TRUST_PROXY.trim();
+    app.set(
+      'trust proxy',
+      trustProxy === 'true'
+        ? true
+        : /^\d+$/.test(trustProxy)
+          ? Number(trustProxy)
+          : trustProxy,
+    );
+  }
+
   // Security headers with helmet
   app.use(helmet());
 

@@ -13,6 +13,9 @@ export const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.coerce.number().default(4000),
+  // Set to a hop count (e.g. "1") when the API sits behind a load balancer so
+  // per-IP rate limiting sees client addresses instead of the proxy's.
+  TRUST_PROXY: z.string().optional(),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: z
     .string()
