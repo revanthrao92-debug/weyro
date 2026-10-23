@@ -4,6 +4,14 @@ import { ActivityIndicator, SafeAreaView } from 'react-native';
 import { AuthProvider } from '@/hooks/useAuth';
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <AuthRouter />
+    </AuthProvider>
+  );
+}
+
+function AuthRouter() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -15,20 +23,18 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <Stack>
-        {isAuthenticated ? (
-          <Stack.Screen
-            options={{ headerShown: false }}
-            name="(app)"
-          />
-        ) : (
-          <Stack.Screen
-            options={{ headerShown: false }}
-            name="(auth)"
-          />
-        )}
-      </Stack>
-    </AuthProvider>
+    <Stack>
+      {isAuthenticated ? (
+        <Stack.Screen
+          options={{ headerShown: false }}
+          name="(app)"
+        />
+      ) : (
+        <Stack.Screen
+          options={{ headerShown: false }}
+          name="(auth)"
+        />
+      )}
+    </Stack>
   );
 }
