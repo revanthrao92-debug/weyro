@@ -1,5 +1,11 @@
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  ViewStyle,
+} from 'react-native';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export interface ButtonProps {
   title: string;
@@ -8,8 +14,15 @@ export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'destructive';
   accessibilityLabel?: string;
   loading?: boolean;
+  /** Optional leading content (e.g. an Icon). Visual only. */
+  style?: ViewStyle | ViewStyle[];
 }
 
+/**
+ * Primary action control. Keeps the original props signature (title, onPress,
+ * disabled, variant, accessibilityLabel, loading) — `style` is additive.
+ * Loading now shows a real spinner instead of an ellipsis.
+ */
 export function Button({
   title,
   onPress,
@@ -17,79 +30,88 @@ export function Button({
   variant = 'primary',
   accessibilityLabel,
   loading,
+  style,
 }: ButtonProps) {
-  const [isPressed, setIsPressed] = useState(false);
-  const isDisabled = disabled || loading;
+  const isDisabled = disabled || !!loading;
 
-  const baseStyles = [
+  const containerStyles = [
     styles.button,
-    isPressed && !isDisabled && styles.buttonPressed,
-    variant === 'destructive' && styles.buttonDestructive,
-    variant === 'secondary' && styles.buttonSecondary,
-    isDisabled && styles.buttonDisabled,
+    variant === 'secondary' && styles.secondary,
+    variant === 'destructive' && styles.destructive,
+    isDisabled && styles.disabled,
+    style,
   ];
 
-  const textStyles = [
-    styles.buttonText,
-    variant === 'destructive' && styles.buttonTextDestructive,
+  const labelStyles = [
+    styles.label,
+    variant === 'secondary' && styles.labelSecondary,
+    variant === 'destructive' && styles.labelDestructive,
   ];
 
   return (
-    <TouchableOpacity
-      style={baseStyles}
-      onPressIn={() => !isDisabled && setIsPressed(true)}
-      onPressOut={() => setIsPressed(false)}
+    <Pressable
       onPress={isDisabled ? undefined : onPress}
       disabled={isDisabled}
       accessibilityLabel={accessibilityLabel || title}
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityState={{ disabled: isDisabled, busy: !!loading }}
+      style={({ pressed }) => [
+        containerStyles,
+        pressed && !isDisabled && pressedStyles[variant],
+      ]}
     >
       {loading ? (
-        <Text style={[styles.buttonText, styles.buttonTextLoading]}>…</Text>
+        <ActivityIndicator
+          color={variant === 'primary' ? palette.onAccent : palette.accent}
+          accessibilityLabel="Loading"
+        />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <Text style={labelStyles} maxFontSizeMultiplier={2}>
+          {title}
+        </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
+const pressedStyles = {
+  primary: { backgroundColor: palette.accentPressed },
+  secondary: { backgroundColor: palette.surfaceAlt },
+  destructive: { backgroundColor: palette.danger, opacity: 0.85 },
+} as const;
+
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: palette.accent,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48, // ≥44px touch target
     minWidth: 44,
-    minHeight: 44,
   },
-  buttonPressed: {
-    borderColor: '#F59E0B',
-    backgroundColor: '#FFF7ED',
+  secondary: {
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.borderStrong,
   },
-  buttonDestructive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#EF4444',
+  destructive: {
+    backgroundColor: palette.danger,
   },
-  buttonSecondary: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-  },
-  buttonDisabled: {
+  disabled: {
     opacity: 0.5,
-    borderColor: '#E5E7EB',
   },
-  buttonText: {
-    color: '#208AEF',
-    fontWeight: '600',
-    fontSize: 16,
+  label: {
+    ...typography.bodyMedium,
+    color: palette.onAccent,
   },
-  buttonTextDestructive: {
-    color: '#EF4444',
+  labelSecondary: {
+    color: palette.textPrimary,
   },
-  buttonTextLoading: {
-    color: '#208AEF',
+  labelDestructive: {
+    color: palette.onDanger,
   },
 });
+
+export default Button;

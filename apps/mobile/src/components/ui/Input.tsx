@@ -1,5 +1,12 @@
-import { TextInput, TextInputProps, StyleSheet } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from 'react-native';
 import { useState } from 'react';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
   autoCompleteType?: string;
@@ -8,59 +15,96 @@ export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
   accessibilityLabel?: string;
 }
 
+/**
+ * Text field. Now actually renders its `label` and `error` (previously they
+ * were accepted but ignored — screens drew manual labels). Keeps the original
+ * props signature, including the legacy `autoCompleteType` passthrough.
+ */
 export function Input({
   label,
   error,
   autoCompleteType,
   accessibilityLabel,
+  style,
   ...props
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const hasError = !!error;
 
   const borderColor = hasError
-    ? '#EF4444'
+    ? palette.danger
     : isFocused
-      ? '#F59E0B'
-      : '#E5E7EB';
+      ? palette.accent
+      : palette.border;
 
   return (
-    <TextInput
-      {...(props as any)}
-      autoCompleteType={autoCompleteType}
-      editable={props.editable !== false}
-      accessibilityLabel={accessibilityLabel || label}
-      accessibilityRole="text"
-      accessibilityState={
-        error ? { invalid: true } : isFocused ? { focused: true } : undefined
-      }
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      style={[
-        styles.input,
-        { borderColor },
-        hasError && styles.inputError,
-        isFocused && styles.inputFocused,
-      ]}
-    />
+    <View style={styles.wrapper}>
+      {label ? (
+        <Text style={styles.label} maxFontSizeMultiplier={2}>
+          {label}
+        </Text>
+      ) : null}
+      <TextInput
+        {...props}
+        {...(autoCompleteType ? { autoCompleteType } : {})}
+        editable={props.editable !== false}
+        accessibilityLabel={accessibilityLabel || label}
+        accessibilityRole="text"
+        accessibilityState={
+          (hasError
+            ? { invalid: true }
+            : isFocused
+              ? { focused: true }
+              : undefined) as TextInputProps['accessibilityState']
+        }
+        onFocus={(e) => {
+          setIsFocused(true);
+          props.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setIsFocused(false);
+          props.onBlur?.(e);
+        }}
+        style={[styles.input, { borderColor }, hasError && styles.inputError, style]}
+        placeholderTextColor={palette.textMuted}
+      />
+      {hasError ? (
+        <Text style={styles.error} maxFontSizeMultiplier={2} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: spacing.md,
+  },
+  label: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
+  },
   input: {
-    height: 56,
+    minHeight: 48,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...typography.body,
+    color: palette.textPrimary,
+    backgroundColor: palette.surface,
   },
   inputError: {
-    borderColor: '#EF4444',
+    // border color set inline; keep a subtle tinted background for non-color-only signal
+    backgroundColor: palette.dangerSoftBg,
   },
-  inputFocused: {
-    borderColor: '#F59E0B',
+  error: {
+    ...typography.caption,
+    color: palette.danger,
+    marginTop: spacing.xs,
   },
 });
+
+export default Input;
