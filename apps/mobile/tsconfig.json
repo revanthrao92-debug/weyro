@@ -3,13 +3,28 @@
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["react-native"],
+    "types": [
+      "react-native"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "react-native-maps": ["./src/types/react-native-maps.d.ts"]
+      "@/*": [
+        "src/*"
+      ],
+      "react-native-maps": [
+        "./src/types/react-native-maps.d.ts"
+      ]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "expo-env.d.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "expo-env.d.ts",
+    ".expo/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
