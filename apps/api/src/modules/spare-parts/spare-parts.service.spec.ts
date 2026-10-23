@@ -7,6 +7,9 @@ import {
 describe('SparePartsService public projection', () => {
   let service: SparePartsService;
   let mockPrisma: any;
+  const mockNotifications = {
+    sendPushNotification: jest.fn(),
+  };
 
   beforeEach(() => {
     mockPrisma = {
@@ -22,7 +25,7 @@ describe('SparePartsService public projection', () => {
     service = new SparePartsService(mockPrisma, {
       verifyPaymentSignature: jest.fn(),
       createOrder: jest.fn(),
-    } as unknown as PaymentGateway);
+    } as unknown as PaymentGateway, mockNotifications as any);
   });
 
   it('never selects KYC documents or user ids for the public list', async () => {
@@ -56,12 +59,16 @@ describe('SparePartsService order flow', () => {
 
   let mockPrisma: any;
   let service: SparePartsService;
+  const mockNotifications = {
+    sendPushNotification: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma = {
       sparePart: {
         findFirst: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({ name: 'Brake Pad' }),
         update: jest.fn(),
       },
       sparePartOrder: {
@@ -72,9 +79,15 @@ describe('SparePartsService order flow', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      customerProfile: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'user-cust' }),
+      },
+      providerProfile: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'user-prov' }),
+      },
       $transaction: jest.fn(),
     };
-    service = new SparePartsService(mockPrisma, mockGateway);
+    service = new SparePartsService(mockPrisma, mockGateway, mockNotifications as any);
   });
 
   it('rejects orders that exceed available stock', async () => {
@@ -325,6 +338,7 @@ describe('SparePartsService order flow', () => {
       id: 'order-1',
       deletedAt: null,
       customerId: 'cust-1',
+      providerId: 'prov-1',
       sparePartId: 'part-1',
       quantity: 2,
       totalAmount: 3000,
@@ -460,6 +474,148 @@ describe('SparePartsService order flow', () => {
         where: { id: 'order-1', status: 'REFUNDED' },
         data: { status: 'PAID' },
       });
+    });
+  });
+
+  describe('notifications', () => {
+    const flushNotifications = () =>
+      new Promise((resolve) => setImmediate(resolve));
+
+    it('notifies the dealer when a new order is placed', async () => {
+      mockPrisma.sparePart.findFirst.mockResolvedValue({
+        id: 'part-1',
+        name: 'Brake Pad',
+        price: 1000,
+        stockQuantity: 5,
+        providerId: 'prov-1',
+      });
+      (mockGateway.createOrder as jest.Mock).mockResolvedValue({
+        orderId: 'order_gw_1',
+        amount: 200000,
+        currency: 'INR',
+      });
+      mockPrisma.sparePartOrder.create.mockResolvedValue({
+        id: 'order-1',
+        sparePartId: 'part-1',
+        customerId: 'cust-1',
+        providerId: 'prov-1',
+        quantity: 2,
+        totalAmount: 2000,
+        currency: 'INR',
+      });
+
+      await service.createOrder('part-1', 'cust-1', { quantity: 2 });
+      await flushNotifications();
+
+      expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-prov',
+          data: expect.objectContaining({
+            type: 'SPARE_PART_ORDER_PLACED',
+            orderId: 'order-1',
+          }),
+        }),
+      );
+    });
+
+    it('notifies both parties when payment is verified', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        id: 'order-1',
+        status: 'PENDING',
+        customerId: 'cust-1',
+        providerId: 'prov-1',
+        gatewayOrderId: 'order_gw_1',
+        quantity: 2,
+        totalAmount: 2000,
+        sparePartId: 'part-1',
+      });
+      (mockGateway.verifyPaymentSignature as jest.Mock).mockReturnValue(true);
+      const tx = {
+        sparePart: {
+          findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
+          update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+        },
+        sparePartOrder: {
+          update: jest
+            .fn()
+            .mockResolvedValue({ id: 'order-1', status: 'PAID' }),
+        },
+      };
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(tx));
+
+      await service.verifyOrderPayment('order-1', 'cust-1', {
+        razorpayOrderId: 'order_gw_1',
+        razorpayPaymentId: 'pay_1',
+        razorpaySignature: 'validsignature123',
+      });
+      await flushNotifications();
+
+      const userIds = mockNotifications.sendPushNotification.mock.calls.map(
+        (call: any[]) => call[0].userId,
+      );
+      expect(userIds).toEqual(expect.arrayContaining(['user-cust', 'user-prov']));
+      expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ type: 'SPARE_PART_ORDER_PAID' }),
+        }),
+      );
+    });
+
+    it('notifies the dealer when a pending order is cancelled', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        id: 'order-1',
+        deletedAt: null,
+        customerId: 'cust-1',
+        providerId: 'prov-1',
+        sparePartId: 'part-1',
+        quantity: 1,
+        totalAmount: 1000,
+        status: 'PENDING',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.cancelOrder('order-1', 'cust-1', false);
+      await flushNotifications();
+
+      expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-prov',
+          data: expect.objectContaining({
+            type: 'SPARE_PART_ORDER_CANCELLED',
+          }),
+        }),
+      );
+    });
+
+    it('notifies the customer when an order is refunded', async () => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        id: 'order-1',
+        deletedAt: null,
+        customerId: 'cust-1',
+        providerId: 'prov-1',
+        sparePartId: 'part-1',
+        quantity: 1,
+        totalAmount: 1000,
+        status: 'PAID',
+        gatewayPaymentId: 'pay_1',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+      (mockGateway.refundPayment as jest.Mock).mockResolvedValue({
+        refundId: 'rfnd_1',
+        status: 'processed',
+      });
+
+      await service.refundOrder('order-1');
+      await flushNotifications();
+
+      expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-cust',
+          data: expect.objectContaining({
+            type: 'SPARE_PART_ORDER_REFUNDED',
+          }),
+        }),
+      );
     });
   });
 

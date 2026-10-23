@@ -24,6 +24,7 @@ import {
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
 import { settleSparePartOrder } from '../spare-parts/spare-part-settlement';
+import { notifyOrderPaid } from '../spare-parts/spare-part-notifications';
 import { env } from '../../config/env.config';
 
 @Injectable()
@@ -316,6 +317,12 @@ export class PaymentsService {
                 sparePartId: true,
                 quantity: true,
                 status: true,
+                customerId: true,
+                providerId: true,
+                totalAmount: true,
+                sparePart: { select: { name: true } },
+                customer: { select: { userId: true } },
+                provider: { select: { userId: true } },
               },
             });
 
@@ -331,6 +338,17 @@ export class PaymentsService {
               this.logger.log(
                 `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status})`,
               );
+
+              if (settled.status === 'PAID') {
+                notifyOrderPaid(this.notifications, {
+                  orderId: sparePartOrder.id,
+                  partName: sparePartOrder.sparePart?.name ?? 'your order',
+                  totalAmount: Number(sparePartOrder.totalAmount),
+                  quantity: sparePartOrder.quantity,
+                  customerUserId: sparePartOrder.customer?.userId,
+                  providerUserId: sparePartOrder.provider?.userId,
+                });
+              }
             }
           }
         }

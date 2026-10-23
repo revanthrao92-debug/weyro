@@ -16,6 +16,13 @@ import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
 import { settleSparePartOrder } from './spare-part-settlement';
+import {
+  notifyOrderCancelled,
+  notifyOrderPaid,
+  notifyOrderPlaced,
+  notifyOrderRefunded,
+} from './spare-part-notifications';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PAYMENT_GATEWAY, PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 import {
   buildCursorWhere,
@@ -29,7 +36,41 @@ export class SparePartsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  private async notificationContext(order: {
+    id: string;
+    sparePartId: string;
+    customerId: string;
+    providerId: string;
+    quantity: number;
+    totalAmount: unknown;
+  }) {
+    const [part, customer, provider] = await Promise.all([
+      this.prisma.sparePart.findUnique({
+        where: { id: order.sparePartId },
+        select: { name: true },
+      }),
+      this.prisma.customerProfile.findUnique({
+        where: { id: order.customerId },
+        select: { userId: true },
+      }),
+      this.prisma.providerProfile.findUnique({
+        where: { id: order.providerId },
+        select: { userId: true },
+      }),
+    ]);
+
+    return {
+      orderId: order.id,
+      partName: part?.name ?? 'your order',
+      totalAmount: Number(order.totalAmount),
+      quantity: order.quantity,
+      customerUserId: customer?.userId,
+      providerUserId: provider?.userId,
+    };
+  }
 
   async findAll(params: {
     search?: string;
@@ -234,6 +275,10 @@ export class SparePartsService {
       },
     });
 
+    void this.notificationContext(order)
+      .then((context) => notifyOrderPlaced(this.notifications, context))
+      .catch(() => {});
+
     return {
       orderId: order.id,
       quantity: order.quantity,
@@ -283,6 +328,12 @@ export class SparePartsService {
       settleSparePartOrder(tx, order, dto.razorpayPaymentId, dto.razorpayOrderId),
     );
 
+    if (updated.status === 'PAID') {
+      void this.notificationContext(order)
+        .then((context) => notifyOrderPaid(this.notifications, context))
+        .catch(() => {});
+    }
+
     return updated;
   }
 
@@ -324,6 +375,10 @@ export class SparePartsService {
     if (claimed.count === 0) {
       throw new ConflictException('Order is no longer cancellable');
     }
+
+    void this.notificationContext(order)
+      .then((context) => notifyOrderCancelled(this.notifications, context))
+      .catch(() => {});
 
     return { orderId: order.id, status: 'CANCELLED' };
   }
@@ -381,6 +436,10 @@ export class SparePartsService {
           data: { stockQuantity: { increment: order.quantity } },
         });
       }
+
+      void this.notificationContext(order)
+        .then((context) => notifyOrderRefunded(this.notifications, context))
+        .catch(() => {});
 
       return {
         orderId: order.id,

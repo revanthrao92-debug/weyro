@@ -505,6 +505,16 @@ describe('HTTP E2E flows (Postgres)', () => {
         where: { id: sparePartId },
       });
       expect(afterDuplicate.stockQuantity).toBe(2);
+
+      // Settlement also drives the shop notification loop for both sides.
+      const paidNotifications = await prisma.notification.findMany({
+        where: { userId: { in: [customer.userId, dealer.userId] } },
+      });
+      expect(
+        paidNotifications.filter(
+          (n) => (n.data as any)?.type === 'SPARE_PART_ORDER_PAID',
+        ).length,
+      ).toBeGreaterThanOrEqual(2);
     });
 
     it('lets the customer cancel a pending order without touching stock', async () => {
