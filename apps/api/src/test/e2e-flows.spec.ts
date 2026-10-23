@@ -63,6 +63,9 @@ describe('HTTP E2E flows (Postgres)', () => {
   let webhookOrderId: string | undefined;
   let webhookEventId: string | undefined;
   let cancelledOrderId: string | undefined;
+  let managedPartId: string | undefined;
+  let cancelRequestId: string | undefined;
+  let cancelQuotationId: string | undefined;
 
   const http = () => request(app.getHttpServer());
 
@@ -147,6 +150,14 @@ describe('HTTP E2E flows (Postgres)', () => {
     }
     if (requestId) {
       await prisma.serviceRequest.deleteMany({ where: { id: requestId } });
+    }
+    if (cancelRequestId) {
+      await prisma.serviceRequest.deleteMany({
+        where: { id: cancelRequestId },
+      });
+    }
+    if (managedPartId) {
+      await prisma.sparePart.deleteMany({ where: { id: managedPartId } });
     }
     if (sparePartOrderId) {
       await prisma.sparePartOrder.deleteMany({
@@ -586,6 +597,281 @@ describe('HTTP E2E flows (Postgres)', () => {
         orderId: webhookOrderId,
         status: 'REFUNDED',
       });
+    });
+  });
+
+  describe('Privacy, profile and API-readiness endpoints', () => {
+    it('never exposes provider contact/KYC data to customers in bookings', async () => {
+      const res = await http()
+        .get(`${API}/bookings/${bookingId}`)
+        .set('Authorization', `Bearer ${customer.accessToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.provider.businessName).toBe(`E2E Garage ${suffix}`);
+      expect(res.body.provider.phone).toBeUndefined();
+      expect(res.body.provider.address).toBeUndefined();
+      expect(res.body.provider.userId).toBeUndefined();
+      expect(res.body.provider.verificationDocuments).toBeUndefined();
+      expect(res.body.payments[0].gatewayOrderId).toBeUndefined();
+    });
+
+    it('hides customer private fields from the assigned provider', async () => {
+      const res = await http()
+        .get(`${API}/bookings/${bookingId}`)
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.customer.firstName).toBe('E2E');
+      expect(res.body.customer.userId).toBeUndefined();
+      expect(res.body.customer.savedAddresses).toBeUndefined();
+    });
+
+    it('serves a public provider profile without phone, address or KYC', async () => {
+      const profile = await http().get(`${API}/providers/${garage.profileId}`);
+      expect(profile.status).toBe(200);
+      expect(profile.body.businessName).toBe(`E2E Garage ${suffix}`);
+      expect(profile.body.phone).toBeUndefined();
+      expect(profile.body.address).toBeUndefined();
+      expect(profile.body.verificationDocuments).toBeUndefined();
+      expect(profile.body).toHaveProperty('badge');
+
+      const reviews = await http().get(
+        `${API}/providers/${garage.profileId}/reviews`,
+      );
+      expect(reviews.status).toBe(200);
+      expect(reviews.body.items).toEqual([]);
+    });
+
+    it('lets a customer manage their profile, addresses and vehicles', async () => {
+      const auth = {
+        Authorization: `Bearer ${customer.accessToken}`,
+      };
+
+      const profile = await http()
+        .patch(`${API}/customers/me`)
+        .set(auth)
+        .send({ firstName: 'Renamed' });
+      expect(profile.status).toBe(200);
+      expect(profile.body.firstName).toBe('Renamed');
+
+      const created = await http()
+        .post(`${API}/customers/me/vehicles`)
+        .set(auth)
+        .send({
+          make: 'Hyundai',
+          model: 'i20',
+          year: 2022,
+          registrationNumber: `ka01${suffix.slice(-6)}`,
+          fuelType: 'PETROL',
+        });
+      expect(created.status).toBe(201);
+
+      const listed = await http()
+        .get(`${API}/customers/me/vehicles`)
+        .set(auth);
+      expect(listed.status).toBe(200);
+      expect(listed.body.items.map((v: { id: string }) => v.id)).toContain(
+        created.body.id,
+      );
+
+      const updated = await http()
+        .patch(`${API}/customers/me/vehicles/${created.body.id}`)
+        .set(auth)
+        .send({ color: 'Red' });
+      expect(updated.status).toBe(200);
+      expect(updated.body.color).toBe('Red');
+
+      const addresses = await http()
+        .put(`${API}/customers/me/addresses`)
+        .set(auth)
+        .send({
+          addresses: [
+            {
+              title: 'Home',
+              address: '12 Indiranagar, Bengaluru',
+              latitude: 12.9784,
+              longitude: 77.6408,
+            },
+          ],
+        });
+      expect(addresses.status).toBe(200);
+      expect(addresses.body.addresses).toHaveLength(1);
+      expect(typeof addresses.body.addresses[0].id).toBe('string');
+
+      const deleted = await http()
+        .delete(`${API}/customers/me/vehicles/${created.body.id}`)
+        .set(auth);
+      expect(deleted.status).toBe(200);
+      expect(deleted.body).toEqual({ deleted: true });
+    });
+
+    it('blocks providers from the customer self-service routes', async () => {
+      const res = await http()
+        .get(`${API}/customers/me/vehicles`)
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('lets a provider read and update their own profile', async () => {
+      const auth = {
+        Authorization: `Bearer ${garage.accessToken}`,
+      };
+
+      const mine = await http().get(`${API}/providers/me`).set(auth);
+      expect(mine.status).toBe(200);
+      expect(mine.body.email).toBe(`e2e-garage-${suffix}@example.com`);
+      expect(mine.body.counts).toEqual(
+        expect.objectContaining({ quotations: expect.any(Number) }),
+      );
+
+      const unavailable = await http()
+        .patch(`${API}/providers/me`)
+        .set(auth)
+        .send({ isAvailable: false });
+      expect(unavailable.status).toBe(200);
+      expect(unavailable.body.isAvailable).toBe(false);
+
+      const publicProfile = await http().get(
+        `${API}/providers/${garage.profileId}`,
+      );
+      expect(publicProfile.body.badge).toBeNull();
+
+      await http()
+        .patch(`${API}/providers/me`)
+        .set(auth)
+        .send({ isAvailable: true });
+    });
+
+    it('lists the provider quotations and allows withdrawal', async () => {
+      const mine = await http()
+        .get(`${API}/quotations/my`)
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      expect(mine.status).toBe(200);
+      expect(mine.body.items.map((q: { id: string }) => q.id)).toContain(
+        quotationId,
+      );
+
+      const created = await http()
+        .post(`${API}/damage-requests`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          vehicleMake: 'Maruti',
+          vehicleModel: 'Swift',
+          vehicleYear: 2021,
+          category: 'MAINTENANCE',
+          title: 'Withdrawable quotation',
+          description: 'Routine service request used by the e2e suite',
+          address: 'Indiranagar, Bengaluru',
+          latitude: 12.9784,
+          longitude: 77.6408,
+          urgency: 'NORMAL',
+          mediaUrls: [],
+          damagePhotos: [],
+          isBroadcast: true,
+        });
+      expect(created.status).toBe(201);
+      cancelRequestId = created.body.id;
+
+      const quote = await http()
+        .post(`${API}/damage-requests/${cancelRequestId}/quotations`)
+        .set('Authorization', `Bearer ${garage.accessToken}`)
+        .send({
+          partsCost: 500,
+          labourCost: 500,
+          warrantyDays: 7,
+          etaDescription: 'Same day',
+        });
+      expect(quote.status).toBe(201);
+      cancelQuotationId = quote.body.id;
+
+      const withdrawn = await http()
+        .post(`${API}/quotations/${cancelQuotationId}/withdraw`)
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      expect(withdrawn.status).toBe(201);
+      expect(withdrawn.body.status).toBe('WITHDRAWN');
+
+      const cancelled = await http()
+        .post(`${API}/damage-requests/${cancelRequestId}/cancel`)
+        .set('Authorization', `Bearer ${customer.accessToken}`);
+      expect(cancelled.status).toBe(201);
+      expect(cancelled.body.status).toBe('CANCELLED');
+    });
+
+    it('tracks notification unread state for each user', async () => {
+      const auth = {
+        Authorization: `Bearer ${garage.accessToken}`,
+      };
+
+      const unread = await http()
+        .get(`${API}/notifications/unread-count`)
+        .set(auth);
+      expect(unread.status).toBe(200);
+      expect(unread.body.unreadCount).toBeGreaterThan(0);
+
+      const readAll = await http()
+        .patch(`${API}/notifications/read-all`)
+        .set(auth);
+      expect(readAll.status).toBe(200);
+      expect(readAll.body.updated).toBeGreaterThan(0);
+
+      const cleared = await http()
+        .get(`${API}/notifications/unread-count`)
+        .set(auth);
+      expect(cleared.body.unreadCount).toBe(0);
+
+      const removed = await http()
+        .delete(`${API}/notifications/push-token`)
+        .set(auth)
+        .send({ token: `missing-token-${suffix}` });
+      expect(removed.status).toBe(200);
+      expect(removed.body.deleted).toBe(0);
+    });
+
+    it('lets a dealer manage their own listings', async () => {
+      const auth = {
+        Authorization: `Bearer ${dealer.accessToken}`,
+      };
+
+      const created = await http()
+        .post(`${API}/spare-parts`)
+        .set(auth)
+        .send({
+          name: 'E2E Managed Filter',
+          partNumber: `E2E-MF-${suffix}`,
+          compatibleMakes: ['Maruti'],
+          compatibleModels: ['Swift'],
+          condition: 'AFTERMARKET',
+          price: 450,
+          stockQuantity: 3,
+        });
+      expect(created.status).toBe(201);
+      managedPartId = created.body.id;
+
+      const mine = await http().get(`${API}/spare-parts/mine`).set(auth);
+      expect(mine.status).toBe(200);
+      expect(mine.body.items.map((p: { id: string }) => p.id)).toContain(
+        managedPartId,
+      );
+
+      const updated = await http()
+        .patch(`${API}/spare-parts/${managedPartId}`)
+        .set(auth)
+        .send({ stockQuantity: 9, isActive: false });
+      expect(updated.status).toBe(200);
+      expect(updated.body.stockQuantity).toBe(9);
+      expect(updated.body.isActive).toBe(false);
+
+      const forbidden = await http()
+        .patch(`${API}/spare-parts/${managedPartId}`)
+        .set('Authorization', `Bearer ${garage.accessToken}`)
+        .send({ price: 1 });
+      expect(forbidden.status).toBe(403);
+
+      const removed = await http()
+        .delete(`${API}/spare-parts/${managedPartId}`)
+        .set(auth);
+      expect(removed.status).toBe(200);
+      expect(removed.body).toEqual({ deleted: true });
     });
   });
 });
