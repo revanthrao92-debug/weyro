@@ -200,8 +200,25 @@ export default function DealerOrdersScreen() {
         ) : items.length === 0 ? (
           <View style={styles.center}>
             <ThemedText style={styles.empty} themeColor="textSecondary">
-              No orders for this filter yet.
+              {filter === 'ALL'
+                ? 'No orders yet. List a spare part to start receiving orders.'
+                : 'No orders for this filter yet.'}
             </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                filter === 'ALL' ? 'List a spare part' : 'Show all orders'
+              }
+              onPress={() =>
+                filter === 'ALL'
+                  ? router.push('/spare-parts/create')
+                  : setFilter('ALL')
+              }
+              style={styles.retryBtn}>
+              <ThemedText style={styles.retryText}>
+                {filter === 'ALL' ? 'List a Spare Part' : 'Show All Orders'}
+              </ThemedText>
+            </Pressable>
           </View>
         ) : (
           <FlatList

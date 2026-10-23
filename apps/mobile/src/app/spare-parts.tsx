@@ -75,6 +75,7 @@ export default function SparePartsScreen() {
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLoad = useRef(true);
+  const hasFilters = search.trim().length > 0 || condition !== '';
 
   const fetchParts = useCallback(
     async (opts: { refresh?: boolean; loadMore?: boolean } = {}) => {
@@ -443,11 +444,28 @@ export default function SparePartsScreen() {
           {items.length === 0 && !isLoading && (
             <View style={styles.emptyCard}>
               <ThemedText style={styles.emptyTitle} themeColor="textSecondary">
-                No spare parts found
+                {hasFilters
+                  ? 'No spare parts found'
+                  : listingKind === 'PACKAGE'
+                    ? 'No service packages yet'
+                    : 'No spare parts listed yet'}
               </ThemedText>
               <ThemedText style={styles.emptySubtitle} themeColor="textSecondary">
-                Try adjusting your search or condition filter.
+                {hasFilters
+                  ? 'Try adjusting your search or condition filter.'
+                  : listingKind === 'PACKAGE'
+                    ? 'Verified workshops are preparing packages. Check back soon.'
+                    : 'Verified dealers are stocking up. Pull to refresh in a moment.'}
               </ThemedText>
+              {!hasFilters && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Refresh spare parts"
+                  onPress={() => fetchParts({ refresh: true })}
+                  style={[styles.viewDetailsBtn, { marginTop: Spacing.two }]}>
+                  <ThemedText style={styles.viewDetailsText}>Refresh</ThemedText>
+                </Pressable>
+              )}
             </View>
           )}
 

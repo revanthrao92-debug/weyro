@@ -316,6 +316,15 @@ export default function HistoryScreen() {
                 <ThemedText style={styles.retryText}>Browse Spare Parts</ThemedText>
               </Pressable>
             )}
+            {activeTab === 'jobs' && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Find nearby service requests"
+                style={styles.retryBtn}
+                onPress={() => router.push('/explore')}>
+                <ThemedText style={styles.retryText}>Find Nearby Requests</ThemedText>
+              </Pressable>
+            )}
           </View>
         ) : (
           <FlatList
