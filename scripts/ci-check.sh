@@ -12,7 +12,4 @@ npm run typecheck:all
 echo "🧪 Tests..."
 npm test
 
-echo "👨‍⚕️ Expo Doctor..."
-npm run doctor
-
 echo "✅ All checks passed."

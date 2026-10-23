@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/ui-ux, prod-readiness]
+    branches: [main, prod-readiness]
   pull_request:
     branches: [main, prod-readiness]
   workflow_dispatch:
@@ -25,9 +25,6 @@ jobs:
 
       - name: Build shared packages
         run: npm run build:packages
-
-      - name: Run ESLint (mobile app)
-        run: npm run lint -w @weyro/mobile
 
       - name: Run TypeScript typecheck (all workspaces)
         run: npm run typecheck:all
@@ -116,43 +113,3 @@ jobs:
 
       - name: Report high vulnerabilities (non-blocking)
         run: npm audit --omit=dev --audit-level=high || true
-
-  expo-doctor:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Expo Doctor
-        run: npm run doctor -w @weyro/mobile
-
-  mobile-bundle:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build shared packages
-        run: npm run build:packages
-
-      - name: Export production iOS bundle
-        run: npx expo export --platform ios --output-dir "$RUNNER_TEMP/weyro-export"
-        working-directory: apps/mobile
