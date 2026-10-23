@@ -1,5 +1,7 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ListItem, Badge, ScreenContainer, AppHeader } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -9,71 +11,39 @@ export default function MessagesScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-        <Text style={styles.subtitle}>Your conversations</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="Messages" subtitle="Your conversations" />
 
       <FlatList
         data={threads}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No conversations yet</Text>
+        }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
+          <ListItem
+            key={item.id}
+            title={item.providerName}
+            subtitle={item.lastMessage}
+            right={
+              <View style={styles.meta}>
+                <Text style={styles.timestamp}>{new Date(item.lastMessageAt).toLocaleDateString()}</Text>
+                {item.unreadCount > 0 ? <Badge value={String(item.unreadCount)} /> : null}
+              </View>
+            }
             onPress={() => router.push(`/messages/${item.id}`)}
             accessibilityLabel={`Conversation with ${item.providerName}`}
-            accessibilityRole="button"
-          >
-            <View style={styles.cardContent}>
-              <Text style={styles.providerName}>{item.providerName}</Text>
-              <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-            </View>
-            <View style={styles.meta}>
-              <Text style={styles.timestamp}>{new Date(item.lastMessageAt).toLocaleDateString()}</Text>
-              {item.unreadCount > 0 && (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{item.unreadCount}</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
+          />
         )}
       />
-    </View>
+    </ScreenContainer>
   );
 }
 
-const styles = {
-  header: { padding: 20, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardContent: { flex: 1 },
-  providerName: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  lastMessage: { fontSize: 14, color: '#6B7280' },
-  meta: { alignItems: 'flex-end' },
-  timestamp: { fontSize: 12, color: '#9CA3AF', marginBottom: 4 },
-  unreadBadge: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  unreadText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-} as any;
+const styles = StyleSheet.create({
+  list: { paddingBottom: spacing.xxl },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  timestamp: { ...typography.label, color: palette.textMuted },
+  emptyText: { ...typography.caption, color: palette.textMuted, textAlign: 'center' },
+});

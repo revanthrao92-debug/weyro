@@ -1,18 +1,9 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  TextInput,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-
-type ThreadParams = { id: string };
+import { FlatList, KeyboardAvoidingView, Platform, Text, View, StyleSheet } from 'react-native';
+import { Input, Button, ScreenContainer, AppHeader } from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function MessagesThreadScreen() {
-  const { id } = useLocalSearchParams<ThreadParams>();
   const [messageText, setMessageText] = useState('');
 
   const messages = [
@@ -22,102 +13,87 @@ export default function MessagesThreadScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Conversation</Text>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+    >
+      <ScreenContainer padded={false}>
+        <AppHeader title="Conversation" />
 
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[styles.messageContainer, item.sender === 'customer' ? styles.messageContainerCustomer : {}]}>
-            <Text style={[styles.messageText, item.sender === 'customer' ? styles.messageTextCustomer : {}]}>
-              {item.text}
-            </Text>
-            <Text style={styles.messageTime}>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-          </View>
-        )}
-        contentContainerStyle={{ padding: 16 }}
-      />
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <View style={[styles.messageRow, item.sender === 'customer' ? styles.rowCustomer : styles.rowProvider]}>
+              <View style={[styles.bubble, item.sender === 'customer' ? styles.bubbleCustomer : styles.bubbleProvider]}>
+                <Text style={[styles.messageText, item.sender === 'customer' ? styles.messageTextCustomer : styles.messageTextProvider]} numberOfLines={4}>
+                  {item.text}
+                </Text>
+              </View>
+              <Text style={styles.messageTime}>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            </View>
+          )}
+        />
+      </ScreenContainer>
 
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
+        <Input
           placeholder="Type a message..."
           value={messageText}
           onChangeText={setMessageText}
           accessibilityLabel="Message input"
+          accessibilityRole="text"
+          style={styles.input}
+          maxFontSizeMultiplier={2}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={() => {}}>
-          <Text style={styles.sendText}>Send</Text>
-        </TouchableOpacity>
+        <Button title="Send" onPress={() => {}} variant="secondary" style={styles.sendBtn} />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  list: { padding: spacing.lg, paddingBottom: spacing.xl },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  title: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  messageContainer: {
-    alignSelf: 'flex-start',
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#E5E7EB',
-    marginBottom: 8,
+  rowProvider: { justifyContent: 'flex-start' },
+  rowCustomer: { justifyContent: 'flex-end' },
+  bubble: {
+    maxWidth: '75%',
+    padding: spacing.md,
+    borderRadius: radii.lg,
   },
-  messageContainerCustomer: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#208AEF',
-  },
-  messageText: {
-    fontSize: 14,
-    color: '#111827',
-  },
-  messageTextCustomer: {
-    color: '#FFFFFF',
-  },
+  bubbleProvider: { backgroundColor: palette.surfaceAlt },
+  bubbleCustomer: { backgroundColor: palette.accent },
+  messageText: { ...typography.body, marginBottom: spacing.xs },
+  messageTextProvider: { color: palette.textPrimary },
+  messageTextCustomer: { color: palette.onAccent },
   messageTime: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    marginTop: 4,
-    alignSelf: 'flex-end',
+    ...typography.label,
+    color: palette.textMuted,
+    marginTop: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: palette.border,
+    backgroundColor: palette.surface,
+    gap: spacing.sm,
+    ...(Platform.OS === 'ios' && { paddingBottom: spacing.lg }),
   },
   input: {
     flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    marginRight: 8,
+    minHeight: 44,
+    ...typography.body,
+    color: palette.textPrimary,
+    backgroundColor: palette.surfaceAlt,
   },
-  sendButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  sendText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-} as any;
+  sendBtn: { minWidth: 88 },
+});
