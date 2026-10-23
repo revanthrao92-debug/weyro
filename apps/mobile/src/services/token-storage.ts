@@ -1,4 +1,3 @@
-import { Buffer } from 'buffer';
 import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'weyro_access_token';
@@ -58,7 +57,3 @@ export const tokenStorage = {
     await safeDeleteItem(REFRESH_TOKEN_KEY);
   },
 };
-
-export function base64UrlEncode(input: string): string {
-  return Buffer.from(input).toString('base64url');
-}
