@@ -2,15 +2,16 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { Input } from '@/components/ui/Input';
+import { Input, Button } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export default function VerifyOtpScreen() {
   const [phone, setPhone] = useState('');
@@ -45,86 +46,70 @@ export default function VerifyOtpScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          {purpose === 'reset_password' ? 'Verify OTP' : 'Verify your phone'}
-        </Text>
-        <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to {phone || 'your phone'}
-        </Text>
-      </View>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Phone number</Text>
-        <Input
-          style={styles.input}
-          placeholder="+91 98765 43210"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          autoCompleteType="tel"
-        />
-
-        <Text style={styles.label}>6-digit code</Text>
-        <Input
-          style={styles.input}
-          placeholder="123456"
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoCompleteType="one-time-code"
-        />
-      </View>
-
-      <TouchableOpacity style={styles.button} onPress={handleVerify} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={styles.buttonText}>
-            {purpose === 'reset_password' ? 'Verify & Continue' : 'Verify'}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {purpose === 'reset_password' ? 'Verify OTP' : 'Verify your phone'}
           </Text>
-        )}
-      </TouchableOpacity>
+          <Text style={styles.subtitle}>
+            Enter the 6-digit code sent to {phone || 'your phone'}
+          </Text>
+        </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Didn&apos;t receive a code?{' '}
-          <TouchableOpacity onPress={() => Alert.alert('Resend', 'OTP resent')}>
-            <Text style={styles.link}>Resend</Text>
-          </TouchableOpacity>
-        </Text>
-      </View>
+        <View>
+          <Input
+            label="Phone number"
+            placeholder="+91 98765 43210"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            autoCompleteType="tel"
+          />
+          <Input
+            label="6-digit code"
+            placeholder="123456"
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoCompleteType="one-time-code"
+          />
+        </View>
+
+        <Button
+          title={purpose === 'reset_password' ? 'Verify & Continue' : 'Verify'}
+          onPress={handleVerify}
+          loading={loading}
+        />
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Didn&apos;t receive a code?{' '}
+            <Text
+              style={styles.link}
+              onPress={() => Alert.alert('Resend', 'OTP resent')}
+              accessibilityRole="button"
+              accessibilityLabel="Resend code"
+            >
+              Resend
+            </Text>
+          </Text>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 20 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  footer: { marginTop: 24, alignItems: 'center' },
-  footerText: { fontSize: 14, color: '#6B7280' },
-  link: { color: '#208AEF', fontWeight: '600' },
-} as any;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { flexGrow: 1, padding: spacing.xl, justifyContent: 'center' },
+  header: { marginBottom: spacing.xl },
+  title: { ...typography.display, color: palette.textPrimary, marginBottom: spacing.xs },
+  subtitle: { ...typography.body, color: palette.textSecondary },
+  footer: { marginTop: spacing.xl, alignItems: 'center' },
+  footerText: { ...typography.caption, color: palette.textSecondary },
+  link: { ...typography.captionMedium, color: palette.accent },
+});

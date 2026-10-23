@@ -3,14 +3,16 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { Input } from '@/components/ui/Input';
+import { Input, Button } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export default function LoginScreen() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -40,78 +42,75 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in to your Weyro account</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to your Weyro account</Text>
+        </View>
 
-      <View style={styles.form}>
-        <Input
-          style={styles.input}
-          placeholder="Email or phone"
-          value={emailOrPhone}
-          onChangeText={setEmailOrPhone}
-          autoCapitalize="none"
-          autoCompleteType="email"
-        />
-        <Input
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCompleteType="password"
-        />
-      </View>
+        <View>
+          <Input
+            label="Email or phone"
+            placeholder="you@example.com"
+            value={emailOrPhone}
+            onChangeText={setEmailOrPhone}
+            autoCapitalize="none"
+            autoCompleteType="email"
+          />
+          <Input
+            label="Password"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCompleteType="password"
+          />
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={styles.buttonText}>Log in</Text>
-        )}
-      </TouchableOpacity>
+        <Button title="Log in" onPress={handleLogin} loading={loading} />
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Don&apos;t have an account?{' '}
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.link}>Register</Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Don&apos;t have an account?{' '}
+            <Text
+              style={styles.link}
+              onPress={() => router.push('/(auth)/register')}
+              accessibilityRole="link"
+              accessibilityLabel="Register"
+            >
+              Register
+            </Text>
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/forgot-password')}
+            accessibilityRole="link"
+            accessibilityLabel="Forgot password"
+          >
+            <Text style={styles.link}>Forgot password?</Text>
           </TouchableOpacity>
-        </Text>
-        <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
-          <Text style={styles.link}>Forgot password?</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 20 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  form: { gap: 16 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { flexGrow: 1, padding: spacing.xl, justifyContent: 'center' },
+  header: { marginBottom: spacing.xl },
+  title: { ...typography.display, color: palette.textPrimary, marginBottom: spacing.xs },
+  subtitle: { ...typography.body, color: palette.textSecondary },
+  footer: {
+    marginTop: spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  footer: { marginTop: 24, flexDirection: 'row', justifyContent: 'center', gap: 12 },
-  footerText: { fontSize: 14, color: '#6B7280' },
-  link: { color: '#208AEF', fontWeight: '600' },
-} as any;
+  footerText: { ...typography.caption, color: palette.textSecondary },
+  link: { ...typography.captionMedium, color: palette.accent },
+});

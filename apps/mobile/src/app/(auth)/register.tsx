@@ -2,16 +2,16 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { Input } from '@/components/ui/Input';
+import { Input, Button, Chip } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
 
@@ -87,48 +87,39 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
+        <View>
           <Input
-            style={styles.input}
+            label="Email"
             placeholder="you@example.com"
             value={form.email}
             onChangeText={(t) => setForm({ ...form, email: t })}
             autoCapitalize="none"
             autoCompleteType="email"
           />
-
-          <Text style={styles.label}>Phone</Text>
           <Input
-            style={styles.input}
+            label="Phone"
             placeholder="+91 98765 43210"
             value={form.phone}
             onChangeText={(t) => setForm({ ...form, phone: t })}
             keyboardType="phone-pad"
             autoCompleteType="tel"
           />
-
-          <Text style={styles.label}>Password</Text>
           <Input
-            style={styles.input}
+            label="Password"
             placeholder="••••••••"
             value={form.password}
             onChangeText={(t) => setForm({ ...form, password: t })}
             secureTextEntry
             autoCompleteType="new-password"
           />
-
-          <Text style={styles.label}>First Name</Text>
           <Input
-            style={styles.input}
+            label="First name"
             placeholder="First name"
             value={form.firstName}
             onChangeText={(t) => setForm({ ...form, firstName: t })}
           />
-
-          <Text style={styles.label}>Last Name</Text>
           <Input
-            style={styles.input}
+            label="Last name"
             placeholder="Last name"
             value={form.lastName}
             onChangeText={(t) => setForm({ ...form, lastName: t })}
@@ -136,54 +127,40 @@ export default function RegisterScreen() {
 
           <Text style={styles.label}>Role</Text>
           <View style={styles.roleSelector}>
-            {['CUSTOMER', 'PROVIDER', 'BOTH'].map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[
-                  styles.roleOption,
-                  form.role === r && styles.roleOptionSelected,
-                ]}
-                onPress={() => setForm({ ...form, role: r as RoleOption })}
-              >
-                <Text
-                  style={[
-                    styles.roleOptionText,
-                    form.role === r && styles.roleOptionTextSelected,
-                  ]}
-                >
-                  {r === 'CUSTOMER' ? 'Customer' : r === 'PROVIDER' ? 'Provider' : 'Both'}
-                </Text>
-              </TouchableOpacity>
+            {(['CUSTOMER', 'PROVIDER', 'BOTH'] as RoleOption[]).map((r) => (
+              <View key={r} style={styles.roleChip}>
+                <Chip
+                  label={r === 'CUSTOMER' ? 'Customer' : r === 'PROVIDER' ? 'Provider' : 'Both'}
+                  selected={form.role === r}
+                  onPress={() => setForm({ ...form, role: r })}
+                />
+              </View>
             ))}
           </View>
 
           {form.role !== 'CUSTOMER' && (
-            <>
-              <Text style={styles.label}>Business Name</Text>
-              <Input
-                style={styles.input}
-                placeholder="e.g. Sharma Motors"
-                value={form.businessName}
-                onChangeText={(t) => setForm({ ...form, businessName: t })}
-              />
-            </>
+            <Input
+              label="Business name"
+              placeholder="e.g. Sharma Motors"
+              value={form.businessName}
+              onChangeText={(t) => setForm({ ...form, businessName: t })}
+            />
           )}
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Create account</Text>
-          )}
-        </TouchableOpacity>
+        <Button title="Create account" onPress={handleRegister} loading={loading} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             Already have an account?{' '}
-            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={styles.link}>Log in</Text>
-            </TouchableOpacity>
+            <Text
+              style={styles.link}
+              onPress={() => router.push('/(auth)/login')}
+              accessibilityRole="link"
+              accessibilityLabel="Log in"
+            >
+              Log in
+            </Text>
           </Text>
         </View>
       </ScrollView>
@@ -191,55 +168,20 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { padding: spacing.xl, paddingBottom: spacing.xxl },
+  header: { marginBottom: spacing.xl },
+  title: { ...typography.display, color: palette.textPrimary },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.sm },
+  label: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
   },
-  roleSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  roleOption: {
-    flex: 1,
-    minWidth: 90,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  roleOptionSelected: {
-    borderColor: '#208AEF',
-    backgroundColor: '#EFF6FF',
-  },
-  roleOptionText: { fontSize: 14, color: '#6B7280' },
-  roleOptionTextSelected: { color: '#208AEF', fontWeight: '600' },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  footer: { marginTop: 24, alignItems: 'center' },
-  footerText: { fontSize: 14, color: '#6B7280' },
-  link: { color: '#208AEF', fontWeight: '600' },
-} as any;
+  roleSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  roleChip: { flex: 1, minWidth: 90 },
+  footer: { marginTop: spacing.xl, alignItems: 'center' },
+  footerText: { ...typography.caption, color: palette.textSecondary },
+  link: { ...typography.captionMedium, color: palette.accent },
+});

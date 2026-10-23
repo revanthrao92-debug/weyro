@@ -2,15 +2,16 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { apiClient } from '@/services/api-client';
-import { Input } from '@/components/ui/Input';
+import { Input, Button } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 export default function ForgotPasswordScreen() {
   const [phone, setPhone] = useState('');
@@ -42,71 +43,53 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Forgot Password</Text>
-        <Text style={styles.subtitle}>
-          Enter your phone number to receive a verification code
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Forgot password</Text>
+          <Text style={styles.subtitle}>
+            Enter your phone number to receive a verification code
+          </Text>
+        </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Phone number</Text>
         <Input
-          style={styles.input}
+          label="Phone number"
           placeholder="+91 98765 43210"
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
           autoCompleteType="tel"
         />
-      </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleSendOtp} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={styles.buttonText}>Send verification code</Text>
-        )}
-      </TouchableOpacity>
+        <Button title="Send verification code" onPress={handleSendOtp} loading={loading} />
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Remember your password?{' '}
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.link}>Log in</Text>
-          </TouchableOpacity>
-        </Text>
-      </View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Remember your password?{' '}
+            <Text
+              style={styles.link}
+              onPress={() => router.push('/(auth)/login')}
+              accessibilityRole="link"
+              accessibilityLabel="Log in"
+            >
+              Log in
+            </Text>
+          </Text>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF', padding: 20 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  footer: { marginTop: 24, alignItems: 'center' },
-  footerText: { fontSize: 14, color: '#6B7280' },
-  link: { color: '#208AEF', fontWeight: '600' },
-} as any;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { flexGrow: 1, padding: spacing.xl, justifyContent: 'center' },
+  header: { marginBottom: spacing.xl },
+  title: { ...typography.display, color: palette.textPrimary, marginBottom: spacing.xs },
+  subtitle: { ...typography.body, color: palette.textSecondary },
+  footer: { marginTop: spacing.xl, alignItems: 'center' },
+  footerText: { ...typography.caption, color: palette.textSecondary },
+  link: { ...typography.captionMedium, color: palette.accent },
+});
