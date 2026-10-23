@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { ActivityIndicator, SafeAreaView } from 'react-native';
 import { AuthProvider } from '@/hooks/useAuth';
 
 export default function RootLayout() {
@@ -16,9 +16,9 @@ function AuthRouter() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#208AEF" />
-      </SafeAreaView>
+      </View>
     );
   }
 
