@@ -66,7 +66,7 @@ export default function NotificationsScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No notifications</Text>
           <Text style={styles.emptySubtitle}>
-            You're all caught up.
+            You&apos;re all caught up.
           </Text>
         </View>
       ) : (

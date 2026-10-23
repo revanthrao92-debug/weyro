@@ -1,19 +1,12 @@
 import { Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { ActivityIndicator, SafeAreaView } from 'react-native';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { AuthProvider } from '@/hooks/useAuth';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    if (!isLoading) {
-      setReady(true);
-    }
-  }, [isLoading]);
-
-  if (!ready) {
+  if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#208AEF" />

@@ -50,10 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role = user?.role ?? null;
   const isAuthenticated = !!user;
 
-  useEffect(() => {
-    bootstrapAuth();
-  }, []);
-
   async function bootstrapAuth() {
     try {
       const token = await tokenStorage.getAccessToken();
@@ -91,6 +87,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Non-blocking
     }
   }
+
+  useEffect(() => {
+    void (async () => {
+      await bootstrapAuth();
+    })();
+  }, []);
+
+  // Register push token after auth bootstraps
+  useEffect(() => {
+    if (user) {
+      void registerStoredPushToken();
+    }
+  }, [user]);
 
   const login = useCallback(
     async (emailOrPhone: string, password: string) => {

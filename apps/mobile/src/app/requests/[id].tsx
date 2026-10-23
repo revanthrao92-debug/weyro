@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation } from '@/hooks/useRequests';
@@ -14,6 +13,7 @@ import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation 
 type RequestParams = { id: string };
 
 export default function RequestDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
   const { data: request, isLoading } = useRequest(id || '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
@@ -74,8 +74,6 @@ export default function RequestDetailScreen() {
       Alert.alert('Failed', e.message || 'Unable to accept quotation');
     }
   };
-
-  const router = useRouter();
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>

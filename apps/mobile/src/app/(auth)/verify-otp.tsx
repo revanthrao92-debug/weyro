@@ -89,7 +89,7 @@ export default function VerifyOtpScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Didn't receive a code?{' '}
+          Didn&apos;t receive a code?{' '}
           <TouchableOpacity onPress={() => Alert.alert('Resend', 'OTP resent')}>
             <Text style={styles.link}>Resend</Text>
           </TouchableOpacity>
