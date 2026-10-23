@@ -12,18 +12,37 @@ export interface User {
   createdAt: string;
 }
 
+export interface SavedAddress {
+  id?: string;
+  title: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface CustomerProfile {
   id: string;
   userId: string;
   firstName: string;
   lastName: string;
   avatarUrl?: string;
-  savedAddresses?: Array<{
-    title: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-  }>;
+  savedAddresses?: SavedAddress[];
+}
+
+export interface UpdateCustomerProfileInput {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string | null;
+}
+
+export interface VehicleInput {
+  make: string;
+  model: string;
+  year: number;
+  registrationNumber: string;
+  vinNumber?: string;
+  fuelType?: FuelType;
+  color?: string;
 }
 
 export interface AuthTokens {
@@ -347,10 +366,80 @@ export interface ProviderVerificationRecord {
 
 export interface EscrowLedgerEntry {
   bookingId: string;
+  paymentId?: string;
   customerName: string;
   providerName: string;
   amount: number;
   status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  bookingStatus?: BookingStatus;
+  payoutReference?: string;
   confirmedAt: string;
   completedAt?: string;
+  releasedAt?: string;
+}
+
+export interface AdminProviderDetail extends ProviderVerificationRecord {
+  email: string;
+  verificationDocuments?: Record<string, string> | null;
+  verifiedAt?: string;
+  counts: {
+    quotations: number;
+    bookings: number;
+    reviews: number;
+    listings: number;
+  };
+}
+
+/** Marketing-safe provider projection returned to customers. */
+export interface PublicProvider {
+  id: string;
+  businessName: string;
+  providerType: ProviderType;
+  description: string | null;
+  serviceRadiusKm: number | null;
+  avgRating: number;
+  totalReviews: number;
+  completedJobs: number;
+  isAvailable: boolean;
+  badge: ProviderBadge;
+  towingVehicleTypes?: TowingVehicleType[];
+  maxVehicleWeightKg?: number | null;
+  towingBaseFee?: number | null;
+  towingPerKmFee?: number | null;
+}
+
+export interface PublicCustomer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+}
+
+export interface PaymentSummary {
+  id: string;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+  method: PaymentMethod | null;
+  paidAt: string | null;
+  releasedAt: string | null;
+}
+
+export interface ProviderReview {
+  id: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+  customerName: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown> | null;
+  readAt?: string | null;
+  createdAt: string;
 }

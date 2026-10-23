@@ -12,6 +12,10 @@ import {
   decodeCursor,
   encodeCursor,
 } from '../../common/utils/cursor';
+import {
+  toPublicCustomer,
+  toPublicProvider,
+} from '../../common/serializers/public-provider';
 
 @Injectable()
 export class ChatService {
@@ -72,10 +76,10 @@ export class ChatService {
     });
 
     if (existing) {
-      return existing;
+      return this.shapeThread(existing);
     }
 
-    return this.prisma.thread.create({
+    const created = await this.prisma.thread.create({
       data: {
         customerId,
         providerId: dto.providerId,
@@ -87,6 +91,18 @@ export class ChatService {
         request: true,
       },
     });
+
+    return this.shapeThread(created);
+  }
+
+  /** Never expose the other party's phone/address/KYC through chat. */
+  private shapeThread(thread: any) {
+    const { customer, provider, ...rest } = thread;
+    return {
+      ...rest,
+      customer: customer ? toPublicCustomer(customer) : null,
+      provider: provider ? toPublicProvider(provider) : null,
+    };
   }
 
   async getUserThreads(
@@ -134,7 +150,7 @@ export class ChatService {
           },
         },
         provider: {
-          select: { id: true, businessName: true, phone: true },
+          select: { id: true, businessName: true, providerType: true, description: true, serviceRadiusKm: true, verificationStatus: true, avgRating: true, totalReviews: true, completedJobs: true, isAvailable: true },
         },
         request: {
           select: { id: true, title: true, status: true },
@@ -143,11 +159,28 @@ export class ChatService {
           take: 1,
           orderBy: { createdAt: 'desc' },
         },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                readAt: null,
+                deletedAt: null,
+                senderId: { not: user.sub },
+              },
+            },
+          },
+        },
       },
     });
 
     return {
-      items,
+      items: items.map((item) => {
+        const { _count, ...thread } = item;
+        return {
+          ...this.shapeThread(thread),
+          unreadCount: _count.messages,
+        };
+      }),
       nextCursor:
         items.length === boundedLimit
           ? encodeCursor({
@@ -156,6 +189,38 @@ export class ChatService {
             })
           : null,
     };
+  }
+
+  async getUnreadCount(user: AuthUserPayload) {
+    const where: any = {
+      readAt: null,
+      deletedAt: null,
+      senderId: { not: user.sub },
+    };
+
+    if (user.role === 'ADMIN') {
+      // admin sees all
+    } else if (user.role === 'BOTH') {
+      where.thread = {
+        OR: [
+          user.customerProfileId
+            ? { customerId: user.customerProfileId }
+            : undefined,
+          user.providerProfileId
+            ? { providerId: user.providerProfileId }
+            : undefined,
+        ].filter(Boolean),
+      };
+    } else if (user.customerProfileId) {
+      where.thread = { customerId: user.customerProfileId };
+    } else if (user.providerProfileId) {
+      where.thread = { providerId: user.providerProfileId };
+    } else {
+      return { unreadCount: 0 };
+    }
+
+    const unreadCount = await this.prisma.message.count({ where });
+    return { unreadCount };
   }
 
   async verifyParticipant(threadId: string, user: AuthUserPayload) {

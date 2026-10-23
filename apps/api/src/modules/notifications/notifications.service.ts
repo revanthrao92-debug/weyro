@@ -121,6 +121,7 @@ export class NotificationsService {
       where: {
         ...buildCursorWhere(cursorTuple),
         userId,
+        deletedAt: null,
       },
       take: boundedLimit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -138,9 +139,31 @@ export class NotificationsService {
     };
   }
 
+  async getUnreadCount(userId: string) {
+    const unreadCount = await this.prisma.notification.count({
+      where: { userId, readAt: null, deletedAt: null },
+    });
+    return { unreadCount };
+  }
+
+  async markAllAsRead(userId: string) {
+    const result = await this.prisma.notification.updateMany({
+      where: { userId, readAt: null, deletedAt: null },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
+  }
+
+  async deletePushToken(userId: string, token: string) {
+    const result = await this.prisma.pushToken.deleteMany({
+      where: { userId, token },
+    });
+    return { deleted: result.count };
+  }
+
   async markAsRead(userId: string, notificationId: string) {
     return this.prisma.notification.updateMany({
-      where: { id: notificationId, userId },
+      where: { id: notificationId, userId, deletedAt: null },
       data: { readAt: new Date() },
     });
   }

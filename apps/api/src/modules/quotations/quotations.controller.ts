@@ -22,12 +22,21 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { z } from 'zod';
 import {
   BookingsQuery,
   bookingsQuerySchema,
   CursorPaginationQuery,
   cursorPaginationSchema,
 } from '../../common/dto/query.dto';
+
+const myQuotationsQuerySchema = cursorPaginationSchema.extend({
+  status: z
+    .enum(['PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'])
+    .optional(),
+});
+
+type MyQuotationsQuery = z.infer<typeof myQuotationsQuerySchema>;
 
 @Controller()
 export class QuotationsController {
@@ -79,6 +88,30 @@ export class QuotationsController {
     return this.service.accept(id, user, dto, idempotencyKey);
   }
 
+  @Get('quotations/my')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async getMyQuotations(
+    @CurrentUser() user: AuthUserPayload,
+    @Query(new ZodValidationPipe(myQuotationsQuerySchema))
+    query: MyQuotationsQuery,
+  ) {
+    return this.service.getMyQuotations(
+      user,
+      query.cursor,
+      query.limit,
+      query.status,
+    );
+  }
+
+  @Post('quotations/:id/withdraw')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async withdraw(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.withdrawQuotation(id, user);
+  }
+
   @Get(['bookings', 'quotations/bookings'])
   async getBookings(
     @CurrentUser() user: AuthUserPayload,
@@ -90,6 +123,14 @@ export class QuotationsController {
       query.limit,
       query.status,
     );
+  }
+
+  @Get(['bookings/:id', 'quotations/bookings/:id'])
+  async getBooking(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.getBooking(id, user);
   }
 
   @Patch(['bookings/:id/status', 'quotations/bookings/:id/status'])

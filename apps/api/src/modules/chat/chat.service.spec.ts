@@ -79,7 +79,11 @@ describe('ChatService', () => {
         providerId: 'prov-1',
       });
 
-      expect(result).toEqual({ id: 'thread-1' });
+      expect(result).toEqual({
+        id: 'thread-1',
+        customer: null,
+        provider: null,
+      });
       expect(mockPrisma.thread.create).not.toHaveBeenCalled();
     });
 

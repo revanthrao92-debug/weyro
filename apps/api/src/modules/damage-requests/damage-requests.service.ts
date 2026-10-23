@@ -18,6 +18,8 @@ import {
   decodeCursor,
   encodeCursor,
 } from '../../common/utils/cursor';
+import { toPublicProvider } from '../../common/serializers/public-provider';
+import { validateServiceRequestTransition } from '../../common/state-machines/state-machines';
 
 @Injectable()
 export class DamageRequestsService {
@@ -187,7 +189,15 @@ export class DamageRequestsService {
     });
 
     return {
-      items: items.map((item) => this.formatRequest(item)),
+      items: items.map((item) =>
+        this.formatRequest({
+          ...item,
+          quotations: item.quotations.map((quotation) => ({
+            ...quotation,
+            provider: toPublicProvider(quotation.provider),
+          })),
+        }),
+      ),
       nextCursor:
         items.length === boundedLimit
           ? encodeCursor({
@@ -196,6 +206,39 @@ export class DamageRequestsService {
             })
           : null,
     };
+  }
+
+  async cancel(id: string, user: AuthUserPayload) {
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Service request with ID ${id} not found`);
+    }
+
+    const isOwner =
+      user.customerProfileId && request.customerId === user.customerProfileId;
+    if (!isOwner && user.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'You can only cancel your own service requests',
+      );
+    }
+
+    validateServiceRequestTransition(request.status, 'CANCELLED', user.role);
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      }),
+      this.prisma.quotation.updateMany({
+        where: { requestId: id, status: 'PENDING' },
+        data: { status: 'WITHDRAWN' },
+      }),
+    ]);
+
+    return this.formatRequest(updated);
   }
 
   async getBroadcastFeed(params: {
@@ -424,6 +467,17 @@ export class DamageRequestsService {
           (q) => q.providerId === user.providerProfileId,
         );
 
+    // Provider rows carry phone, exact address and KYC documents; only admins
+    // get the full record. Everyone else gets the public provider projection.
+    const quotations = isAdmin
+      ? visibleQuotations
+      : visibleQuotations.map((quotation) => ({
+          ...quotation,
+          provider: quotation.provider
+            ? toPublicProvider(quotation.provider)
+            : quotation.provider,
+        }));
+
     if (!isOwnerOrAdmin && !hasAcceptedBooking) {
       const sanitizedCustomer = {
         id: found.customer.id,
@@ -436,11 +490,11 @@ export class DamageRequestsService {
         ...found,
         address: this.maskAddress(found.address),
         customer: sanitizedCustomer,
-        quotations: visibleQuotations,
+        quotations,
       };
     }
 
-    return { ...found, quotations: visibleQuotations };
+    return { ...found, quotations };
   }
 
   private maskAddress(fullAddress: string): string {

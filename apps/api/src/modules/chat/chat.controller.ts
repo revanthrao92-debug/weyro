@@ -44,6 +44,11 @@ export class ChatController {
     return this.chatService.getUserThreads(user, query.cursor, query.limit);
   }
 
+  @Get('unread-count')
+  async getUnreadCount(@CurrentUser() user: AuthUserPayload) {
+    return this.chatService.getUnreadCount(user);
+  }
+
   @Get('threads/:id/messages')
   async getMessages(
     @CurrentUser() user: AuthUserPayload,

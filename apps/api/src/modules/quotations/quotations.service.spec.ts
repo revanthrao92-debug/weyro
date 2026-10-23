@@ -92,7 +92,13 @@ describe('QuotationsService authorization and state regressions', () => {
 
       const result = await service.accept('quote-1', owner, {} as any);
 
-      expect(result).toBe(existingBooking);
+      expect(result).toEqual({
+        id: 'booking-1',
+        quotationId: 'quote-1',
+        customer: null,
+        provider: null,
+        payments: [],
+      });
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 

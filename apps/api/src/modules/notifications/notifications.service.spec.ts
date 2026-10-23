@@ -186,7 +186,7 @@ describe('NotificationsService', () => {
       await service.markAsRead('user-1', 'notif-1');
 
       expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
-        where: { id: 'notif-1', userId: 'user-1' },
+        where: { id: 'notif-1', userId: 'user-1', deletedAt: null },
         data: { readAt: expect.any(Date) },
       });
     });

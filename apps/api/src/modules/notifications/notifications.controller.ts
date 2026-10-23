@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -8,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { RegisterPushTokenDto } from './dto/notifications.dto';
+import { DeletePushTokenDto, RegisterPushTokenDto } from './dto/notifications.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 
@@ -24,6 +25,19 @@ export class NotificationsController {
     return this.service.registerPushToken(user.sub, dto);
   }
 
+  @Delete('push-token')
+  async deletePushToken(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: DeletePushTokenDto,
+  ) {
+    return this.service.deletePushToken(user.sub, dto.token);
+  }
+
+  @Get('unread-count')
+  async getUnreadCount(@CurrentUser() user: AuthUserPayload) {
+    return this.service.getUnreadCount(user.sub);
+  }
+
   @Get()
   async getNotifications(
     @CurrentUser() user: AuthUserPayload,
@@ -35,6 +49,11 @@ export class NotificationsController {
       cursor,
       limit ? parseInt(limit, 10) : 20,
     );
+  }
+
+  @Patch('read-all')
+  async markAllAsRead(@CurrentUser() user: AuthUserPayload) {
+    return this.service.markAllAsRead(user.sub);
   }
 
   @Patch(':id/read')

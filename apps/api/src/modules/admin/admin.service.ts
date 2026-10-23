@@ -112,7 +112,7 @@ export class AdminService {
   async getEscrowLedger(): Promise<EscrowLedgerEntry[]> {
     const payments = await this.prisma.payment.findMany({
       where: {
-        status: { in: ['PENDING', 'AUTHORIZED', 'CAPTURED', 'REFUNDED'] },
+        status: { in: ['PENDING', 'AUTHORIZED', 'CAPTURED', 'REFUNDED', 'RELEASED'] },
       },
       include: {
         booking: {
@@ -127,25 +127,59 @@ export class AdminService {
 
     return payments.map((payment) => ({
       bookingId: payment.bookingId,
+      paymentId: payment.id,
       customerName: `${payment.booking?.customer?.firstName || 'Customer'} ${
         payment.booking?.customer?.lastName || ''
       }`.trim(),
       providerName:
         payment.booking?.provider?.businessName || 'Verified Provider',
       amount: Number(payment.amount),
-      // No release/payout flow exists yet; completed bookings still hold funds
-      // until a disbursement is implemented.
       status:
         payment.status === 'REFUNDED'
           ? 'REFUNDED_TO_CUSTOMER'
           : payment.status === 'RELEASED'
             ? 'RELEASED_TO_PROVIDER'
             : 'HELD_IN_ESCROW',
+      bookingStatus: payment.booking?.status,
+      payoutReference: payment.payoutReference ?? undefined,
+      releasedAt: payment.paidToProviderAt
+        ? payment.paidToProviderAt.toISOString()
+        : undefined,
       confirmedAt: payment.createdAt.toISOString(),
       completedAt: payment.booking?.completedAt
         ? payment.booking.completedAt.toISOString()
         : undefined,
     }));
+  }
+
+  async getProviderDetail(id: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id },
+      include: {
+        user: { select: { email: true, phone: true, isActive: true } },
+        _count: {
+          select: { quotations: true, bookings: true, reviews: true, spareParts: true },
+        },
+      },
+    });
+
+    if (!provider) {
+      throw new NotFoundException(`Provider with ID ${id} not found`);
+    }
+
+    const { user, _count, ...profile } = provider;
+
+    return {
+      ...profile,
+      email: user.email,
+      verificationDocuments: provider.verificationDocuments,
+      counts: {
+        quotations: _count.quotations,
+        bookings: _count.bookings,
+        reviews: _count.reviews,
+        listings: _count.spareParts,
+      },
+    };
   }
 
   async getActivityLogs(params: { action?: string; cursor?: string; limit?: number }) {

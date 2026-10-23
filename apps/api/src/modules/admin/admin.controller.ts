@@ -40,6 +40,11 @@ export class AdminController {
     return this.service.getProviders(query.status);
   }
 
+  @Get('providers/:id')
+  async getProviderDetail(@Param('id') id: string) {
+    return this.service.getProviderDetail(id);
+  }
+
   @Patch('providers/:id/verify')
   async verifyProvider(
     @Param('id') id: string,

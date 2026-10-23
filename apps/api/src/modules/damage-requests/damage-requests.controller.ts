@@ -68,6 +68,15 @@ export class DamageRequestsController {
     return this.service.findMine(user, query.cursor, query.limit);
   }
 
+  @Post(':id/cancel')
+  @Roles('CUSTOMER', 'BOTH', 'ADMIN')
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.cancel(id, user);
+  }
+
   @Get(':id')
   async findOne(
     @Param('id') id: string,

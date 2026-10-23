@@ -28,6 +28,11 @@ import {
   decodeCursor,
   encodeCursor,
 } from '../../common/utils/cursor';
+import {
+  toPaymentSummary,
+  toPublicCustomer,
+  toPublicProvider,
+} from '../../common/serializers/public-provider';
 
 @Injectable()
 export class QuotationsService {
@@ -350,7 +355,7 @@ export class QuotationsService {
     });
 
     if (existingBooking) {
-      return existingBooking;
+      return this.serializeBooking(existingBooking, user.role);
     }
 
     // Validate state machine transitions
@@ -444,7 +449,103 @@ export class QuotationsService {
       // Non-blocking notification dispatch
     }
 
-    return result;
+    return this.serializeBooking(result, user.role);
+  }
+
+  async getMyQuotations(
+    user: AuthUserPayload,
+    cursor?: string,
+    limit: number = 20,
+    status?: string,
+  ) {
+    if (!user.providerProfileId) {
+      throw new ForbiddenException('Provider profile required');
+    }
+
+    const boundedLimit = Math.min(50, Math.max(1, limit));
+    const cursorTuple = cursor ? decodeCursor(cursor) : null;
+
+    const items = await this.prisma.quotation.findMany({
+      where: {
+        ...buildCursorWhere(cursorTuple),
+        providerId: user.providerProfileId,
+        ...(status ? { status: status as any } : {}),
+      },
+      take: boundedLimit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        request: {
+          include: { vehicle: true, media: true },
+        },
+        booking: true,
+      },
+    });
+
+    return {
+      items,
+      nextCursor:
+        items.length === boundedLimit
+          ? encodeCursor({
+              createdAt: items[items.length - 1].createdAt.toISOString(),
+              id: items[items.length - 1].id,
+            })
+          : null,
+    };
+  }
+
+  async withdrawQuotation(id: string, user: AuthUserPayload) {
+    const quote = await this.prisma.quotation.findUnique({
+      where: { id },
+    });
+
+    if (!quote) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    const isProviderOwner =
+      user.providerProfileId && quote.providerId === user.providerProfileId;
+    if (!isProviderOwner && user.role !== 'ADMIN') {
+      throw new ForbiddenException('You do not own this quotation');
+    }
+
+    validateQuotationTransition(quote.status, 'WITHDRAWN', user.role);
+
+    return this.prisma.quotation.update({
+      where: { id },
+      data: { status: 'WITHDRAWN' },
+    });
+  }
+
+  async getBooking(id: string, user: AuthUserPayload) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        provider: true,
+        quotation: {
+          include: { request: { include: { vehicle: true, media: true } } },
+        },
+        payments: true,
+        review: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+
+    const isCustomerOwner =
+      user.customerProfileId && booking.customerId === user.customerProfileId;
+    const isProviderOwner =
+      user.providerProfileId && booking.providerId === user.providerProfileId;
+
+    if (!isCustomerOwner && !isProviderOwner && user.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'You do not have permission to view this booking',
+      );
+    }
+
+    return this.serializeBooking(booking, user.role);
   }
 
   async getBookings(
@@ -495,7 +596,9 @@ export class QuotationsService {
     });
 
     return {
-      items,
+      items: items.map((item) =>
+        this.serializeBooking(item, user.role),
+      ),
       nextCursor:
         items.length === boundedLimit
           ? encodeCursor({
@@ -503,6 +606,31 @@ export class QuotationsService {
               id: items[items.length - 1].id,
             })
           : null,
+    };
+  }
+
+  /**
+   * Cross-party booking payloads must never carry the other party's phone,
+   * exact address, KYC documents or gateway internals. Admins keep the full
+   * record for reconciliation.
+   */
+  private serializeBooking(booking: any, role: string) {
+    if (role === 'ADMIN') {
+      return booking;
+    }
+
+    const {
+      customer,
+      provider,
+      payments,
+      ...rest
+    } = booking;
+
+    return {
+      ...rest,
+      customer: customer ? toPublicCustomer(customer) : null,
+      provider: provider ? toPublicProvider(provider) : null,
+      payments: (payments ?? []).map(toPaymentSummary),
     };
   }
 
@@ -639,7 +767,7 @@ export class QuotationsService {
       // Non-blocking notification dispatch
     }
 
-    return updated;
+    return this.serializeBooking(updated, user.role);
   }
 
   async updateLocation(

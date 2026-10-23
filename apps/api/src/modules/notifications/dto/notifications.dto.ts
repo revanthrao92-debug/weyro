@@ -15,3 +15,17 @@ export class RegisterPushTokenDto
   token!: string;
   deviceOs?: 'ios' | 'android' | 'web';
 }
+
+export const deletePushTokenSchema = z
+  .object({
+    token: z.string().min(10),
+  })
+  .strict();
+
+export class DeletePushTokenDto
+  implements z.infer<typeof deletePushTokenSchema>
+{
+  static readonly schema = deletePushTokenSchema;
+
+  token!: string;
+}
