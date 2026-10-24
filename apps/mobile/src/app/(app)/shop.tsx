@@ -41,6 +41,7 @@ export default function ShopScreen() {
           value={search}
           onChangeText={setSearch}
           autoCapitalize="words"
+          containerStyle={styles.filterField}
         />
         <Input
           label="Make"
@@ -48,6 +49,7 @@ export default function ShopScreen() {
           value={make}
           onChangeText={setMake}
           autoCapitalize="characters"
+          containerStyle={styles.filterField}
         />
         <IconButton
           icon={<EllipsisVertical size={20} color={palette.textPrimary} strokeWidth={2} />}
@@ -109,8 +111,12 @@ function StockBadge({ stock }: { stock: number }) {
 const styles = StyleSheet.create({
   filterBar: {
     flexDirection: 'row',
+    // Bottom-align: the labelled inputs are taller than the square icon
+    // button; flex-end keeps the ⋮ button on the field line, not the labels.
+    alignItems: 'flex-end',
     gap: spacing.sm,
   },
+  filterField: { flex: 1, marginBottom: 0 },
   list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
   card: {
