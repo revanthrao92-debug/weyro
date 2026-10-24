@@ -8,7 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-primary active:bg-primary/90',
+        primary: 'bg-primary active:bg-primary-pressed',
         secondary: 'border border-strong bg-card active:bg-accent',
         destructive: 'bg-destructive active:bg-destructive/90',
       },
@@ -21,7 +21,8 @@ const buttonVariants = cva(
   }
 );
 
-const buttonTextVariants = cva('text-sm font-medium text-center', {
+// Label matches typography.bodyMedium: 16/24 medium (was 14 — shrank in the port).
+const buttonTextVariants = cva('text-base font-medium text-center', {
   variants: {
     variant: {
       primary: 'text-primary-foreground',

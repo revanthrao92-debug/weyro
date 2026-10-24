@@ -26,6 +26,7 @@
 
     /* Accent — deep teal, white label */
     --primary: 177 56% 28%; /* #1F6F6B */
+    --primary-pressed: 176 57% 21%; /* #175551 — pressed state darkens */
     --primary-foreground: 0 0% 100%;
 
     /* Secondary / muted */

@@ -41,7 +41,10 @@ export interface CardProps {
  */
 export function Card({ children, style }: CardProps) {
   return (
-    <View className="rounded-md border border-border bg-card p-4" style={style}>
+    <View
+      className="rounded-md border border-border bg-card p-4 shadow-sm shadow-black/5"
+      style={style}
+    >
       {children}
     </View>
   );

@@ -15,7 +15,7 @@ const badgeVariants = cva(
   }
 );
 
-const badgeTextVariants = cva('text-[11px] font-medium', {
+const badgeTextVariants = cva('text-[11px] leading-4 font-medium', {
   variants: {
     tone: {
       accent: 'text-primary-foreground',
