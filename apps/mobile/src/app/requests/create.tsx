@@ -13,6 +13,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCreateServiceRequest } from '@/hooks/useRequests';
 import { Input, Button, Chip, AppHeader, BackButton } from '@/components/ui';
+import { PhotoPicker } from '@/components/requests/PhotoPicker';
+import type { UploadedImage } from '@/services/uploads';
 import { palette, spacing, radii, typography } from '@/theme';
 
 const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
@@ -56,6 +58,8 @@ export default function CreateRequestScreen() {
   const createRequest = useCreateServiceRequest();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [photos, setPhotos] = useState<UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async () => {
     const {
@@ -88,8 +92,8 @@ export default function CreateRequestScreen() {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         urgency: urgency as any,
-        mediaUrls: [],
-        damagePhotos: [],
+        mediaUrls: photos.map((p) => p.url),
+        damagePhotos: photos.map((p) => p.url),
         isBroadcast,
       });
       Alert.alert('Success', 'Service request created');
@@ -159,6 +163,14 @@ export default function CreateRequestScreen() {
             multiline
             style={styles.textarea}
           />
+
+          <Text style={styles.label}>Damage photos</Text>
+          <PhotoPicker
+            images={photos}
+            onChange={setPhotos}
+            onUploadingChange={setUploading}
+            max={4}
+          />
           <Input
             label="Address"
             placeholder="e.g. Indiranagar, Bengaluru"
@@ -218,7 +230,7 @@ export default function CreateRequestScreen() {
         <Button
           title="Submit Request"
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || uploading}
           loading={submitting}
         />
       </ScrollView>

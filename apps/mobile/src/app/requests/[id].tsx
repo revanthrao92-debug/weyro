@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation } from '@/hooks/useRequests';
 import {
   ScreenContainer,
@@ -124,6 +125,29 @@ export default function RequestDetailScreen() {
           <DetailRow label="Urgency" value={request.urgency} last />
         </Card>
 
+        {(request.damagePhotos?.length || request.mediaUrls?.length) ? (
+          <Card>
+            <Text style={styles.sectionTitle}>Photos</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoRow}
+            >
+              {(request.damagePhotos?.length ? request.damagePhotos : request.mediaUrls).map(
+                (url, index) => (
+                  <Image
+                    key={`${url}-${index}`}
+                    source={{ uri: url }}
+                    style={styles.photo}
+                    contentFit="cover"
+                    accessibilityLabel={`Damage photo ${index + 1}`}
+                  />
+                )
+              )}
+            </ScrollView>
+          </Card>
+        ) : null}
+
         <Card>
           <View style={styles.quotesHeader}>
             <Text style={styles.sectionTitle}>Quotes</Text>
@@ -178,6 +202,13 @@ function QuoteCard({ quote, onAccept }: { quote: any; onAccept: (q: any) => void
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  photoRow: { gap: spacing.sm, paddingTop: spacing.sm },
+  photo: {
+    width: 96,
+    height: 96,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceAlt,
+  },
   skeletonCard: { marginBottom: spacing.md },
   sectionTitle: {
     ...typography.label,
