@@ -21,7 +21,8 @@ export function BackButton({ label = 'Go back' }: BackButtonProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={12}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+      className="active:opacity-60"
+      style={styles.button}
     >
       <ChevronLeft size={24} color={palette.textPrimary} strokeWidth={2} />
     </Pressable>

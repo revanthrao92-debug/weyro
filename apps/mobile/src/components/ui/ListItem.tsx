@@ -41,7 +41,11 @@ export function ListItem({ title, subtitle, left, right, onPress, accessibilityL
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel || title}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+        // Static style on purpose: NativeWind's Pressable patch drops
+        // function-style props, which silently unstyles the whole row.
+        // Press feedback comes from the `active:` class instead.
+        className="active:bg-secondary"
+        style={styles.row}
       >
         {content}
       </Pressable>

@@ -16,11 +16,8 @@ export function Chip({ label, selected = false, onPress, accessibilityLabel }: C
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={accessibilityLabel || label}
-      style={({ pressed }) => [
-        styles.chip,
-        selected && styles.selected,
-        pressed && styles.pressed,
-      ]}
+      className="active:bg-secondary"
+      style={[styles.chip, selected && styles.selected]}
     >
       <Text
         style={[styles.label, selected && styles.labelSelected]}
