@@ -131,7 +131,10 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer>
-      <AppHeader title="Home" subtitle="Your garage at a glance" />
+      <AppHeader
+        logo={require('../../../assets/images/weyro-logo.png')}
+        subtitle="Your garage at a glance"
+      />
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <SectionCard
           title="Active requests"

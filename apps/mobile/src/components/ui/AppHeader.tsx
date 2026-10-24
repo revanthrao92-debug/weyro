@@ -1,9 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { ReactNode } from 'react';
 import { palette, spacing, typography } from '@/theme';
 
 export interface AppHeaderProps {
-  title: string;
+  title?: string;
+  /** Brand mark shown instead of the title text (centered). */
+  logo?: ImageSourcePropType;
   /** Optional element rendered on the left (e.g. a back button). */
   left?: ReactNode;
   /** Optional element rendered on the right (e.g. an action). */
@@ -17,16 +19,26 @@ export interface AppHeaderProps {
  * and actions are passed in as nodes so navigation behavior stays at the call
  * site (no navigation logic changes here).
  */
-export function AppHeader({ title, subtitle, left, right }: AppHeaderProps) {
+export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps) {
   return (
     <View style={styles.header}>
       {/* Both side slots always render so the centered title stays centered
           (a missing left spacer used to shift every header ~22px left). */}
       {left ? <View style={styles.side}>{left}</View> : <View style={styles.side} />}
       <View style={styles.center}>
-        <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={2}>
-          {title}
-        </Text>
+        {logo ? (
+          <Image
+            source={logo}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="Weyro"
+          />
+        ) : (
+          <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={2}>
+            {title}
+          </Text>
+        )}
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={2}>
             {subtitle}
@@ -63,6 +75,10 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: palette.textPrimary,
     textAlign: 'center',
+  },
+  logo: {
+    height: 26,
+    width: 93, // 26 * logo aspect ratio (715/200)
   },
   subtitle: {
     ...typography.caption,
