@@ -1,8 +1,12 @@
+import '../../global.css';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PortalHost } from '@rn-primitives/portal';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthProvider } from '@/hooks/useAuth';
+import { ThemeProvider, NAV_THEME } from '@/lib/theme';
 import { palette } from '@/theme';
 
 const queryClient = new QueryClient();
@@ -11,6 +15,8 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        {/* Dark is the app's active theme (see global.css). */}
+        <StatusBar style="light" />
         <AuthRouter />
       </AuthProvider>
     </QueryClientProvider>
@@ -29,22 +35,29 @@ function AuthRouter() {
   }
 
   return (
-    <Stack>
-      {isAuthenticated ? (
-        <Stack.Screen
-          options={{ headerShown: false }}
-          name="(app)"
-        />
-      ) : (
-        <Stack.Screen
-          options={{ headerShown: false }}
-          name="(auth)"
-        />
-      )}
-    </Stack>
+    <View className="dark flex-1" style={styles.root}>
+      <ThemeProvider value={NAV_THEME.dark}>
+        <Stack>
+          {isAuthenticated ? (
+            <Stack.Screen
+              options={{ headerShown: false }}
+              name="(app)"
+            />
+          ) : (
+            <Stack.Screen
+              options={{ headerShown: false }}
+              name="(auth)"
+            />
+          )}
+        </Stack>
+      </ThemeProvider>
+      {/* RNR portal host — must stay the last child of the providers. */}
+      <PortalHost />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
 });
