@@ -59,22 +59,28 @@ export default function MyRequestsScreen() {
     );
   }
 
+  // Filters only make sense when there is something to filter — hide the row
+  // on a genuinely empty account (keep it when a filter hides the results).
+  const showFilters = requests.length > 0 || !!statusFilter;
+
   return (
     <ScreenContainer>
       <AppHeader title="My Requests" subtitle="Your service requests" />
 
-      <View style={styles.filterRow}>
-        {FILTERS.map((s) => (
-          <Chip
-            key={s}
-            label={labelize(s)}
-            selected={statusFilter === s}
-            onPress={() =>
-              setStatusFilter((prev) => (prev === s ? undefined : s))
-            }
-          />
-        ))}
-      </View>
+      {showFilters ? (
+        <View style={styles.filterRow}>
+          {FILTERS.map((s) => (
+            <Chip
+              key={s}
+              label={labelize(s)}
+              selected={statusFilter === s}
+              onPress={() =>
+                setStatusFilter((prev) => (prev === s ? undefined : s))
+              }
+            />
+          ))}
+        </View>
+      ) : null}
 
       {requests.length === 0 ? (
         <EmptyState
