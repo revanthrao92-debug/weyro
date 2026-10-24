@@ -1,5 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { CalendarDays, Car, ChevronRight, ClipboardList } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
@@ -7,12 +8,10 @@ import { useVehicles } from '@/hooks/useProfile';
 import {
   ScreenContainer,
   AppHeader,
-  SectionHeader,
+  SectionCard,
   ListItem,
   StatusPill,
   Skeleton,
-  ButtonRow,
-  Button,
   EmptyState,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, typography } from '@/theme';
@@ -66,6 +65,24 @@ function formatDate(iso?: string) {
   });
 }
 
+/** Tappable empty prompt inside a section card. */
+function EmptyPrompt({ text, onPress }: { text: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={text}
+      className="active:opacity-60"
+      style={styles.emptyRow}
+    >
+      <Text style={styles.emptyText} maxFontSizeMultiplier={2}>
+        {text}
+      </Text>
+      <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
+    </Pressable>
+  );
+}
+
 /** Placeholder dashboard for provider/admin (their dashboards are backlog). */
 const PROVIDER_COPY: Record<string, { title: string; subtitle: string; message: string }> = {
   ADMIN: {
@@ -116,106 +133,108 @@ export default function HomeScreen() {
     <ScreenContainer>
       <AppHeader title="Home" subtitle="Your garage at a glance" />
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* Quick actions */}
-        <ButtonRow>
-          <Button
-            title="Create request"
-            onPress={() => router.push('/requests/create')}
-            style={styles.flex}
-          />
-          <Button
-            title="My requests"
-            variant="secondary"
-            onPress={() => router.push('/requests/my')}
-            style={styles.flex}
-          />
-        </ButtonRow>
-        <View style={styles.rowGap} />
-        <ButtonRow>
-          <Button
-            title="Shop parts"
-            variant="secondary"
-            onPress={() => router.push('/shop')}
-            style={styles.flex}
-          />
-          <Button
-            title="Messages"
-            variant="secondary"
-            onPress={() => router.push('/messages')}
-            style={styles.flex}
-          />
-        </ButtonRow>
-
-        {/* Active requests */}
-        <SectionHeader
+        <SectionCard
           title="Active requests"
+          icon={ClipboardList}
+          count={requests.length || undefined}
           actionLabel="See all"
           onAction={() => router.push('/requests/my')}
-        />
-        {loading ? (
-          <View>
-            <Skeleton width="100%" height={56} />
-            <View style={styles.rowGap} />
-            <Skeleton width="100%" height={56} />
-          </View>
-        ) : requests.length === 0 ? (
-          <Text style={styles.emptyText}>No requests yet — post one to get quotes.</Text>
-        ) : (
-          requests.map((request) => (
-            <ListItem
-              key={request.id}
-              title={request.title}
-              subtitle={`${labelize(request.category)} · ${request.address}`}
-              right={<StatusPill label={labelize(request.status)} tone={requestTone(request.status)} />}
-              onPress={() => router.push(`/requests/${request.id}`)}
-              accessibilityLabel={`Request ${request.title}`}
+          onPress={() => router.push('/requests/my')}
+          style={styles.section}
+        >
+          {loading ? (
+            <View>
+              <Skeleton width="100%" height={40} />
+              <View style={styles.rowGap} />
+              <Skeleton width="100%" height={40} />
+            </View>
+          ) : requests.length === 0 ? (
+            <EmptyPrompt
+              text="No requests yet — post one to get quotes."
+              onPress={() => router.push('/requests/create')}
             />
-          ))
-        )}
+          ) : (
+            requests.map((request, index) => (
+              <ListItem
+                key={request.id}
+                bare
+                divider={index < requests.length - 1}
+                title={request.title}
+                subtitle={`${labelize(request.category)} · ${request.address}`}
+                right={
+                  <StatusPill
+                    label={labelize(request.status)}
+                    tone={requestTone(request.status)}
+                  />
+                }
+                onPress={() => router.push(`/requests/${request.id}`)}
+                accessibilityLabel={`Request ${request.title}`}
+              />
+            ))
+          )}
+        </SectionCard>
 
-        {/* Next booking */}
-        <SectionHeader
+        <SectionCard
           title="Next booking"
+          icon={CalendarDays}
           actionLabel="See all"
           onAction={() => router.push('/bookings')}
-        />
-        {loading ? (
-          <Skeleton width="100%" height={56} />
-        ) : nextBooking ? (
-          <ListItem
-            title={nextBooking.provider?.businessName ?? 'Booking'}
-            subtitle={[formatDate(nextBooking.scheduledAt), labelize(nextBooking.status)]
-              .filter(Boolean)
-              .join(' · ')}
-            right={<StatusPill label={labelize(nextBooking.status)} tone={bookingTone(nextBooking.status)} />}
-            onPress={() => router.push(`/booking/${nextBooking.id}`)}
-            accessibilityLabel="Next booking"
-          />
-        ) : (
-          <Text style={styles.emptyText}>No upcoming bookings.</Text>
-        )}
+          onPress={() => router.push('/bookings')}
+          style={styles.section}
+        >
+          {loading ? (
+            <Skeleton width="100%" height={40} />
+          ) : nextBooking ? (
+            <ListItem
+              bare
+              title={nextBooking.provider?.businessName ?? 'Booking'}
+              subtitle={[formatDate(nextBooking.scheduledAt), labelize(nextBooking.status)]
+                .filter(Boolean)
+                .join(' · ')}
+              right={
+                <StatusPill
+                  label={labelize(nextBooking.status)}
+                  tone={bookingTone(nextBooking.status)}
+                />
+              }
+              onPress={() => router.push(`/booking/${nextBooking.id}`)}
+              accessibilityLabel="Next booking"
+            />
+          ) : (
+            <EmptyPrompt text="No upcoming bookings." onPress={() => router.push('/bookings')} />
+          )}
+        </SectionCard>
 
-        {/* Vehicles */}
-        <SectionHeader
+        <SectionCard
           title="My vehicles"
+          icon={Car}
+          count={vehicles.length || undefined}
           actionLabel="Manage"
           onAction={() => router.push('/vehicles')}
-        />
-        {loading ? (
-          <Skeleton width="100%" height={56} />
-        ) : vehicles.length === 0 ? (
-          <Text style={styles.emptyText}>Add your vehicle to start requesting repairs.</Text>
-        ) : (
-          vehicles.map((vehicle) => (
-            <ListItem
-              key={vehicle.id}
-              title={`${vehicle.make} ${vehicle.model}`}
-              subtitle={`${vehicle.year} · ${vehicle.registrationNumber}`}
+          onPress={() => router.push('/vehicles')}
+          style={styles.section}
+        >
+          {loading ? (
+            <Skeleton width="100%" height={40} />
+          ) : vehicles.length === 0 ? (
+            <EmptyPrompt
+              text="Add your vehicle to start requesting repairs."
               onPress={() => router.push('/vehicles')}
-              accessibilityLabel={`Vehicle ${vehicle.make} ${vehicle.model}`}
             />
-          ))
-        )}
+          ) : (
+            vehicles.map((vehicle, index) => (
+              <ListItem
+                key={vehicle.id}
+                bare
+                divider={index < vehicles.length - 1}
+                title={`${vehicle.make} ${vehicle.model}`}
+                subtitle={`${vehicle.year} · ${vehicle.registrationNumber}`}
+                onPress={() => router.push('/vehicles')}
+                accessibilityLabel={`Vehicle ${vehicle.make} ${vehicle.model}`}
+              />
+            ))
+          )}
+        </SectionCard>
       </ScrollView>
     </ScreenContainer>
   );
@@ -223,11 +242,18 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingBottom: spacing.xxl },
-  flex: { flex: 1 },
+  section: { marginBottom: spacing.lg },
   rowGap: { height: spacing.sm },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   emptyText: {
     ...typography.caption,
     color: palette.textMuted,
-    marginBottom: spacing.sm,
+    flex: 1,
   },
 });

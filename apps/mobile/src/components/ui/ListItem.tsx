@@ -11,13 +11,29 @@ export interface ListItemProps {
   right?: ReactNode;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** Embed inside a Card: transparent, no outer surface/padding. */
+  bare?: boolean;
+  /** Hairline divider under the row (use for all but the last embedded row). */
+  divider?: boolean;
 }
 
 /**
  * A single row for lists (settings, addresses, orders). Tappable when onPress
  * is provided; renders a chevron affordance by default via the `right` node.
  */
-export function ListItem({ title, subtitle, left, right, onPress, accessibilityLabel }: ListItemProps) {
+export function ListItem({
+  title,
+  subtitle,
+  left,
+  right,
+  onPress,
+  accessibilityLabel,
+  bare = false,
+  divider = false,
+}: ListItemProps) {
+  const rowStyle = bare
+    ? [styles.bareRow, divider && styles.divider]
+    : styles.row;
   const content = (
     <>
       {left ? <View style={styles.left}>{left}</View> : null}
@@ -45,7 +61,7 @@ export function ListItem({ title, subtitle, left, right, onPress, accessibilityL
         // function-style props, which silently unstyles the whole row.
         // Press feedback comes from the `active:` class instead.
         className="active:bg-secondary"
-        style={styles.row}
+        style={rowStyle}
       >
         {content}
       </Pressable>
@@ -53,7 +69,7 @@ export function ListItem({ title, subtitle, left, right, onPress, accessibilityL
   }
 
   return (
-    <View style={styles.row} accessibilityRole="text" accessibilityLabel={accessibilityLabel}>
+    <View style={rowStyle} accessibilityRole="text" accessibilityLabel={accessibilityLabel}>
       {content}
     </View>
   );
@@ -71,6 +87,18 @@ const styles = StyleSheet.create({
     // sections is what reads as separation on device.
     borderBottomWidth: 1,
     borderBottomColor: palette.borderStrong,
+  },
+  // Embedded inside a SectionCard: the card provides surface and padding.
+  bareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'transparent',
+  },
+  divider: {
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
   },
   pressed: {
     backgroundColor: palette.surfaceAlt,

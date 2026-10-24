@@ -28,6 +28,9 @@ export type { IconButtonProps } from './IconButton';
 export { SectionHeader } from './SectionHeader';
 export type { SectionHeaderProps } from './SectionHeader';
 
+export { SectionCard } from './SectionCard';
+export type { SectionCardProps } from './SectionCard';
+
 export { Chip, FilterChips } from './Chip';
 export type { ChipProps, FilterChipsProps } from './Chip';
 
