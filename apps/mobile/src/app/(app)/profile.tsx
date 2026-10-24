@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,18 @@ export default function CustomerProfileScreen() {
   const [lastName, setLastName] = useState(profile?.lastName ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
+
+  // State above is initialized on first render, while `profile` is still
+  // undefined (async fetch). Seed the fields once when data arrives, without
+  // clobbering later user edits on refetch.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!profile || seeded.current) return;
+    seeded.current = true;
+    setFirstName(profile.firstName ?? '');
+    setLastName(profile.lastName ?? '');
+    setAvatarUrl(profile.avatarUrl ?? '');
+  }, [profile]);
 
   const handleSave = async () => {
     setSaving(true);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,20 @@ export default function ProviderProfileScreen() {
     profile?.serviceRadiusKm?.toString() ?? ''
   );
   const [isAvailable, setIsAvailable] = useState(profile?.isAvailable ?? true);
+
+  // Fields initialize while `profile` is still undefined (async fetch). Seed
+  // them once when data arrives, without clobbering later user edits.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!profile || seeded.current) return;
+    seeded.current = true;
+    setBusinessName(profile.businessName ?? '');
+    setDescription(profile.description ?? '');
+    setPhone(profile.phone ?? '');
+    setAddress(profile.address ?? '');
+    setServiceRadiusKm(profile.serviceRadiusKm?.toString() ?? '');
+    setIsAvailable(profile.isAvailable ?? true);
+  }, [profile]);
 
   const handleSave = async () => {
     setSaving(true);
