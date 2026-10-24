@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ReactNode } from 'react';
-import { palette, spacing, radii, typography, elevation } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export interface ListItemProps {
   title: string;
@@ -63,13 +63,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    // borderStrong + whisper shadow: rows must read as distinct cards on
-    // the off-white canvas (plain `border` was too faint to separate them).
-    borderColor: palette.borderStrong,
-    ...elevation.card,
-    marginBottom: spacing.md,
+    // Divider-separated rows (not floating cards): a clear 1px line between
+    // sections is what reads as separation on device.
+    borderBottomWidth: 1,
+    borderBottomColor: palette.borderStrong,
   },
   pressed: {
     backgroundColor: palette.surfaceAlt,
