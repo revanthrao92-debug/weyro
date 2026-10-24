@@ -1,17 +1,27 @@
 import { useState } from 'react';
 import {
-  View,
-  Text,
   FlatList,
-  TouchableOpacity,
+  Text,
+  View,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMyParts, useDeleteSparePart } from '@/hooks/useParts';
 import { SparePart } from '@/hooks/useParts';
-import { Button } from '@/components/ui/Button';
+import {
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function MyListingsScreen() {
   const router = useRouter();
@@ -42,163 +52,101 @@ export default function MyListingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="My Listings" subtitle="Manage your spare parts inventory" />
+        {[0, 1, 2].map((i) => (
+          <Card key={i} style={styles.skeletonCard}>
+            <Skeleton width="100%" height={18} />
+            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
+          </Card>
+        ))}
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Listings</Text>
-        <Text style={styles.subtitle}>Manage your spare parts inventory</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="My Listings" subtitle="Manage your spare parts inventory" />
 
       {parts.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No listings yet</Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/listings/create')}>
-            <Text style={styles.emptyButtonText}>Add your first part</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          title="No listings yet"
+          message="List a spare part to start selling."
+          action={<Button title="Add part" onPress={() => router.push('/listings/create')} />}
+        />
       ) : (
         <FlatList
           data={parts}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }: { item: SparePart }) => (
             <ListingItem item={item} onDelete={handleDelete} onEdit={() => router.push(`/listings/${item.id}`)} />
           )}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 function ListingItem({ item, onDelete, onEdit }: { item: SparePart; onDelete: (id: string) => void; onEdit: () => void }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.info}>
-        <Text style={styles.partName}>{item.name}</Text>
-        <Text style={styles.partNumber}>{item.partNumber}</Text>
-        <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
-        <Text style={styles.stock}>
-          {item.stockQuantity} in stock
-        </Text>
-        <Text style={[styles.status, { color: item.isActive ? '#10B981' : '#6B7280' }]}>
-          {item.isActive ? 'Active' : 'Inactive'}
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionButton} onPress={onEdit}>
-          <Text style={styles.actionText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item.id)}>
-          <Text style={styles.deleteText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <TouchableOpacity
+      style={styles.itemTouch}
+      onPress={() => {}}
+      accessibilityRole="button"
+      accessibilityLabel={`Listing ${item.name}`}
+    >
+      <Card style={styles.item}>
+        <View style={styles.info}>
+          <Text style={styles.partName}>{item.name}</Text>
+          <Text style={styles.partNumber}>{item.partNumber}</Text>
+          <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
+          <Text style={styles.stock}>{item.stockQuantity} in stock</Text>
+          <StatusPill
+            label={item.isActive ? 'Active' : 'Inactive'}
+            tone={item.isActive ? 'success' : 'neutral'}
+          />
+        </View>
+        <View style={styles.actions}>
+          <Button title="Edit" variant="secondary" onPress={onEdit} style={styles.editBtn} />
+          <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item.id)}>
+            <Text style={styles.deleteText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </TouchableOpacity>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+const styles = StyleSheet.create({
+  list: { paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  itemTouch: { marginBottom: spacing.md },
+  item: {
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
+    borderColor: palette.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   info: { flex: 1 },
-  partName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  partNumber: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  stock: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  status: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#EFF6FF',
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
+  partName: { ...typography.bodyMedium, color: palette.textPrimary },
+  partNumber: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
+  price: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: spacing.xs },
+  stock: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
+  actions: { gap: spacing.sm },
+  editBtn: { minWidth: 88 },
   deleteButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#FEF2F2',
-  },
-  deleteText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#208AEF',
-    backgroundColor: '#FFFFFF',
+    borderColor: palette.dangerSoftBg,
+    backgroundColor: palette.dangerSoftBg,
   },
-  emptyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
-} as any;
+  deleteText: { ...typography.label, color: palette.danger },
+});

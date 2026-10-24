@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { FlatList, Text, View, ActivityIndicator, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useMyOrders, useCancelSparePartOrder } from '@/hooks/useParts';
+import {
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Button,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function MyOrdersScreen() {
   const { data, isLoading, refetch } = useMyOrders();
@@ -17,113 +20,107 @@ export default function MyOrdersScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="My Orders" subtitle="Your spare parts purchases" />
+        {[0, 1, 2].map((i) => (
+          <Card key={i} style={styles.skeletonCard}>
+            <Skeleton width="100%" height={18} />
+            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
+          </Card>
+        ))}
+      </ScreenContainer>
     );
   }
 
+  const handleCancelOrder = async (id: string) => {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Cancel Order',
+        'Are you sure you want to cancel this order?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Cancel Order', style: 'destructive', onPress: () => resolve(true) },
+        ]
+      );
+    });
+    if (!confirmed) return;
+    try {
+      await cancelOrder.mutateAsync(id);
+      await refetch();
+    } catch (e: any) {
+      Alert.alert('Failed', e.message || 'Unable to cancel order');
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Orders</Text>
-        <Text style={styles.subtitle}>Your spare parts purchases</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="My Orders" subtitle="Your spare parts purchases" />
 
       {orders.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No orders yet</Text>
-        </View>
+        <EmptyState title="No orders yet" message="Your spare parts purchases will appear here." />
       ) : (
         <FlatList
           data={orders}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <OrderItem item={item} />}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => <OrderItem item={item} onCancel={handleCancelOrder} />}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
-function OrderItem({ item }: { item: any }) {
+function OrderItem({ item, onCancel }: { item: any; onCancel: (id: string) => void }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.info}>
-        <Text style={styles.orderId}>Order #{item.id.slice(0, 8)}</Text>
-        <Text style={styles.status}>{item.status}</Text>
-        <Text style={styles.amount}>₹{item.totalAmount.toLocaleString()}</Text>
-      </View>
-      <View style={styles.meta}>
-        <Text style={styles.qty}>{item.quantity} x</Text>
-        <Text style={styles.date}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-    </View>
+    <TouchableOpacity
+      style={styles.itemTouch}
+      onPress={() => {}}
+      accessibilityRole="button"
+      accessibilityLabel={`Order ${item.id.slice(0, 8)}`}
+    >
+      <Card style={styles.item}>
+        <View style={styles.info}>
+          <Text style={styles.orderId}>Order #{item.id.slice(0, 8)}</Text>
+          <StatusPill label={item.status.replace(/_/g, ' ')} tone="neutral" />
+          <Text style={styles.amount}>₹{item.totalAmount.toLocaleString()}</Text>
+        </View>
+        <View style={styles.meta}>
+          <Text style={styles.qty}>{item.quantity} x</Text>
+          <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+        </View>
+      </Card>
+      {item.status === 'PENDING' && (
+        <Button
+          title="Cancel"
+          variant="destructive"
+          onPress={() => onCancel(item.id)}
+          style={styles.cancelBtn}
+        />
+      )}
+    </TouchableOpacity>
   );
 }
 
-const styles = {
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+const styles = StyleSheet.create({
+  list: { paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  itemTouch: { marginBottom: spacing.md },
+  item: {
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
+    borderColor: palette.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   info: { flex: 1 },
-  orderId: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  status: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#208AEF',
-    marginBottom: 4,
-  },
-  amount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  meta: {
-    alignItems: 'flex-end',
-  },
-  qty: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-} as any;
+  orderId: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
+  amount: { ...typography.bodyMedium, color: palette.textPrimary },
+  meta: { alignItems: 'flex-end' },
+  qty: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },
+  date: { ...typography.label, color: palette.textMuted },
+  cancelBtn: { minWidth: 100 },
+});

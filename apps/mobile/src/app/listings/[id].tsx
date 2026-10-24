@@ -3,18 +3,33 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSparePart, useUpdateSparePart, useDeleteSparePart } from '@/hooks/useParts';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import {
+  Input,
+  Button,
+  Chip,
+  Card,
+  EmptyState,
+  ScreenContainer,
+  AppHeader,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 type ListingParams = { id: string };
+
+const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
+
+function labelize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
 
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams<ListingParams>();
@@ -44,17 +59,23 @@ export default function EditListingScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Edit Listing" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="60%" height={18} />
+          <Skeleton width="40%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="50%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!part) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>Part not found</Text>
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Edit Listing" />
+        <EmptyState title="Part not found" message="This part may have been removed." />
+      </ScreenContainer>
     );
   }
 
@@ -106,187 +127,113 @@ export default function EditListingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Edit Listing</Text>
-          <Text style={styles.subtitle}>Update part details</Text>
-        </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Edit Listing" subtitle="Update part details" />
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View>
+            <Input
+              label="Part name"
+              placeholder="Part name"
+              value={form.name || part.name}
+              onChangeText={(t) => setForm({ ...form, name: t })}
+            />
+            <Input
+              label="Part number"
+              placeholder="Part number"
+              value={form.partNumber || part.partNumber}
+              onChangeText={(t) => setForm({ ...form, partNumber: t })}
+              autoCapitalize="characters"
+            />
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Part Name</Text>
-          <Input
-            style={styles.input}
-            placeholder="Part name"
-            value={form.name || part.name}
-            onChangeText={(t) => setForm({ ...form, name: t })}
-          />
+            <Text style={styles.label}>Condition</Text>
+            <View style={styles.chipWrap}>
+              {CONDITIONS.map((c) => (
+                <Chip
+                  key={c}
+                  label={labelize(c)}
+                  selected={form.condition === c}
+                  onPress={() => setForm({ ...form, condition: c })}
+                />
+              ))}
+            </View>
 
-          <Text style={styles.label}>Part Number</Text>
-          <Input
-            style={styles.input}
-            placeholder="Part number"
-            value={form.partNumber || part.partNumber}
-            onChangeText={(t) => setForm({ ...form, partNumber: t })}
-            autoCapitalize="characters"
-          />
+            <Input
+              label="Price (₹)"
+              placeholder="Price"
+              value={form.price || part.price.toString()}
+              onChangeText={(t) => setForm({ ...form, price: t })}
+              keyboardType="numeric"
+            />
+            <Input
+              label="Stock quantity"
+              placeholder="Quantity"
+              value={form.stockQuantity || part.stockQuantity.toString()}
+              onChangeText={(t) => setForm({ ...form, stockQuantity: t })}
+              keyboardType="numeric"
+            />
+            <Input
+              label="Description"
+              placeholder="Description"
+              value={form.description || part.description || ''}
+              onChangeText={(t) => setForm({ ...form, description: t })}
+              multiline
+              style={styles.textarea}
+            />
 
-          <Text style={styles.label}>Condition</Text>
-          <View style={styles.conditionSelector}>
-            {['OEM', 'AFTERMARKET', 'USED'].map((c) => (
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Active</Text>
               <TouchableOpacity
-                key={c}
-                style={[
-                  styles.conditionOption,
-                  form.condition === c && styles.conditionOptionSelected,
-                ]}
-                onPress={() => setForm({ ...form, condition: c })}
+                style={[styles.toggle, form.isActive && styles.toggleActive]}
+                onPress={() => setForm({ ...form, isActive: !form.isActive })}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: form.isActive }}
+                accessibilityLabel="Active"
               >
-                <Text style={styles.conditionText}>
-                  {c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()}
+                <Text style={[styles.toggleText, form.isActive && styles.toggleTextActive]}>
+                  {form.isActive ? 'Active' : 'Inactive'}
                 </Text>
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
 
-          <Text style={styles.label}>Price Price (₹)</Text>
-          <Input
-            style={styles.input}
-            placeholder="Price"
-            value={form.price || part.price.toString()}
-            onChangeText={(t) => setForm({ ...form, price: t })}
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.label}>Stock Quantity</Text>
-          <Input
-            style={styles.input}
-            placeholder="Quantity"
-            value={form.stockQuantity || part.stockQuantity.toString()}
-            onChangeText={(t) => setForm({ ...form, stockQuantity: t })}
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.label}>Description</Text>
-          <Input
-            style={styles.input}
-            placeholder="Description"
-            value={form.description || part.description || ''}
-            onChangeText={(t) => setForm({ ...form, description: t })}
-          />
-
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Active</Text>
-            <TouchableOpacity
-              style={[styles.toggle, form.isActive && styles.toggleActive]}
-              onPress={() => setForm({ ...form, isActive: !form.isActive })}
-            >
-              <Text style={[styles.toggleText, form.isActive && styles.toggleTextActive]}>
-                {form.isActive ? 'Active' : 'Inactive'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Button
-          title="Save Changes"
-          onPress={handleSave}
-          disabled={submitting}
-          loading={submitting}
-        />
-
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteText}>Delete Listing</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <Button title="Save Changes" onPress={handleSave} disabled={submitting} loading={submitting} />
+          <Button title="Delete Listing" variant="destructive" onPress={handleDelete} style={styles.deleteBtn} />
+        </ScrollView>
+      </ScreenContainer>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  conditionSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  conditionOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-  },
-  conditionOptionSelected: {
-    borderColor: '#208AEF',
-    backgroundColor: '#EFF6FF',
-  },
-  conditionText: {
-    fontSize: 14,
-    color: '#374151',
-  },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  label: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.xs },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  textarea: { minHeight: 88, textAlignVertical: 'top' },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  toggleLabel: {
-    fontSize: 15,
-    color: '#374151',
-  },
+  toggleLabel: { ...typography.body, color: palette.textPrimary, flex: 1, marginRight: spacing.md },
   toggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    minWidth: 56,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F3F4F6',
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceAlt,
+    alignItems: 'center',
   },
   toggleActive: {
-    borderColor: '#10B981',
-    backgroundColor: '#ECFDF5',
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
   },
-  toggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  toggleTextActive: {
-    color: '#10B981',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  deleteButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  deleteText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-} as any;
+  toggleText: { ...typography.label, color: palette.textSecondary },
+  toggleTextActive: { color: palette.accent },
+  deleteBtn: { marginTop: spacing.md, alignSelf: 'flex-start' },
+});

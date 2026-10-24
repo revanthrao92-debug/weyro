@@ -2,17 +2,29 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCreateSparePart } from '@/hooks/useParts';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import {
+  Input,
+  Button,
+  Chip,
+  ScreenContainer,
+  AppHeader,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
+
+const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
+
+function labelize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
 
 export default function CreateListingScreen() {
   const [form, setForm] = useState<{
@@ -73,156 +85,94 @@ export default function CreateListingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>List a Part</Text>
           <Text style={styles.subtitle}>Add a new spare part to your inventory</Text>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Part Name</Text>
+        <View>
           <Input
-            style={styles.input}
+            label="Part name"
             placeholder="e.g. Brake Pad Set"
             value={form.name}
             onChangeText={(t) => setForm({ ...form, name: t })}
           />
-
-          <Text style={styles.label}>Part Number</Text>
           <Input
-            style={styles.input}
+            label="Part number"
             placeholder="e.g. BP-001"
             value={form.partNumber}
             onChangeText={(t) => setForm({ ...form, partNumber: t })}
             autoCapitalize="characters"
           />
-
-          <Text style={styles.label}>Compatible Makes (comma-separated)</Text>
           <Input
-            style={styles.input}
+            label="Compatible makes (comma-separated)"
             placeholder="e.g. Maruti, Hyundai"
             value={form.compatibleMakes}
             onChangeText={(t) => setForm({ ...form, compatibleMakes: t })}
           />
-
-          <Text style={styles.label}>Compatible Models (comma-separated)</Text>
           <Input
-            style={styles.input}
+            label="Compatible models (comma-separated)"
             placeholder="e.g. Swift, i20"
             value={form.compatibleModels}
             onChangeText={(t) => setForm({ ...form, compatibleModels: t })}
           />
 
           <Text style={styles.label}>Condition</Text>
-          <View style={styles.conditionSelector}>
-            {['OEM', 'AFTERMARKET', 'USED'].map((c) => (
-              <TouchableOpacity
+          <View style={styles.chipWrap}>
+            {CONDITIONS.map((c) => (
+              <Chip
                 key={c}
-                style={[
-                  styles.conditionOption,
-                  form.condition === c && styles.conditionOptionSelected,
-                ]}
+                label={labelize(c)}
+                selected={form.condition === c}
                 onPress={() => setForm({ ...form, condition: c })}
-              >
-                <Text style={styles.conditionText}>
-                  {c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()}
-                </Text>
-              </TouchableOpacity>
+              />
             ))}
           </View>
 
-          <Text style={styles.label}>Price Price (₹)</Text>
           <Input
-            style={styles.input}
+            label="Price (₹)"
             placeholder="0"
             value={form.price}
             onChangeText={(t) => setForm({ ...form, price: t })}
             keyboardType="numeric"
           />
-
-          <Text style={styles.label}>Stock Quantity</Text>
           <Input
-            style={styles.input}
+            label="Stock quantity"
             placeholder="1"
             value={form.stockQuantity}
             onChangeText={(t) => setForm({ ...form, stockQuantity: t })}
             keyboardType="numeric"
           />
-
-          <Text style={styles.label}>Image URL (optional)</Text>
           <Input
-            style={styles.input}
+            label="Image URL (optional)"
             placeholder="https://example.com/image.jpg"
             value={form.imageUrl}
             onChangeText={(t) => setForm({ ...form, imageUrl: t })}
           />
-
-          <Text style={styles.label}>Description (optional)</Text>
           <Input
-            style={styles.input}
+            label="Description (optional)"
             placeholder="Describe the part"
             value={form.description}
             onChangeText={(t) => setForm({ ...form, description: t })}
+            multiline
+            style={styles.textarea}
           />
         </View>
 
-        <Button
-          title="List Part"
-          onPress={handleSubmit}
-          disabled={submitting}
-          loading={submitting}
-        />
+        <Button title="List Part" onPress={handleSubmit} disabled={submitting} loading={submitting} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  conditionSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  conditionOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-  },
-  conditionOptionSelected: {
-    borderColor: '#208AEF',
-    backgroundColor: '#EFF6FF',
-  },
-  conditionText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-} as any;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  header: { marginBottom: spacing.xl },
+  title: { ...typography.display, color: palette.textPrimary },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.xs },
+  label: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.xs },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  textarea: { minHeight: 88, textAlignVertical: 'top' },
+});

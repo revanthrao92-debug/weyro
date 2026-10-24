@@ -7,11 +7,22 @@ import {
   Alert,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSparePart, useCreateSparePartOrder } from '@/hooks/useParts';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
-import { Button } from '@/components/ui/Button';
+import {
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Avatar,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 type PartParams = { id: string };
 
@@ -24,17 +35,23 @@ export default function PartDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Part Details" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="60%" height={18} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="40%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!part) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>Part not found</Text>
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Part Details" />
+        <EmptyState title="Part not found" message="This part may have been removed." />
+      </ScreenContainer>
     );
   }
 
@@ -58,162 +75,108 @@ export default function PartDetailScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={{ padding: 20 }}>
-        <Text style={styles.title}>{part.name}</Text>
-        <Text style={styles.partNumber}>{part.partNumber}</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: palette.canvas }}>
+      <ScreenContainer padded={false}>
+        <AppHeader title={part.name} subtitle={part.partNumber} />
+        <ScrollView contentContainerStyle={styles.body} scrollEnabled={false}>
+          <Avatar name={part.name} size={100} uri={part.imageUrl ?? undefined} />
 
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.imageText}>🔧</Text>
-        </View>
+          <Card>
+            <Text style={styles.sectionTitle}>Details</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Condition</Text>
+              <Text style={styles.detailValue}>
+                {part.condition.charAt(0).toUpperCase() + part.condition.slice(1)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Compatible Makes</Text>
+              <Text style={styles.detailValue}>{part.compatibleMakes.join(', ')}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Compatible Models</Text>
+              <Text style={styles.detailValue}>{part.compatibleModels.join(', ')}</Text>
+            </View>
+          </Card>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Details</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Condition</Text>
-            <Text style={styles.detailValue}>
-              {part.condition.charAt(0).toUpperCase() + part.condition.slice(1)}
+          <CostBreakdown parts={part.price} labour={0} total={part.price} />
+
+          <Card style={styles.orderCard}>
+            <Text style={styles.sectionTitle}>Quantity</Text>
+            <View style={styles.quantitySelector}>
+              <TouchableOpacity
+                style={styles.qtyButton}
+                onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease quantity"
+              >
+                <Text style={styles.qtyButtonText}>−</Text>
+              </TouchableOpacity>
+              <Text style={styles.qtyValue}>{quantity}</Text>
+              <TouchableOpacity
+                style={styles.qtyButton}
+                onPress={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                disabled={quantity >= maxQty}
+                accessibilityRole="button"
+                accessibilityLabel="Increase quantity"
+              >
+                <Text style={styles.qtyButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.stockText}>
+              {inStock ? `In Stock (${part.stockQuantity} available)` : 'Out of Stock'}
             </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Compatible Makes</Text>
-            <Text style={styles.detailValue}>{part.compatibleMakes.join(', ')}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Compatible Models</Text>
-            <Text style={styles.detailValue}>{part.compatibleModels.join(', ')}</Text>
-          </View>
-        </View>
-
-        <CostBreakdown parts={part.price} labour={0} total={part.price} />
-
-        <View style={styles.orderSection}>
-          <Text style={styles.sectionTitle}>Quantity</Text>
-          <View style={styles.quantitySelector}>
-            <TouchableOpacity
-              style={styles.qtyButton}
-              onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-            >
-              <Text style={styles.qtyButtonText}>−</Text>
-            </TouchableOpacity>
-            <Text style={styles.qtyValue}>{quantity}</Text>
-            <TouchableOpacity
-              style={styles.qtyButton}
-              onPress={() => setQuantity((q) => Math.min(maxQty, q + 1))}
-              disabled={quantity >= maxQty}
-            >
-              <Text style={styles.qtyButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.stockText}>
-            {inStock ? `In Stock (${part.stockQuantity} available)` : 'Out of Stock'}
-          </Text>
-          <Button
-            title={inStock ? 'Create Order' : 'Out of Stock'}
-            onPress={handleOrder}
-            disabled={!inStock || ordering}
-            loading={ordering}
-          />
-        </View>
-      </View>
+            <Button
+              title={inStock ? 'Create Order' : 'Out of Stock'}
+              onPress={handleOrder}
+              disabled={!inStock || ordering}
+              loading={ordering}
+            />
+          </Card>
+        </ScrollView>
+      </ScreenContainer>
     </ScrollView>
   );
 }
 
-const styles = {
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  partNumber: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 20,
-  },
-  imagePlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 16,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  imageText: {
-    fontSize: 40,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 16,
-  },
+const styles = StyleSheet.create({
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#6B7280',
-    marginBottom: 10,
+    ...typography.label,
+    color: palette.textSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: palette.surfaceAlt,
   },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  orderSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-  },
+  detailLabel: { ...typography.caption, color: palette.textSecondary },
+  detailValue: { ...typography.captionMedium, color: palette.textPrimary },
+  orderCard: { marginTop: spacing.md },
   quantitySelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
   qtyButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: palette.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: palette.surfaceAlt,
   },
-  qtyButtonText: {
-    fontSize: 18,
-    color: '#111827',
-    fontWeight: '700',
-  },
-  qtyValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  stockText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-} as any;
+  qtyButtonText: { ...typography.heading, color: palette.textPrimary },
+  qtyValue: { ...typography.bodyMedium, color: palette.textPrimary },
+  stockText: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.md },
+});

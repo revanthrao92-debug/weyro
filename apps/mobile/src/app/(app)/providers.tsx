@@ -1,6 +1,15 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { FlatList, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  ListItem,
+  StatusPill,
+  ScreenContainer,
+  AppHeader,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function ProvidersScreen() {
   const { user } = useAuth();
@@ -13,52 +22,34 @@ export default function ProvidersScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Provider Verification</Text>
-        <Text style={styles.subtitle}>Manage provider onboarding</Text>
-      </View>
+    <ScreenContainer>
+      <AppHeader title="Provider Verification" subtitle="Manage provider onboarding" />
 
       <FlatList
         data={providers}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
+          <ListItem
+            title={item.businessName}
+            subtitle={item.providerType}
+            right={
+              <View style={styles.meta}>
+                <StatusPill label={item.verificationStatus} tone="info" />
+                <Text style={styles.rating}>{item.avgRating} ★ · {item.totalReviews} reviews</Text>
+              </View>
+            }
             onPress={() => router.push(`/provider/${item.id}`)}
             accessibilityLabel={`View provider ${item.businessName}`}
-            accessibilityRole="button"
-          >
-            <View style={styles.cardContent}>
-              <Text style={styles.providerName}>{item.businessName}</Text>
-              <Text style={styles.providerType}>{item.providerType}</Text>
-              <Text style={styles.status}>{item.verificationStatus}</Text>
-            </View>
-          </TouchableOpacity>
+          />
         )}
       />
-    </View>
+    </ScreenContainer>
   );
 }
 
-const styles = {
-  header: { padding: 20, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280' },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardContent: { flex: 1 },
-  providerName: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  providerType: { fontSize: 13, color: '#6B7280', marginBottom: 4 },
-  status: { fontSize: 13, fontWeight: '600', color: '#10B981' },
-} as any;
+const styles = StyleSheet.create({
+  list: { paddingBottom: spacing.xxl },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rating: { ...typography.caption, color: palette.textMuted },
+});
