@@ -1,7 +1,36 @@
 import { ReactElement } from 'react';
+import type { ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
+import {
+  Activity,
+  Bell,
+  CalendarDays,
+  Gauge,
+  House,
+  Landmark,
+  LayoutDashboard,
+  MessageCircle,
+  Package,
+  Radar,
+  ShoppingBag,
+  User,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { palette, fontFamilyMedium } from '@/theme';
+
+/**
+ * Premium line icons for the tab bar (lucide — already a dependency via
+ * RNR; cross-platform via react-native-svg). Thin 1.75 strokes for a
+ * refined look; color comes from the navigator's active/inactive tints.
+ */
+const tabIcon = (IconCmp: LucideIcon) => {
+  function TabIcon({ color, size }: { color: ColorValue; size: number }) {
+    return <IconCmp color={color as string} size={size} strokeWidth={1.75} />;
+  }
+  return TabIcon;
+};
 
 /**
  * Every route in the (app) group must be declared: a Tabs.Screen with a title
@@ -20,12 +49,12 @@ export default function AppLayout() {
   const screens: ReactElement[] =
     role === 'ADMIN'
       ? [
-          <Tabs.Screen key="index" name="index" options={{ title: 'Overview' }} />,
-          <Tabs.Screen key="providers" name="providers" options={{ title: 'Providers' }} />,
-          <Tabs.Screen key="escrow" name="escrow" options={{ title: 'Escrow Ledger' }} />,
-          <Tabs.Screen key="activity" name="activity" options={{ title: 'Activity' }} />,
-          <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications' }} />,
-          <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile' }} />,
+          <Tabs.Screen key="index" name="index" options={{ title: 'Overview', tabBarIcon: tabIcon(Gauge) }} />,
+          <Tabs.Screen key="providers" name="providers" options={{ title: 'Providers', tabBarIcon: tabIcon(Wrench) }} />,
+          <Tabs.Screen key="escrow" name="escrow" options={{ title: 'Escrow Ledger', tabBarIcon: tabIcon(Landmark) }} />,
+          <Tabs.Screen key="activity" name="activity" options={{ title: 'Activity', tabBarIcon: tabIcon(Activity) }} />,
+          <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications', tabBarIcon: tabIcon(Bell) }} />,
+          <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
           <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
           <Tabs.Screen key="messages" name="messages" options={{ href: null }} />,
           <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
@@ -34,12 +63,12 @@ export default function AppLayout() {
         ]
       : role === 'PROVIDER' || role === 'BOTH'
         ? [
-            <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard' }} />,
-            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Opportunities' }} />,
-            <Tabs.Screen key="orders" name="orders" options={{ title: 'Orders' }} />,
-            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages' }} />,
-            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications' }} />,
-            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile' }} />,
+            <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
+            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Opportunities', tabBarIcon: tabIcon(Radar) }} />,
+            <Tabs.Screen key="orders" name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon(Package) }} />,
+            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
+            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications', tabBarIcon: tabIcon(Bell) }} />,
+            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
             <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
@@ -47,12 +76,12 @@ export default function AppLayout() {
             <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
           ]
         : [
-            <Tabs.Screen key="index" name="index" options={{ title: 'Home' }} />,
-            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Bookings' }} />,
-            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages' }} />,
-            <Tabs.Screen key="shop" name="shop" options={{ title: 'Shop' }} />,
-            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications' }} />,
-            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile' }} />,
+            <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,
+            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Bookings', tabBarIcon: tabIcon(CalendarDays) }} />,
+            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
+            <Tabs.Screen key="shop" name="shop" options={{ title: 'Shop', tabBarIcon: tabIcon(ShoppingBag) }} />,
+            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Notifications', tabBarIcon: tabIcon(Bell) }} />,
+            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
             <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
