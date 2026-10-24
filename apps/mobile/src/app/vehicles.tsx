@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,8 +19,24 @@ import {
   useDeleteVehicle,
   type Vehicle,
 } from '@/hooks/useProfile';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import {
+  Input,
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  EmptyState,
+  Skeleton,
+  ButtonRow,
+  Chip,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
+
+const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'];
+
+function labelize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
+}
 
 export default function VehiclesScreen() {
   const { user } = useAuth();
@@ -92,271 +111,249 @@ export default function VehiclesScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="My Vehicles" subtitle="Manage your garage" />
+        {[0, 1, 2].map((i) => (
+          <VehicleSkeleton key={i} />
+        ))}
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Vehicles</Text>
-        <Text style={styles.subtitle}>Manage your garage</Text>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+    >
+      <ScreenContainer>
+        <AppHeader title="My Vehicles" subtitle="Manage your garage" />
 
-      {vehicles.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No vehicles saved</Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={() => setShowAdd(true)}>
-            <Text style={styles.emptyButtonText}>Add your first vehicle</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={vehicles}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <VehicleItem item={item} onDelete={handleDeleteVehicle} />
-          )}
+        {vehicles.length === 0 ? (
+          <EmptyState
+            title="No vehicles saved"
+            message="Add your first vehicle to get started."
+            action={
+              <Button title="Add vehicle" onPress={() => setShowAdd(true)} />
+            }
+          />
+        ) : (
+          <FlatList
+            data={vehicles}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <VehicleItem item={item} onDelete={handleDeleteVehicle} />
+            )}
+          />
+        )}
+
+        <Button
+          title="Add vehicle"
+          onPress={() => setShowAdd(true)}
+          style={styles.fabBtn}
         />
-      )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowAdd(true)}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+        {showAdd && (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalKeyboard}
+          >
+            <View style={styles.modalOverlay} />
+            <ScrollView
+              contentContainerStyle={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Card style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Add Vehicle</Text>
+                <Input
+                  label="Make"
+                  placeholder="e.g. Maruti"
+                  value={make}
+                  onChangeText={setMake}
+                />
+                <Input
+                  label="Model"
+                  placeholder="e.g. Swift"
+                  value={model}
+                  onChangeText={setModel}
+                />
+                <Input
+                  label="Year"
+                  placeholder="e.g. 2021"
+                  value={year}
+                  onChangeText={setYear}
+                  keyboardType="numeric"
+                />
+                <Input
+                  label="Registration Number"
+                  placeholder="e.g. KA01AB1234"
+                  value={reg}
+                  onChangeText={setReg}
+                  autoCapitalize="characters"
+                />
+                <Input
+                  label="VIN Number (optional)"
+                  placeholder="VIN"
+                  value={vin}
+                  onChangeText={setVin}
+                />
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Fuel Type</Text>
+                </View>
+                <View style={styles.fuelSelector}>
+                  {FUEL_TYPES.map((f) => (
+                    <Chip
+                      key={f}
+                      label={labelize(f)}
+                      selected={fuel === f}
+                      onPress={() => setFuel(f as any)}
+                    />
+                  ))}
+                </View>
+                <Input
+                  label="Color (optional)"
+                  placeholder="Color"
+                  value={color}
+                  onChangeText={setColor}
+                />
+                <ButtonRow vertical>
+                  <Button
+                    title="Cancel"
+                    variant="secondary"
+                    onPress={() => setShowAdd(false)}
+                  />
+                  <Button
+                    title="Add Vehicle"
+                    disabled={adding}
+                    loading={adding}
+                    onPress={handleAddVehicle}
+                  />
+                </ButtonRow>
+              </Card>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </ScreenContainer>
+    </KeyboardAvoidingView>
+  );
+}
 
-      {showAdd && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Add Vehicle</Text>
-            <View style={styles.modalForm}>
-              <Input style={styles.input} placeholder="Make (e.g. Maruti)" value={make} onChangeText={setMake} />
-              <Input style={styles.input} placeholder="Model (e.g. Swift)" value={model} onChangeText={setModel} />
-              <Input style={styles.input} placeholder="Year (e.g. 2021)" value={year} onChangeText={setYear} keyboardType="numeric" />
-              <Input style={styles.input} placeholder="Registration Number (e.g. KA01AB1234)" value={reg} onChangeText={setReg} autoCapitalize="characters" />
-              <Input style={styles.input} placeholder="VIN Number (optional)" value={vin} onChangeText={setVin} />
-              <Text style={styles.label}>Fuel Type</Text>
-              <View style={styles.fuelSelector}>
-                {['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'].map((f) => (
-                  <TouchableOpacity key={f} style={[styles.fuelOption, fuel === f && styles.fuelOptionSelected]} onPress={() => setFuel(f as any)}>
-                    <Text style={styles.fuelText}>{f}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Input style={styles.input} placeholder="Color (optional)" value={color} onChangeText={setColor} />
-            </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAdd(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleAddVehicle} disabled={adding}>
-                {adding ? (<ActivityIndicator size="small" color="white" />) : (<Text style={styles.saveText}>Add Vehicle</Text>)}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+function VehicleSkeleton() {
+  return (
+    <View style={styles.skeletonItem}>
+      <Skeleton width="45%" height={18} />
+      <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+      <Skeleton width="60%" height={12} style={{ marginTop: spacing.xs }} />
     </View>
   );
 }
 
 function VehicleItem({ item, onDelete }: { item: Vehicle; onDelete: (id: string) => void }) {
   return (
-    <View style={styles.item}>
-      <View style={styles.itemContent}>
-        <Text style={styles.itemTitle}>{item.make} {item.model} ({item.year})</Text>
-        <Text style={styles.itemReg}>{item.registrationNumber}</Text>
-        <Text style={styles.itemMeta}>{item.fuelType} • {item.color || 'N/A'}</Text>
-      </View>
-      <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)}>
-        <Text style={styles.removeText}>Remove</Text>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={styles.itemTouch}
+      onPress={() => {}}
+      accessibilityRole="button"
+      accessibilityLabel={`Vehicle ${item.make} ${item.model} ${item.year}`}
+    >
+      <Card style={styles.item}>
+        <View style={styles.itemContent}>
+          <Text style={styles.itemTitle}>{item.make} {item.model} ({item.year})</Text>
+          <Text style={styles.itemReg}>{item.registrationNumber}</Text>
+          <Text style={styles.itemMeta}>
+            {labelize(item.fuelType)} • {item.color || 'N/A'}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)}>
+          <Text style={styles.removeText}>Remove</Text>
+        </TouchableOpacity>
+      </Card>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    backgroundColor: '#FFFFFF',
-  },
-  emptyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
+  container: { flex: 1, backgroundColor: palette.canvas },
+  list: { paddingBottom: spacing.xxl },
+  skeletonItem: { marginBottom: spacing.md },
+  itemTouch: { marginBottom: spacing.md },
   item: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
+    borderColor: palette.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   itemContent: { flex: 1 },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  itemReg: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 4,
-  },
-  itemMeta: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
+  itemTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  itemReg: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
+  itemMeta: { ...typography.label, color: palette.textMuted, marginTop: spacing.xs },
   removeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FEF2F2',
+    borderColor: palette.dangerSoftBg,
+    backgroundColor: palette.dangerSoftBg,
   },
   removeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#EF4444',
+    ...typography.label,
+    color: palette.danger,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#208AEF',
-    alignItems: 'center',
-    justifyContent: 'center',
+  fabBtn: {
+    alignSelf: 'flex-start',
+    minWidth: 140,
   },
-  fabText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '700',
+  modalKeyboard: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: palette.overlay,
   },
   modalOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: palette.overlay,
   },
-  modal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
+  modalScroll: {
+    padding: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
+  },
+  modalCard: {
+    backgroundColor: palette.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     width: '100%',
     maxWidth: 400,
-    maxHeight: '90%',
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 20,
-  },
-  modalForm: {
-    gap: 16,
-    marginBottom: 20,
-  },
+  modalTitle: { ...typography.heading, color: palette.textPrimary },
+  labelRow: { marginBottom: spacing.sm },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
   },
   fuelSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   fuelOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceAlt,
   },
   fuelOptionSelected: {
-    borderColor: '#208AEF',
-    backgroundColor: '#EFF6FF',
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
   },
-  fuelText: {
-    fontSize: 14,
-    color: '#111827',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 8,
-  },
-  cancelButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-  },
-  cancelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  saveButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#208AEF',
-  },
-  saveText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
+  fuelText: { ...typography.captionMedium, color: palette.textPrimary },
+  modalActions: { gap: spacing.md },
 });

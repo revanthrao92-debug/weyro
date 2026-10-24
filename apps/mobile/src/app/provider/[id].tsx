@@ -3,15 +3,26 @@ import {
   View,
   Text,
   TouchableOpacity,
+  KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { usePublicProvider, useProviderReviews } from '@/hooks/useProfile';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import {
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Avatar,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 type ProviderParams = { id: string };
 
@@ -24,17 +35,23 @@ export default function ProviderProfilePublicScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Provider" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="100%" height={20} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!provider) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text>Provider not found</Text>
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Provider" />
+        <EmptyState title="Provider not found" message="This provider may have been removed." />
+      </ScreenContainer>
     );
   }
 
@@ -46,182 +63,130 @@ export default function ProviderProfilePublicScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={{ padding: 20 }}>
-        <View style={styles.header}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>{provider.businessName.charAt(0)}</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <ScreenContainer padded={false}>
+        <AppHeader title={provider.businessName} subtitle={provider.providerType} />
+        <ScrollView contentContainerStyle={styles.body}>
+          <Card style={styles.headerCard}>
+            <View style={styles.headerRow}>
+              <Avatar name={provider.businessName} size={64} />
+              <View style={styles.info}>
+                <Text style={styles.businessName}>{provider.businessName}</Text>
+                <Text style={styles.providerType}>{provider.providerType}</Text>
+                {provider.badge && (
+                  <StatusPill label={provider.badge} tone="neutral" />
+                )}
+              </View>
+            </View>
+          </Card>
+
+          <View style={styles.stats}>
+            <StatItem value={provider.avgRating.toFixed(1)} label="Rating" />
+            <StatItem value={provider.totalReviews.toString()} label="Reviews" />
+            <StatItem value={provider.completedJobs.toString()} label="Jobs Completed" />
           </View>
-          <View style={styles.info}>
-            <Text style={styles.businessName}>{provider.businessName}</Text>
-            <Text style={styles.providerType}>{provider.providerType}</Text>
-            {provider.badge && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{provider.badge}</Text>
+
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>{provider.description}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Service Radius</Text>
+              <Text style={styles.metaValue}>{provider.serviceRadiusKm} km</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Availability</Text>
+              <Text style={styles.metaValue}>
+                {provider.isAvailable ? 'Available' : 'Not Available'}
+              </Text>
+            </View>
+          </Card>
+
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Customer Reviews ({reviews.length})</Text>
+            {reviews.length === 0 ? (
+              <EmptyState title="No reviews yet" message="Customer reviews will appear here." />
+            ) : (
+              <View style={styles.reviewsList}>
+                {reviews.map((r: any) => (
+                  <View key={r.id} style={styles.reviewItem}>
+                    <Text style={styles.reviewCustomer}>{r.customerName}</Text>
+                    <Text style={styles.reviewRating}>★ {r.rating}</Text>
+                    <Text style={styles.reviewComment}>{r.comment || ''}</Text>
+                  </View>
+                ))}
               </View>
             )}
-          </View>
-        </View>
+          </Card>
 
-        <View style={styles.stats}>
-          <Text style={styles.statValue}>{provider.avgRating.toFixed(1)}</Text>
-          <Text style={styles.statLabel}>Rating</Text>
-          <Text style={styles.statValue}>{provider.totalReviews}</Text>
-          <Text style={styles.statLabel}>Reviews</Text>
-          <Text style={styles.statValue}>{provider.completedJobs}</Text>
-          <Text style={styles.statLabel}>Jobs Completed</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{provider.description}</Text>
-          <Text style={styles.sectionTitle}>Service Radius</Text>
-          <Text style={styles.detailValue}>
-            {provider.serviceRadiusKm} km
-          </Text>
-          <Text style={styles.sectionTitle}>Availability</Text>
-          <Text style={styles.detailValue}>
-            {provider.isAvailable ? 'Available' : 'Not Available'}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Customer Reviews ({reviews.length})</Text>
-          {reviews.length === 0 ? (
-            <Text style={styles.emptyReviews}>No reviews yet</Text>
-          ) : (
-            reviews.map((r: any) => (
-              <View key={r.id} style={styles.reviewItem}>
-                <Text style={styles.reviewCustomer}>{r.customerName}</Text>
-                <Text style={styles.reviewRating}>&{'>'.repeat(r.rating)}</Text>
-                <Text style={styles.reviewComment}>{r.comment || ''}</Text>
-              </View>
-            ))
-          )}
-        </View>
-
-        <Button
-          title="Start Chat"
-          onPress={handleStartChat}
-          accessibilityLabel="Start chat with provider"
-        />
-      </View>
-    </ScrollView>
+          <Button
+            title="Start Chat"
+            onPress={handleStartChat}
+            accessibilityLabel="Start chat with provider"
+          />
+        </ScrollView>
+      </ScreenContainer>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  avatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#208AEF',
-  },
+function StatItem({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.statItem}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  headerCard: { marginBottom: spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   info: { flex: 1 },
-  businessName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  providerType: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#ECFDF5',
-    alignSelf: 'flex-start',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#10B981',
-  },
+  businessName: { ...typography.heading, color: palette.textPrimary },
+  providerType: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 16,
+    borderColor: palette.border,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...(Platform.OS === 'android' ? { elevation: 1 } : {}),
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
+  statItem: { alignItems: 'center' },
+  statValue: { ...typography.heading, color: palette.textPrimary },
+  statLabel: { ...typography.label, color: palette.textSecondary, marginTop: spacing.xs },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginBottom: 16,
+    borderColor: palette.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#6B7280',
-    marginBottom: 10,
+    ...typography.label,
+    color: palette.textSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
   },
-  description: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 22,
-  },
-  detailValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  emptyReviews: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 16,
-  },
+  description: { ...typography.body, color: palette.textSecondary, lineHeight: 22 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  metaLabel: { ...typography.caption, color: palette.textSecondary },
+  metaValue: { ...typography.captionMedium, color: palette.textPrimary },
+  reviewsList: { gap: spacing.sm },
   reviewItem: {
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: palette.surfaceAlt,
   },
-  reviewCustomer: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  reviewRating: {
-    fontSize: 14,
-    color: '#F59E0B',
-    marginBottom: 4,
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#374151',
-  },
-} as any;
+  reviewCustomer: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
+  reviewRating: { ...typography.captionMedium, color: palette.textPrimary, marginBottom: spacing.xs },
+  reviewComment: { ...typography.body, color: palette.textSecondary },
+});

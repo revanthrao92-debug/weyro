@@ -3,13 +3,22 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  ActivityIndicator,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
 import { useNotifications, type AppNotification } from '@/hooks/useNotifications';
 import { useRouter } from 'expo-router';
-import { Button } from '@/components/ui/Button';
+import {
+  ListItem,
+  Badge,
+  ScreenContainer,
+  AppHeader,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function NotificationsScreen() {
   const {
@@ -42,20 +51,27 @@ export default function NotificationsScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer>
+        <AppHeader title="Notifications" />
+        {[0, 1, 2, 3].map((i) => (
+          <ListItem key={i} title="Notification title" subtitle="Notification body will appear here" />
+        ))}
+      </ScreenContainer>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Notifications</Text>
+    <ScreenContainer>
+      <AppHeader title="Notifications" subtitle="Your updates" />
+
+      <View style={styles.headerActions}>
         <TouchableOpacity
           style={styles.markAllButton}
           onPress={handleMarkAllAsRead}
           disabled={isMarkingAllAsRead || unreadCount === 0}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isMarkingAllAsRead || unreadCount === 0 }}
+          accessibilityLabel={`Mark all as read, ${unreadCount} unread`}
         >
           <Text style={styles.markAllButtonText}>
             {isMarkingAllAsRead ? 'Marking...' : 'Mark all as read'}
@@ -64,21 +80,27 @@ export default function NotificationsScreen() {
       </View>
 
       {notifications.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No notifications</Text>
-          <Text style={styles.emptySubtitle}>
-            You&apos;re all caught up.
-          </Text>
-        </View>
+        <EmptyState
+          title="No notifications"
+          message="You&apos;re all caught up."
+        />
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <NotificationItem
-              item={item}
+            <ListItem
+              title={item.title}
+              subtitle={item.body}
+              right={
+                <View style={styles.meta}>
+                  <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                  {!item.readAt && <Badge value="New" tone="neutral" />}
+                </View>
+              }
               onPress={() => handleMarkAsRead(item.id)}
-              isRead={!!item.readAt}
+              accessibilityLabel={`Notification ${item.title}`}
             />
           )}
           refreshControl={
@@ -86,127 +108,22 @@ export default function NotificationsScreen() {
           }
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
-type NotificationItemProps = {
-  item: AppNotification;
-  onPress: () => void;
-  isRead: boolean;
-};
-
-type NonNull<T> = T extends null | undefined ? never : T;
-
-function NotificationItem({ item, onPress, isRead }: NotificationItemProps) {
-  return (
-    <TouchableOpacity
-      style={[styles.item, isRead && styles.itemRead]}
-      onPress={onPress}
-    >
-      <View style={styles.itemContent}>
-        <Text style={[styles.itemTitle, isRead && styles.titleRead]}>
-          {item.title}
-        </Text>
-        <Text style={[styles.body, isRead && styles.bodyRead]}>
-          {item.body}
-        </Text>
-        <Text style={styles.time}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-      {!isRead && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
-}
-
-const styles = {
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
+const styles = StyleSheet.create({
+  headerActions: { marginBottom: spacing.md },
   markAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#208AEF',
-    backgroundColor: '#FFFFFF',
+    borderColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
   },
-  markAllButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  item: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  itemRead: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#F3F4F6',
-  },
-  itemContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  titleRead: {
-    color: '#6B7280',
-  },
-  body: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  bodyRead: {
-    color: '#9CA3AF',
-  },
-  time: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#208AEF',
-  },
-} as any;
+  markAllButtonText: { ...typography.label, color: palette.textPrimary },
+  list: { paddingBottom: spacing.xxl },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  time: { ...typography.label, color: palette.textMuted },
+});

@@ -2,17 +2,26 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpdateCustomerProfile } from '@/hooks/useProfile';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import {
+  Input,
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Avatar,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();
@@ -41,9 +50,28 @@ export default function CustomerProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Profile" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="100%" height={18} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+      </ScreenContainer>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <ScreenContainer padded={false}>
+        <AppHeader title="Profile" />
+        <EmptyState title="No profile found" message="Your profile will appear here." />
+      </ScreenContainer>
     );
   }
 
@@ -52,112 +80,62 @@ export default function CustomerProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Manage your personal information</Text>
-        </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Profile" subtitle="Manage your personal information" />
+        <ScrollView contentContainerStyle={styles.body}>
+          <Card style={styles.avatarCard}>
+            <View style={styles.avatarRow}>
+              <Avatar name={`${firstName} ${lastName}`} size={80} />
+              <Input
+                label="Avatar URL"
+                placeholder="Avatar URL"
+                value={avatarUrl}
+                onChangeText={setAvatarUrl}
+                style={styles.avatarInput}
+              />
+            </View>
+          </Card>
 
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {firstName.charAt(0)}{lastName.charAt(0)}
-            </Text>
+          <View style={styles.form}>
+            <Input
+              label="First Name"
+              placeholder="First name"
+              value={firstName}
+              onChangeText={setFirstName}
+            />
+            <Input
+              label="Last Name"
+              placeholder="Last name"
+              value={lastName}
+              onChangeText={setLastName}
+            />
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={user?.email ?? ''}
+              editable={false}
+            />
+            <Input
+              label="Phone"
+              placeholder="+91 98765 43210"
+              value={user?.phone ?? ''}
+              editable={false}
+            />
           </View>
-          <Input
-            style={styles.input}
-            placeholder="Avatar URL"
-            value={avatarUrl}
-            onChangeText={setAvatarUrl}
-          />
-        </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>First Name</Text>
-          <Input
-            style={styles.input}
-            placeholder="First name"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
-
-          <Text style={styles.label}>Last Name</Text>
-          <Input
-            style={styles.input}
-            placeholder="Last name"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-
-          <Text style={styles.label}>Email</Text>
-          <Input
-            style={styles.input}
-            placeholder="you@example.com"
-            value={user?.email ?? ''}
-            editable={false}
-          />
-
-          <Text style={styles.label}>Phone</Text>
-          <Input
-            style={styles.input}
-            placeholder="+91 98765 43210"
-            value={user?.phone ?? ''}
-            editable={false}
-          />
-        </View>
-
-        <Button
-          title="Save changes"
-          onPress={handleSave}
-          disabled={saving}
-          loading={saving}
-        />
-      </ScrollView>
+          <Button title="Save changes" onPress={handleSave} disabled={saving} loading={saving} />
+        </ScrollView>
+      </ScreenContainer>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 20, minHeight: '100%', gap: 16 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-  avatarSection: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#208AEF',
-  },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-} as any;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  avatarCard: { marginBottom: spacing.lg },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatarInput: { flex: 1 },
+  form: { gap: spacing.md },
+});

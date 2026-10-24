@@ -2,21 +2,29 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
-import { useAuth } from '@/hooks/useAuth';
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';import { useAuth } from '@/hooks/useAuth';
 import {
   useProviderProfile,
   useUpdateProviderProfile,
-  type ProviderProfile,
 } from '@/hooks/useProfile';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import {
+  Input,
+  Button,
+  ScreenContainer,
+  AppHeader,
+  Card,
+  Avatar,
+  StatusPill,
+  EmptyState,
+  Skeleton,
+} from '@/components/ui';
+import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
 export default function ProviderProfileScreen() {
   const { user } = useAuth();
@@ -56,18 +64,43 @@ export default function ProviderProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#208AEF" />
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Provider Profile" />
+        <Card style={styles.skeletonCard}>
+          <Skeleton width="60%" height={20} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
+        </Card>
+      </ScreenContainer>
     );
   }
 
   if (!profile) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text>No provider profile found</Text>
-      </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Provider Profile" />
+        <EmptyState
+          title="No provider profile found"
+          message="Your provider profile will appear here."
+        />
+      </ScreenContainer>
     );
+  }
+
+  function statusTone(status: string): StatusTone {
+    switch (status) {
+      case 'VERIFIED':
+        return 'success';
+      case 'PENDING':
+        return 'warning';
+      case 'REJECTED':
+        return 'danger';
+      case 'SUSPENDED':
+        return 'neutral';
+      default:
+        return 'neutral';
+    }
   }
 
   return (
@@ -75,120 +108,92 @@ export default function ProviderProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Provider Profile</Text>
-          <Text style={styles.subtitle}>Manage your business information</Text>
-        </View>
+      <ScreenContainer padded={false}>
+        <AppHeader title="Provider Profile" subtitle="Manage your business information" />
+        <ScrollView contentContainerStyle={styles.body}>
+          <Card style={styles.profileCard}>
+            <View style={styles.profileHeader}>
+              <Avatar name={businessName} size={72} />
+              <View style={styles.profileText}>
+                <Text style={styles.businessName}>{businessName}</Text>
+                <StatusPill
+                  label={profile.verificationStatus.charAt(0).toUpperCase() + profile.verificationStatus.slice(1).toLowerCase()}
+                  tone={statusTone(profile.verificationStatus)}
+                />
+                <Text style={styles.providerType}>{profile.providerType}</Text>
+              </View>
+            </View>
+          </Card>
 
-        <View style={styles.profileInfo}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {businessName.charAt(0)}
-            </Text>
+          <View style={styles.form}>
+            <Input
+              label="Business name"
+              placeholder="Business name"
+              value={businessName}
+              onChangeText={setBusinessName}
+            />
+            <Input
+              label="Description"
+              placeholder="Describe your services"
+              value={description}
+              onChangeText={setDescription}
+            />
+            <Input
+              label="Phone"
+              placeholder="+91 98765 43210"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+            />
+            <Input
+              label="Street address"
+              placeholder="Street address"
+              value={address}
+              onChangeText={setAddress}
+            />
+            <Input
+              label="Service Radius (km)"
+              placeholder="15"
+              value={serviceRadiusKm}
+              onChangeText={setServiceRadiusKm}
+              keyboardType="numeric"
+            />
+
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Available for bookings</Text>
+              <TouchableOpacity
+                style={[styles.toggle, isAvailable && styles.toggleActive]}
+                onPress={() => setIsAvailable(!isAvailable)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: isAvailable }}
+                accessibilityLabel="Available for bookings"
+              >
+                <Text style={[styles.toggleText, isAvailable && styles.toggleTextActive]}>
+                  {isAvailable ? 'Online' : 'Offline'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.info}>
-            <Text style={styles.businessName}>{businessName}</Text>
-            <StatusBadge status={profile.verificationStatus} />
-            <Text style={styles.providerType}>{profile.providerType}</Text>
+
+          <View style={styles.stats}>
+            <StatItem label="Rating" value={profile.avgRating.toFixed(1)} />
+            <StatItem label="Reviews" value={profile.totalReviews.toString()} />
+            <StatItem label="Jobs" value={profile.completedJobs.toString()} />
+            {profile.counts?.listings !== undefined && (
+              <StatItem label="Listings" value={profile.counts.listings.toString()} />
+            )}
           </View>
-        </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Business Name</Text>
-          <Input
-            style={styles.input}
-            placeholder="Business name"
-            value={businessName}
-            onChangeText={setBusinessName}
+          <Button
+            title="Save changes"
+            onPress={handleSave}
+            disabled={saving}
+            loading={saving}
           />
-
-          <Text style={styles.label}>Description</Text>
-          <Input
-            style={styles.input}
-            placeholder="Describe your services"
-            value={description}
-            onChangeText={setDescription}
-          />
-
-          <Text style={styles.label}>Phone</Text>
-          <Input
-            style={styles.input}
-            placeholder="+91 98765 43210"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-
-          <Text style={styles.label}>Address</Text>
-          <Input
-            style={styles.input}
-            placeholder="Street address"
-            value={address}
-            onChangeText={setAddress}
-          />
-
-          <Text style={styles.label}>Service Radius (km)</Text>
-          <Input
-            style={styles.input}
-            placeholder="15"
-            value={serviceRadiusKm}
-            onChangeText={setServiceRadiusKm}
-            keyboardType="numeric"
-          />
-
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Available for bookings</Text>
-            <TouchableOpacity
-              style={[styles.toggle, isAvailable && styles.toggleActive]}
-              onPress={() => setIsAvailable(!isAvailable)}
-            >
-              <Text style={[styles.toggleText, isAvailable && styles.toggleTextActive]}>
-                {isAvailable ? 'Online' : 'Offline'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.stats}>
-          <StatItem label="Rating" value={profile.avgRating.toFixed(1)} />
-          <StatItem label="Reviews" value={profile.totalReviews.toString()} />
-          <StatItem label="Jobs" value={profile.completedJobs.toString()} />
-          {profile.counts?.listings !== undefined && (
-            <StatItem label="Listings" value={profile.counts.listings.toString()} />
-          )}
-        </View>
-
-        <Button
-          title="Save changes"
-          onPress={handleSave}
-          disabled={saving}
-          loading={saving}
-        />
-      </ScrollView>
+        </ScrollView>
+      </ScreenContainer>
     </KeyboardAvoidingView>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const color = getStatusColor(status);
-  return (
-    <View style={[styles.badge, { backgroundColor: color.bg }]}>
-      <Text style={[styles.badgeText, { color: color.text }]}>
-        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
-      </Text>
-    </View>
-  );
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'VERIFIED': return { bg: '#ECFDF5', text: '#10B981' };
-    case 'PENDING': return { bg: '#FFF7ED', text: '#F59E0B' };
-    case 'REJECTED': return { bg: '#FEF2F2', text: '#EF4444' };
-    case 'SUSPENDED': return { bg: '#F3F4F6', text: '#6B7280' };
-    default: return { bg: '#F3F4F6', text: '#6B7280' };
-  }
 }
 
 function StatItem({ label, value }: { label: string; value: string }) {
@@ -200,119 +205,62 @@ function StatItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = {
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 20, minHeight: '100%', gap: 20 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-  profileInfo: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#EFF6FF',
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.canvas },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  profileCard: { marginBottom: spacing.md },
+  profileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.md,
   },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#208AEF',
-  },
-  info: { gap: 4 },
-  businessName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  providerType: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  form: { gap: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
+  profileText: { flex: 1 },
+  businessName: { ...typography.heading, color: palette.textPrimary },
+  providerType: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
+  form: { gap: spacing.md },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  toggleLabel: {
-    fontSize: 15,
-    color: '#374151',
-  },
+  toggleLabel: { ...typography.body, color: palette.textPrimary, flex: 1, marginRight: spacing.md },
   toggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    minWidth: 56,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F3F4F6',
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceAlt,
+    alignItems: 'center',
   },
   toggleActive: {
-    borderColor: '#10B981',
-    backgroundColor: '#ECFDF5',
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
   },
-  toggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  toggleTextActive: {
-    color: '#10B981',
-  },
+  toggleText: { ...typography.label, color: palette.textSecondary },
+  toggleTextActive: { color: palette.accent },
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginTop: 8,
+    borderColor: palette.border,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+    ...Platform.select({
+      android: { elevation: 1 },
+      default: {},
+    }),
   },
-  statItem: {
-    alignItems: 'center',
-  },
+  statItem: { alignItems: 'center' },
   statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
+    ...typography.heading,
+    color: palette.textPrimary,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-} as any;
+  statLabel: { ...typography.label, color: palette.textSecondary, marginTop: spacing.xs },
+});

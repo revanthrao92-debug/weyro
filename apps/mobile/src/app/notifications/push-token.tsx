@@ -1,8 +1,8 @@
 import {
   View,
   Text,
-  TouchableOpacity,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Platform as RNPlatform } from 'react-native';
@@ -10,7 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { Button } from '@/components/ui/Button';
+import { Button, ScreenContainer, AppHeader, ButtonRow, Card, ListItem } from '@/components/ui';
+import { palette, spacing, typography } from '@/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -72,49 +73,25 @@ export default function PushTokenScreen() {
   }, [user]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-      <Text style={styles.title}>Push Notifications</Text>
-      <Button
-        title="Enable Push Notifications"
-        onPress={handleRegister}
-      />
-      <TouchableOpacity style={styles.secondaryButton} onPress={handleDelete}>
-        <Text style={styles.secondaryButtonText}>Disable Push Notifications</Text>
-      </TouchableOpacity>
-    </View>
+    <ScreenContainer>
+      <AppHeader title="Push Notifications" subtitle="Manage device notifications" />
+      <Card style={styles.card}>
+        <ListItem
+          title="Push Notifications"
+          subtitle="Receive updates about your bookings and quotes"
+          right={
+            <Button title="Enable" variant="secondary" onPress={handleRegister} style={styles.enableBtn} />
+          }
+        />
+      </Card>
+      <ButtonRow vertical>
+        <Button title="Disable Push Notifications" variant="secondary" onPress={handleDelete} />
+      </ButtonRow>
+    </ScreenContainer>
   );
 }
 
-const styles = {
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 12,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  secondaryButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    width: '100%',
-  },
-  secondaryButtonText: {
-    color: '#6B7280',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-} as any;
+const styles = StyleSheet.create({
+  card: { marginBottom: spacing.lg },
+  enableBtn: { minWidth: 88 },
+});
