@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { palette, spacing, typography } from '@/theme';
@@ -8,6 +8,8 @@ export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
   label?: string;
   error?: string;
   accessibilityLabel?: string;
+  /** Style for the outer wrapper (label + input + error). */
+  containerStyle?: ViewStyle | ViewStyle[];
 }
 
 /**
@@ -21,6 +23,7 @@ export function Input({
   error,
   autoCompleteType,
   accessibilityLabel,
+  containerStyle,
   style,
   ...props
 }: InputProps) {
@@ -34,7 +37,7 @@ export function Input({
       : palette.border;
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, containerStyle]}>
       {label ? (
         <Text style={styles.label} maxFontSizeMultiplier={2}>
           {label}

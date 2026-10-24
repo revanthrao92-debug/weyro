@@ -24,16 +24,27 @@ export default function MessagesThreadScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={[styles.messageRow, item.sender === 'customer' ? styles.rowCustomer : styles.rowProvider]}>
-              <View style={[styles.bubble, item.sender === 'customer' ? styles.bubbleCustomer : styles.bubbleProvider]}>
-                <Text style={[styles.messageText, item.sender === 'customer' ? styles.messageTextCustomer : styles.messageTextProvider]} numberOfLines={4}>
-                  {item.text}
-                </Text>
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => {
+            const isMine = item.sender === 'customer';
+            return (
+              <View style={[styles.messageRow, isMine ? styles.rowMine : styles.rowTheirs]}>
+                <View style={[styles.bubbleColumn, isMine ? styles.columnMine : styles.columnTheirs]}>
+                  <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                    <Text
+                      style={[styles.messageText, isMine ? styles.messageTextMine : styles.messageTextTheirs]}
+                      maxFontSizeMultiplier={2}
+                    >
+                      {item.text}
+                    </Text>
+                  </View>
+                  <Text style={styles.messageTime}>
+                    {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.messageTime}>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-            </View>
-          )}
+            );
+          }}
         />
       </ScreenContainer>
 
@@ -43,11 +54,11 @@ export default function MessagesThreadScreen() {
           value={messageText}
           onChangeText={setMessageText}
           accessibilityLabel="Message input"
-          accessibilityRole="text"
+          containerStyle={styles.inputWrapper}
           style={styles.input}
           maxFontSizeMultiplier={2}
         />
-        <Button title="Send" onPress={() => {}} variant="secondary" style={styles.sendBtn} />
+        <Button title="Send" onPress={() => {}} style={styles.sendBtn} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -56,43 +67,57 @@ export default function MessagesThreadScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.canvas },
   list: { padding: spacing.lg, paddingBottom: spacing.xl },
-  messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  rowProvider: { justifyContent: 'flex-start' },
-  rowCustomer: { justifyContent: 'flex-end' },
+
+  // Each message is a column (bubble + timestamp) on its own side.
+  messageRow: { flexDirection: 'row', marginBottom: spacing.lg },
+  rowTheirs: { justifyContent: 'flex-start' },
+  rowMine: { justifyContent: 'flex-end' },
+  bubbleColumn: { maxWidth: '78%' },
+  columnTheirs: { alignItems: 'flex-start' },
+  columnMine: { alignItems: 'flex-end' },
+
   bubble: {
-    maxWidth: '75%',
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radii.lg,
   },
-  bubbleProvider: { backgroundColor: palette.surfaceAlt },
-  bubbleCustomer: { backgroundColor: palette.accent },
-  messageText: { ...typography.body, marginBottom: spacing.xs },
-  messageTextProvider: { color: palette.textPrimary },
-  messageTextCustomer: { color: palette.onAccent },
+  // Incoming: white bubble + hairline so it separates from the canvas
+  // (surfaceAlt was nearly identical to the canvas and vanished).
+  bubbleTheirs: {
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderBottomLeftRadius: radii.sm,
+  },
+  // Outgoing: accent fill, tail on the other corner.
+  bubbleMine: {
+    backgroundColor: palette.accent,
+    borderBottomRightRadius: radii.sm,
+  },
+
+  messageText: { ...typography.body },
+  messageTextTheirs: { color: palette.textPrimary },
+  messageTextMine: { color: palette.onAccent },
+
   messageTime: {
     ...typography.label,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
+
   inputContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: palette.border,
+    borderTopColor: palette.borderStrong,
     backgroundColor: palette.surface,
     gap: spacing.sm,
     ...(Platform.OS === 'ios' && { paddingBottom: spacing.lg }),
   },
+  inputWrapper: { flex: 1, marginBottom: 0 },
   input: {
-    flex: 1,
     minHeight: 44,
-    ...typography.body,
-    color: palette.textPrimary,
     backgroundColor: palette.surfaceAlt,
   },
   sendBtn: { minWidth: 88 },
