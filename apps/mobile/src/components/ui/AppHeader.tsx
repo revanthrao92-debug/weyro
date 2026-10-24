@@ -45,10 +45,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 56,
-    // hairline section break: the header reads as its own band above content
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-    marginBottom: spacing.xs,
+    // Header must read as its own section above content: a real (1px)
+    // divider + a full spacing step below, not a hairline + 4px.
+    borderBottomWidth: 1,
+    borderBottomColor: palette.borderStrong,
+    marginBottom: spacing.md,
   },
   side: {
     minWidth: 44,
