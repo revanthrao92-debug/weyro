@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * Weyro — premium automotive dark theme.
+   *
+   * Space-separated HSL triples consumed by `tailwind.config.js` as
+   * `hsl(var(--token))`. Values are mirrored from `src/theme/colors.ts`
+   * (the single source of truth for the StyleSheet layer) — keep in sync.
+   *
+   * Dark is the active theme: variables are defined on `:root` (always
+   * resolvable) AND on `.dark` (the root wrapper class, so `dark:`
+   * variants are active app-wide). Light values are intentionally not
+   * shipped — the app is single-mode (see docs/ui-redesign-plan.md);
+   * swap these blocks to introduce a light theme later.
+   */
+  :root,
+  .dark {
+    /* Surfaces */
+    --background: 210 19% 6%; /* #0D1013 canvas */
+    --foreground: 204 22% 95%; /* #F1F4F6 */
+    --card: 210 17% 9%; /* #14181C */
+    --card-foreground: 204 22% 95%;
+    --popover: 210 17% 9%;
+    --popover-foreground: 204 22% 95%;
+
+    /* Accent — restrained deep teal, dark ink on fill */
+    --primary: 175 54% 40%; /* #2F9E95 */
+    --primary-foreground: 168 42% 5%; /* #07110F */
+
+    /* Secondary / muted */
+    --secondary: 213 17% 13%; /* #1B2026 */
+    --secondary-foreground: 204 22% 95%;
+    --muted: 213 17% 13%;
+    --muted-foreground: 208 10% 71%; /* #AEB6BD */
+
+    --accent: 213 17% 13%;
+    --accent-foreground: 204 22% 95%;
+
+    /* Destructive — deep red fill, white label (6.6:1) */
+    --destructive: 4 58% 41%; /* #A6352C */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Lines & focus */
+    --border: 210 14% 17%; /* #252B31 */
+    --border-strong: 211 13% 26%; /* #39424A */
+    --input: 210 14% 17%;
+    --ring: 175 54% 40%;
+
+    /* Geometry — rounded-md = 12px, matches radii.md in src/theme */
+    --radius: 0.875rem;
+  }
+}

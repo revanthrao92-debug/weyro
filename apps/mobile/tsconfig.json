@@ -21,7 +21,8 @@
     "src/**/*.tsx",
     "src/**/*.d.ts",
     "expo-env.d.ts",
-    ".expo/types/**/*.ts"
+    ".expo/types/**/*.ts",
+    "nativewind-env.d.ts"
   ],
   "exclude": [
     "node_modules",
