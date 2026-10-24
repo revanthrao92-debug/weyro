@@ -25,6 +25,9 @@ export type { FilterBarProps } from './FilterBar';
 export { IconButton } from './IconButton';
 export type { IconButtonProps } from './IconButton';
 
+export { SectionHeader } from './SectionHeader';
+export type { SectionHeaderProps } from './SectionHeader';
+
 export { Chip, FilterChips } from './Chip';
 export type { ChipProps, FilterChipsProps } from './Chip';
 
