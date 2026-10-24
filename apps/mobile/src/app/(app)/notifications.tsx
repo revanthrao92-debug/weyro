@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNotifications, type AppNotification } from '@/hooks/useNotifications';
 import { useRouter } from 'expo-router';
+import { Bell } from 'lucide-react-native';
 import {
   ListItem,
   Badge,
@@ -81,6 +82,7 @@ export default function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <EmptyState
+          icon={<Bell size={28} color={palette.textMuted} />}
           title="No notifications"
           message="You&apos;re all caught up."
         />

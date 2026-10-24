@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { FlatList, Text, View, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { useBookings } from '@/hooks/useBookings';
+import { useRouter } from 'expo-router';
+import { CalendarDays } from 'lucide-react-native';
 import { BookingCard } from '@/components/booking/BookingCard';
 import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton, FilterBar } from '@/components/ui';
-import { spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export default function BookingsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
   const { data, isLoading, refetch } = useBookings(statusFilter);
 
   const bookings = data?.items ?? [];
@@ -52,6 +55,7 @@ export default function BookingsScreen() {
 
       {bookings.length === 0 ? (
         <EmptyState
+          icon={<CalendarDays size={28} color={palette.textMuted} />}
           title={statusFilter ? 'No bookings match this filter' : 'No bookings found'}
           message={
             statusFilter
@@ -64,7 +68,7 @@ export default function BookingsScreen() {
           data={bookings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <BookingCard booking={item} onPress={(id) => {}} />
+            <BookingCard booking={item} onPress={(id) => router.push(`/booking/${id}`)} />
           )}
           refreshControl={
             <RefreshControl

@@ -1,6 +1,7 @@
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ListItem, Badge, ScreenContainer, AppHeader } from '@/components/ui';
+import { MessageCircle } from 'lucide-react-native';
+import { ListItem, Badge, ScreenContainer, AppHeader, EmptyState } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
 export default function MessagesScreen() {
@@ -19,7 +20,11 @@ export default function MessagesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No conversations yet</Text>
+          <EmptyState
+            icon={<MessageCircle size={28} color={palette.textMuted} />}
+            title="No conversations yet"
+            message="Chats with providers will appear here."
+          />
         }
         renderItem={({ item }) => (
           <ListItem

@@ -7,6 +7,8 @@ export interface ScreenContainerProps {
   children: ReactNode;
   /** Apply horizontal screen padding. Default true. */
   padded?: boolean;
+  /** Add the bottom safe-area inset (screens without a tab bar). */
+  safeBottom?: boolean;
   style?: ViewStyle | ViewStyle[];
 }
 
@@ -20,6 +22,7 @@ export interface ScreenContainerProps {
 export function ScreenContainer({
   children,
   padded = true,
+  safeBottom = false,
   style,
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
@@ -29,6 +32,7 @@ export function ScreenContainer({
         styles.root,
         padded && styles.padded,
         { paddingTop: insets.top },
+        safeBottom && { paddingBottom: insets.bottom },
         style,
       ]}
       accessibilityRole="none"

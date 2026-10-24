@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
-import { EllipsisVertical } from 'lucide-react-native';
+import { EllipsisVertical, Package } from 'lucide-react-native';
 import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';
 
@@ -60,7 +60,11 @@ export default function ShopScreen() {
       </FilterBar>
 
       {parts.length === 0 ? (
-        <EmptyState title="No parts found" message="Adjust your search or filters." />
+        <EmptyState
+          icon={<Package size={28} color={palette.textMuted} />}
+          title="No parts found"
+          message="Adjust your search or filters."
+        />
       ) : (
         <FlatList
           data={parts}
@@ -141,5 +145,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
   },
-  price: { ...typography.bodyMedium, color: palette.textPrimary },
+  price: { ...typography.bodyMedium, fontSize: 18, color: palette.textPrimary },
 });

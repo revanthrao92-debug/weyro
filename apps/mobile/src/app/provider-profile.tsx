@@ -79,7 +79,7 @@ export default function ProviderProfileScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Provider Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={20} />
@@ -93,7 +93,7 @@ export default function ProviderProfileScreen() {
 
   if (!profile) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Provider Profile" />
         <EmptyState
           title="No provider profile found"
@@ -123,7 +123,7 @@ export default function ProviderProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Provider Profile" subtitle="Manage your business information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.profileCard}>

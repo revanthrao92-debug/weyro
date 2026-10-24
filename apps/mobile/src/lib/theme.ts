@@ -23,8 +23,8 @@ const COLORS = {
   card: 'hsl(0 0% 100%)',
   /** border — #E1E4E8 */
   border: 'hsl(214 13% 90%)',
-  /** accent — #1F6F6B */
-  primary: 'hsl(177 56% 28%)',
+  /** accent — #C2410C */
+  primary: 'hsl(17 88% 40%)',
   /** textPrimary — #171A1D */
   text: 'hsl(210 12% 10%)',
   /** danger — #A32C24 */

@@ -20,7 +20,7 @@ export default function CheckoutScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Payment" />
         <Card style={styles.skeletonCard}>
           <SkeletonBlock lines={3} />
@@ -31,7 +31,7 @@ export default function CheckoutScreen() {
 
   if (!booking) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Payment" />
         <EmptyState title="Booking not found" message="This booking may have been removed." />
       </ScreenContainer>
@@ -96,7 +96,7 @@ export default function CheckoutScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Payment" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card>

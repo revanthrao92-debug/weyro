@@ -60,7 +60,7 @@ export default function EditListingScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
@@ -73,7 +73,7 @@ export default function EditListingScreen() {
 
   if (!part) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" />
         <EmptyState title="Part not found" message="This part may have been removed." />
       </ScreenContainer>
@@ -128,7 +128,7 @@ export default function EditListingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" subtitle="Update part details" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View>

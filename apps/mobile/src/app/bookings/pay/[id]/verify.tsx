@@ -2,7 +2,7 @@ import { ScreenContainer, AppHeader, EmptyState, BackButton } from '@/components
 
 export default function PaymentVerifyScreen() {
   return (
-    <ScreenContainer>
+    <ScreenContainer safeBottom>
       <AppHeader left={<BackButton />} title="Payment Verification" />
       <EmptyState
         title="Payment Verification"

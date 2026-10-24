@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatList, KeyboardAvoidingView, Platform, Text, View, StyleSheet } from 'react-native';
 import { Input, Button, ScreenContainer, AppHeader, BackButton } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
 export default function MessagesThreadScreen() {
   const [messageText, setMessageText] = useState('');
+  const insets = useSafeAreaInsets();
 
   const messages = [
     { id: 'm1', sender: 'provider', text: 'Hi, I received your request. Can you share more photos?', createdAt: '2026-10-20T09:00:00Z', read: true },
@@ -48,7 +50,9 @@ export default function MessagesThreadScreen() {
         />
       </ScreenContainer>
 
-      <View style={styles.inputContainer}>
+      <View
+        style={[styles.inputContainer, { paddingBottom: Math.max(spacing.md, insets.bottom) }]}
+      >
         <Input
           placeholder="Type a message..."
           value={messageText}
@@ -113,7 +117,7 @@ const styles = StyleSheet.create({
     borderTopColor: palette.borderStrong,
     backgroundColor: palette.surface,
     gap: spacing.sm,
-    ...(Platform.OS === 'ios' && { paddingBottom: spacing.lg }),
+    paddingBottom: spacing.md,
   },
   inputWrapper: { flex: 1, marginBottom: 0 },
   input: {

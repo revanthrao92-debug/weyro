@@ -1,5 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarDays, Car, ChevronRight, ClipboardList } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -112,6 +113,33 @@ export default function HomeScreen() {
   const bookingsQuery = useBookings();
   const vehiclesQuery = useVehicles();
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      requestsQuery.refetch(),
+      bookingsQuery.refetch(),
+      vehiclesQuery.refetch(),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refresh whenever the Home tab gains focus, so the dashboard is never stale.
+  useFocusEffect(
+    useCallback(() => {
+      void refetchAll();
+    }, [refetchAll])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetchAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (placeholder) {
     return (
       <ScreenContainer>
@@ -135,7 +163,11 @@ export default function HomeScreen() {
         logo={require('../../../assets/images/weyro-logo.png')}
         subtitle="Your garage at a glance"
       />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <SectionCard
           title="Active requests"
           icon={ClipboardList}

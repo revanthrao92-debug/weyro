@@ -4,9 +4,9 @@
  * Do NOT hardcode hex values in screens; import from here.
  *
  * Mood: premium white/light — near-white canvas, pure-white cards, cool
- * graphite text, one deep desaturated teal accent used sparingly.
- * All essential text pairs pass WCAG AA (≥4.5:1), verified with a contrast
- * script; textMuted (3.2:1) is large/UI use only — never body copy.
+ * graphite text, one deep burnt-orange accent (brand lineage of the gear
+ * mark) used sparingly. All essential text pairs pass WCAG AA (≥4.5:1),
+ * verified with a contrast script; textMuted (3.2:1) is large/UI use only.
  *
  * NativeWind components read the equivalent CSS variables in `global.css`
  * (`--background`, `--primary`, …) — keep the two files in sync.
@@ -28,9 +28,9 @@ export const palette = {
   textMuted: '#808A96', // large / UI use only — not body copy
 
   // Accent (single accent, used sparingly for primary actions & key status)
-  accent: '#1F6F6B',
-  accentPressed: '#175551',
-  accentSoftBg: '#E6F0EF', // accent-tinted background (selection, info pills)
+  accent: '#C2410C', // burnt brand orange (gear lineage) — white text 5.18:1
+  accentPressed: '#9A3412',
+  accentSoftBg: '#FDF0E7', // accent-tinted background (selection, info pills)
 
   // Semantic (muted, harmonious with the base)
   success: '#2A7050',

@@ -36,7 +36,7 @@ export default function PartDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Part Details" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
@@ -49,7 +49,7 @@ export default function PartDetailScreen() {
 
   if (!part) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Part Details" />
         <EmptyState title="Part not found" message="This part may have been removed." />
       </ScreenContainer>
@@ -77,7 +77,7 @@ export default function PartDetailScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <ScreenContainer padded={false}>
+      <ScreenContainer safeBottom padded={false}>
         <AppHeader left={<BackButton />} title={part.name} subtitle={part.partNumber} />
         <ScrollView contentContainerStyle={styles.body} scrollEnabled={false}>
           <Avatar name={part.name} size={100} uri={part.imageUrl ?? undefined} />

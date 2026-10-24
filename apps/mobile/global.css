@@ -24,9 +24,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 12% 10%;
 
-    /* Accent — deep teal, white label */
-    --primary: 177 56% 28%; /* #1F6F6B */
-    --primary-pressed: 176 57% 21%; /* #175551 — pressed state darkens */
+    /* Accent — burnt brand orange, white label */
+    --primary: 17 88% 40%; /* #C2410C */
+    --primary-pressed: 15 79% 34%; /* #9A3412 — pressed state darkens */
     --primary-foreground: 0 0% 100%;
 
     /* Secondary / muted */

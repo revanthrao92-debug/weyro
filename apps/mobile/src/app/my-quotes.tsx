@@ -47,7 +47,7 @@ export default function MyQuotesScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer safeBottom>
         <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -71,7 +71,7 @@ export default function MyQuotesScreen() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer safeBottom>
       <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
 
       {showFilters ? (

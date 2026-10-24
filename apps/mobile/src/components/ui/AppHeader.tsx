@@ -25,7 +25,7 @@ export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps
       {/* Both side slots always render so the centered title stays centered
           (a missing left spacer used to shift every header ~22px left). */}
       {left ? <View style={styles.side}>{left}</View> : <View style={styles.side} />}
-      <View style={styles.center}>
+      <View style={[styles.center, !!left && styles.centerLeft]}>
         {logo ? (
           <Image
             source={logo}
@@ -35,12 +35,20 @@ export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps
             accessibilityLabel="Weyro"
           />
         ) : (
-          <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={2}>
+          <Text
+            style={[styles.title, !!left && styles.titleLeft]}
+            numberOfLines={1}
+            maxFontSizeMultiplier={2}
+          >
             {title}
           </Text>
         )}
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={2}>
+          <Text
+            style={[styles.subtitle, !!left && styles.subtitleLeft]}
+            numberOfLines={1}
+            maxFontSizeMultiplier={2}
+          >
             {subtitle}
           </Text>
         ) : null}
@@ -71,10 +79,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  // Pushed screens (back button present) use the iOS convention: title next
+  // to the chevron, left-aligned.
+  centerLeft: {
+    alignItems: 'flex-start',
+    paddingLeft: spacing.xs,
+  },
   title: {
     ...typography.heading,
     color: palette.textPrimary,
     textAlign: 'center',
+  },
+  titleLeft: {
+    textAlign: 'left',
   },
   logo: {
     height: 26,
@@ -85,6 +102,9 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     textAlign: 'center',
     marginTop: 2,
+  },
+  subtitleLeft: {
+    textAlign: 'left',
   },
 });
 
