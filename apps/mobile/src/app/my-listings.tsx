@@ -21,7 +21,7 @@ import {
   EmptyState,
   Skeleton,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 export default function MyListingsScreen() {
   const router = useRouter();
@@ -126,7 +126,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: palette.borderStrong,
+    ...elevation.card,
     padding: spacing.lg,
     marginBottom: spacing.md,
     flexDirection: 'row',

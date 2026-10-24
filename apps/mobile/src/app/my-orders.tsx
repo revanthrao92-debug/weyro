@@ -9,6 +9,7 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -21,7 +22,7 @@ export default function MyOrdersScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="My Orders" subtitle="Your spare parts purchases" />
+        <AppHeader left={<BackButton />} title="My Orders" subtitle="Your spare parts purchases" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="100%" height={18} />
@@ -54,7 +55,7 @@ export default function MyOrdersScreen() {
 
   return (
     <ScreenContainer>
-      <AppHeader title="My Orders" subtitle="Your spare parts purchases" />
+      <AppHeader left={<BackButton />} title="My Orders" subtitle="Your spare parts purchases" />
 
       {orders.length === 0 ? (
         <EmptyState title="No orders yet" message="Your spare parts purchases will appear here." />

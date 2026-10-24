@@ -17,6 +17,7 @@ import {
   Skeleton,
   ErrorState,
   EmptyState,
+  BackButton,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
@@ -54,7 +55,7 @@ export default function RequestDetailScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="Request" />
+        <AppHeader left={<BackButton />} title="Request" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="50%" height={18} />
           {[0, 1, 2, 3].map((i) => (
@@ -68,7 +69,7 @@ export default function RequestDetailScreen() {
   if (!request) {
     return (
       <ScreenContainer>
-        <AppHeader title="Request" />
+        <AppHeader left={<BackButton />} title="Request" />
         <ErrorState title="Request not found" message="This request may have been removed." />
       </ScreenContainer>
     );
@@ -112,7 +113,7 @@ export default function RequestDetailScreen() {
 
   return (
     <ScreenContainer padded={false}>
-      <AppHeader title={`Request #${request.id.slice(0, 8)}`} />
+      <AppHeader left={<BackButton />} title={`Request #${request.id.slice(0, 8)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
           <Text style={styles.sectionTitle}>Request Details</Text>

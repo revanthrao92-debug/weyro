@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { Button, ScreenContainer, AppHeader, ButtonRow, Card, ListItem } from '@/components/ui';
+import { Button, ScreenContainer, AppHeader, ButtonRow, Card, ListItem, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
 Notifications.setNotificationHandler({
@@ -74,7 +74,7 @@ export default function PushTokenScreen() {
 
   return (
     <ScreenContainer>
-      <AppHeader title="Push Notifications" subtitle="Manage device notifications" />
+      <AppHeader left={<BackButton />} title="Push Notifications" subtitle="Manage device notifications" />
       <Card style={styles.card}>
         <ListItem
           title="Push Notifications"

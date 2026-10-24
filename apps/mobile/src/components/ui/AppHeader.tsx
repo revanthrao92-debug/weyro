@@ -20,7 +20,9 @@ export interface AppHeaderProps {
 export function AppHeader({ title, subtitle, left, right }: AppHeaderProps) {
   return (
     <View style={styles.header}>
-      {left ? <View style={styles.side}>{left}</View> : null}
+      {/* Both side slots always render so the centered title stays centered
+          (a missing left spacer used to shift every header ~22px left). */}
+      {left ? <View style={styles.side}>{left}</View> : <View style={styles.side} />}
       <View style={styles.center}>
         <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={2}>
           {title}
@@ -43,7 +45,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 56,
-    // clearer section break between header and the content below
+    // hairline section break: the header reads as its own band above content
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
     marginBottom: spacing.xs,
   },
   side: {

@@ -11,6 +11,7 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  FilterBar,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
@@ -27,6 +28,7 @@ export default function BroadcastFeedScreen() {
   const createQuotation = useCreateQuotation();
 
   const requests = data?.items ?? [];
+  const showFilters = requests.length > 0 || !!categoryFilter;
 
   if (isLoading) {
     return (
@@ -64,19 +66,26 @@ export default function BroadcastFeedScreen() {
     <ScreenContainer>
       <AppHeader title="Opportunities" subtitle="Nearby service requests" />
 
-      <View style={styles.filterRow}>
+      {showFilters ? (
+        <FilterBar>
+          <View style={styles.filterRow}>
         {CATEGORIES.map((c) => (
           <Chip
             key={c}
             label={labelize(c)}
             selected={categoryFilter === c}
-            onPress={() => setCategoryFilter(c)}
+            onPress={() => setCategoryFilter((prev) => (prev === c ? undefined : c))}
           />
         ))}
-      </View>
+          </View>
+        </FilterBar>
+      ) : null}
 
       {requests.length === 0 ? (
-        <EmptyState title="No requests found" message="Nearby requests will appear here." />
+        <EmptyState
+          title={categoryFilter ? 'No requests match this filter' : 'No requests found'}
+          message={categoryFilter ? 'Try a different category.' : 'Nearby requests will appear here.'}
+        />
       ) : (
         <FlatList
           data={requests}
@@ -119,7 +128,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   list: { paddingBottom: spacing.xl },
   skeletonCard: { marginBottom: spacing.md },

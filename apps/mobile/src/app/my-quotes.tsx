@@ -10,6 +10,8 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  BackButton,
+  FilterBar,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, typography } from '@/theme';
 
@@ -41,11 +43,12 @@ export default function MyQuotesScreen() {
   const withdrawQuotation = useWithdrawQuotation();
 
   const quotes = data?.items ?? [];
+  const showFilters = quotes.length > 0 || !!statusFilter;
 
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="My Quotes" subtitle="Your sent quotations" />
+        <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="40%" height={14} />
@@ -69,21 +72,28 @@ export default function MyQuotesScreen() {
 
   return (
     <ScreenContainer>
-      <AppHeader title="My Quotes" subtitle="Your sent quotations" />
+      <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
 
-      <View style={styles.filterRow}>
+      {showFilters ? (
+        <FilterBar>
+          <View style={styles.filterRow}>
         {FILTERS.map((s) => (
           <Chip
             key={s}
             label={labelize(s)}
             selected={statusFilter === s}
-            onPress={() => setStatusFilter(s)}
+            onPress={() => setStatusFilter((prev) => (prev === s ? undefined : s))}
           />
         ))}
-      </View>
+          </View>
+        </FilterBar>
+      ) : null}
 
       {quotes.length === 0 ? (
-        <EmptyState title="No quotes yet" message="Quotations you send will appear here." />
+        <EmptyState
+          title={statusFilter ? 'No quotes match this filter' : 'No quotes yet'}
+          message={statusFilter ? 'Try a different status.' : 'Quotations you send will appear here.'}
+        />
       ) : (
         <FlatList
           data={quotes}
@@ -130,7 +140,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   list: { paddingBottom: spacing.xl },
   skeletonCard: { marginBottom: spacing.md },

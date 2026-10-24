@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCreateSparePart } from '@/hooks/useParts';
 import {
   Input,
@@ -17,6 +18,7 @@ import {
   ScreenContainer,
   AppHeader,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -51,6 +53,7 @@ export default function CreateListingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const createPart = useCreateSparePart();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleSubmit = async () => {
     const { name, partNumber, compatibleMakes, compatibleModels, condition, price, stockQuantity, imageUrl, description } = form;
@@ -83,14 +86,14 @@ export default function CreateListingScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
+      <AppHeader
+        title="List a Part"
+        subtitle="Add a new spare part to your inventory"
+        left={<BackButton />}
+      />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.title}>List a Part</Text>
-          <Text style={styles.subtitle}>Add a new spare part to your inventory</Text>
-        </View>
-
         <View>
           <Input
             label="Part name"

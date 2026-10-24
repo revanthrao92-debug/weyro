@@ -20,6 +20,7 @@ import {
   Card,
   EmptyState,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -91,7 +92,7 @@ export default function AddressesScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="Saved Addresses" />
+        <AppHeader left={<BackButton />} title="Saved Addresses" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="40%" height={14} />
@@ -109,7 +110,7 @@ export default function AddressesScreen() {
       style={styles.container}
     >
       <ScreenContainer>
-        <AppHeader title="Saved Addresses" subtitle="Manage your delivery and service addresses" />
+        <AppHeader left={<BackButton />} title="Saved Addresses" subtitle="Manage your delivery and service addresses" />
 
         <Card style={styles.addCard}>
           <Text style={styles.addTitle}>Add New Address</Text>

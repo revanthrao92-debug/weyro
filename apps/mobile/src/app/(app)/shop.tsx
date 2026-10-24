@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { FlatList, Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
-import { Input, Button, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { Input, Button, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar } from '@/components/ui';
+import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 export default function ShopScreen() {
   const [search, setSearch] = useState('');
@@ -32,7 +32,8 @@ export default function ShopScreen() {
     <ScreenContainer>
       <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
 
-      <View style={styles.filterBar}>
+      <FilterBar>
+        <View style={styles.filterBar}>
         <Input
           label="Search"
           placeholder="Search parts..."
@@ -48,7 +49,8 @@ export default function ShopScreen() {
           autoCapitalize="characters"
         />
         <Button title="Filter" variant="secondary" onPress={() => refetch()} />
-      </View>
+        </View>
+      </FilterBar>
 
       {parts.length === 0 ? (
         <EmptyState title="No parts found" message="Adjust your search or filters." />
@@ -103,7 +105,6 @@ const styles = StyleSheet.create({
   filterBar: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
@@ -111,7 +112,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: palette.borderStrong,
+    ...elevation.card,
     padding: spacing.lg,
     marginBottom: spacing.md,
     flexDirection: 'row',

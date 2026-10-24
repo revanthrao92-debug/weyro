@@ -29,6 +29,7 @@ import {
   Skeleton,
   ButtonRow,
   Chip,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -112,7 +113,7 @@ export default function VehiclesScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="My Vehicles" subtitle="Manage your garage" />
+        <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
         {[0, 1, 2].map((i) => (
           <VehicleSkeleton key={i} />
         ))}
@@ -126,7 +127,7 @@ export default function VehiclesScreen() {
       style={styles.container}
     >
       <ScreenContainer>
-        <AppHeader title="My Vehicles" subtitle="Manage your garage" />
+        <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
 
         {vehicles.length === 0 ? (
           <EmptyState

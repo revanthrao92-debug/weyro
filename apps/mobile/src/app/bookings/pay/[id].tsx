@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useBooking } from '@/hooks/useBookings';
 import { usePayments } from '@/hooks/usePayments';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
-import { Input, Button, ScreenContainer, AppHeader, Card, SkeletonBlock, EmptyState } from '@/components/ui';
+import { Input, Button, ScreenContainer, AppHeader, Card, SkeletonBlock, EmptyState, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
 type PayParams = { id: string };
@@ -21,7 +21,7 @@ export default function CheckoutScreen() {
   if (isLoading) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Payment" />
+        <AppHeader left={<BackButton />} title="Payment" />
         <Card style={styles.skeletonCard}>
           <SkeletonBlock lines={3} />
         </Card>
@@ -32,7 +32,7 @@ export default function CheckoutScreen() {
   if (!booking) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Payment" />
+        <AppHeader left={<BackButton />} title="Payment" />
         <EmptyState title="Booking not found" message="This booking may have been removed." />
       </ScreenContainer>
     );
@@ -97,7 +97,7 @@ export default function CheckoutScreen() {
       style={styles.container}
     >
       <ScreenContainer padded={false}>
-        <AppHeader title="Payment" />
+        <AppHeader left={<BackButton />} title="Payment" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card>
             <CostBreakdown parts={amount} labour={0} total={amount} />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Text, View, StyleSheet } from 'react-native';
-import { Input, Button, ScreenContainer, AppHeader } from '@/components/ui';
+import { Input, Button, ScreenContainer, AppHeader, BackButton } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
 export default function MessagesThreadScreen() {
@@ -18,7 +18,7 @@ export default function MessagesThreadScreen() {
       style={styles.container}
     >
       <ScreenContainer padded={false}>
-        <AppHeader title="Conversation" />
+        <AppHeader left={<BackButton />} title="Conversation" />
 
         <FlatList
           data={messages}

@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Booking } from '@/hooks/useBookings';
 import { StatusPill } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 export type BookingCardProps = {
   booking: Booking;
@@ -75,7 +75,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: palette.borderStrong,
+    ...elevation.card,
     padding: 16,
     marginBottom: spacing.md,
   },

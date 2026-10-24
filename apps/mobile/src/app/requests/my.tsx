@@ -11,6 +11,7 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  FilterBar,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, typography } from '@/theme';
 
@@ -68,7 +69,8 @@ export default function MyRequestsScreen() {
       <AppHeader title="My Requests" subtitle="Your service requests" />
 
       {showFilters ? (
-        <View style={styles.filterRow}>
+        <FilterBar>
+          <View style={styles.filterRow}>
           {FILTERS.map((s) => (
             <Chip
               key={s}
@@ -79,7 +81,8 @@ export default function MyRequestsScreen() {
               }
             />
           ))}
-        </View>
+          </View>
+        </FilterBar>
       ) : null}
 
       {requests.length === 0 ? (
@@ -140,7 +143,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   list: { paddingBottom: spacing.xl },
   skeletonCard: { marginBottom: spacing.md },

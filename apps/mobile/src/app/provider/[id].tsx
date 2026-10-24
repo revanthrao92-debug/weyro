@@ -21,6 +21,7 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -36,7 +37,7 @@ export default function ProviderProfilePublicScreen() {
   if (isLoading) {
     return (
       <ScreenContainer>
-        <AppHeader title="Provider" />
+        <AppHeader left={<BackButton />} title="Provider" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={20} />
           <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
@@ -49,7 +50,7 @@ export default function ProviderProfilePublicScreen() {
   if (!provider) {
     return (
       <ScreenContainer>
-        <AppHeader title="Provider" />
+        <AppHeader left={<BackButton />} title="Provider" />
         <EmptyState title="Provider not found" message="This provider may have been removed." />
       </ScreenContainer>
     );
@@ -65,7 +66,7 @@ export default function ProviderProfilePublicScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
       <ScreenContainer padded={false}>
-        <AppHeader title={provider.businessName} subtitle={provider.providerType} />
+        <AppHeader left={<BackButton />} title={provider.businessName} subtitle={provider.providerType} />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.headerCard}>
             <View style={styles.headerRow}>

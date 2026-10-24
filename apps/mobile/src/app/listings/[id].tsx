@@ -20,6 +20,7 @@ import {
   ScreenContainer,
   AppHeader,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -60,7 +61,7 @@ export default function EditListingScreen() {
   if (isLoading) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Edit Listing" />
+        <AppHeader left={<BackButton />} title="Edit Listing" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
           <Skeleton width="40%" height={14} style={{ marginTop: spacing.sm }} />
@@ -73,7 +74,7 @@ export default function EditListingScreen() {
   if (!part) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Edit Listing" />
+        <AppHeader left={<BackButton />} title="Edit Listing" />
         <EmptyState title="Part not found" message="This part may have been removed." />
       </ScreenContainer>
     );
@@ -128,7 +129,7 @@ export default function EditListingScreen() {
       style={styles.container}
     >
       <ScreenContainer padded={false}>
-        <AppHeader title="Edit Listing" subtitle="Update part details" />
+        <AppHeader left={<BackButton />} title="Edit Listing" subtitle="Update part details" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View>
             <Input

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FlatList, Text, View, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { useBookings } from '@/hooks/useBookings';
 import { BookingCard } from '@/components/booking/BookingCard';
-import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton } from '@/components/ui';
+import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton, FilterBar } from '@/components/ui';
 import { spacing, typography } from '@/theme';
 
 export default function BookingsScreen() {
@@ -33,7 +33,8 @@ export default function BookingsScreen() {
       <AppHeader title="My Bookings" />
 
       {showFilters ? (
-        <View style={styles.filterRow}>
+        <FilterBar>
+          <View style={styles.filterRow}>
           {['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((s) => (
             <Chip
               key={s}
@@ -45,7 +46,8 @@ export default function BookingsScreen() {
               onPress={() => setStatusFilter((prev) => (prev === s ? undefined : s))}
             />
           ))}
-        </View>
+          </View>
+        </FilterBar>
       ) : null}
 
       {bookings.length === 0 ? (
@@ -96,7 +98,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   skeletonCard: { marginBottom: spacing.md },
 });

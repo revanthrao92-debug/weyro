@@ -21,6 +21,7 @@ import {
   StatusPill,
   Skeleton,
   EmptyState,
+  BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
@@ -57,7 +58,7 @@ export default function BookingDetailScreen() {
   if (isLoading) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Booking" />
+        <AppHeader left={<BackButton />} title="Booking" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
           {[0, 1, 2, 3].map((i) => (
@@ -71,7 +72,7 @@ export default function BookingDetailScreen() {
   if (isError || !booking) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Booking" />
+        <AppHeader left={<BackButton />} title="Booking" />
         <EmptyState
           title="Booking not found"
           message="This booking may have been removed."
@@ -117,7 +118,7 @@ export default function BookingDetailScreen() {
 
   return (
     <ScreenContainer padded={false}>
-      <AppHeader title={`Booking #${booking.id.slice(0, 8)}`} />
+      <AppHeader left={<BackButton />} title={`Booking #${booking.id.slice(0, 8)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
           <Text style={styles.sectionTitle}>Status</Text>

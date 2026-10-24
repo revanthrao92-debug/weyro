@@ -10,8 +10,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCreateServiceRequest } from '@/hooks/useRequests';
-import { Input, Button, Chip } from '@/components/ui';
+import { Input, Button, Chip, AppHeader, BackButton } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 
 const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
@@ -54,6 +55,7 @@ export default function CreateRequestScreen() {
   const [submitting, setSubmitting] = useState(false);
   const createRequest = useCreateServiceRequest();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleSubmit = async () => {
     const {
@@ -102,14 +104,14 @@ export default function CreateRequestScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
+      <AppHeader
+        title="Report Damage"
+        subtitle="Tell us about your vehicle issue"
+        left={<BackButton />}
+      />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.title}>Report Damage</Text>
-          <Text style={styles.subtitle}>Tell us about your vehicle issue</Text>
-        </View>
-
         <View>
           <Input
             label="Vehicle make"

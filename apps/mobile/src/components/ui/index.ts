@@ -16,6 +16,12 @@ export type { InputProps } from './Input';
 export { AppHeader } from './AppHeader';
 export type { AppHeaderProps } from './AppHeader';
 
+export { BackButton } from './BackButton';
+export type { BackButtonProps } from './BackButton';
+
+export { FilterBar } from './FilterBar';
+export type { FilterBarProps } from './FilterBar';
+
 export { Chip, FilterChips } from './Chip';
 export type { ChipProps, FilterChipsProps } from './Chip';
 

@@ -23,6 +23,7 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  BackButton,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
@@ -79,7 +80,7 @@ export default function ProviderProfileScreen() {
   if (isLoading) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Provider Profile" />
+        <AppHeader left={<BackButton />} title="Provider Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={20} />
           <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
@@ -93,7 +94,7 @@ export default function ProviderProfileScreen() {
   if (!profile) {
     return (
       <ScreenContainer padded={false}>
-        <AppHeader title="Provider Profile" />
+        <AppHeader left={<BackButton />} title="Provider Profile" />
         <EmptyState
           title="No provider profile found"
           message="Your provider profile will appear here."
@@ -123,7 +124,7 @@ export default function ProviderProfileScreen() {
       style={styles.container}
     >
       <ScreenContainer padded={false}>
-        <AppHeader title="Provider Profile" subtitle="Manage your business information" />
+        <AppHeader left={<BackButton />} title="Provider Profile" subtitle="Manage your business information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.profileCard}>
             <View style={styles.profileHeader}>
