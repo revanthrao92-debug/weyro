@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: palette.border,
+    // borderStrong: plain `border` was invisible (white chips on off-white canvas)
+    borderColor: palette.borderStrong,
     backgroundColor: palette.surface,
   },
   selected: {

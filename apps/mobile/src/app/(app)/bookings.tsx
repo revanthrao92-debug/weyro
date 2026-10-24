@@ -31,7 +31,10 @@ export default function BookingsScreen() {
         {['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((s) => (
           <Chip
             key={s}
-            label={s.replace(/_/g, ' ')}
+            label={s
+              .split('_')
+              .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+              .join(' ')}
             selected={statusFilter === s}
             onPress={() => setStatusFilter(s)}
           />

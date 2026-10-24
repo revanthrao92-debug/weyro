@@ -37,7 +37,7 @@ function AuthRouter() {
   return (
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
-        <Stack>
+        <Stack screenOptions={{ headerShown: false }}>
           {isAuthenticated ? (
             <Stack.Screen
               options={{ headerShown: false }}
