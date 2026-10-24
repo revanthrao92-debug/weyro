@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { z } from 'zod';
 import { DamageRequestsService } from './damage-requests.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -17,11 +18,28 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
-  CursorPaginationQuery,
   cursorPaginationSchema,
   FeedQuery,
   feedQuerySchema,
 } from '../../common/dto/query.dto';
+
+const myRequestsQuerySchema = cursorPaginationSchema.extend({
+  status: z
+    .enum([
+      'DRAFT',
+      'OPEN',
+      'QUOTES_RECEIVED',
+      'ACCEPTED',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CANCELLED',
+      'EXPIRED',
+    ])
+    .optional(),
+});
+
+type MyRequestsQuery = z.infer<typeof myRequestsQuerySchema>;
+
 @Controller('damage-requests')
 export class DamageRequestsController {
   constructor(private readonly service: DamageRequestsService) {}
@@ -62,10 +80,15 @@ export class DamageRequestsController {
   @Get('my')
   async findMine(
     @CurrentUser() user: AuthUserPayload,
-    @Query(new ZodValidationPipe(cursorPaginationSchema))
-    query: CursorPaginationQuery,
+    @Query(new ZodValidationPipe(myRequestsQuerySchema))
+    query: MyRequestsQuery,
   ) {
-    return this.service.findMine(user, query.cursor, query.limit);
+    return this.service.findMine(
+      user,
+      query.cursor,
+      query.limit,
+      query.status,
+    );
   }
 
   @Post(':id/cancel')

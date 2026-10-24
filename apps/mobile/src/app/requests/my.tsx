@@ -38,7 +38,9 @@ function statusTone(status: string): StatusTone {
 export default function MyRequestsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading } = useMyRequests();
+  const { data, isLoading } = useMyRequests(
+    statusFilter ? { status: statusFilter } : undefined
+  );
 
   const requests = data?.items ?? [];
 
@@ -67,16 +69,26 @@ export default function MyRequestsScreen() {
             key={s}
             label={labelize(s)}
             selected={statusFilter === s}
-            onPress={() => setStatusFilter(s)}
+            onPress={() =>
+              setStatusFilter((prev) => (prev === s ? undefined : s))
+            }
           />
         ))}
       </View>
 
       {requests.length === 0 ? (
         <EmptyState
-          title="No requests yet"
-          message="Create a request to get quotes from nearby mechanics."
-          action={<Button title="Create Request" onPress={() => router.push('/requests/create')} />}
+          title={statusFilter ? 'No requests match this filter' : 'No requests yet'}
+          message={
+            statusFilter
+              ? `You have no ${labelize(statusFilter).toLowerCase()} requests.`
+              : 'Create a request to get quotes from nearby mechanics.'
+          }
+          action={
+            statusFilter ? undefined : (
+              <Button title="Create Request" onPress={() => router.push('/requests/create')} />
+            )
+          }
         />
       ) : (
         <FlatList

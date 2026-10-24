@@ -162,6 +162,7 @@ export class DamageRequestsService {
     user: AuthUserPayload,
     cursor?: string,
     limit: number = 20,
+    status?: string,
   ) {
     const customerId = user.customerProfileId;
     if (!customerId) {
@@ -175,6 +176,7 @@ export class DamageRequestsService {
       where: {
         ...buildCursorWhere(cursorTuple),
         customerId,
+        ...(status ? { status: status as any } : {}),
       },
       include: {
         media: true,

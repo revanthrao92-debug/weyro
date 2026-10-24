@@ -92,13 +92,18 @@ export type AcceptQuotation = {
 };
 
 /** Customer requests */
-export function useMyRequests(params?: { cursor?: string; limit?: number }) {
+export function useMyRequests(params?: {
+  cursor?: string;
+  limit?: number;
+  status?: string;
+}) {
   return useQuery({
     queryKey: ['myRequests', params],
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.cursor) qs.set('cursor', params.cursor);
       if (params?.limit) qs.set('limit', String(params.limit));
+      if (params?.status) qs.set('status', params.status);
       return apiClient<{ items: ServiceRequest[]; nextCursor?: string | null }>(
         `/damage-requests/my?${qs.toString()}`
       );
