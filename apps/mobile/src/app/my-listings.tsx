@@ -109,7 +109,7 @@ function ListingItem({ item, onDelete, onEdit }: { item: SparePart; onDelete: (i
         </View>
         <View style={styles.actions}>
           <Button title="Edit" variant="secondary" onPress={onEdit} style={styles.editBtn} />
-          <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item.id)}>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item.id)} accessibilityLabel={`Delete ${item.name}`}>
             <Text style={styles.deleteText}>Delete</Text>
           </TouchableOpacity>
         </View>

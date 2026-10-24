@@ -264,7 +264,7 @@ function VehicleItem({ item, onDelete }: { item: Vehicle; onDelete: (id: string)
             {labelize(item.fuelType)} • {item.color || 'N/A'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)}>
+        <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)} accessibilityLabel={`Remove ${item.make} ${item.model}`}>
           <Text style={styles.removeText}>Remove</Text>
         </TouchableOpacity>
       </Card>

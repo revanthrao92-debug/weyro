@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export type TrackingMapProps = {
   providerLocation?: { latitude: number; longitude: number };
@@ -7,7 +8,7 @@ export type TrackingMapProps = {
 
 export function TrackingMap({ providerLocation, customerLocation }: TrackingMapProps) {
   return (
-    <View style={[styles.container, { borderColor: '#E5E7EB' }]}>
+    <View style={[styles.container, { borderColor: palette.border }]}>
       <Text style={styles.label}>Map placeholder</Text>
       {providerLocation && (
         <Text style={styles.coords}>
@@ -29,27 +30,26 @@ export function TrackingMap({ providerLocation, customerLocation }: TrackingMapP
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.surfaceAlt,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
+    marginBottom: spacing.sm,
   },
   coords: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
   },
   hint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 12,
+    ...typography.caption,
+    color: palette.textMuted,
+    marginTop: spacing.md,
   },
 });
