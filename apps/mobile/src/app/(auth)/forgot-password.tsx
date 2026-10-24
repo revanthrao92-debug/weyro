@@ -30,7 +30,10 @@ export default function ForgotPasswordScreen() {
         body: JSON.stringify({ phone, purpose: 'reset_password' }),
       });
       Alert.alert('OTP sent', 'A verification code has been sent to your phone.');
-      router.push('/(auth)/verify-otp');
+      // The backend's /auth/reset-password verifies the OTP itself (and rejects
+      // already-verified OTPs), so go straight to the reset screen with the
+      // phone prefilled instead of passing through verify-otp.
+      router.push({ pathname: '/(auth)/reset-password', params: { phone } });
     } catch (error: any) {
       Alert.alert('Failed', error.message || 'Unable to send OTP');
     } finally {

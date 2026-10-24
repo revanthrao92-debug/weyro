@@ -9,12 +9,13 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Input, Button } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
 export default function ResetPasswordScreen() {
-  const [phone, setPhone] = useState('');
+  const { phone: phoneParam } = useLocalSearchParams<{ phone?: string }>();
+  const [phone, setPhone] = useState(phoneParam ?? '');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
