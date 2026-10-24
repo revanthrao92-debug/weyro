@@ -1,12 +1,7 @@
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { useState } from 'react';
-import { palette, spacing, radii, typography } from '@/theme';
+import { cn } from '@/lib/utils';
+import { palette, spacing, typography } from '@/theme';
 
 export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
   autoCompleteType?: string;
@@ -16,9 +11,10 @@ export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
 }
 
 /**
- * Text field. Now actually renders its `label` and `error` (previously they
- * were accepted but ignored — screens drew manual labels). Keeps the original
- * props signature, including the legacy `autoCompleteType` passthrough.
+ * Text field — NativeWind base classes with theme-token state colors.
+ * Renders its `label` and `error` (labels also set accessibilityLabel).
+ * Keeps the original props signature, including the legacy
+ * `autoCompleteType` passthrough.
  */
 export function Input({
   label,
@@ -65,7 +61,14 @@ export function Input({
           setIsFocused(false);
           props.onBlur?.(e);
         }}
-        style={[styles.input, { borderColor }, hasError && styles.inputError, style]}
+        className={cn(
+          'flex-row items-center rounded-md border bg-card px-3 py-2 text-base text-foreground min-h-[48px]',
+          props.editable === false && 'opacity-50'
+        )}
+        style={[
+          { borderColor, backgroundColor: hasError ? palette.dangerSoftBg : palette.surface },
+          style,
+        ]}
         placeholderTextColor={palette.textMuted}
       />
       {hasError ? (
@@ -85,20 +88,6 @@ const styles = StyleSheet.create({
     ...typography.captionMedium,
     color: palette.textSecondary,
     marginBottom: spacing.xs,
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...typography.body,
-    color: palette.textPrimary,
-    backgroundColor: palette.surface,
-  },
-  inputError: {
-    // border color set inline; keep a subtle tinted background for non-color-only signal
-    backgroundColor: palette.dangerSoftBg,
   },
   error: {
     ...typography.caption,

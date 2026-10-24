@@ -1,6 +1,6 @@
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { ReactNode } from 'react';
-import { palette, spacing, radii, elevation } from '@/theme';
+import { palette, spacing } from '@/theme';
 
 export interface ScreenContainerProps {
   children: ReactNode;
@@ -34,9 +34,17 @@ export interface CardProps {
   style?: ViewStyle | ViewStyle[];
 }
 
-/** The single surface container: consistent radius, border, and soft depth. */
+/**
+ * The single surface container: consistent radius, border, and depth —
+ * NativeWind classes over the `card`/`border` design tokens. `style` is
+ * merged after the class-based base (class wins on nothing but conflicts).
+ */
 export function Card({ children, style }: CardProps) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <View className="rounded-md border border-border bg-card p-4" style={style}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -46,14 +54,6 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: spacing.lg,
-  },
-  card: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.lg,
-    ...elevation.card,
   },
 });
 

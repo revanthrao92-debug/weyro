@@ -1,11 +1,42 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  ViewStyle,
-} from 'react-native';
-import { palette, spacing, radii, typography } from '@/theme';
+import { ActivityIndicator, Pressable, Text, ViewStyle } from 'react-native';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+import { palette } from '@/theme';
+
+const buttonVariants = cva(
+  'flex-row items-center justify-center gap-2 rounded-md px-4 py-3 min-h-[48px] min-w-[44px]',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary active:bg-primary/90',
+        secondary: 'border border-strong bg-card active:bg-accent',
+        destructive: 'bg-destructive active:bg-destructive/90',
+      },
+      disabled: {
+        true: 'opacity-50',
+        false: '',
+      },
+    },
+    defaultVariants: { variant: 'primary', disabled: false },
+  }
+);
+
+const buttonTextVariants = cva('text-sm font-medium text-center', {
+  variants: {
+    variant: {
+      primary: 'text-primary-foreground',
+      secondary: 'text-foreground',
+      destructive: 'text-destructive-foreground',
+    },
+  },
+  defaultVariants: { variant: 'primary' },
+});
+
+const SPINNER_COLOR = {
+  primary: palette.onAccent,
+  secondary: palette.accent,
+  destructive: palette.onDanger,
+} as const;
 
 export interface ButtonProps {
   title: string;
@@ -14,14 +45,20 @@ export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'destructive';
   accessibilityLabel?: string;
   loading?: boolean;
-  /** Optional leading content (e.g. an Icon). Visual only. */
+  /** Optional extra style (merged after the class-based base). */
   style?: ViewStyle | ViewStyle[];
 }
 
+type ButtonVariant = 'primary' | 'secondary' | 'destructive';
+
+function mapVariant(variant: VariantProps<typeof buttonVariants>['variant'] | null | undefined): ButtonVariant {
+  return variant === 'secondary' || variant === 'destructive' ? variant : 'primary';
+}
+
 /**
- * Primary action control. Keeps the original props signature (title, onPress,
- * disabled, variant, accessibilityLabel, loading) — `style` is additive.
- * Loading now shows a real spinner instead of an ellipsis.
+ * Primary action control — React Native Reusables pattern (cva + NativeWind
+ * classes) behind the original props signature (title, onPress, disabled,
+ * variant, accessibilityLabel, loading, style). ≥48px touch target.
  */
 export function Button({
   title,
@@ -33,20 +70,7 @@ export function Button({
   style,
 }: ButtonProps) {
   const isDisabled = disabled || !!loading;
-
-  const containerStyles = [
-    styles.button,
-    variant === 'secondary' && styles.secondary,
-    variant === 'destructive' && styles.destructive,
-    isDisabled && styles.disabled,
-    style,
-  ];
-
-  const labelStyles = [
-    styles.label,
-    variant === 'secondary' && styles.labelSecondary,
-    variant === 'destructive' && styles.labelDestructive,
-  ];
+  const v = mapVariant(variant);
 
   return (
     <Pressable
@@ -55,63 +79,21 @@ export function Button({
       accessibilityLabel={accessibilityLabel || title}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: !!loading }}
-      style={({ pressed }) => [
-        containerStyles,
-        pressed && !isDisabled && pressedStyles[variant],
-      ]}
+      className={cn(buttonVariants({ variant: v, disabled: isDisabled }))}
+      style={style}
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? palette.onAccent : palette.accent}
+          color={SPINNER_COLOR[v]}
           accessibilityLabel="Loading"
         />
       ) : (
-        <Text style={labelStyles} maxFontSizeMultiplier={2}>
+        <Text className={buttonTextVariants({ variant: v })} maxFontSizeMultiplier={2}>
           {title}
         </Text>
       )}
     </Pressable>
   );
 }
-
-const pressedStyles = {
-  primary: { backgroundColor: palette.accentPressed },
-  secondary: { backgroundColor: palette.surfaceAlt },
-  destructive: { backgroundColor: palette.danger, opacity: 0.85 },
-} as const;
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: palette.accent,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48, // ≥44px touch target
-    minWidth: 44,
-  },
-  secondary: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-  },
-  destructive: {
-    backgroundColor: palette.danger,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  label: {
-    ...typography.bodyMedium,
-    color: palette.onAccent,
-  },
-  labelSecondary: {
-    color: palette.textPrimary,
-  },
-  labelDestructive: {
-    color: palette.onDanger,
-  },
-});
 
 export default Button;

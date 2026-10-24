@@ -9,6 +9,12 @@ import {
   ButtonRow,
   Card,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   ErrorState,
   FilterChips,
@@ -46,6 +52,7 @@ function GalleryContent() {
   const [filter, setFilter] = useState('ALL');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <ScreenContainer>
@@ -148,6 +155,7 @@ function GalleryContent() {
         <Section title="Overlays">
           <ButtonRow>
             <Button title="Open sheet" variant="secondary" onPress={() => setSheetOpen(true)} />
+            <Button title="Open dialog" variant="secondary" onPress={() => setDialogOpen(true)} />
             <Button title="Show toast" variant="secondary" onPress={() => setToastOpen(true)} />
           </ButtonRow>
           <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} title="Example sheet">
@@ -155,6 +163,21 @@ function GalleryContent() {
             <View style={styles.listGap} />
             <Button title="Close" onPress={() => setSheetOpen(false)} />
           </BottomSheet>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm booking</DialogTitle>
+                <DialogDescription>
+                  Accepting this quotation books the provider for the scheduled date. You can
+                  cancel from Bookings before work starts.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button title="Cancel" variant="secondary" onPress={() => setDialogOpen(false)} />
+                <Button title="Confirm" onPress={() => setDialogOpen(false)} />
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </Section>
       </ScrollView>
     </ScreenContainer>
