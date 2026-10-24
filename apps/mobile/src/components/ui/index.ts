@@ -22,6 +22,9 @@ export type { BackButtonProps } from './BackButton';
 export { FilterBar } from './FilterBar';
 export type { FilterBarProps } from './FilterBar';
 
+export { IconButton } from './IconButton';
+export type { IconButtonProps } from './IconButton';
+
 export { Chip, FilterChips } from './Chip';
 export type { ChipProps, FilterChipsProps } from './Chip';
 

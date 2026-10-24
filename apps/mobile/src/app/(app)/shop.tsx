@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { FlatList, Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
-import { Input, Button, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar } from '@/components/ui';
+import { EllipsisVertical } from 'lucide-react-native';
+import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 export default function ShopScreen() {
@@ -48,7 +49,11 @@ export default function ShopScreen() {
           onChangeText={setMake}
           autoCapitalize="characters"
         />
-        <Button title="Filter" variant="secondary" onPress={() => refetch()} />
+        <IconButton
+          icon={<EllipsisVertical size={20} color={palette.textPrimary} strokeWidth={2} />}
+          onPress={() => refetch()}
+          accessibilityLabel="Filter parts"
+        />
         </View>
       </FilterBar>
 
