@@ -1,13 +1,12 @@
 /**
- * Weyro theme — colors (Premium Automotive Dark).
+ * Weyro theme — colors (Palette B: "Slate Teal" Premium Light).
  * Single source of truth for every color used in the app.
  * Do NOT hardcode hex values in screens; import from here.
  *
- * Mood: sophisticated dark interface — graphite near-black canvas, raised
- * cool-black surfaces, one restrained teal accent (brightened from Palette B
- * to hold contrast on dark). Semantic colors are lifted for dark legibility.
+ * Mood: premium white/light — near-white canvas, pure-white cards, cool
+ * graphite text, one deep desaturated teal accent used sparingly.
  * All essential text pairs pass WCAG AA (≥4.5:1), verified with a contrast
- * script during integration.
+ * script; textMuted (3.2:1) is large/UI use only — never body copy.
  *
  * NativeWind components read the equivalent CSS variables in `global.css`
  * (`--background`, `--primary`, …) — keep the two files in sync.
@@ -15,40 +14,40 @@
 
 export const palette = {
   // Surfaces / backgrounds
-  canvas: '#0D1013', // app background (graphite near-black, not pure black)
-  surface: '#14181C', // raised cards / sheets
-  surfaceAlt: '#1B2026', // sunken / inset areas, skeletons
+  canvas: '#F5F6F7', // app background (soft slate off-white, not pure white)
+  surface: '#FFFFFF', // raised cards / sheets (pure white)
+  surfaceAlt: '#ECEEF0', // sunken / inset areas, skeletons
 
   // Borders
-  border: '#252B31',
-  borderStrong: '#39424A',
+  border: '#E1E4E8',
+  borderStrong: '#C9CFD6',
 
   // Text
-  textPrimary: '#F1F4F6', // cool white (17.3:1 on canvas)
-  textSecondary: '#AEB6BD', // secondary copy (9.3:1 on canvas)
-  textMuted: '#7B858E', // large / UI use only — not body copy (5.1:1 on canvas)
+  textPrimary: '#171A1D', // cool graphite near-black (not pure black)
+  textSecondary: '#4B5560',
+  textMuted: '#808A96', // large / UI use only — not body copy
 
   // Accent (single accent, used sparingly for primary actions & key status)
-  accent: '#2F9E95', // restrained deep teal — brightened Palette B lineage
-  accentPressed: '#33A79E', // pressed state lifts on dark (ink stays AA)
-  accentSoftBg: '#102B29', // accent-tinted background (selection, info pills)
+  accent: '#1F6F6B',
+  accentPressed: '#175551',
+  accentSoftBg: '#E6F0EF', // accent-tinted background (selection, info pills)
 
-  // Semantic (lifted for dark legibility, still muted)
-  success: '#52A779',
-  successSoftBg: '#152E22',
-  warning: '#D6A44A',
-  warningSoftBg: '#33270F',
-  danger: '#DE6A61',
-  dangerSoftBg: '#3A1B19',
+  // Semantic (muted, harmonious with the base)
+  success: '#2A7050',
+  successSoftBg: '#E4F0EA',
+  warning: '#8A6410',
+  warningSoftBg: '#F5EEDC',
+  danger: '#A32C24',
+  dangerSoftBg: '#F6E7E5',
 
   // On-color text (text placed ON an accent/semantic fill)
-  onAccent: '#07110F', // dark ink on bright teal fill (5.9:1)
-  onSuccess: '#0A130D',
-  onWarning: '#171104',
-  onDanger: '#FFFFFF', // white on the deep destructive fill (--destructive)
+  onAccent: '#FFFFFF', // white on deep teal (5.9:1)
+  onSuccess: '#FFFFFF',
+  onWarning: '#FFFFFF',
+  onDanger: '#FFFFFF',
 
   // Utility
-  overlay: 'rgba(5, 7, 9, 0.65)', // scrim behind sheets/modals
+  overlay: 'rgba(23, 26, 29, 0.45)', // scrim behind sheets/modals
   transparent: 'transparent',
   white: '#FFFFFF',
 } as const;

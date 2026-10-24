@@ -15,8 +15,8 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Dark is the app's active theme (see global.css). */}
-        <StatusBar style="light" />
+        {/* Light is the app's active theme (see global.css). */}
+        <StatusBar style="dark" />
         <AuthRouter />
       </AuthProvider>
     </QueryClientProvider>
@@ -35,8 +35,8 @@ function AuthRouter() {
   }
 
   return (
-    <View className="dark flex-1" style={styles.root}>
-      <ThemeProvider value={NAV_THEME.dark}>
+    <View style={styles.root}>
+      <ThemeProvider value={NAV_THEME.light}>
         <Stack>
           {isAuthenticated ? (
             <Stack.Screen
