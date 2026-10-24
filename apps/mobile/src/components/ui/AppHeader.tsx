@@ -43,6 +43,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 56,
+    // clearer section break between header and the content below
+    marginBottom: spacing.xs,
   },
   side: {
     minWidth: 44,
