@@ -1,5 +1,6 @@
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { ReactNode } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing } from '@/theme';
 
 export interface ScreenContainerProps {
@@ -10,17 +11,26 @@ export interface ScreenContainerProps {
 }
 
 /**
- * The one screen-level container: sets the canvas background and standard
- * horizontal padding. Replaces per-screen ad-hoc wrapper Views.
+ * The one screen-level container: sets the canvas background, applies the
+ * top safe-area inset (screens have no navigator header to absorb the
+ * camera/status-bar area), and standard horizontal padding.
+ * `style` is merged last — pass `{ paddingTop: 0 }` when a real header
+ * already offsets the content (e.g. the dev gallery).
  */
 export function ScreenContainer({
   children,
   padded = true,
   style,
 }: ScreenContainerProps) {
+  const insets = useSafeAreaInsets();
   return (
     <View
-      style={[styles.root, padded && styles.padded, style]}
+      style={[
+        styles.root,
+        padded && styles.padded,
+        { paddingTop: insets.top },
+        style,
+      ]}
       accessibilityRole="none"
     >
       {children}

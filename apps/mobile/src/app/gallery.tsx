@@ -55,7 +55,7 @@ function GalleryContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer style={{ paddingTop: 0 }}>
       <Stack.Screen options={{ title: 'Component Gallery', headerShown: true }} />
       {toastOpen ? <Toast message="Saved successfully" /> : null}
       <OfflineBanner visible message="Offline preview" />
