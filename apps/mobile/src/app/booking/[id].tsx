@@ -57,7 +57,7 @@ export default function BookingDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Booking" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
@@ -71,7 +71,7 @@ export default function BookingDetailScreen() {
 
   if (isError || !booking) {
     return (
-      <ScreenContainer safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Booking" />
         <EmptyState
           title="Booking not found"
@@ -117,7 +117,7 @@ export default function BookingDetailScreen() {
   };
 
   return (
-    <ScreenContainer safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader left={<BackButton />} title={`Booking #${booking.id.slice(0, 8)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card>

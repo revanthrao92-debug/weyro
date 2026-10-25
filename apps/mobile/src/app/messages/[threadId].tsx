@@ -19,7 +19,7 @@ export default function MessagesThreadScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader left={<BackButton />} title="Conversation" />
 
         <FlatList

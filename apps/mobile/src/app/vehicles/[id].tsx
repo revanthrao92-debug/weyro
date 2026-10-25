@@ -31,7 +31,7 @@ export default function VehicleDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="light">
         <AppHeader
           variant="light"
           title="Vehicle Details"
@@ -46,7 +46,7 @@ export default function VehicleDetailScreen() {
 
   if (!vehicle) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="light">
         <AppHeader
           variant="light"
           title="Vehicle Details"
@@ -58,7 +58,7 @@ export default function VehicleDetailScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="light">
       <AppHeader
         variant="light"
         title="Vehicle Details"

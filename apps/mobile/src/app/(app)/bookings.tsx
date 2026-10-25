@@ -17,7 +17,7 @@ export default function BookingsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="My Bookings" />
         {[0, 1, 2].map((i) => (
           <BookingCardSkeleton key={i} />
@@ -32,7 +32,7 @@ export default function BookingsScreen() {
   const showFilters = bookings.length > 0 || !!statusFilter;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="My Bookings" />
 
       {showFilters ? (

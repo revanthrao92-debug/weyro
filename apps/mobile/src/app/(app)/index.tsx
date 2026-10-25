@@ -121,7 +121,7 @@ export default function HomeScreen() {
 
   if (role !== 'CUSTOMER' && role !== null && role !== 'BOTH') {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader
           logo={require('../../../assets/images/weyro-logo.png')}
           subtitle="Your vehicle, our priority."
@@ -135,8 +135,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer padded={false} safeBottom>
-      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+    <ScreenContainer chrome="dark" padded={false} safeBottom>
+      <View style={[styles.hero, { paddingTop: 48 }]}>
         <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         <View style={styles.heroShade} />
         <View style={styles.heroInner}>

@@ -55,7 +55,7 @@ export default function RequestDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Request" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="50%" height={18} />
@@ -69,7 +69,7 @@ export default function RequestDetailScreen() {
 
   if (!request) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Request" />
         <ErrorState title="Request not found" message="This request may have been removed." />
       </ScreenContainer>
@@ -113,7 +113,7 @@ export default function RequestDetailScreen() {
   };
 
   return (
-    <ScreenContainer safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader left={<BackButton />} title={`Request #${request.id.slice(0, 8)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card>

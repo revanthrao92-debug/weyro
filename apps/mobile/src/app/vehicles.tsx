@@ -112,7 +112,7 @@ export default function VehiclesScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
         {[0, 1, 2].map((i) => (
           <VehicleSkeleton key={i} />
@@ -126,7 +126,7 @@ export default function VehiclesScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
 
         {vehicles.length === 0 ? (

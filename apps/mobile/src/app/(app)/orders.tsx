@@ -18,7 +18,7 @@ export default function DealerOrdersScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="Orders" subtitle="Orders for your spare parts" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -31,7 +31,7 @@ export default function DealerOrdersScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Orders" subtitle="Orders for your spare parts" />
 
       {orders.length === 0 ? (

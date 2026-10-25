@@ -10,7 +10,7 @@ export default function ActivityScreen() {
   ];
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Activity Logs" subtitle="Platform activity audit trail" />
       <FlatList
         data={activities}

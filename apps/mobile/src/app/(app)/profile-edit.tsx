@@ -62,7 +62,7 @@ export default function CustomerProfileScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader title="Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={18} />
@@ -80,7 +80,7 @@ export default function CustomerProfileScreen() {
 
   if (!profile) {
     return (
-      <ScreenContainer padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader title="Profile" />
         <EmptyState title="No profile found" message="Your profile will appear here." />
       </ScreenContainer>
@@ -92,7 +92,7 @@ export default function CustomerProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader title="Profile" subtitle="Manage your personal information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.avatarCard}>

@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const email = user?.email ?? '';
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="light">
       <AppHeader variant="light" title="Profile" />
 
       <ScrollView contentContainerStyle={styles.body}>

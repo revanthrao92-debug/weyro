@@ -9,38 +9,67 @@ export interface ScreenContainerProps {
   padded?: boolean;
   /** Add the bottom safe-area inset (screens without a tab bar). */
   safeBottom?: boolean;
+  /**
+   * Color of the top safe-area strip behind the status bar.
+   * Must match the screen header so the chrome reads as one unbroken bar:
+   *  - 'dark'  navy chrome (dark AppHeader, Home hero)
+   *  - 'light' white chrome (light AppHeader)
+   *  - 'none'  canvas color (screens with no edge-to-edge header)
+   */
+  chrome?: 'dark' | 'light' | 'none';
   style?: ViewStyle | ViewStyle[];
 }
 
 /**
- * The one screen-level container: sets the canvas background, applies the
- * top safe-area inset (screens have no navigator header to absorb the
- * camera/status-bar area), and standard horizontal padding.
- * `style` is merged last — pass `{ paddingTop: 0 }` when a real header
- * already offsets the content (e.g. the dev gallery).
+ * The one screen-level container. Two layers:
+ * Outer layer paints the status-bar strip with the header chrome color so the
+ * dark/light bar extends edge-to-edge behind the clock. Inner layer is the
+ * light content canvas and carries the standard horizontal padding
+ * (headers compensate with negative margins to stay full-bleed).
  */
 export function ScreenContainer({
   children,
   padded = true,
   safeBottom = false,
+  chrome = 'none',
   style,
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
+  const chromeColor =
+    chrome === 'dark' ? palette.header : chrome === 'light' ? palette.surface : palette.canvas;
   return (
     <View
-      style={[
-        styles.root,
-        padded && styles.padded,
-        { paddingTop: insets.top },
-        safeBottom && { paddingBottom: insets.bottom },
-        style,
-      ]}
+      style={[styles.root, { backgroundColor: chromeColor, paddingTop: insets.top }]}
       accessibilityRole="none"
     >
-      {children}
+      <View
+        style={[
+          styles.canvas,
+          padded && styles.padded,
+          safeBottom && { paddingBottom: insets.bottom },
+          style,
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  canvas: {
+    flex: 1,
+    backgroundColor: palette.canvas,
+  },
+  padded: {
+    paddingHorizontal: spacing.lg,
+  },
+});
+
+export default ScreenContainer;
 
 export interface CardProps {
   children: ReactNode;
@@ -49,9 +78,7 @@ export interface CardProps {
 }
 
 /**
- * The single surface container: consistent radius, border, and depth —
- * NativeWind classes over the `card`/`border` design tokens. `style` is
- * merged after the class-based base (class wins on nothing but conflicts).
+ * The single surface container: consistent radius, border, and depth.
  */
 export function Card({ children, style }: CardProps) {
   return (
@@ -63,15 +90,3 @@ export function Card({ children, style }: CardProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: palette.canvas,
-  },
-  padded: {
-    paddingHorizontal: spacing.lg,
-  },
-});
-
-export default ScreenContainer;

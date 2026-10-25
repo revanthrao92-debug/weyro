@@ -36,7 +36,7 @@ export default function ProviderProfilePublicScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Provider" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={20} />
@@ -49,7 +49,7 @@ export default function ProviderProfilePublicScreen() {
 
   if (!provider) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Provider" />
         <EmptyState title="Provider not found" message="This provider may have been removed." />
       </ScreenContainer>
@@ -65,7 +65,7 @@ export default function ProviderProfilePublicScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <ScreenContainer safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title={provider.businessName} subtitle={provider.providerType} />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.headerCard}>

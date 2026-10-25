@@ -76,6 +76,9 @@ const styles = StyleSheet.create({
     minHeight: 56,
     borderBottomWidth: 1,
     marginBottom: spacing.md,
+    // Escape ScreenContainer's 16px content padding so the
+    // chrome bar spans edge-to-edge while its content stays aligned at 16.
+    marginHorizontal: -spacing.lg,
   },
   headerDark: {
     backgroundColor: palette.header,

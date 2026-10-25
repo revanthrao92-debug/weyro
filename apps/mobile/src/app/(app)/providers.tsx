@@ -22,7 +22,7 @@ export default function ProvidersScreen() {
   ];
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Provider Verification" subtitle="Manage provider onboarding" />
 
       <FlatList

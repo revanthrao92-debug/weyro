@@ -32,7 +32,7 @@ export default function BroadcastFeedScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="Opportunities" subtitle="Nearby service requests" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -63,7 +63,7 @@ export default function BroadcastFeedScreen() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Opportunities" subtitle="Nearby service requests" />
 
       {showFilters ? (

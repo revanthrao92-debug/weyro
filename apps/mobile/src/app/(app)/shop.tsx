@@ -35,7 +35,7 @@ export default function ShopScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -49,7 +49,7 @@ export default function ShopScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
 
       {/* Category tiles */}

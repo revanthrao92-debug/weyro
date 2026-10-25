@@ -47,7 +47,7 @@ export default function MyRequestsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="My Requests" subtitle="Your service requests" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -65,7 +65,7 @@ export default function MyRequestsScreen() {
   const showFilters = requests.length > 0 || !!statusFilter;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="My Requests" subtitle="Your service requests" />
 
       {showFilters ? (

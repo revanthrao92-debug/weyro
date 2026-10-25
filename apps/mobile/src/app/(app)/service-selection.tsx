@@ -41,7 +41,7 @@ export default function ServiceSelectionScreen() {
   const dark = palette.header;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader
         logo={require('../../../assets/images/weyro-logo.png')}
         subtitle="Choose a service to get started."

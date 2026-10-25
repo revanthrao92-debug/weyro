@@ -21,7 +21,7 @@ export default function MyOrdersScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="My Orders" subtitle="Your spare parts purchases" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -54,7 +54,7 @@ export default function MyOrdersScreen() {
   };
 
   return (
-    <ScreenContainer safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader left={<BackButton />} title="My Orders" subtitle="Your spare parts purchases" />
 
       {orders.length === 0 ? (

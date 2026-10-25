@@ -12,7 +12,7 @@ export default function MessagesScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="Messages" subtitle="Your conversations" />
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} width="100%" height={56} />
@@ -22,7 +22,7 @@ export default function MessagesScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Messages" subtitle="Your conversations" />
 
       <FlatList

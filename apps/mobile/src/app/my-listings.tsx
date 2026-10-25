@@ -52,7 +52,7 @@ export default function MyListingsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="My Listings" subtitle="Manage your spare parts inventory" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -65,7 +65,7 @@ export default function MyListingsScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="My Listings" subtitle="Manage your spare parts inventory" />
 
       {parts.length === 0 ? (

@@ -52,7 +52,7 @@ export default function NotificationsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer chrome="dark">
         <AppHeader title="Notifications" />
         {[0, 1, 2, 3].map((i) => (
           <ListItem key={i} title="Notification title" subtitle="Notification body will appear here" />
@@ -62,7 +62,7 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer chrome="dark">
       <AppHeader title="Notifications" subtitle="Your updates" />
 
       <View style={styles.headerActions}>
