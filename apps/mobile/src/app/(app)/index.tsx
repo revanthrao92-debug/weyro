@@ -188,7 +188,7 @@ export default function HomeScreen() {
                 key={s.label}
                 label={s.label}
                 selected={false}
-                onPress={() => router.push('/requests/create')}
+                onPress={() => router.push('/service-selection')}
               />
             ))}
           </ButtonRow>
