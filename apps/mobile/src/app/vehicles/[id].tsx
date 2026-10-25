@@ -64,7 +64,7 @@ export default function VehicleDetailScreen() {
       <ScrollView contentContainerStyle={styles.body}>
         <SectionCard title="Vehicle" icon={Car} style={styles.section}>
           <View style={styles.vehicleImage}>
-            <Image source={require('../../assets/images/icon.png')} />
+            <Image source={require('../../../assets/images/weyro-logo.png')} />
           </View>
         </SectionCard>
 
