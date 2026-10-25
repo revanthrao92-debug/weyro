@@ -6,7 +6,7 @@ import { Badge } from './Badge';
 import { palette, spacing, typography } from '@/theme';
 
 export interface SectionCardProps {
-  title: string;
+  title?: string;
   /** Small leading icon for the section identity. */
   icon?: LucideIcon;
   /** Optional count rendered as a badge next to the title. */
@@ -38,7 +38,7 @@ export function SectionCard({
     <View style={styles.headerRow}>
       {Icon ? <Icon size={18} color={palette.teal} strokeWidth={2} /> : null}
       <Text style={styles.title} maxFontSizeMultiplier={2}>
-        {title}
+        {title ?? ''}
       </Text>
       {count ? <Badge value={count} tone="neutral" /> : null}
       <View style={styles.spacer} />
@@ -56,7 +56,7 @@ export function SectionCard({
         <Pressable
           onPress={onPress}
           accessibilityRole="button"
-          accessibilityLabel={actionLabel ? `${title}, ${actionLabel}` : title}
+          accessibilityLabel={actionLabel ? `${title ?? ''}, ${actionLabel}` : title}
           hitSlop={4}
           className="active:opacity-60"
         >

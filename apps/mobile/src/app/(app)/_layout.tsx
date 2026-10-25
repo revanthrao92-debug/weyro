@@ -77,7 +77,7 @@ export default function AppLayout() {
           ]
         : [
             <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,
-            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Bookings', tabBarIcon: tabIcon(CalendarDays) }} />,
+            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Requests', tabBarIcon: tabIcon(CalendarDays) }} />,
             <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
             <Tabs.Screen key="shop" name="shop" options={{ title: 'Shop', tabBarIcon: tabIcon(ShoppingBag) }} />,
             <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,

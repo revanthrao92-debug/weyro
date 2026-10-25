@@ -1,10 +1,29 @@
 import { useState } from 'react';
-import { FlatList, Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { FlatList, Text, View, ActivityIndicator, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
-import { EllipsisVertical, Package } from 'lucide-react-native';
+import {
+  EllipsisVertical,
+  Package,
+  Wrench,
+  Disc3,
+  Settings2,
+  Zap,
+  Car,
+  Filter,
+  ArrowUpFromLine,
+} from 'lucide-react-native';
 import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';
+
+const CATEGORIES = [
+  { label: 'Engine', Icon: Wrench },
+  { label: 'Brakes', Icon: Disc3 },
+  { label: 'Suspension', Icon: Settings2 },
+  { label: 'Electrical', Icon: Zap },
+  { label: 'Body Parts', Icon: Car },
+  { label: 'Filters', Icon: Filter },
+];
 
 export default function ShopScreen() {
   const [search, setSearch] = useState('');
@@ -32,6 +51,46 @@ export default function ShopScreen() {
   return (
     <ScreenContainer>
       <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
+
+      {/* Category tiles */}
+      <View style={styles.catGrid}>
+        {CATEGORIES.map((c) => (
+          <Pressable
+            key={c.label}
+            onPress={() => router.push(`/requests/create?category=SPARE_PART`)}
+            accessibilityRole="button"
+            accessibilityLabel={c.label}
+            className="active:opacity-70"
+            style={styles.catTile}
+          >
+            <View style={styles.catIconWrap}>
+              <c.Icon size={22} color={palette.teal} strokeWidth={1.75} />
+            </View>
+            <Text style={styles.catLabel} maxFontSizeMultiplier={2}>
+              {c.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Rare-part request banner */}
+      <Pressable
+        onPress={() => router.push('/requests/create?category=SPARE_PART')}
+        accessibilityRole="button"
+        accessibilityLabel="Can't find what you need? Upload a photo"
+        className="active:opacity-90"
+        style={styles.rareBanner}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rareTitle} maxFontSizeMultiplier={2}>Can&apos;t find what you need?</Text>
+          <Text style={styles.rareSub} maxFontSizeMultiplier={2}>
+            Upload a photo and let dealers find it for you.
+          </Text>
+          <View style={styles.rareCta}>
+            <Text style={styles.rareCtaText}>Upload Photo</Text>
+          </View>
+        </View>
+      </Pressable>
 
       <FilterBar>
         <View style={styles.filterBar}>
@@ -121,6 +180,64 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   filterField: { flex: 1, marginBottom: 0 },
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  catTile: {
+    width: (375 - 32 - 12) / 3,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  catIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: palette.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  catLabel: {
+    ...typography.label,
+    color: palette.textSecondary,
+  },
+  rareBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: palette.header,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  rareTitle: {
+    ...typography.bodyMedium,
+    color: palette.onHeader,
+  },
+  rareSub: {
+    ...typography.caption,
+    color: palette.onHeaderMuted,
+    marginTop: 2,
+    marginBottom: spacing.sm,
+  },
+  rareCta: {
+    alignSelf: 'flex-start',
+    backgroundColor: palette.accent,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  rareCtaText: {
+    ...typography.label,
+    color: palette.onAccent,
+    fontWeight: '600',
+  },
   list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
   card: {

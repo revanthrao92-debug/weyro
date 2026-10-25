@@ -1,153 +1,198 @@
-import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
-  View,
-  Text,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+  Car,
+  MapPin,
+  CreditCard,
+  Clock3,
+  Star,
+  UserRoundPen,
+  LifeBuoy,
+  Settings2,
+  LogOut,
+} from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerProfile, useUpdateCustomerProfile } from '@/hooks/useProfile';
-import {
-  Input,
-  Button,
-  ScreenContainer,
-  AppHeader,
-  Card,
-  Avatar,
-  StatusPill,
-  EmptyState,
-  Skeleton,
-} from '@/components/ui';
-import { StatusTone, palette, spacing, radii, typography } from '@/theme';
+import { ScreenContainer, AppHeader, ListItem, StatusPill } from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 
-export default function CustomerProfileScreen() {
-  const { user } = useAuth();
-  const { data: profile, isLoading } = useCustomerProfile();
-  const updateProfile = useUpdateCustomerProfile();
-  const [firstName, setFirstName] = useState(profile?.firstName ?? '');
-  const [lastName, setLastName] = useState(profile?.lastName ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? '');
-  const [saving, setSaving] = useState(false);
+export default function ProfileScreen() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
-  // State above is initialized on first render, while `profile` is still
-  // undefined (async fetch). Seed the fields once when data arrives, without
-  // clobbering later user edits on refetch.
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (!profile || seeded.current) return;
-    seeded.current = true;
-    setFirstName(profile.firstName ?? '');
-    setLastName(profile.lastName ?? '');
-    setAvatarUrl(profile.avatarUrl ?? '');
-  }, [profile]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await updateProfile.mutateAsync({
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        avatarUrl: avatarUrl || null,
-      });
-      Alert.alert('Success', 'Profile updated');
-    } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <ScreenContainer padded={false}>
-        <AppHeader title="Profile" />
-        <Card style={styles.skeletonCard}>
-          <Skeleton width="100%" height={18} />
-          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
-        </Card>
-        <Card style={styles.skeletonCard}>
-          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
-          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
-          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
-          <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
-        </Card>
-      </ScreenContainer>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <ScreenContainer padded={false}>
-        <AppHeader title="Profile" />
-        <EmptyState title="No profile found" message="Your profile will appear here." />
-      </ScreenContainer>
-    );
-  }
+  const name =
+    user?.customerProfile?.firstName
+      ? `${user.customerProfile.firstName} ${user.customerProfile.lastName ?? ''}`.trim()
+      : user?.email?.split('@')[0] ?? 'Owner';
+  const email = user?.email ?? '';
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <ScreenContainer padded={false}>
-        <AppHeader title="Profile" subtitle="Manage your personal information" />
-        <ScrollView contentContainerStyle={styles.body}>
-          <Card style={styles.avatarCard}>
-            <View style={styles.avatarRow}>
-              <Avatar name={`${firstName} ${lastName}`} size={80} />
-              <Input
-                label="Avatar URL"
-                placeholder="Avatar URL"
-                value={avatarUrl}
-                onChangeText={setAvatarUrl}
-                style={styles.avatarInput}
-              />
-            </View>
-          </Card>
+    <ScreenContainer>
+      <AppHeader variant="light" title="Profile" />
 
-          <View style={styles.form}>
-            <Input
-              label="First Name"
-              placeholder="First name"
-              value={firstName}
-              onChangeText={setFirstName}
-            />
-            <Input
-              label="Last Name"
-              placeholder="Last name"
-              value={lastName}
-              onChangeText={setLastName}
-            />
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              value={user?.email ?? ''}
-              editable={false}
-            />
-            <Input
-              label="Phone"
-              placeholder="+91 98765 43210"
-              value={user?.phone ?? ''}
-              editable={false}
-            />
+      <ScrollView contentContainerStyle={styles.body}>
+        {/* Account header */}
+        <View style={styles.accountCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{(name?.[0] || 'W').toUpperCase()}</Text>
           </View>
+          <View style={{ flexShrink: 1 }}>
+            <Text style={styles.name} maxFontSizeMultiplier={2}>
+              {name}
+            </Text>
+            <Text style={styles.email} maxFontSizeMultiplier={2}>
+              {email}
+            </Text>
+            <View style={{ marginTop: 6 }}>
+              <StatusPill label="Customer" tone="info" />
+            </View>
+          </View>
+        </View>
 
-          <Button title="Save changes" onPress={handleSave} disabled={saving} loading={saving} />
-        </ScrollView>
-      </ScreenContainer>
-    </KeyboardAvoidingView>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <ListItem
+          bare
+          divider
+          title="Edit Profile"
+          left={<IconRow Icon={UserRoundPen} />}
+          onPress={() => router.push('/profile-edit')}
+          accessibilityLabel="Edit profile"
+        />
+        <ListItem
+          bare
+          divider
+          title="My Vehicles"
+          left={<IconRow Icon={Car} />}
+          onPress={() => router.push('/vehicles')}
+          accessibilityLabel="My vehicles"
+        />
+        <ListItem
+          bare
+          divider
+          title="Addresses"
+          left={<IconRow Icon={MapPin} />}
+          onPress={() => router.push('/addresses')}
+          accessibilityLabel="Addresses"
+        />
+        <ListItem
+          bare
+          divider
+          title="Payment Methods"
+          subtitle="Coming soon"
+          left={<IconRow Icon={CreditCard} />}
+          accessibilityLabel="Payment methods"
+        />
+
+        <Text style={styles.sectionTitle}>Services</Text>
+        <ListItem
+          bare
+          divider
+          title="Service History"
+          left={<IconRow Icon={Clock3} />}
+          onPress={() => router.push('/bookings')}
+          accessibilityLabel="Service history"
+        />
+        <ListItem
+          bare
+          divider
+          title="My Quotes"
+          left={<IconRow Icon={Star} />}
+          onPress={() => router.push('/my-quotes')}
+          accessibilityLabel="My quotes"
+        />
+        <ListItem
+          bare
+          divider
+          title="Notification Settings"
+          left={<IconRow Icon={Settings2} />}
+          onPress={() => router.push('/notifications/push-token')}
+          accessibilityLabel="Notification settings"
+        />
+        <ListItem
+          bare
+          title="Help & Support"
+          subtitle="Coming soon"
+          left={<IconRow Icon={LifeBuoy} />}
+          accessibilityLabel="Help and support"
+        />
+
+        <Pressable
+          onPress={() => void logout()}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          className="active:opacity-70"
+          style={styles.signOutButton}
+        >
+          <LogOut size={20} color={palette.danger} strokeWidth={2} />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
+      </ScrollView>
+    </ScreenContainer>
+  );
+}
+
+function IconRow({ Icon }: { Icon: any }) {
+  return (
+    <View style={styles.iconPad}>
+      <Icon size={20} color={palette.textSecondary} strokeWidth={1.75} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.canvas },
-  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  skeletonCard: { marginBottom: spacing.md },
-  avatarCard: { marginBottom: spacing.lg },
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  avatarInput: { flex: 1 },
-  form: { gap: spacing.md },
+  body: { paddingBottom: spacing.xxl },
+  accountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: palette.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: spacing.lg,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: palette.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    ...typography.heading,
+    color: palette.onAccent,
+  },
+  name: {
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
+  },
+  email: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
+  iconPad: { width: 32 },
+  sectionTitle: {
+    ...typography.label,
+    color: palette.textMuted,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.dangerSoftBg,
+    backgroundColor: palette.dangerSoftBg,
+  },
+  signOutText: {
+    ...typography.bodyMedium,
+    color: palette.danger,
+  },
 });
