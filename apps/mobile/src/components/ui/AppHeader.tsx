@@ -12,18 +12,27 @@ export interface AppHeaderProps {
   right?: ReactNode;
   /** Optional subtitle / supporting line. */
   subtitle?: string;
+  /** Chrome treatment. Dark navy header is the reference default. @default 'dark' */
+  variant?: 'dark' | 'light';
 }
 
 /**
- * The one screen header: consistent title typography and spacing. Back button
- * and actions are passed in as nodes so navigation behavior stays at the call
- * site (no navigation logic changes here).
+ * The one screen header: deep navy chrome bar above light content, matching
+ * the approved reference. Back button and actions are passed in as nodes so
+ * navigation behavior stays at the call site.
  */
-export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps) {
+export function AppHeader({
+  title,
+  logo,
+  subtitle,
+  left,
+  right,
+  variant = 'dark',
+}: AppHeaderProps) {
+  const dark = variant === 'dark';
   return (
-    <View style={styles.header}>
-      {/* Both side slots always render so the centered title stays centered
-          (a missing left spacer used to shift every header ~22px left). */}
+    <View style={[styles.header, dark ? styles.headerDark : styles.headerLight]}>
+      {/* Both side slots always render so the centered title stays centered. */}
       {left ? <View style={styles.side}>{left}</View> : <View style={styles.side} />}
       <View style={[styles.center, !!left && styles.centerLeft]}>
         {logo ? (
@@ -36,7 +45,7 @@ export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps
           />
         ) : (
           <Text
-            style={[styles.title, !!left && styles.titleLeft]}
+            style={[styles.title, dark ? styles.titleDark : styles.titleLight, !!left && styles.titleLeft]}
             numberOfLines={1}
             maxFontSizeMultiplier={2}
           >
@@ -45,7 +54,7 @@ export function AppHeader({ title, logo, subtitle, left, right }: AppHeaderProps
         )}
         {subtitle ? (
           <Text
-            style={[styles.subtitle, !!left && styles.subtitleLeft]}
+            style={[styles.subtitle, dark ? styles.subtitleDark : styles.subtitleLight, !!left && styles.subtitleLeft]}
             numberOfLines={1}
             maxFontSizeMultiplier={2}
           >
@@ -65,11 +74,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 56,
-    // Header must read as its own section above content: a real (1px)
-    // divider + a full spacing step below, not a hairline + 4px.
     borderBottomWidth: 1,
-    borderBottomColor: palette.borderStrong,
     marginBottom: spacing.md,
+  },
+  headerDark: {
+    backgroundColor: palette.header,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  headerLight: {
+    backgroundColor: palette.surface,
+    borderBottomColor: palette.border,
   },
   side: {
     minWidth: 44,
@@ -79,16 +93,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  // Pushed screens (back button present) use the iOS convention: title next
-  // to the chevron, left-aligned.
   centerLeft: {
     alignItems: 'flex-start',
     paddingLeft: spacing.xs,
   },
   title: {
     ...typography.heading,
-    color: palette.textPrimary,
     textAlign: 'center',
+  },
+  titleDark: {
+    color: palette.onHeader,
+  },
+  titleLight: {
+    color: palette.textPrimary,
   },
   titleLeft: {
     textAlign: 'left',
@@ -99,9 +116,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.caption,
-    color: palette.textSecondary,
     textAlign: 'center',
     marginTop: 2,
+  },
+  subtitleDark: {
+    color: palette.onHeaderMuted,
+  },
+  subtitleLight: {
+    color: palette.textSecondary,
   },
   subtitleLeft: {
     textAlign: 'left',

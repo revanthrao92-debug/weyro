@@ -1,56 +1,69 @@
 /**
- * Weyro theme — colors (Premium Automotive Dark).
+ * Weyro theme — colors (Premium Automotive — hybrid light/dark).
  * Single source of truth for every color used in the app.
  * Do NOT hardcode hex values in screens; import from here.
  *
- * Mood: sophisticated dark automotive — graphite/carbon-black canvas,
- * elevated carbon surfaces, one restrained racing-red accent used
- * sparingly for primary actions and key status.
+ * Direction (matches the approved reference design):
+ * - Light content canvas with white cards
+ * - Deep navy/graphite chrome for headers, hero areas and onboarding
+ * - Buttons: brand orange (#FF6A00, matches the gear logo) with dark
+ *   ink text — reserved for primary CTAs only
+ * - Teal for links, active states, info pills and secondary accents
  *
- * All essential text pairs pass WCAG AA (≥4.5:1); verified with contrast
- * script. Semantic colors used consistently — never color alone for
- * status; always paired with text/icon.
+ * All essential text pairs pass WCAG AA (≥4.5:1). Semantic colors are
+ * always paired with text/icons — never color alone.
  *
  * NativeWind components read the equivalent CSS variables in `global.css`
  * (`--background`, `--primary`, …) — keep the two files in sync.
  */
 
 export const palette = {
-  // Surfaces / backgrounds
-  canvas: '#0B0F12', // app background (carbon near-black)
-  surface: '#182128', // elevated surfaces / raised sheets
-  surfaceAlt: '#222D35', // elevated card surface / inset areas, skeletons
+  // Content surfaces (light)
+  canvas: '#F5F8FA', // app content background
+  surface: '#FFFFFF', // cards / sheets
+  surfaceAlt: '#F1F5F7', // sunken / inset areas, skeletons
 
-  // Borders
-  border: '#2B3842',
-  borderStrong: '#3A4956',
+  // Dark chrome (headers, hero, onboarding)
+  header: '#06151E', // deep navy-teal header bar
+  headerAlt: '#031923', // darker hero overlay base
+  onHeader: '#FFFFFF', // text on dark chrome
+  onHeaderMuted: '#A8BAC4', // secondary text on dark chrome
 
-  // Text
-  textPrimary: '#F5F7F9', // main text (high contrast on canvas)
-  textSecondary: '#A7B2BC', // secondary copy
-  textMuted: '#75818C', // large / UI use only — not body copy
+  // Borders (light content)
+  border: '#E3EAEE',
+  borderStrong: '#CBD8DE',
 
-  // Accent (single accent, used sparingly for primary actions & key status)
-  accent: '#E53935', // racing red — white text 5.18:1
-  accentPressed: '#C62828',
-  accentSoftBg: '#2A1414', // accent-tinted background (selection, info pills)
+  // Text on light content
+  textPrimary: '#0B1F2A', // near-black navy graphite
+  textSecondary: '#546772',
+  textMuted: '#8A98A1', // large / UI use only
+
+  // CTA — brand orange (matches gear logo; primary buttons only)
+  accent: '#FF6A00',
+  accentPressed: '#E65800',
+  accentSoftBg: '#FFF0E5', // CTA-tinted background
+  onAccent: '#0B1F2A', // dark ink on orange (5.88:1)
+
+  // Secondary accent — deep teal (links, active states, info pills)
+  teal: '#017365',
+  tealPressed: '#015A4F',
+  tealSoftBg: '#E6F3F0',
 
   // Semantic
-  success: '#36B37E',
-  successSoftBg: '#112A1E',
-  warning: '#F4B740',
-  warningSoftBg: '#2F230B',
-  danger: '#EF4444',
-  dangerSoftBg: '#2A1113',
+  success: '#1F9D6B',
+  successSoftBg: '#E4F4ED',
+  warning: '#B07A0B',
+  warningSoftBg: '#FBF1DC',
+  danger: '#D64545',
+  dangerSoftBg: '#FBE8E8',
 
-  // On-color text (text placed ON an accent/semantic fill)
-  onAccent: '#FFFFFF',
+  // On-color text (text placed ON a semantic fill)
   onSuccess: '#FFFFFF',
-  onWarning: '#0B0F12',
+  onWarning: '#FFFFFF',
   onDanger: '#FFFFFF',
 
   // Utility
-  overlay: 'rgba(5, 7, 9, 0.65)', // scrim behind sheets/modals
+  overlay: 'rgba(4, 12, 16, 0.55)', // scrim behind sheets/modals
   transparent: 'transparent',
   white: '#FFFFFF',
 } as const;
@@ -60,7 +73,7 @@ export type ColorToken = keyof typeof palette;
 /** Map a high-level semantic role to a concrete color for status pills, etc. */
 export const statusColors = {
   neutral: { fg: palette.textSecondary, bg: palette.surfaceAlt },
-  info: { fg: palette.accent, bg: palette.accentSoftBg },
+  info: { fg: palette.teal, bg: palette.tealSoftBg },
   success: { fg: palette.success, bg: palette.successSoftBg },
   warning: { fg: palette.warning, bg: palette.warningSoftBg },
   danger: { fg: palette.danger, bg: palette.dangerSoftBg },

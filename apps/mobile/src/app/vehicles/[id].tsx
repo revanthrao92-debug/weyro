@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Car } from 'lucide-react-native';
+import { BackButton } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
 import {
   ScreenContainer,
@@ -32,8 +33,9 @@ export default function VehicleDetailScreen() {
     return (
       <ScreenContainer>
         <AppHeader
-          logo={require('../../../assets/images/weyro-logo.png')}
-          subtitle="Vehicle details"
+          variant="light"
+          title="Vehicle Details"
+          left={<BackButton />}
         />
         <Skeleton width="100%" height={56} />
         <View style={styles.rowGap} />
@@ -46,8 +48,9 @@ export default function VehicleDetailScreen() {
     return (
       <ScreenContainer>
         <AppHeader
-          logo={require('../../../assets/images/weyro-logo.png')}
-          subtitle="Vehicle details"
+          variant="light"
+          title="Vehicle Details"
+          left={<BackButton />}
         />
         <EmptyState title="Vehicle not found" />
       </ScreenContainer>
@@ -57,8 +60,10 @@ export default function VehicleDetailScreen() {
   return (
     <ScreenContainer>
       <AppHeader
-        logo={require('../../../assets/images/weyro-logo.png')}
+        variant="light"
+        title="Vehicle Details"
         subtitle={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+        left={<BackButton />}
       />
 
       <ScrollView contentContainerStyle={styles.body}>

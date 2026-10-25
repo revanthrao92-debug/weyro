@@ -373,17 +373,17 @@ const styles = StyleSheet.create({
   },
   heroGreeting: {
     ...typography.label,
-    color: palette.accent,
+    color: palette.onHeaderMuted,
     fontWeight: '600',
   },
   heroTitle: {
     ...typography.heading,
-    color: palette.textPrimary,
+    color: palette.onHeader,
     marginTop: spacing.xs,
   },
   heroSubtitle: {
     ...typography.body,
-    color: palette.textSecondary,
+    color: palette.onHeaderMuted,
     marginTop: spacing.xs,
   },
   heroButton: {

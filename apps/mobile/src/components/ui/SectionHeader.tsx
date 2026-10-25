@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   action: {
     ...typography.captionMedium,
-    color: palette.accent,
+    color: palette.teal,
   },
 });
 

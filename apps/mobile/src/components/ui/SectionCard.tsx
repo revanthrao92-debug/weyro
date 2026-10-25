@@ -36,7 +36,7 @@ export function SectionCard({
 }: SectionCardProps) {
   const header = (
     <View style={styles.headerRow}>
-      {Icon ? <Icon size={18} color={palette.accent} strokeWidth={2} /> : null}
+      {Icon ? <Icon size={18} color={palette.teal} strokeWidth={2} /> : null}
       <Text style={styles.title} maxFontSizeMultiplier={2}>
         {title}
       </Text>
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   action: {
     ...typography.captionMedium,
-    color: palette.accent,
+    color: palette.teal,
   },
   body: {
     marginTop: spacing.xs,

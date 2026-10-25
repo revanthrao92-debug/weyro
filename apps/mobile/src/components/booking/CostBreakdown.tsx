@@ -88,6 +88,6 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     ...typography.heading,
-    color: palette.accent,
+    color: palette.textPrimary,
   },
 });

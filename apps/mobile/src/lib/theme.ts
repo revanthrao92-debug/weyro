@@ -17,21 +17,21 @@ import {
  * (reactnativereusables.com/docs/installation/manual#configure-your-styles).
  */
 const COLORS = {
-  /** canvas — #0B0F12 */
-  background: 'hsl(206 24% 6%)',
-  /** surface — #1D272F */
-  card: 'hsl(206 22% 17%)',
-  /** border — #2B3842 */
-  border: 'hsl(206 21% 21%)',
-  /** accent — #E53935 */
-  primary: 'hsl(1 77% 55%)',
-  /** textPrimary — #F5F7F9 */
-  text: 'hsl(204 22% 95%)',
-  /** danger — #E53935 */
-  notification: 'hsl(1 77% 55%)',
+  /** canvas — #F5F8FA */
+  background: 'hsl(204 33% 97%)',
+  /** surface — #FFFFFF */
+  card: 'hsl(0 0% 100%)',
+  /** border — #E3EAEE */
+  border: 'hsl(202 24% 91%)',
+  /** teal — #017365 (links/active accent) */
+  primary: 'hsl(173 98% 23%)',
+  /** textPrimary — #0B1F2A */
+  text: 'hsl(201 58% 10%)',
+  /** danger — #D64545 */
+  notification: 'hsl(0 64% 55%)',
 } as const;
 
-const DARK_TOKENS = {
+const LIGHT_TOKENS = {
   background: COLORS.background,
   foreground: COLORS.text,
   card: COLORS.card,
@@ -40,11 +40,11 @@ const DARK_TOKENS = {
   popoverForeground: COLORS.text,
   primary: COLORS.primary,
   primaryForeground: 'hsl(0 0% 100%)',
-  secondary: 'hsl(209 9% 50%)',
+  secondary: 'hsl(200 27% 96%)',
   secondaryForeground: COLORS.text,
-  muted: 'hsl(209 9% 50%)',
-  mutedForeground: 'hsl(209 14% 70%)',
-  accent: 'hsl(209 9% 50%)',
+  muted: 'hsl(200 27% 96%)',
+  mutedForeground: 'hsl(202 15% 39%)',
+  accent: 'hsl(200 27% 96%)',
   accentForeground: COLORS.text,
   destructive: COLORS.notification,
   destructiveForeground: 'hsl(0 0% 100%)',
@@ -55,8 +55,8 @@ const DARK_TOKENS = {
 } as const;
 
 export const THEME = {
-  light: DARK_TOKENS, // single-mode app — dark values in both slots
-  dark: DARK_TOKENS,
+  light: LIGHT_TOKENS,
+  dark: LIGHT_TOKENS, // single-mode app — a real dark theme would live here
 } as const;
 
 export const NAV_THEME: Record<'light' | 'dark', Theme> = {

@@ -4,48 +4,49 @@
 
 @layer base {
   /*
-   * Weyro — premium automotive dark theme.
+   * Weyro — premium automotive light theme (content) + dark chrome tokens.
    *
    * Space-separated HSL triples consumed by `tailwind.config.js` as
    * `hsl(var(--token))`. Values are mirrored from `src/theme/colors.ts`
    * (the single source of truth for the StyleSheet layer) — keep in sync.
-   *
-   * Light is NOT shipped here; the app is single-mode dark (see
-   * docs/ui-redesign-plan.md). Swap these blocks to introduce a light
-   * theme later.
    */
   :root {
-    /* Surfaces — carbon/graphite dark */
-    --background: 206 24% 6%; /* #0B0F12 canvas */
-    --foreground: 204 22% 95%; /* #F5F7F9 */
-    --card: 206 22% 17%; /* #1D272F */
-    --card-foreground: 204 22% 95%;
-    --popover: 206 22% 17%;
-    --popover-foreground: 204 22% 95%;
+    /* Content surfaces (light) */
+    --background: 204 33% 97%; /* #F5F8FA canvas */
+    --foreground: 201 58% 10%; /* #0B1F2A */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 201 58% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 201 58% 10%;
 
-    /* Accent — racing red, white label */
-    --primary: 1 77% 55%; /* #E53935 */
-    --primary-foreground: 0 0% 100%;
-    --primary-pressed: 0 66% 47%; /* #C62828 */
+    /* CTA — brand orange, DARK INK label (matches gear logo) */
+    --primary: 25 100% 50%; /* #FF6A00 */
+    --primary-foreground: 201 58% 10%; /* #0B1F2A dark ink */
+    --primary-pressed: 17 100% 45%; /* #E65800 */
 
     /* Secondary / muted */
-    --secondary: 209 9% 50%; /* #75818C */
-    --secondary-foreground: 204 22% 95%;
-    --muted: 209 9% 50%;
-    --muted-foreground: 209 14% 70%; /* #A7B2BC */
+    --secondary: 200 27% 96%; /* #F1F5F7 */
+    --secondary-foreground: 201 58% 10%;
+    --muted: 200 27% 96%;
+    --muted-foreground: 202 15% 39%; /* #546772 */
 
-    --accent: 209 9% 50%;
-    --accent-foreground: 204 22% 95%;
+    --accent: 200 27% 96%;
+    --accent-foreground: 201 58% 10%;
 
-    /* Destructive — racing red */
-    --destructive: 1 77% 55%; /* #E53935 */
+    /* Destructive */
+    --destructive: 0 64% 55%; /* #D64545 */
     --destructive-foreground: 0 0% 100%;
 
     /* Lines & focus */
-    --border: 206 21% 21%; /* #2B3842 */
-    --border-strong: 208 19% 28%; /* #3A4956 */
-    --input: 206 21% 21%;
-    --ring: 1 77% 55%;
+    --border: 202 24% 91%; /* #E3EAEE */
+    --border-strong: 199 22% 83%; /* #CBD8DE */
+    --input: 202 24% 91%;
+    --ring: 173 98% 23%; /* #017365 teal */
+
+    /* Dark chrome (headers/hero tokens for StyleSheet screens) */
+    --header: 202 67% 7%; /* #06151E */
+    --on-header: 0 0% 100%;
+    --on-header-muted: 201 22% 75%; /* #A8BAC4 */
 
     /* Geometry — rounded-md = 12px */
     --radius: 0.875rem;
