@@ -5,7 +5,8 @@
   "private": true,
   "workspaces": [
     "apps/api",
-    "packages/*"
+    "packages/*",
+    "apps/mobile"
   ],
   "engines": {
     "node": ">=22 <23",
