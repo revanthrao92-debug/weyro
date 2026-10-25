@@ -106,7 +106,7 @@ export default function NotificationsScreen() {
             />
           )}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+            <RefreshControl refreshing={isLoading} onRefresh={() => void refetch()} />
           }
         />
       )}
