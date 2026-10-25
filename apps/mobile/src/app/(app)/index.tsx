@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -14,6 +15,7 @@ import {
   SectionCard,
   ListItem,
   StatusPill,
+  PromoBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
@@ -74,12 +76,14 @@ const QUICK_ACTIONS = [
 export default function HomeScreen() {
   const router = useRouter();
   const { user, role } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const requestsQuery = useMyRequests();
   const bookingsQuery = useBookings();
   const vehiclesQuery = useVehicles();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [sponsoredVisible, setSponsoredVisible] = useState(true);
 
   const refetchAll = useCallback(async () => {
     await Promise.all([
@@ -132,7 +136,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer padded={false} safeBottom>
-      <View style={styles.hero}>
+      <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
         <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         <View style={styles.heroShade} />
         <View style={styles.heroInner}>
@@ -299,6 +303,16 @@ export default function HomeScreen() {
             ))
           )}
         </SectionCard>
+
+        {/* Sponsored placement (mid-feed ad slot, labeled) */}
+        <PromoBanner
+          image="https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=1200&q=80"
+          headline="Trusted Parts. Verified Dealers."
+          subhead="Explore sponsored offers from WEYRO partners."
+          ctaLabel="Explore Offer"
+          onPress={() => router.push('/shop')}
+          sponsored
+        />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Next Booking</Text>
@@ -476,7 +490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: palette.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.sm,

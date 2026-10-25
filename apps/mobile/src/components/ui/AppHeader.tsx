@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
   headerDark: {
     backgroundColor: palette.header,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomWidth: 0,
   },
   headerLight: {
     backgroundColor: palette.surface,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   centerLeft: {
     alignItems: 'flex-start',
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.heading,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   titleDark: {
     color: palette.onHeader,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.caption,
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: 2,
   },
   subtitleDark: {
