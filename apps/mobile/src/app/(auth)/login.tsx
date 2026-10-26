@@ -68,6 +68,13 @@ export default function LoginScreen() {
     <View style={styles.container}>
       {/* Dark hero — reference photo bottom-right frame */}
       <View style={styles.hero}>
+        {/* Night-car photography behind the chrome, deep overlay */}
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=1200&q=80' }}
+          style={[styles.heroPhoto, { resizeMode: 'cover' }]}
+        />
+        <View style={styles.heroShade} />
+        <View style={styles.heroShadeBottom} />
         <View style={styles.logoRow}>
           <Image
             source={require('../../../assets/images/weyro-logo.png')}
@@ -198,7 +205,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl + spacing.xl,
     paddingBottom: spacing.xl,
+    height: 300,
+    justifyContent: 'flex-start',
   },
+  heroPhoto: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 18, 23, 0.66)' },
+  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 25, 35, 0.35)' },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',

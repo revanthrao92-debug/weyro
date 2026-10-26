@@ -17,7 +17,7 @@ import {
   StatusPill,
   AdBanner,
 } from '@/components/ui';
-import { StatusTone, palette, spacing, radii, typography } from '@/theme';
+import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -63,8 +63,6 @@ const HERO_IMAGE =
   'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
 const VEHICLE_IMAGE =
   'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80';
-const PROMO_IMAGE =
-  'https://images.unsplash.com/photo-1494976388531-d1058494cdd5?auto=format&fit=crop&w=800&q=80';
 
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
@@ -200,7 +198,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={label}
               className="active:opacity-60"
-              style={styles.quickItem}
+              style={[styles.quickItem, elevation.card]}
             >
               <View style={styles.quickCircle}>
                 <Icon size={22} color={palette.teal} strokeWidth={1.75} />
@@ -253,20 +251,7 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        {/* Promotional placement */}
-        <Pressable
-          onPress={() => router.push('/shop')}
-          accessibilityRole="button"
-          accessibilityLabel="Genuine Parts offer"
-          className="active:opacity-90"
-          style={styles.promoCard}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.promoTitle}>Genuine Parts. Better Rides.</Text>
-            <Text style={styles.promoSubtitle}>Original parts from trusted dealers.</Text>
-          </View>
-          <Image source={PROMO_IMAGE} style={styles.promoImage} contentFit="cover" />
-        </Pressable>
+        {/* Promotional placement is now the AdBanner slot above (single source) */}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Active Requests</Text>
@@ -437,16 +422,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     gap: spacing.sm,
   },
-  quickItem: { alignItems: 'center', flex: 1 },
-  quickCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  quickItem: {
+    flex: 1,
+    alignItems: 'center',
     backgroundColor: palette.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: palette.border,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  quickCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: palette.tealSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   quickLabel: {
     ...typography.label,
@@ -498,24 +491,6 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     marginTop: 2,
   },
-
-  promoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: palette.header,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginTop: spacing.lg,
-    overflow: 'hidden',
-  },
-  promoTitle: { ...typography.bodyMedium, color: palette.onHeader },
-  promoSubtitle: {
-    ...typography.caption,
-    color: palette.onHeaderMuted,
-    marginTop: 2,
-  },
-  promoImage: { width: 88, height: 60, borderRadius: radii.sm },
 
   skeletonRow: { height: 44, borderRadius: radii.sm, backgroundColor: palette.surfaceAlt, marginBottom: spacing.sm },
   emptyRow: {
