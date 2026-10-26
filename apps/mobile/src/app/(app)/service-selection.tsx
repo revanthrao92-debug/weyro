@@ -117,8 +117,8 @@ export default function ServiceSelectionScreen() {
         <View style={styles.grid}>
           {SERVICES.map((s) => (
             <ServiceCard
-              key={s.key}
               {...s}
+              key={s.key}
               onPress={() => router.push(`/requests/create?category=${s.key}`)}
             />
           ))}
