@@ -18,6 +18,7 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -63,6 +64,11 @@ const HERO_IMAGE =
   'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
 const VEHICLE_IMAGE =
   'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80';
+
+/**
+ * Home hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo').
+ */
+const HOME_HERO_MODE: 'sketch' | 'photo' = 'sketch';
 
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
@@ -135,8 +141,17 @@ export default function HomeScreen() {
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
-        <View style={styles.heroShade} />
+        {/* Hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo'). */}
+        {HOME_HERO_MODE === 'sketch' ? (
+          <View style={styles.heroSketch} pointerEvents="none">
+            <PorscheSketch911 opacity={0.18} strokeWidth={2.5} />
+          </View>
+        ) : (
+          <>
+            <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+            <View style={styles.heroShade} />
+          </>
+        )}
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <Pressable
@@ -341,6 +356,13 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
+  heroSketch: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 18, 23, 0.72)' },
   heroInner: {
     paddingBottom: spacing.xxl,
