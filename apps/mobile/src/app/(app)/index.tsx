@@ -15,7 +15,7 @@ import {
   SectionCard,
   ListItem,
   StatusPill,
-  PromoBanner,
+  AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography } from '@/theme';
 
@@ -167,6 +167,11 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.sheet}>
+        {/* Sponsored slot directly under the hero — generous ad space */}
+        <View style={styles.adSlot}>
+          <AdBanner placement="home-hero-bottom" />
+        </View>
+
         {/* Primary service card */}
         <Pressable
           onPress={() => router.push('/service-selection')}
@@ -276,18 +281,11 @@ export default function HomeScreen() {
               <View style={styles.skeletonRow} />
             </>
           ) : requests.length === 0 ? (
-            <Pressable
-              onPress={() => router.push('/requests/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Create request"
-              className="active:opacity-70"
-              style={styles.emptyRow}
-            >
+            <View style={styles.emptyRow}>
               <Text style={styles.emptyText} maxFontSizeMultiplier={2}>
                 No requests yet — post one to get quotes.
               </Text>
-              <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
-            </Pressable>
+            </View>
           ) : (
             requests.map((request, index) => (
               <ListItem
@@ -305,14 +303,9 @@ export default function HomeScreen() {
         </SectionCard>
 
         {/* Sponsored placement (mid-feed ad slot, labeled) */}
-        <PromoBanner
-          image="https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=1200&q=80"
-          headline="Trusted Parts. Verified Dealers."
-          subhead="Explore sponsored offers from WEYRO partners."
-          ctaLabel="Explore Offer"
-          onPress={() => router.push('/shop')}
-          sponsored
-        />
+        <View style={styles.adSlot}>
+          <AdBanner placement="feed-inline" />
+        </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Next Booking</Text>
@@ -335,18 +328,11 @@ export default function HomeScreen() {
               accessibilityLabel="Next booking"
             />
           ) : (
-            <Pressable
-              onPress={() => router.push('/bookings')}
-              accessibilityRole="button"
-              accessibilityLabel="View bookings"
-              className="active:opacity-70"
-              style={styles.emptyRow}
-            >
+            <View style={styles.emptyRow}>
               <Text style={styles.emptyText} maxFontSizeMultiplier={2}>
                 No upcoming bookings.
               </Text>
-              <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
-            </Pressable>
+            </View>
           )}
         </SectionCard>
       </View>
@@ -418,6 +404,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.canvas,
     minHeight: 400,
   },
+  adSlot: { marginBottom: spacing.lg },
 
   requestCard: {
     flexDirection: 'row',

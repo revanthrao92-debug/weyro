@@ -13,7 +13,7 @@ import {
   Filter,
   ArrowUpFromLine,
 } from 'lucide-react-native';
-import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar, PromoBanner } from '@/components/ui';
+import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 const CATEGORIES = [
@@ -130,17 +130,8 @@ export default function ShopScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           ListFooterComponent={
-            <View>
-            {parts.length > 0 ? (
-              <PromoBanner
-                image="https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80"
-                headline="Trusted Parts. Verified Dealers."
-                subhead="Sponsored placements from WEYRO partners."
-                ctaLabel="Browse"
-                onPress={() => router.push('/shop')}
-                sponsored
-              />
-            ) : null}
+            <View style={{ marginTop: spacing.md }}>
+              <AdBanner placement="shop-section" />
             </View>
           }
           renderItem={({ item }) => (
