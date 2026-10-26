@@ -70,7 +70,7 @@ export default function LoginScreen() {
       <View style={styles.hero}>
         <View style={styles.logoRow}>
           <Image
-            source={require('@/assets/images/weyro-logo.png')}
+            source={require('../../../assets/images/weyro-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
