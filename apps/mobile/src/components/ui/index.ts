@@ -70,6 +70,9 @@ export type { ButtonRowProps } from './ButtonRow';
 export { OfflineBanner } from './OfflineBanner';
 export type { OfflineBannerProps } from './OfflineBanner';
 
+export { AdBanner } from './AdBanner';
+export type { AdBannerProps, AdPlacement } from './AdBanner';
+
 // React Native Reusables — Dialog (compound components, vendored from the
 // official NativeWind registry with adapted import paths).
 export {

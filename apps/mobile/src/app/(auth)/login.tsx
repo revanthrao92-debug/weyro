@@ -3,108 +3,274 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
 import { Input, Button } from '@/components/ui';
-import { palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography, radii } from '@/theme';
+import { UserRole } from '@weyro/api-contracts';
+
+/**
+ * Welcome / Login — first screen a user sees.
+ *
+ * Matches the approved reference design:
+ * - Dark navy hero with logo + "More than repairs. Total vehicle care."
+ * - White sheet with role selection (Customer / Dealer / Mechanic) + login form
+ *
+ * Role note: the backend knows CUSTOMER / PROVIDER / BOTH / ADMIN.
+ * "Dealer" and "Mechanic" both sign in as PROVIDER — `providerKind` is a
+ * UI-level preference used in later checkpoints to pick the interface,
+ * and is passed to the register screen so new accounts register correctly.
+ */
+
+export type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
+
+const ROLE_OPTIONS: { key: EntryRole; label: string }[] = [
+  { key: 'CUSTOMER', label: 'Customer' },
+  { key: 'DEALER', label: 'Dealer' },
+  { key: 'MECHANIC', label: 'Mechanic' },
+];
 
 export default function LoginScreen() {
+  const [role, setRole] = useState<EntryRole | null>(null);
+  const [errorNote, setErrorNote] = useState<string | null>(null);
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
+  function resolveApiRole(): UserRole {
+    return role === 'CUSTOMER' ? 'CUSTOMER' : 'PROVIDER';
+  }
+
   async function handleLogin() {
-    if (!emailOrPhone || !password) {
-      Alert.alert('Error', 'Please enter both email/phone and password');
-      return;
-    }
+    if (!role) return; // role chips only enable submit — see styles below
+    if (!emailOrPhone || !password) return;
     setLoading(true);
     try {
       await login(emailOrPhone, password);
       router.replace('/(app)');
     } catch (error: any) {
-      Alert.alert('Login failed', error.message || 'Invalid credentials');
+      setPassword('');
+      setErrorNote(error?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.container}>
+      {/* Dark hero — reference photo bottom-right frame */}
+      <View style={styles.hero}>
+        <View style={styles.logoRow}>
+          <Image
+            source={require('@/assets/images/weyro-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoText}>WEYRO</Text>
+        </View>
+        <Text style={styles.heroTitle}>More than repairs.</Text>
+        <Text style={styles.heroTitleAccent}>Total vehicle care.</Text>
+        <Text style={styles.heroCaption}>
+          Repairs · Spare Parts · Towing · Home Mechanic
+        </Text>
+      </View>
+
+      {/* White sheet: role buttons + login form */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.sheetWrap}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to your Weyro account</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.sheetContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.whoTitle}>I am a…</Text>
+          <View style={styles.roleRow}>
+            {ROLE_OPTIONS.map(({ key, label }) => {
+              const selected = role === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setRole(key)}
+                  style={[styles.roleChip, selected && styles.roleChipSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.roleChipText,
+                      selected && styles.roleChipTextSelected,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        <View>
-          <Input
-            label="Email or phone"
-            placeholder="you@example.com"
-            value={emailOrPhone}
-            onChangeText={setEmailOrPhone}
-            autoCapitalize="none"
-            autoCompleteType="email"
-          />
-          <Input
-            label="Password"
-            placeholder="••••••••"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCompleteType="password"
-          />
-        </View>
+          <View style={role ? styles.formArea : styles.formAreaMuted}>
+            <Input
+              label="Email or phone"
+              placeholder="you@example.com"
+              value={emailOrPhone}
+              onChangeText={(t) => {
+                setEmailOrPhone(t);
+                setErrorNote(null);
+              }}
+              autoCapitalize="none"
+              editable={!!role}
+            />
+            <Input
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                setErrorNote(null);
+              }}
+              secureTextEntry
+              editable={!!role}
+            />
 
-        <Button title="Log in" onPress={handleLogin} loading={loading} />
+            {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Don&apos;t have an account?{' '}
-            <Text
-              style={styles.link}
-              onPress={() => router.push('/(auth)/register')}
-              accessibilityRole="link"
-              accessibilityLabel="Register"
-            >
-              Register
-            </Text>
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.push('/(auth)/forgot-password')}
-            accessibilityRole="link"
-            accessibilityLabel="Forgot password"
-          >
-            <Text style={styles.link}>Forgot password?</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* The ONE primary CTA on this screen */}
+            <Button
+              title="Log in"
+              onPress={handleLogin}
+              loading={loading}
+              disabled={!role || !emailOrPhone || !password}
+            />
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                New to Weyro?{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    router.push({
+                      // pass the chosen role into registration
+                      pathname: '/(auth)/register',
+                      params: {
+                        roleKey: role ?? 'CUSTOMER',
+                        apiRole: resolveApiRole(),
+                      },
+                    })
+                  }
+                  accessibilityRole="link"
+                  accessibilityLabel="Register"
+                >
+                  Create account
+                </Text>
+              </Text>
+              <TouchableOpacity
+                disabled={!role}
+                onPress={() => router.push('/(auth)/forgot-password')}
+                accessibilityRole="link"
+                accessibilityLabel="Forgot password"
+              >
+                <Text style={[styles.link, !role && styles.linkMuted]}>
+                  Forgot password?
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.canvas },
-  scrollContent: { flexGrow: 1, padding: spacing.xl, justifyContent: 'center' },
-  header: { marginBottom: spacing.xl },
-  title: { ...typography.display, color: palette.textPrimary, marginBottom: spacing.xs },
-  subtitle: { ...typography.body, color: palette.textSecondary },
+  container: { flex: 1, backgroundColor: palette.header },
+
+  // ---- Hero (dark chrome) ----
+  hero: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl + spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  logo: { width: 34, height: 34 },
+  logoText: {
+    ...typography.heading,
+    color: palette.onHeader,
+    letterSpacing: 2,
+  },
+  heroTitle: { ...typography.display, color: palette.onHeader },
+  heroTitleAccent: { ...typography.display, color: palette.onHeader },
+  heroCaption: {
+    ...typography.caption,
+    color: palette.onHeaderMuted,
+    marginTop: spacing.sm,
+  },
+
+  // ---- White sheet ----
+  sheetWrap: { flex: 1 },
+  sheetContent: {
+    flexGrow: 1,
+    backgroundColor: palette.canvas,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    padding: spacing.xl,
+  },
+
+  // ---- Role selector ----
+  whoTitle: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  roleChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  roleChipSelected: {
+    backgroundColor: palette.accent,
+    borderColor: palette.accent,
+  },
+  roleChipText: {
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
+  },
+  roleChipTextSelected: {
+    color: palette.onAccent,
+  },
+
+  // ---- Form (progressive reveal once a role is chosen) ----
+  formArea: {},
+  formAreaMuted: { opacity: 0.55 },
+  errorNote: {
+    ...typography.caption,
+    color: palette.danger,
+    marginBottom: spacing.sm,
+  },
   footer: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -113,4 +279,5 @@ const styles = StyleSheet.create({
   },
   footerText: { ...typography.caption, color: palette.textSecondary },
   link: { ...typography.captionMedium, color: palette.accent },
+  linkMuted: { opacity: 0.5 },
 });

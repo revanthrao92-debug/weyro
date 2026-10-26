@@ -6,8 +6,7 @@
  * Direction (matches the approved reference design):
  * - Light content canvas with white cards
  * - Deep navy/graphite chrome for headers, hero areas and onboarding
- * - Buttons: brand orange (#FF6A00, matches the gear logo) with dark
- *   ink text — reserved for primary CTAs only
+ * - Buttons: deep teal-green (#0E8577, reference photo) — primary CTAs only
  * - Teal for links, active states, info pills and secondary accents
  *
  * All essential text pairs pass WCAG AA (≥4.5:1). Semantic colors are
@@ -38,11 +37,11 @@ export const palette = {
   textSecondary: '#546772',
   textMuted: '#8A98A1', // large / UI use only
 
-  // CTA — brand orange (matches gear logo; primary buttons only)
-  accent: '#FF6A00',
-  accentPressed: '#E65800',
-  accentSoftBg: '#FFF0E5', // CTA-tinted background
-  onAccent: '#0B1F2A', // dark ink on orange (5.88:1)
+  // CTA — deep teal-green (matches approved reference photo; primary buttons only)
+  accent: '#0E8577',
+  accentPressed: '#0B6E63',
+  accentSoftBg: '#E4F2F0', // CTA-tinted background
+  onAccent: '#FFFFFF', // white label on teal-green
 
   // Secondary accent — deep teal (links, active states, info pills)
   teal: '#017365',

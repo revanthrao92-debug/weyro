@@ -19,10 +19,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 201 58% 10%;
 
-    /* CTA — brand orange, DARK INK label (matches gear logo) */
-    --primary: 25 100% 50%; /* #FF6A00 */
-    --primary-foreground: 201 58% 10%; /* #0B1F2A dark ink */
-    --primary-pressed: 17 100% 45%; /* #E65800 */
+    /* CTA — deep teal-green (reference photo), WHITE label */
+    --primary: 172 80% 29%; /* #0E8577 */
+    --primary-foreground: 0 0% 100%;
+    --primary-pressed: 174 79% 24%; /* #0B6E63 */
 
     /* Secondary / muted */
     --secondary: 200 27% 96%; /* #F1F5F7 */
