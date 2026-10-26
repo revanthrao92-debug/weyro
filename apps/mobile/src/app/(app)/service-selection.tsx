@@ -1,192 +1,191 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Home, Package, Truck, Wrench } from 'lucide-react-native';
+import { Image as ExpoImage } from 'expo-image';
 import {
   ScreenContainer,
   AppHeader,
-  ListItem,
-  StatusPill,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
+
+/**
+ * "Request a Service" — reference photo 2.
+ * Dark chrome + full-bleed image cards. Each card: automotive photo with a
+ * deep navy overlay, icon chip, title + subtitle, chevron.
+ * If a remote photo fails to load, the dark card + icon remain (graceful).
+ */
 
 const SERVICES = [
   {
     key: 'REPAIR',
     title: 'Vehicle Repair',
-    subtitle: 'Get quotes from mechanics and garages.',
+    subtitle: 'Get quotes from trusted mechanics and garages',
     Icon: Wrench,
+    photo: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'SPARE_PART',
     title: 'Spare Parts',
-    subtitle: 'Find genuine and aftermarket parts.',
+    subtitle: 'Find genuine and aftermarket parts at the best prices',
     Icon: Package,
+    photo: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'TOWING',
     title: 'Towing',
-    subtitle: 'Request roadside assistance and transport.',
+    subtitle: '24/7 roadside assistance and towing services',
     Icon: Truck,
+    photo: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'ROADSIDE',
     title: 'Home Mechanic',
-    subtitle: 'Arrange a mechanic visit at your location.',
+    subtitle: 'Expert mechanics at your location',
     Icon: Home,
+    photo: null,
   },
 ];
 
+function ServiceCard({
+  title,
+  subtitle,
+  Icon,
+  photo,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  Icon: typeof Wrench;
+  photo: string | null;
+  onPress: () => void;
+}) {
+  const [photoOk, setPhotoOk] = useState(true);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      className="active:opacity-80"
+      style={styles.card}
+    >
+      {photo && photoOk ? (
+        <ExpoImage
+          source={{ uri: photo }}
+          style={styles.cardPhoto}
+          contentFit="cover"
+          onError={() => setPhotoOk(false)}
+        />
+      ) : null}
+      <View style={styles.cardShade} />
+      <View style={styles.cardInner}>
+        <View style={styles.iconChip}>
+          <Icon size={20} color={palette.onHeader} strokeWidth={1.75} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle} maxFontSizeMultiplier={2}>
+            {title}
+          </Text>
+          <Text style={styles.cardSubtitle} maxFontSizeMultiplier={2}>
+            {subtitle}
+          </Text>
+        </View>
+        <ChevronRight size={18} color={palette.onHeaderMuted} strokeWidth={2} />
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ServiceSelectionScreen() {
   const router = useRouter();
-  const dark = palette.header;
 
   return (
-    <ScreenContainer chrome="dark">
+    <ScreenContainer chrome="dark" padded={false}>
       <AppHeader
-        logo={require('../../../assets/images/weyro-logo.png')}
+        title="Request a Service"
         subtitle="Choose a service to get started."
+        left={null}
       />
-
-      <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.pageTitle}>What do you need help with?</Text>
-        <Text style={styles.pageSubtitle}>
-          Select the service that matches your vehicle need.
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.pageTitle} maxFontSizeMultiplier={1.4}>
+          What do you need{'\n'}help with?
         </Text>
 
         <View style={styles.grid}>
           {SERVICES.map((s) => (
-            <Pressable
+            <ServiceCard
               key={s.key}
+              {...s}
               onPress={() => router.push(`/requests/create?category=${s.key}`)}
-              accessibilityRole="button"
-              accessibilityLabel={s.title}
-              className="active:opacity-70"
-              style={[styles.card, { backgroundColor: '#0C2330' }]}
-            >
-              <View style={styles.iconWrap}>
-                <s.Icon size={26} color={palette.accent} strokeWidth={1.75} />
-              </View>
-              <View style={styles.textWrap}>
-                <Text style={styles.cardTitle} maxFontSizeMultiplier={2}>
-                  {s.title}
-                </Text>
-                <Text style={styles.cardSubtitle} maxFontSizeMultiplier={2}>
-                  {s.subtitle}
-                </Text>
-              </View>
-              <ChevronRight size={18} color={palette.onHeaderMuted} strokeWidth={2} />
-            </Pressable>
+            />
           ))}
         </View>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.sectionTitle}>Need help deciding?</Text>
-        <Text style={styles.sectionSubtitle}>
-          Not sure which service fits? Describe your issue when creating a
-          request and nearby providers recommend the right service.
-        </Text>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.sectionTitleDark}>Popular nearby</Text>
-        <ListItem
-          bare
-          title="Brake pad replacement"
-          subtitle="Hyundai Creta · 2023"
-          right={<StatusPill label="Open" tone="info" />}
-          onPress={() => router.push('/requests/create?category=REPAIR')}
-          accessibilityLabel="Brake pad replacement"
-        />
-        <ListItem
-          bare
-          divider
-          title="Engine oil change"
-          subtitle="Maruti Suzuki Swift · 2021"
-          right={<StatusPill label="Open" tone="info" />}
-          onPress={() => router.push(`/requests/create?category=REPAIR`)}
-          accessibilityLabel="Engine oil change"
-        />
-        <ListItem
-          bare
-          title="Wheel alignment"
-          subtitle={`Tata Nexon · 2022`}
-          right={<StatusPill label="Open" tone="info" />}
-          onPress={() => router.push('/requests/create?category=REPAIR')}
-          accessibilityLabel="Wheel alignment"
-        />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingBottom: spacing.xxl },
-  pageTitle: {
-    ...typography.heading,
-    color: palette.onHeader,
-    marginBottom: spacing.xs,
+  body: {
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
   },
-  pageSubtitle: {
-    ...typography.body,
-    color: palette.onHeaderMuted,
+  pageTitle: {
+    ...typography.display,
+    color: palette.onHeader,
     marginBottom: spacing.lg,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
+
+  grid: { gap: spacing.md },
+
   card: {
-    width: (375 - 32 - 16) / 2,
-    height: 130,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    flexDirection: 'row',
+    height: 108,
+    borderRadius: radii.lg,
+    backgroundColor: '#0C2330', // deep panel (fallback behind photo)
     overflow: 'hidden',
+    justifyContent: 'center',
   },
-  iconWrap: {
-    width: 52,
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  cardPhoto: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  cardShade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(4, 21, 30, 0.78)',
+  },
+  cardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  iconChip: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textWrap: {
-    flex: 1,
-    padding: spacing.md,
-    justifyContent: 'center',
-  },
   cardTitle: {
-    ...typography.bodyMedium,
+    ...typography.heading,
     color: palette.onHeader,
   },
   cardSubtitle: {
     ...typography.caption,
     color: palette.onHeaderMuted,
-    marginTop: spacing.xs,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: spacing.md,
-  },
-  sectionTitle: {
-    ...typography.bodyMedium,
-    color: palette.onHeader,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
-  },
-  sectionSubtitle: {
-    ...typography.body,
-    color: palette.onHeaderMuted,
-    marginBottom: spacing.lg,
-  },
-  sectionTitleDark: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
+    marginTop: 2,
   },
 });
