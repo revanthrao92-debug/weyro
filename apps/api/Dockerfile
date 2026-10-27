@@ -16,8 +16,8 @@ COPY apps/api/package.json ./apps/api/
 # Install all workspace dependencies
 RUN npm ci
 
-# Copy source trees
-COPY tsconfig.json ./
+# Copy source trees (tsconfig.base.json is extended by package tsconfigs — required)
+COPY tsconfig.json tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
@@ -38,6 +38,8 @@ ENV PORT=4000
 # Copy root package.json and built node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
+# Nested workspace node_modules that npm did not hoist (e.g. @nestjs/jwt)
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

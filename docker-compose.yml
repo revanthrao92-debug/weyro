@@ -28,7 +28,7 @@ services:
     ports:
       - '4000:4000'
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 4000
       DATABASE_URL: postgresql://weyro:weyro_dev_password@postgres:5432/weyro_db?schema=public
       JWT_ACCESS_SECRET: weyro_docker_jwt_access_secret_super_key_32_chars
