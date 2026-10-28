@@ -2,7 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
-    <key>aps-environment</key>
-    <string>development</string>
+    <!-- Push Notifications capability removed:
+         Personal (free) development teams do not support the
+         Push Notifications capability, and provisioning fails.
+         To restore push (requires a paid Apple Developer team):
+           re-add <key>aps-environment</key><string>development</string>
+           inside this dict and rebuild. -->
   </dict>
 </plist>
