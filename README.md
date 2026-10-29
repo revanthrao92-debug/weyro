@@ -8,12 +8,12 @@
 
 Weyro is an automotive marketplace for the Indian market: damage/repair requests,
 quotations, bookings, INR (₹) payments through Razorpay, and spare-parts listings.
-The mobile app is an Expo SDK 57 / React Native client. The backend is a NestJS 11
+The mobile app is an Expo SDK 58 / React Native client. The backend is a NestJS 11
 modular monolith backed by PostgreSQL 16 + PostGIS.
 
 ```mermaid
 graph TD
-    subgraph Client ["Mobile Client (Expo SDK 57 / React Native)"]
+    subgraph Client ["Mobile Client (Expo SDK 58 / React Native)"]
         UI["Screens (Post, Quotes, Explore, Chat, Admin)"]
         Store["Stores (auth, damageRequest, chat)"]
         Secure["Token Storage (expo-secure-store)"]

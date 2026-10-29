@@ -4,8 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PortalHost } from '@rn-primitives/portal';
-import { useAuth } from '@/hooks/useAuth';
-import { AuthProvider } from '@/hooks/useAuth';
+import { useAuth , AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
 import { palette } from '@/theme';
 

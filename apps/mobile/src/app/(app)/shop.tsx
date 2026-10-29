@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Text, View, ActivityIndicator, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
+import { FlatList, Text, View, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
 import {
@@ -11,7 +11,6 @@ import {
   Zap,
   Car,
   Filter,
-  ArrowUpFromLine,
 } from 'lucide-react-native';
 import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';

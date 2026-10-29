@@ -1,17 +1,13 @@
-import { useState } from 'react';
 import {
   FlatList,
   Text,
   View,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
-  Platform,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMyParts, useDeleteSparePart } from '@/hooks/useParts';
-import { SparePart } from '@/hooks/useParts';
+import { useMyParts, useDeleteSparePart , SparePart } from '@/hooks/useParts';
 import {
   Button,
   ScreenContainer,

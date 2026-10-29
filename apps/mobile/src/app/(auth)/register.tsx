@@ -9,13 +9,30 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Input, Button, Chip } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
 
+/** Role carried over from the Login screen's role buttons (Customer/Dealer/Mechanic). */
+function roleFromParams(
+  roleKey?: string | string[],
+  apiRole?: string | string[]
+): RoleOption {
+  const key = Array.isArray(roleKey) ? roleKey[0] : roleKey;
+  const api = Array.isArray(apiRole) ? apiRole[0] : apiRole;
+  if (api === 'PROVIDER') return 'PROVIDER';
+  if (key === 'DEALER') return 'PROVIDER';
+  if (key === 'MECHANIC') return 'PROVIDER';
+  return 'CUSTOMER';
+}
+
 export default function RegisterScreen() {
+  const { roleKey, apiRole } = useLocalSearchParams<{
+    roleKey?: string;
+    apiRole?: string;
+  }>();
   const [form, setForm] = useState<{
     email: string;
     phone: string;
@@ -28,7 +45,7 @@ export default function RegisterScreen() {
     email: '',
     phone: '',
     password: '',
-    role: 'CUSTOMER',
+    role: roleFromParams(roleKey, apiRole),
     firstName: '',
     lastName: '',
     businessName: '',
@@ -57,7 +74,12 @@ export default function RegisterScreen() {
         firstName,
         lastName,
         businessName: businessName || undefined,
-        providerType: role === 'PROVIDER' ? 'MECHANIC' : undefined,
+        providerType:
+          role === 'PROVIDER'
+            ? roleKey === 'DEALER' || (Array.isArray(roleKey) && roleKey[0] === 'DEALER')
+              ? 'DEALER'
+              : 'MECHANIC'
+            : undefined,
         description:
           role === 'PROVIDER' || role === 'BOTH'
             ? 'Automotive service & parts specialist'

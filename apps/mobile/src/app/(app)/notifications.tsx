@@ -4,11 +4,10 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { useNotifications, type AppNotification } from '@/hooks/useNotifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import {
@@ -17,7 +16,6 @@ import {
   ScreenContainer,
   AppHeader,
   EmptyState,
-  Skeleton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 

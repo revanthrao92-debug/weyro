@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  Platform,
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
 import { TrackingMap } from '@/components/booking/TrackingMap';
@@ -23,7 +20,7 @@ import {
   EmptyState,
   BackButton,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 type BookingDetailParams = { id: string };
 

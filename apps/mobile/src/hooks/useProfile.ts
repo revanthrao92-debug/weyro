@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
-import { Alert } from 'react-native';
 
 export type CustomerProfile = {
   id: string;
@@ -226,7 +225,7 @@ export function useProviderReviews(id: string) {
   return useQuery({
     queryKey: ['providerReviews', id],
     queryFn: async () =>
-      apiClient<{ items: Array<{ id: string; rating: number; comment?: string; createdAt: string; customerName: string }>; nextCursor?: string | null }>(
+      apiClient<{ items: { id: string; rating: number; comment?: string; createdAt: string; customerName: string }[]; nextCursor?: string | null }>(
         `/providers/${id}/reviews`
       ),
     enabled: !!id,

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -17,11 +16,10 @@ import {
   AppHeader,
   Card,
   Avatar,
-  StatusPill,
   EmptyState,
   Skeleton,
 } from '@/components/ui';
-import { StatusTone, palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing } from '@/theme';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();

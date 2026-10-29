@@ -2,25 +2,22 @@ import {
   Image,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Car } from 'lucide-react-native';
-import { BackButton } from '@/components/ui';
-import { useVehicles } from '@/hooks/useProfile';
-import {
+import { BackButton ,
   ScreenContainer,
   AppHeader,
   SectionCard,
   ListItem,
-  StatusPill,
   Skeleton,
   Button,
   ButtonRow,
   EmptyState,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { useVehicles } from '@/hooks/useProfile';
+import { palette, spacing, radii } from '@/theme';
 
 export default function VehicleDetailScreen() {
   const { vehicleId } = useLocalSearchParams();

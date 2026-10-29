@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
-import { tokenStorage } from '@/services/token-storage';
 import { Alert } from 'react-native';
 
 export type Booking = {

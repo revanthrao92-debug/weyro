@@ -1,17 +1,14 @@
 import {
-  View,
-  Text,
   Alert,
   StyleSheet,
-} from 'react-native';
+ Platform as RNPlatform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Platform as RNPlatform } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Button, ScreenContainer, AppHeader, ButtonRow, Card, ListItem, BackButton } from '@/components/ui';
-import { palette, spacing, typography } from '@/theme';
+import { spacing } from '@/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

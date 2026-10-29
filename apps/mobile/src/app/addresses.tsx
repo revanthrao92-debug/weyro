@@ -5,10 +5,8 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useAddresses, useReplaceAddresses } from '@/hooks/useProfile';

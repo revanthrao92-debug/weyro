@@ -6,10 +6,8 @@ import {
   useState,
   ReactNode,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert , Platform as RNPlatform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import * as Notifications from 'expo-notifications';
-import { Platform as RNPlatform } from 'react-native';
 import { apiClient, setAccessToken } from '@/services/api-client';
 import { tokenStorage } from '@/services/token-storage';
 import {

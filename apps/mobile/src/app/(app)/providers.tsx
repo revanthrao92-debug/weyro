@@ -1,4 +1,4 @@
-import { FlatList, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { FlatList, Text, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -6,10 +6,8 @@ import {
   StatusPill,
   ScreenContainer,
   AppHeader,
-  EmptyState,
-  Skeleton,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export default function ProvidersScreen() {
   const { user } = useAuth();

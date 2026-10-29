@@ -3,9 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  Platform,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -18,7 +16,6 @@ import {
   AppHeader,
   Card,
   Avatar,
-  StatusPill,
   EmptyState,
   Skeleton,
   BackButton,

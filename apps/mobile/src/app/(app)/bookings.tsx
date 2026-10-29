@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { FlatList, Text, View, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { FlatList, View, RefreshControl, StyleSheet } from 'react-native';
 import { useBookings } from '@/hooks/useBookings';
 import { useRouter } from 'expo-router';
 import { CalendarDays } from 'lucide-react-native';
 import { BookingCard } from '@/components/booking/BookingCard';
 import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton, FilterBar } from '@/components/ui';
-import { palette, spacing, typography } from '@/theme';
+import { palette, spacing } from '@/theme';
 
 export default function BookingsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();

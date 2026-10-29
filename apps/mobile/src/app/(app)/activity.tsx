@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text } from 'react-native';
 import { ScreenContainer, Card, AppHeader, EmptyState } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 

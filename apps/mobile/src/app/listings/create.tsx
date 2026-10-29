@@ -15,12 +15,10 @@ import {
   Input,
   Button,
   Chip,
-  ScreenContainer,
   AppHeader,
-  Skeleton,
   BackButton,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 

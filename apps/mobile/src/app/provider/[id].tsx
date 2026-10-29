@@ -1,16 +1,13 @@
-import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   KeyboardAvoidingView,
-  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { usePublicProvider, useProviderReviews } from '@/hooks/useProfile';
 import {
   Button,
