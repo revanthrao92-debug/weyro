@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { FlatList, View, RefreshControl, StyleSheet } from 'react-native';
-import { useBookings } from '@/hooks/useBookings';
+import { FlatList, View, RefreshControl, StyleSheet } from 'react-native';import { useBookings } from '@/hooks/useBookings';
 import { useRouter } from 'expo-router';
 import { CalendarDays } from 'lucide-react-native';
 import { BookingCard } from '@/components/booking/BookingCard';
-import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton, FilterBar } from '@/components/ui';
+import { Chip, ScreenContainer, AppHeader, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
 import { palette, spacing } from '@/theme';
 
 export default function BookingsScreen() {
@@ -70,6 +69,12 @@ export default function BookingsScreen() {
           renderItem={({ item }) => (
             <BookingCard booking={item} onPress={(id) => router.push(`/booking/${id}`)} />
           )}
+          ListFooterComponent={
+            <View style={{ marginTop: spacing.md }}>
+              {/* Sponsored slot inside the requests feed */}
+              <AdBanner placement="feed-inline" />
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
