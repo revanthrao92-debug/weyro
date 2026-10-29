@@ -12,8 +12,10 @@ import {
   Car,
   Filter,
 } from 'lucide-react-native';
-import { Input, IconButton, ScreenContainer, AppHeader, Card, Avatar, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
+import { Input, IconButton, ScreenContainer, AppHeader, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
 import { palette, spacing, radii, typography, elevation } from '@/theme';
+import { Image } from 'expo-image';
+import { photo, photoForCategory } from '@/lib/photos';
 
 const CATEGORIES = [
   { label: 'Engine', Icon: Wrench },
@@ -151,7 +153,12 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
       accessibilityLabel={`Part ${part.name}, ₹${part.price.toLocaleString()}`}
     >
       <View style={styles.cardContent}>
-        <Avatar name={part.name} size={56} uri={part.imageUrl} />
+        <Image
+          source={{ uri: part.imageUrl || photo(photoForCategory(part.category)) }}
+          style={styles.partPhoto}
+          contentFit="cover"
+          transition={120}
+        />
         <View style={styles.info}>
           <Text style={styles.partName}>{part.name}</Text>
           <Text style={styles.partNumber}>{part.partNumber}</Text>
@@ -256,7 +263,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardContent: { flex: 1, marginRight: spacing.md },
+  cardContent: { flex: 1, marginRight: spacing.md, flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
+  partPhoto: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceAlt,
+  },
   info: { flex: 1 },
   partName: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
   partNumber: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },

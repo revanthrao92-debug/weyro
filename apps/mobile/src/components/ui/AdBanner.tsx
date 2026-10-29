@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, radii, spacing, typography } from '@/theme';
+import { photo } from '@/lib/photos';
 
 /**
  * AdBanner — the ONE component that renders every ad slot in the app.
@@ -33,27 +34,31 @@ const PLACEHOLDER_ADS: Record<AdPlacement, AdContent> = {
     headline: 'Genuine Parts. Better Rides.',
     subtext: 'Original parts from trusted dealers.',
     cta: 'Shop Now',
-    imageUrl: undefined,
+    imageUrl: photo('brake-disc'),
   },
   'home-section': {
     headline: 'Monsoon Service Camp',
     subtext: 'Flat 20% off at approved garages.',
     cta: 'View',
+    imageUrl: photo('mechanic'),
   },
   'shop-hero': {
     headline: 'Need a rare part?',
     subtext: 'Upload a photo and get quotes from multiple dealers.',
     cta: 'Upload Photo',
+    imageUrl: photo('engine'),
   },
   'shop-section': {
     headline: 'Top Deals this week',
     subtext: 'Up to 15% off brake & filter kits.',
     cta: 'Explore',
+    imageUrl: photo('spare-parts'),
   },
   'feed-inline': {
-    headline: 'Towgram — 24/7 towing',
-    subtext: 'Nationwide assistance in 30 min.',
+    headline: '24/7 towing assistance',
+    subtext: 'Nationwide help in 30 minutes.',
     cta: 'Learn More',
+    imageUrl: photo('towing'),
   },
 };
 

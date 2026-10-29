@@ -1,8 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -80,14 +79,10 @@ const QUICK_ACTIONS = [
 export default function HomeScreen() {
   const router = useRouter();
   const { user, role } = useAuth();
-  const insets = useSafeAreaInsets();
 
   const requestsQuery = useMyRequests();
   const bookingsQuery = useBookings();
   const vehiclesQuery = useVehicles();
-
-  const [refreshing, setRefreshing] = useState(false);
-  const [sponsoredVisible, setSponsoredVisible] = useState(true);
 
   const refetchAll = useCallback(async () => {
     await Promise.all([
@@ -103,15 +98,6 @@ export default function HomeScreen() {
       void refetchAll();
     }, [refetchAll])
   );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refetchAll();
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const requests = (requestsQuery.data?.items ?? []).slice(0, 3);
   const vehicles = (vehiclesQuery.data?.items ?? []).slice(0, 3);

@@ -1,7 +1,10 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { ChevronRight } from 'lucide-react-native';
 import { Booking } from '@/hooks/useBookings';
 import { StatusPill } from '@/components/ui';
-import { palette, spacing, radii, typography, elevation } from '@/theme';
+import { photoForCategory, photo } from '@/lib/photos';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export type BookingCardProps = {
   booking: Booking;
@@ -29,42 +32,68 @@ function labelize(s: string) {
   return s.replace(/_/g, ' ');
 }
 
+/**
+ * BookingCard — reference photo 6: photo-backed header, firm bordered body,
+ * labeled rows, single status pill. "Rigid" = hairline borders, divider
+ * lines, uppercase micro-labels, no floating softness.
+ */
 export function BookingCard({ booking, onPress }: BookingCardProps) {
+  const category = (booking as { category?: string }).category;
+  const imageSource = photo(photoForCategory(category));
+
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => onPress(booking.id)}
       accessibilityRole="button"
       accessibilityLabel={`Booking ${booking.id.slice(0, 8)}, ${labelize(booking.status)}`}
+      activeOpacity={0.9}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
-        <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
+      {/* Photo header strip */}
+      <View style={styles.photoHeader}>
+        <Image source={{ uri: imageSource }} style={styles.photo} contentFit="cover" />
+        <View style={styles.photoShade} />
+        <View style={styles.photoInner}>
+          <Text style={styles.photoTitle} maxFontSizeMultiplier={2} numberOfLines={1}>
+            {booking.provider?.businessName ?? 'Booking'}
+          </Text>
+          <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
+        </View>
       </View>
 
-      {booking.provider && (
-        <View style={styles.providerRow}>
-          <Text style={styles.label}>Provider</Text>
-          <Text style={styles.value}>{booking.provider.businessName}</Text>
-        </View>
-      )}
+      {/* Structured body */}
+      <View style={styles.body}>
+        {booking.provider ? (
+          <View style={[styles.row, styles.rowDivider]}>
+            <Text style={styles.label} maxFontSizeMultiplier={2}>PROVIDER</Text>
+            <Text style={styles.value} maxFontSizeMultiplier={2} numberOfLines={1}>
+              {booking.provider.businessName}
+            </Text>
+          </View>
+        ) : null}
 
-      {booking.payment && (
-        <View style={styles.paymentRow}>
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.amountWrapper}>
-            <Text style={styles.amount}>₹{booking.payment.amount.toLocaleString()}</Text>
-            <StatusPill
-              label={labelize(booking.payment.status)}
-              tone={statusTone(booking.payment.status)}
-            />
+        {booking.payment ? (
+          <View style={[styles.row, styles.rowDivider]}>
+            <Text style={styles.label} maxFontSizeMultiplier={2}>AMOUNT</Text>
+            <View style={styles.amountCol}>
+              <Text style={styles.amount} maxFontSizeMultiplier={2}>
+                ₹{booking.payment.amount.toLocaleString()}
+              </Text>
+              <StatusPill
+                label={labelize(booking.payment.status)}
+                tone={statusTone(booking.payment.status)}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.row}>
+          <Text style={styles.label} maxFontSizeMultiplier={2}>BOOKING ID</Text>
+          <View style={styles.idRow}>
+            <Text style={styles.value} maxFontSizeMultiplier={2}>#{booking.id.slice(0, 8)}</Text>
+            <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
           </View>
         </View>
-      )}
-
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>{labelize(booking.status)}</Text>
-        <Text style={styles.meta}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -72,59 +101,55 @@ export function BookingCard({ booking, onPress }: BookingCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: palette.surface,
     borderRadius: radii.md,
+    backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.borderStrong,
-    ...elevation.card,
-    padding: 16,
+    overflow: 'hidden',
     marginBottom: spacing.md,
   },
-  header: {
+  photoHeader: {
+    height: 76,
+    justifyContent: 'flex-end',
+  },
+  photo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  photoShade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(4, 21, 30, 0.66)',
+  },
+  photoInner: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
-  providerRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
   },
-  paymentRow: {
+  photoTitle: {
+    ...typography.heading,
+    color: palette.onHeader,
+    flexShrink: 1,
+  },
+  body: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: palette.border },
   label: {
-    ...typography.caption,
-    color: palette.textSecondary,
-  },
-  value: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
-  amountWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  amount: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  meta: {
-    ...typography.caption,
+    ...typography.label,
     color: palette.textMuted,
+    letterSpacing: 0.5,
   },
+  value: { ...typography.captionMedium, color: palette.textPrimary, flexShrink: 1 },
+  amountCol: { alignItems: 'flex-end', gap: 2 },
+  amount: { ...typography.bodyMedium, color: palette.textPrimary },
+  idRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 });
