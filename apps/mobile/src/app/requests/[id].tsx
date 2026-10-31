@@ -20,28 +20,14 @@ import {
   EmptyState,
   BackButton,
 } from '@/components/ui';
-import { StatusTone, palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, radii, typography } from '@/theme';
+import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
 
 type RequestParams = { id: string };
 
-function labelize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
-}
 
-function statusTone(status: string): StatusTone {
-  switch (status) {
-    case 'OPEN':
-    case 'QUOTES_RECEIVED':
-      return 'info';
-    case 'ACCEPTED':
-    case 'COMPLETED':
-      return 'success';
-    case 'CANCELLED':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
-}
+
+
 
 export default function RequestDetailScreen() {
   const router = useRouter();

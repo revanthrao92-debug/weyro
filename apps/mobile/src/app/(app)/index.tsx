@@ -17,6 +17,7 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
 function requestTone(status: string): StatusTone {
@@ -52,12 +53,6 @@ function bookingTone(status: string): StatusTone {
   }
 }
 
-function labelize(value: string) {
-  return value
-    .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
-}
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
@@ -327,14 +322,7 @@ export default function HomeScreen() {
   );
 }
 
-function formatDate(iso?: string) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+
 
 const styles = StyleSheet.create({
   hero: {

@@ -23,14 +23,12 @@ import {
   BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
+import { plainTitleize as labelize } from '@/utils/format';
 
 type ListingParams = { id: string };
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
-function labelize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
 
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams<ListingParams>();

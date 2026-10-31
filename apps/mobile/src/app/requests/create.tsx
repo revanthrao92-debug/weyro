@@ -16,13 +16,11 @@ import { Input, Button, Chip, AppHeader, BackButton } from '@/components/ui';
 import { PhotoPicker } from '@/components/requests/PhotoPicker';
 import type { UploadedImage } from '@/services/uploads';
 import { palette, spacing, radii, typography } from '@/theme';
+import { titleize as labelize } from '@/utils/format';
 
 const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
 const URGENCIES = ['NORMAL', 'URGENT', 'EMERGENCY'];
 
-function labelize(c: string) {
-  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase().replace('_', ' ');
-}
 
 export default function CreateRequestScreen() {
   const [form, setForm] = useState<{

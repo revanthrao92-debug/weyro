@@ -10,11 +10,9 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { useAuth } from '@/hooks/useAuth';
 import {
   useVehicles,
   useCreateVehicle,
-  useUpdateVehicle,
   useDeleteVehicle,
   type Vehicle,
 } from '@/hooks/useProfile';
@@ -31,18 +29,14 @@ import {
   BackButton,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
+import { titleize as labelize } from '@/utils/format';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'];
 
-function labelize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
-}
 
 export default function VehiclesScreen() {
-  const { user } = useAuth();
   const { data, isLoading, refetch } = useVehicles();
   const createVehicle = useCreateVehicle();
-  const updateVehicle = useUpdateVehicle();
   const deleteVehicle = useDeleteVehicle();
 
   const [showAdd, setShowAdd] = useState(false);

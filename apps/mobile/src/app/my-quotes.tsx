@@ -13,29 +13,14 @@ import {
   BackButton,
   FilterBar,
 } from '@/components/ui';
-import { StatusTone, palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
+import { titleize as labelize, quotationStatusTone as statusTone } from '@/utils/format';
 
 const FILTERS = ['PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'];
 
-function labelize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
 
-function statusTone(status: string): StatusTone {
-  switch (status) {
-    case 'PENDING':
-      return 'warning';
-    case 'ACCEPTED':
-      return 'success';
-    case 'REJECTED':
-    case 'WITHDRAWN':
-      return 'danger';
-    case 'EXPIRED':
-      return 'neutral';
-    default:
-      return 'neutral';
-  }
-}
+
+
 
 export default function MyQuotesScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();

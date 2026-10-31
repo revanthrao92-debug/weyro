@@ -14,12 +14,10 @@ import {
   FilterBar,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, typography } from '@/theme';
+import { titleize as labelize } from '@/utils/format';
 
 const FILTERS = ['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'];
 
-function labelize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
-}
 
 function statusTone(status: string): StatusTone {
   switch (status) {

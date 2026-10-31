@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { Booking } from '@/hooks/useBookings';
 import { StatusPill } from '@/components/ui';
 import { photoForCategory, photo } from '@/lib/photos';
+import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 import { palette, spacing, radii, typography } from '@/theme';
 
 export type BookingCardProps = {
@@ -11,26 +12,8 @@ export type BookingCardProps = {
   onPress: (id: string) => void;
 };
 
-function statusTone(status: string) {
-  switch (status) {
-    case 'CONFIRMED':
-    case 'PROVIDER_EN_ROUTE':
-    case 'IN_PROGRESS':
-      return 'info';
-    case 'COMPLETED':
-      return 'success';
-    case 'CANCELLED':
-      return 'danger';
-    case 'DISPUTED':
-      return 'warning';
-    default:
-      return 'neutral';
-  }
-}
 
-function labelize(s: string) {
-  return s.replace(/_/g, ' ');
-}
+
 
 /**
  * BookingCard — reference photo 6: photo-backed header, firm bordered body,

@@ -8,7 +8,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useRouter } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import {
   ListItem,
@@ -29,7 +28,6 @@ export default function NotificationsScreen() {
     markAsRead,
     isMarkingAllAsRead,
   } = useNotifications();
-  const router = useRouter();
 
   const handleMarkAllAsRead = async () => {
     try {
@@ -43,7 +41,7 @@ export default function NotificationsScreen() {
   const handleMarkAsRead = async (id: string) => {
     try {
       await markAsRead(id);
-    } catch (e: any) {
+    } catch {
       // Silent — item will be refreshed on next query
     }
   };

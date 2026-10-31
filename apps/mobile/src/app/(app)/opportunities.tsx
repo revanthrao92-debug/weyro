@@ -14,12 +14,10 @@ import {
   FilterBar,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
+import { titleize as labelize } from '@/utils/format';
 
 const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
 
-function labelize(c: string) {
-  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase().replace('_', ' ');
-}
 
 export default function BroadcastFeedScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>();

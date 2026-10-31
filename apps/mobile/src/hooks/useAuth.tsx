@@ -77,7 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role = user?.role ?? null;
   const isAuthenticated = !!user;
 
-  async function bootstrapAuth() {
+  const registerStoredPushToken = useCallback(async () => {
+    try {
+      const stored = await SecureStore.getItemAsync('weyro_push_token');
+      if (!stored) return;
+
+      const deviceOs = RNPlatform.OS === 'ios' ? 'ios' : 'android';
+      await apiClient('/notifications/push-token', {
+        method: 'POST',
+        body: JSON.stringify({ token: stored, deviceOs }),
+      }).catch(() => {
+        // Non-blocking: token registration failure shouldn't block auth
+      });
+    } catch {
+      // Non-blocking
+    }
+  }, []);
+
+  const bootstrapAuth = useCallback(async () => {
     try {
       const token = await tokenStorage.getAccessToken();
       if (!token) {
@@ -96,37 +113,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [registerStoredPushToken]);
 
-  async function registerStoredPushToken() {
-    try {
-      const stored = await SecureStore.getItemAsync('weyro_push_token');
-      if (!stored) return;
-
-      const deviceOs = RNPlatform.OS === 'ios' ? 'ios' : 'android';
-      await apiClient('/notifications/push-token', {
-        method: 'POST',
-        body: JSON.stringify({ token: stored, deviceOs }),
-      }).catch(() => {
-        // Non-blocking: token registration failure shouldn't block auth
-      });
-    } catch {
-      // Non-blocking
-    }
-  }
-
+  // Mount bootstrap; bootstrapAuth is a stable useCallback so the deps are complete.
   useEffect(() => {
     void (async () => {
       await bootstrapAuth();
     })();
-  }, []);
+  }, [bootstrapAuth]);
 
   // Register push token after auth bootstraps
   useEffect(() => {
     if (user) {
       void registerStoredPushToken();
     }
-  }, [user]);
+  }, [user, registerStoredPushToken]);
 
   const login = useCallback(
     async (emailOrPhone: string, password: string) => {

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   View,
   Text,
@@ -20,37 +19,19 @@ import {
   EmptyState,
   BackButton,
 } from '@/components/ui';
+import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 import { palette, spacing, typography } from '@/theme';
 
 type BookingDetailParams = { id: string };
 
-function labelize(s: string) {
-  return s.replace(/_/g, ' ');
-}
 
-function statusTone(status: string) {
-  switch (status) {
-    case 'CONFIRMED':
-    case 'PROVIDER_EN_ROUTE':
-    case 'IN_PROGRESS':
-      return 'info';
-    case 'COMPLETED':
-      return 'success';
-    case 'CANCELLED':
-      return 'danger';
-    case 'DISPUTED':
-      return 'warning';
-    default:
-      return 'neutral';
-  }
-}
+
 
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<BookingDetailParams>();
   const { data: booking, isLoading, isError } = useBooking(id || '');
   const updateStatus = useUpdateBookingStatus();
 
-  const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
 
   if (isLoading) {
     return (
