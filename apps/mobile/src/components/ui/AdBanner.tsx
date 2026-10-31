@@ -68,7 +68,10 @@ function resolve(placement: AdPlacement): AdContent {
 }
 
 function onPressAd(placement: AdPlacement, cta: string) {
-  // TODO: route to ad target / track impression.
+  // L8 decision (2026-10-31): impression/click tracking needs an analytics
+  // destination — it is intentionally deferred until an event pipeline
+  // exists (tracked in docs/AUDIT_REPORT.md → phase plan).
+  // Behavior today: no-op; keep the press feedback pure UI.
   void placement;
   void cta;
 }
