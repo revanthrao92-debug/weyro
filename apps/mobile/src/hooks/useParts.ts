@@ -50,6 +50,14 @@ export type SparePartOrder = {
   gatewayPaymentId?: string | null;
   paidAt?: string | null;
   createdAt: string;
+  /** Joined by the API on dealer/customer order lists */
+  sparePart?: {
+    id: string;
+    name: string;
+    partNumber: string;
+    imageUrl?: string | null;
+  } | null;
+  customer?: { firstName: string; lastName: string } | null;
 };
 
 export type CreateSparePartOrder = {

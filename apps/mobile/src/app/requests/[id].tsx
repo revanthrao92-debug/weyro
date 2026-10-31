@@ -6,9 +6,11 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation } from '@/hooks/useRequests';
+import { useAuth } from '@/hooks/useAuth';
+import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation, useCreateQuotation } from '@/hooks/useRequests';
 import {
   ScreenContainer,
   AppHeader,
@@ -19,6 +21,8 @@ import {
   ErrorState,
   EmptyState,
   BackButton,
+  Input,
+  Chip,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
@@ -32,10 +36,17 @@ type RequestParams = { id: string };
 export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
+  const { role } = useAuth();
   const { data: request, isLoading } = useRequest(id || '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
+  const createQuotation = useCreateQuotation();
+
+  // Checkpoint 3: providers get the quote form; customers keep Accept.
+  const isProvider = role === 'PROVIDER' || role === 'BOTH';
+  const canQuote =
+    isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
 
   const quotes = quotesData?.items ?? [];
 
@@ -148,16 +159,143 @@ export default function RequestDetailScreen() {
               data={quotes}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              renderItem={({ item }) => <QuoteCard quote={item} onAccept={handleAccept} />}
+              renderItem={({ item }) => (
+                <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
+              )}
             />
           )}
         </Card>
+
+        {canQuote && (
+          <QuoteForm
+            onSubmit={async (data) => {
+              try {
+                await createQuotation.mutateAsync({ requestId: request.id, data });
+                Alert.alert('Success', 'Quotation submitted to the customer.');
+              } catch (e: any) {
+                Alert.alert('Failed', e.message || 'Unable to submit quotation');
+              }
+            }}
+            submitting={createQuotation.isPending}
+          />
+        )}
 
         {canCancel && (
           <Button title="Cancel Request" variant="destructive" onPress={handleCancel} />
         )}
       </ScrollView>
     </ScreenContainer>
+  );
+}
+
+/**
+ * Provider-facing quote form (Checkpoint 3). Photo-7 style cost breakdown:
+ * rigid labeled rows, single primary CTA, status chip feedback.
+ */
+function QuoteForm({
+  onSubmit,
+  submitting,
+}: {
+  onSubmit: (data: {
+    partsCost: number;
+    labourCost: number;
+    shippingCost?: number;
+    partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
+    warrantyDays: number;
+    etaDescription: string;
+    deliveryMethod?: 'PICKUP' | 'DOORSTEP_DELIVERY' | 'PARTS_COURIER' | 'ON_SITE_FITMENT';
+    notes?: string;
+  }) => Promise<void>;
+  submitting: boolean;
+}) {
+  const [partsCost, setPartsCost] = useState('');
+  const [labourCost, setLabourCost] = useState('');
+  const [warrantyDays, setWarrantyDays] = useState('30');
+  const [etaDescription, setEtaDescription] = useState('');
+  const [notes, setNotes] = useState('');
+  const [condition, setCondition] = useState<'OEM' | 'AFTERMARKET' | 'USED'>('OEM');
+
+  const parts = Number(partsCost) || 0;
+  const labour = Number(labourCost) || 0;
+  const total = parts + labour;
+
+  const valid = parts > 0;
+
+  return (
+    <Card>
+      <View style={styles.quotesHeader}>
+        <Text style={styles.sectionTitle}>Submit quotation</Text>
+        <StatusPill label={condition} tone="info" />
+      </View>
+
+      <Input
+        label="Parts cost (₹)"
+        placeholder="5000"
+        value={partsCost}
+        onChangeText={setPartsCost}
+        keyboardType="number-pad"
+      />
+      <Input
+        label="Labour cost (₹)"
+        placeholder="1500"
+        value={labourCost}
+        onChangeText={setLabourCost}
+        keyboardType="number-pad"
+      />
+      <Input
+        label="Warranty (days)"
+        placeholder="30"
+        value={warrantyDays}
+        onChangeText={setWarrantyDays}
+        keyboardType="number-pad"
+      />
+
+      <View style={styles.conditionRow}>
+        {(['OEM', 'AFTERMARKET', 'USED'] as const).map((c) => (
+          <Chip
+            key={c}
+            label={c}
+            selected={condition === c}
+            onPress={() => setCondition(c)}
+          />
+        ))}
+      </View>
+
+      <Input
+        label="Estimated time to complete"
+        placeholder='e.g. "Same day if part in stock"'
+        value={etaDescription}
+        onChangeText={setEtaDescription}
+      />
+      <Input
+        label="Notes (optional)"
+        placeholder="Anything the customer should know"
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+      />
+
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>TOTAL</Text>
+        <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
+      </View>
+
+      <Button
+        title="Submit quotation"
+        loading={submitting}
+        disabled={!valid || submitting || etaDescription.trim().length < 2}
+        onPress={() =>
+          void onSubmit({
+            partsCost: parts,
+            labourCost: labour,
+            partCondition: condition,
+            warrantyDays: Math.max(0, Number(warrantyDays) || 0),
+            etaDescription: etaDescription.trim(),
+            notes: notes.trim() || undefined,
+          })
+        }
+      />
+    </Card>
   );
 }
 
@@ -170,7 +308,15 @@ function DetailRow({ label, value, last }: { label: string; value: string; last?
   );
 }
 
-function QuoteCard({ quote, onAccept }: { quote: any; onAccept: (q: any) => void }) {
+function QuoteCard({
+  quote,
+  onAccept,
+  canAccept,
+}: {
+  quote: any;
+  onAccept: (q: any) => void;
+  canAccept?: boolean;
+}) {
   return (
     <View style={styles.quoteCard}>
       <View style={styles.quoteInfo}>
@@ -181,7 +327,9 @@ function QuoteCard({ quote, onAccept }: { quote: any; onAccept: (q: any) => void
           <Text style={styles.quoteWarranty}>{quote.warrantyDays} days warranty</Text>
         )}
       </View>
-      <Button title="Accept" onPress={() => onAccept(quote)} style={styles.acceptBtn} />
+      {canAccept !== false ? (
+        <Button title="Accept" onPress={() => onAccept(quote)} style={styles.acceptBtn} />
+      ) : null}
     </View>
   );
 }
@@ -239,4 +387,25 @@ const styles = StyleSheet.create({
   quoteAmount: { ...typography.title, color: palette.textPrimary, marginBottom: spacing.xs },
   quoteWarranty: { ...typography.label, color: palette.success, marginTop: spacing.xs },
   acceptBtn: { minWidth: 96 },
+  conditionRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: palette.surfaceAlt,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  totalLabel: {
+    ...typography.label,
+    color: palette.textMuted,
+    letterSpacing: 0.5,
+  },
+  totalValue: {
+    ...typography.heading,
+    color: palette.textPrimary,
+  },
 });
