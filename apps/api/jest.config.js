@@ -12,6 +12,12 @@ module.exports = {
   silent: true,
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
+  // Phase 8: report coverage with thresholds pinned at the 2026-10-31
+  // measured baseline (31.6% stmts / 31.1% branch / 26.7% func / 32.2% line),
+  // rounded down — CI fails if coverage regresses below today's floor.
+  coverageThreshold: {
+    global: { statements: 30, branches: 25, functions: 22, lines: 30 },
+  },
   moduleNameMapper: {
     '^expo-server-sdk$': '<rootDir>/__mocks__/expo-server-sdk.ts',
   },

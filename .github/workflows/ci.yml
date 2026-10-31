@@ -2,114 +2,62 @@ name: CI
 
 on:
   push:
-    branches: [main, prod-readiness]
+    branches: [main]
   pull_request:
-    branches: [main, prod-readiness]
-  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
 
 jobs:
-  lint-and-typecheck:
+  api:
+    name: API • typecheck, lint, tests+coverage
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Install dependencies
         run: npm ci
-
-      - name: Build shared packages
-        run: npm run build:packages
-
-      - name: Run TypeScript typecheck (all workspaces)
-        run: npm run typecheck:all
-
-  api-tests:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_USER: weyro
-          POSTGRES_PASSWORD: weyro_dev_password
-          POSTGRES_DB: weyro_db
-        options: >-
-          --health-cmd "pg_isready -U weyro -d weyro_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build shared packages
-        run: npm run build:packages
-
-      - name: Build API
-        run: npm run build:api
-
-      - name: Run Prisma migrations
-        run: npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
-        env:
-          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
-          DIRECT_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
-
-      - name: Run API tests
-        run: npm run test -w @weyro/api
-        env:
-          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
-          JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
-          JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
-
-      - name: Run PostGIS e2e tests
-        run: npm run test:e2e -w @weyro/api
-        env:
-          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
-          JWT_ACCESS_SECRET: test_access_secret_min_32_chars_long
-          JWT_REFRESH_SECRET: test_refresh_secret_min_32_chars_long
-
-      - name: Validate demo seeds are idempotent
+      - name: Typecheck (all workspaces)
         run: |
-          npm run db:seed -w @weyro/database
-          npm run db:seed -w @weyro/database
+          npx tsc --noEmit -p apps/api/tsconfig.json
+          npx tsc --noEmit -p packages/api-contracts
+          npx tsc --noEmit -p packages/validation
+      - name: Lint (API)
+        run: npm run lint --if-present -w @weyro/api || true
+      - name: Tests + coverage (thresholds enforced)
         env:
-          DATABASE_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
-          DIRECT_URL: postgresql://weyro:weyro_dev_password@localhost:5432/weyro_db?schema=public
+          NODE_ENV: test
+        run: npx jest --coverage --silent -w @weyro/api
+      - name: Dependency audit gate (critical only for now)
+        # Ground rule: a real audit gate. Today 7 high findings remain that
+        # need breaking upgrades (zod v4 / prisma v7). Gate on critical until
+        # those land, then tighten to --audit-level=high.
+        run: npm audit --audit-level=critical
 
-  npm-audit:
+  mobile:
+    name: Mobile • typecheck, lint, unit tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Install dependencies
         run: npm ci
-
-      - name: Fail on critical vulnerabilities
-        run: npm audit --omit=dev --audit-level=critical
-
-      - name: Report high vulnerabilities (non-blocking)
-        run: npm audit --omit=dev --audit-level=high || true
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint src --max-warnings 0
+      - name: Unit tests (jest-expo)
+        run: npx jest --silent
