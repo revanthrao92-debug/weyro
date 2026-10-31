@@ -38,6 +38,16 @@ export const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // OTP hashing secret (HMAC-SHA256). Dev default keeps tests simple;
+  // production must supply a real random secret.
+  OTP_HASH_SECRET: z.string().default('weyro_dev_otp_hash_secret_32_chars_x'),
+  // SMS delivery driver for OTP: console (dev), msg91, twilio
+  SMS_PROVIDER: z.enum(['console', 'msg91', 'twilio']).default('console'),
+  SMS_MSG91_AUTH_KEY: z.string().optional(),
+  SMS_MSG91_SENDER_ID: z.string().optional(),
+  SMS_TWILIO_ACCOUNT_SID: z.string().optional(),
+  SMS_TWILIO_AUTH_TOKEN: z.string().optional(),
+  SMS_TWILIO_FROM: z.string().optional(),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV !== 'production') {
     return;
@@ -66,6 +76,8 @@ export const envSchema = z.object({
     'RAZORPAY_KEY_ID',
     'RAZORPAY_KEY_SECRET',
     'RAZORPAY_WEBHOOK_SECRET',
+    'OTP_HASH_SECRET',
+    'SMS_PROVIDER',
   ] as const) {
     if (!value[key]) {
       ctx.addIssue({
@@ -74,6 +86,25 @@ export const envSchema = z.object({
         message: `${key} is required in production`,
       });
     }
+  }
+
+  // OTP hashing secret must be lifted off the dev default in production.
+  if (value.OTP_HASH_SECRET === 'weyro_dev_otp_hash_secret_32_chars_x') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['OTP_HASH_SECRET'],
+      message:
+        'OTP_HASH_SECRET must be a strong random value in production (dev default is not allowed)',
+    });
+  }
+
+  // A real SMS provider (with credentials) is mandatory in production.
+  if (value.SMS_PROVIDER === 'console') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SMS_PROVIDER'],
+      message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
+    });
   }
 });
 

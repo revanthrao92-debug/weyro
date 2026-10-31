@@ -593,7 +593,7 @@ model AuditLog {
 model OTP {
   id          String    @id @default(uuid())
   phone       String    @unique
-  code        String // 6-digit OTP
+  code        String // HMAC-SHA256 hash of the 6-digit OTP (plaintext code never stored)
   purpose     String // "login", "register", "reset_password"
   attempts    Int       @default(0)
   maxAttempts Int       @default(5)

@@ -14,6 +14,7 @@ import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { buildSmsGateway, ConsoleSmsGateway, SmsGateway, StubSmsGateway } from './sms.gateway';
 
 // Pre-computed bcrypt hash for constant-time comparison when user does not exist
 const DUMMY_HASH =
@@ -22,11 +23,31 @@ const DUMMY_HASH =
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly smsGateway: SmsGateway;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    this.smsGateway = buildSmsGateway();
+  }
+
+  /** HMAC-SHA256 hash of an OTP — codes are never stored or compared in plaintext. */
+  private hashOtp(phone: string, code: string): string {
+    return crypto
+      .createHmac('sha256', env.OTP_HASH_SECRET)
+      .update(`${phone}:${code}`)
+      .digest('hex');
+  }
+
+  /** Constant-time comparison of the received code against the stored hash. */
+  private otpMatches(phone: string, code: string, storedHash: string): boolean {
+    const candidate = this.hashOtp(phone, code);
+    const a = Buffer.from(candidate, 'utf8');
+    const b = Buffer.from(storedHash, 'utf8');
+    if (a.length !== b.length) return false; // length mismatch → invalid
+    return crypto.timingSafeEqual(a, b);
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
@@ -230,14 +251,15 @@ export class AuthService {
       );
     }
 
-    // Generate 6-digit code
+    // Generate 6-digit code; store ONLY its HMAC hash (C1/C2 remediation)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = this.hashOtp(phone, code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await this.prisma.oTP.upsert({
       where: { phone },
       update: {
-        code,
+        code: codeHash,
         purpose: dto.purpose,
         attempts: 0,
         expiresAt,
@@ -245,15 +267,17 @@ export class AuthService {
       },
       create: {
         phone,
-        code,
+        code: codeHash,
         purpose: dto.purpose || 'login',
         expiresAt,
       },
     });
 
-    // In production, send via SMS gateway here
-    this.logger.log(
-      `OTP for ${phone} (purpose: ${dto.purpose}): ${code}`,
+    // Deliver via SMS gateway. The gateway NEVER receives or logs the code
+    // itself; only a user-copyable dev channel (non-prod response) exposes it.
+    await this.smsGateway.send(
+      phone,
+      'Your Weyro verification code. It expires in 10 minutes.',
     );
 
     return {
@@ -288,17 +312,30 @@ export class AuthService {
       throw new BadRequestException('OTP has expired');
     }
 
-    if (otp.attempts >= otp.maxAttempts) {
-      throw new BadRequestException('Maximum OTP verification attempts exceeded');
-    }
+    // NOTE: no pre-read attempts check here — the ceiling is enforced
+    // atomically by the conditional updateMany gate below (C2 fix).
 
-    // Increment attempts
-    await this.prisma.oTP.update({
-      where: { phone },
-      data: { attempts: otp.attempts + 1 },
+    // Increment attempts ATOMICALLY (C2): conditional updateMany on the
+    // attempts ceiling so a concurrent guess race cannot bypass the limit.
+    // If the gate returns 0 rows something raced past the ceiling — lockout.
+    const gate = await this.prisma.oTP.updateMany({
+      where: {
+        phone,
+        verifiedAt: null,
+        attempts: { lt: otp.maxAttempts },
+      },
+      data: { attempts: { increment: 1 } },
     });
 
-    if (otp.code !== dto.code) {
+    if (gate.count === 0) {
+      // Invalidate the record entirely once the ceiling is hit.
+      await this.prisma.oTP.deleteMany({ where: { phone, verifiedAt: null } });
+      throw new BadRequestException(
+        'Maximum OTP verification attempts exceeded',
+      );
+    }
+
+    if (!this.otpMatches(phone, dto.code, otp.code)) {
       throw new BadRequestException('Invalid OTP code');
     }
 
