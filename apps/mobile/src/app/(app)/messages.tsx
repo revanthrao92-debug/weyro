@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View, TextInput } from 'react-native';
-
+import { FlatList, StyleSheet, Text, View, TextInput, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MessageCircle, Search } from 'lucide-react-native';
 import { Avatar, Badge, ScreenContainer, AppHeader, EmptyState, Skeleton } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
@@ -12,6 +12,7 @@ import { useChatThreads } from '@/hooks/useChatThreads';
  * circular avatar, bold name + time, preview line, teal unread badge.
  */
 export default function MessagesScreen() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const { data, isLoading } = useChatThreads();
 
@@ -63,7 +64,15 @@ export default function MessagesScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View style={styles.row} key={item.id}>
+          <Pressable
+            key={item.id}
+            onPress={() => router.push(`/messages/${item.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open conversation with ${item.customer?.firstName ?? 'customer'}`}
+            accessibilityHint="Opens the chat thread"
+            className="active:opacity-60"
+            style={styles.row}
+          >
             <Avatar name={item.customer?.firstName ?? 'W'} size={44} />
             <View style={styles.rowText}>
               <Text style={styles.name} numberOfLines={1} maxFontSizeMultiplier={2}>
@@ -84,7 +93,7 @@ export default function MessagesScreen() {
               </Text>
               {item.unreadCount > 0 ? <Badge value={String(item.unreadCount)} /> : null}
             </View>
-          </View>
+          </Pressable>
         )}
       />
     </ScreenContainer>

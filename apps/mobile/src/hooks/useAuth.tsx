@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { Alert , Platform as RNPlatform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { apiClient, setAccessToken } from '@/services/api-client';
+import { apiClient, setAccessToken, setTokenRefresher, setSessionExpiredHandler } from '@/services/api-client';
 import { tokenStorage } from '@/services/token-storage';
 import {
   UserRole,
@@ -38,6 +38,35 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * H6: the actual /auth/refresh call, kept at module scope so both the
+ * AuthProvider's `refresh` (context consumers) and the api-client's
+ * single-flight interceptor use the same implementation.
+ */
+async function performTokenRefresh(): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}> {
+  const refreshToken = await tokenStorage.getRefreshToken();
+  if (!refreshToken) {
+    throw new Error('No refresh token');
+  }
+
+  const res = await apiClient<{
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+  }>('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  await tokenStorage.setAccessToken(res.accessToken);
+  await tokenStorage.setRefreshToken(res.refreshToken);
+  return res;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -190,24 +219,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const refreshToken = await tokenStorage.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token');
-    }
-
-    const res = await apiClient<{
-      accessToken: string;
-      refreshToken: string;
-      user: AuthUser;
-    }>('/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    await tokenStorage.setAccessToken(res.accessToken);
-    await tokenStorage.setRefreshToken(res.refreshToken);
+    // H6: the api-client owns the single-flight refresh. Calling this
+    // joins the shared in-flight promise (or starts it) — parallel calls
+    // to /auth/refresh become impossible.
+    const res = await performTokenRefresh();
     setAccessToken(res.accessToken);
     setUser(res.user);
+  }, []);
+
+  // Module-level registration so the api-client's 401 interceptor can use
+  // the same single-flight refresh and force clean logout on failure.
+  useEffect(() => {
+    setTokenRefresher(async () => {
+      try {
+        const res = await performTokenRefresh();
+        return res.accessToken;
+      } catch {
+        return null;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    setSessionExpiredHandler(async () => {
+      await tokenStorage.clearAll();
+      setAccessToken(null);
+      setUser(null);
+    });
   }, []);
 
   return (
