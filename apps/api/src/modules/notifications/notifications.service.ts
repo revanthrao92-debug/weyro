@@ -8,6 +8,12 @@ import {
   encodeCursor,
 } from '../../common/utils/cursor';
 
+/** Mask a push token for safe log lines (Expo tokens are ~40+ chars). */
+function maskToken(token: string): string {
+  if (token.length <= 8) return '****';
+  return `${token.slice(0, 4)}****${token.slice(-4)}`;
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -17,8 +23,41 @@ export class NotificationsService {
 
   async registerPushToken(userId: string, dto: RegisterPushTokenDto) {
     if (!Expo.isExpoPushToken(dto.token)) {
-      this.logger.warn(`Invalid Expo push token received: ${dto.token}`);
+      // Never log the raw token (it is a delivery credential).
+      const raw = String(dto.token ?? '');
+      this.logger.warn(`Invalid Expo push token received (len=${raw.length})`);
       return { status: 'ignored', reason: 'invalid_format' };
+    }
+
+    const existing = await this.prisma.pushToken.findUnique({
+      where: { token: dto.token },
+    });
+
+    // H4: a push token is a delivery credential. Do NOT let an arbitrary
+    // authenticated caller silently steal a device binding owned by someone
+    // else. Legitimate re-registration by the same user is the common case;
+    // cross-user claims are ignored (and surfaced in logs, token masked).
+    if (existing && existing.userId !== userId) {
+      this.logger.warn(
+        `Push token ${maskToken(dto.token)} already bound to another user — registration ignored (authUserId=${userId})`,
+      );
+      return { status: 'ignored', reason: 'owned_by_other' };
+    }
+
+    // Cap tokens per user (multi-device support with a sane limit): drop the
+    // oldest beyond MAX_TOKENS_PER_USER, then upsert.
+    const MAX_TOKENS_PER_USER = 5;
+    const userTokens = await this.prisma.pushToken.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'asc' },
+    });
+    const isUpdate = !!existing;
+    const overflow = userTokens.length + (isUpdate ? 0 : 1) - MAX_TOKENS_PER_USER;
+    if (overflow > 0) {
+      const stale = userTokens.slice(0, overflow);
+      await this.prisma.pushToken.deleteMany({
+        where: { token: { in: stale.map((t) => t.token) } },
+      });
     }
 
     const tokenRecord = await this.prisma.pushToken.upsert({

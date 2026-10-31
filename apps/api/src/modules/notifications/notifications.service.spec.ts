@@ -27,7 +27,8 @@ describe('NotificationsService', () => {
     mockPrisma = {
       pushToken: {
         upsert: jest.fn(),
-        findMany: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         deleteMany: jest.fn(),
       },
       notification: {

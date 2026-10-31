@@ -61,6 +61,16 @@ describe('End-to-End Core Integration Suite', () => {
         id: 'rt_1',
         userId: 'user_1',
         tokenHash: oldHash,
+        familyId: 'fam-1',
+        expiresAt: new Date(Date.now() + 86400000),
+        revokedAt: null,
+      });
+      // M3: the service re-reads via findUnique for the user payload
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'rt_1',
+        userId: 'user_1',
+        tokenHash: oldHash,
+        familyId: 'fam-1',
         expiresAt: new Date(Date.now() + 86400000),
         revokedAt: null,
         user: {
@@ -69,6 +79,8 @@ describe('End-to-End Core Integration Suite', () => {
           phone: '+919876543210',
           role: 'CUSTOMER',
           isActive: true,
+          customerProfile: null,
+          providerProfile: null,
         },
       });
 

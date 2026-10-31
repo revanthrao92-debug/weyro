@@ -470,6 +470,9 @@ model RefreshToken {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String
+  // Rotation family: every token minted from the same login session shares
+  // this id. Reuse of an already-rotated token revokes the whole family (M3).
+  familyId  String
   revokedAt DateTime?
   expiresAt DateTime
   deletedAt DateTime?
@@ -477,6 +480,7 @@ model RefreshToken {
 
   @@index([userId])
   @@index([tokenHash])
+  @@index([familyId])
   @@index([deletedAt])
   @@map("refresh_tokens")
 }

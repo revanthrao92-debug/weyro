@@ -19,15 +19,30 @@ async function bootstrap() {
 
   // Behind a load balancer Express only sees the proxy socket. Without this,
   // the per-IP throttler would bucket every user under one address.
+  //
+  // M1 fix: `TRUST_PROXY=true` (trust every hop) lets clients spoof
+  // X-Forwarded-For and defeat per-IP throttling. Only numeric hop counts and
+  // explicit CIDR/IP entries are accepted; in production the value must not
+  // be the blanket `true`.
   if (env.TRUST_PROXY) {
     const trustProxy = env.TRUST_PROXY.trim();
+    const isBlanketTrue = /^true$/i.test(trustProxy);
+    const isHopCount = /^\d+$/.test(trustProxy);
+    const looksLikeIpOrCidr = /^[0-9a-fA-F:.]+(\/\d{1,3})?$/.test(trustProxy);
+
+    if (isBlanketTrue && env.NODE_ENV === 'production') {
+      throw new Error(
+        'TRUST_PROXY=true is unsafe in production — set it to the number of trusted proxy hops (e.g. "1") or a specific proxy IP/CIDR list',
+      );
+    }
+    if (!isHopCount && !looksLikeIpOrCidr && !isBlanketTrue) {
+      throw new Error(
+        `TRUST_PROXY must be a hop count (integer) or IP/CIDR list; got "${trustProxy}"`,
+      );
+    }
     app.set(
       'trust proxy',
-      trustProxy === 'true'
-        ? true
-        : /^\d+$/.test(trustProxy)
-          ? Number(trustProxy)
-          : trustProxy,
+      isBlanketTrue ? true : isHopCount ? Number(trustProxy) : trustProxy,
     );
   }
 
@@ -54,12 +69,19 @@ async function bootstrap() {
         service: 'weyro-api',
         env: process.env.NODE_ENV || 'development',
       },
-      // Custom request ID header
-      genReqId: (req) => {
-        return (
-          req.headers['x-request-id'] ||
-          `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-        );
+      // Custom request ID header — MCP5: client-supplied IDs are validated
+      // (alphanumeric + _/- only, max 64 chars); anything else is regenerated
+      // so attacker-controlled bytes never enter structured logs.
+      genReqId: (req: any) => {
+        const supplied = req.headers['x-request-id'];
+        if (
+          typeof supplied === 'string' &&
+          supplied.length <= 64 &&
+          /^[A-Za-z0-9_-]+$/.test(supplied)
+        ) {
+          return supplied;
+        }
+        return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       },
       customLogLevel: (res: any, err: any) => {
         if (res.statusCode >= 500 || err) return 'error';

@@ -25,6 +25,11 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly smsGateway: SmsGateway;
 
+  /** M2: per-phone verify throttle (in-memory sliding window, per instance). */
+  private static readonly VERIFY_WINDOW_MS = 60_000;
+  private static readonly VERIFY_MAX_PER_WINDOW = 10;
+  private readonly verifyAttemptsByPhone = new Map<string, number[]>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -162,12 +167,41 @@ export class AuthService {
   async refreshToken(refreshTokenStr: string) {
     const tokenHash = this.hashToken(refreshTokenStr);
 
-    const storedToken = await this.prisma.refreshToken.findFirst({
-      where: {
-        tokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
+    // M3: look up the token row WITHOUT the revokedAt filter first so a
+    // replay of an already-rotated token is distinguished from a fully
+    // unknown token.
+    const tokenRow = await this.prisma.refreshToken.findFirst({
+      where: { tokenHash },
+    });
+
+    if (!tokenRow) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    // Reuse of an already-rotated token means either replay (benign) or a
+    // stolen-token attack (malicious). In both cases the safest response is
+    // to revoke every token in the rotation family and make the user log in
+    // again.
+    if (tokenRow.revokedAt) {
+      const familyId = tokenRow.familyId ?? tokenRow.id;
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      this.logger.warn(
+        `Refresh token reuse detected (family=${tokenRow.familyId?.slice(0, 8) ?? 'n/a'}) — family revoked`,
+      );
+      throw new UnauthorizedException(
+        'Refresh token reuse detected; all sessions for this login were revoked. Please sign in again.',
+      );
+    }
+
+    if (tokenRow.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const storedToken = await this.prisma.refreshToken.findUnique({
+      where: { id: tokenRow.id },
       include: {
         user: {
           include: {
@@ -182,14 +216,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // Rotate token atomically: revoke current and issue a new one
+    // Rotate token atomically: revoke current and issue a new one in the
+    // SAME rotation family.
     const newTokens = await this.prisma.$transaction(async (tx) => {
       await tx.refreshToken.update({
         where: { id: storedToken.id },
         data: { revokedAt: new Date() },
       });
 
-      return await this.generateTokenPair(storedToken.user, tx);
+      return await this.generateTokenPair(storedToken.user, tx, storedToken.familyId);
     });
 
     return {
@@ -293,8 +328,33 @@ export class AuthService {
    * Verify a 6-digit OTP and optionally mark the phone as verified.
    * On successful verification for login/register, returns JWT tokens.
    */
+  /** M2: per-phone sliding-window gate for verify-otp (not just per-IP). */
+  private assertPhoneVerifyAllowance(phone: string): void {
+    const now = Date.now();
+    const window = this.verifyAttemptsByPhone.get(phone) ?? [];
+    const recent = window.filter((t) => now - t < AuthService.VERIFY_WINDOW_MS);
+    if (recent.length >= AuthService.VERIFY_MAX_PER_WINDOW) {
+      throw new BadRequestException(
+        'Too many verification attempts for this number. Please wait a minute and try again.',
+      );
+    }
+    recent.push(now);
+    this.verifyAttemptsByPhone.set(phone, recent);
+
+    // Opportunistic cleanup to keep the map bounded
+    if (this.verifyAttemptsByPhone.size > 10_000) {
+      for (const [key, times] of this.verifyAttemptsByPhone) {
+        if (!times.some((t) => now - t < AuthService.VERIFY_WINDOW_MS)) {
+          this.verifyAttemptsByPhone.delete(key);
+        }
+      }
+    }
+  }
+
   async verifyOtp(dto: VerifyOtpDto) {
     const phone = dto.phone.trim();
+    // M2: phone-scoped rate limit BEFORE any DB work
+    this.assertPhoneVerifyAllowance(phone);
 
     const otp = await this.prisma.oTP.findUnique({
       where: { phone },
@@ -468,6 +528,7 @@ export class AuthService {
       providerProfile?: { id: string; verificationStatus?: any } | null;
     },
     tx?: any,
+    familyId?: string,
   ) {
     const payload: AuthUserPayload = {
       sub: user.id,
@@ -493,6 +554,9 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash,
+        // Fresh login: the minted token is its own rotation-family root.
+        // Rotation ("refresh"): the new token inherits the existing family.
+        familyId: familyId || crypto.randomUUID(),
         expiresAt,
       },
     });
