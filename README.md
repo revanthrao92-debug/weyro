@@ -276,3 +276,51 @@ isolated without a disruptive move.
   last-updated timestamp; an in-app map view and background tracking are not
   implemented.
 - GSTIN/trade-licence validation is planned.
+
+---
+
+## 🔌 API Surface (cheat sheet)
+
+Base URL: `/api/v1` (see `docs/api.md` for the full endpoint overview).
+Highlights: `/auth/*` (login/register/OTP/refresh), `/damage-requests`,
+`/damage-requests/:requestId/quotations`, `/quotations/bookings`,
+`/spare-parts` (+ `/orders`), `/payments` (create-order/verify/webhook),
+`/chat/threads`, `/notifications`, `/uploads`, `/admin/*`, `/providers`.
+
+---
+
+## 🧪 Development commands
+
+| Task | Command |
+|---|---|
+| API tests + coverage (thresholds enforced) | `cd apps/api && npx jest --coverage` |
+| API typecheck | `npx tsc --noEmit -p apps/api/tsconfig.json` |
+| Mobile typecheck | `cd apps/mobile && npx tsc --noEmit` |
+| Mobile lint (zero-warning gate) | `cd apps/mobile && npx eslint src --max-warnings 0` |
+| Mobile unit tests | `cd apps/mobile && npx jest` |
+| DB migrations | `cd packages/database && npx prisma migrate dev` |
+| Local stack (dev) | `docker compose up -d` |
+| Prod-like stack | `docker compose -f docker-compose.prod.yml up -d` |
+| DB backup | `./scripts/backup-db.sh ./backups` |
+
+CI runs all of the above on push/PR (`.github/workflows/ci.yml`).
+
+---
+
+## 🚀 Production requirements
+
+- `RAZORPAY_WEBHOOK_SECRET` — must be **independent** of the API key secret (rejected otherwise at boot).
+- `SMS_PROVIDER` (`msg91` \| `twilio`) + provider credentials — OTP delivery is required in production; the console driver is refused.
+- `OTP_HASH_SECRET` — random 32-byte hex (`openssl rand -hex 32`); the dev default is rejected.
+- `STORAGE_DRIVER=s3` + `STORAGE_*` credentials — the mock storage driver fails fast in production.
+- `TRUST_PROXY` — a numeric hop count (e.g. `1`) or explicit proxy IP/CIDR; blanket `true` is rejected.
+- `DATABASE_POOL_MAX` / `DATABASE_POOL_TIMEOUT` — pool tuning (defaults 10 / 10s).
+- `CORS_ORIGINS` — explicit list; `*` is rejected in production.
+- Never reuse committed dev secrets (see `.env.example` warning).
+
+## 🔄 Realtime note
+
+The API ships a Socket.IO path for chat (`apps/api` chat gateway), but the
+mobile client currently **polls** the REST endpoints (`useChatThreads`) —
+no socket.io-client on the phone side. Keep both sides in mind when
+designing chat UX/wiring.
