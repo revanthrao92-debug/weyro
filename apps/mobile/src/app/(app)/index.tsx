@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useVehicles } from '@/hooks/useProfile';
@@ -104,7 +105,7 @@ export default function HomeScreen() {
     user?.customerProfile?.firstName ||
     (user?.email ? user.email.split('@')[0] : 'there');
 
-  if (role !== 'CUSTOMER' && role !== null && role !== 'BOTH') {
+  if (role === 'ADMIN') {
     return (
       <ScreenContainer chrome="dark">
         <AppHeader
@@ -113,10 +114,15 @@ export default function HomeScreen() {
         />
         <EmptyState
           title="Nothing here yet"
-          message="Provider and admin dashboards are coming soon."
+          message="The admin dashboard stays on the Overview tab."
         />
       </ScreenContainer>
     );
+  }
+
+  // Checkpoint 3: real Dealer/Mechanic dashboard (photo-backed, rigid).
+  if (role === 'PROVIDER' || role === 'BOTH') {
+    return <ProviderDashboard />;
   }
 
   return (
