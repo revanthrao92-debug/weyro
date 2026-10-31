@@ -1,5 +1,4 @@
 import {
-  Image,
   ScrollView,
   StyleSheet,
   View,
@@ -18,6 +17,13 @@ import { BackButton ,
 } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
 import { palette, spacing, radii } from '@/theme';
+import { Image as ChemImage } from 'expo-image';
+import { photo } from '@/lib/photos';
+
+/** Catalogue photo for a garage vehicle (reversible: swap for your CDN mapping). */
+function vehiclePhoto(_make: string, _model: string): string {
+  return photo('garage-default');
+}
 
 export default function VehicleDetailScreen() {
   const { vehicleId } = useLocalSearchParams();
@@ -66,9 +72,11 @@ export default function VehicleDetailScreen() {
       <ScrollView contentContainerStyle={styles.body}>
         <SectionCard title="Vehicle" icon={Car} style={styles.section}>
           <View style={styles.vehicleImage}>
-            <Image
-              source={require('../../../assets/images/weyro-logo.png')}
-              style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+            <ChemImage
+              source={{ uri: vehiclePhoto(vehicle.make, vehicle.model) }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              accessibilityLabel={`${vehicle.make} ${vehicle.model}`}
             />
           </View>
         </SectionCard>
