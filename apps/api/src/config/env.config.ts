@@ -55,7 +55,7 @@ export const envSchema = z.object({
 
   if (value.CORS_ORIGINS.split(',').map((o) => o.trim()).includes('*')) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: ['CORS_ORIGINS'],
       message: 'CORS_ORIGINS must not contain * in production',
     });
@@ -63,7 +63,7 @@ export const envSchema = z.object({
 
   if (value.STORAGE_DRIVER !== 's3') {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: ['STORAGE_DRIVER'],
       message: 'STORAGE_DRIVER must be s3 in production',
     });
@@ -81,7 +81,7 @@ export const envSchema = z.object({
   ] as const) {
     if (!value[key]) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: [key],
         message: `${key} is required in production`,
       });
@@ -91,7 +91,7 @@ export const envSchema = z.object({
   // OTP hashing secret must be lifted off the dev default in production.
   if (value.OTP_HASH_SECRET === 'weyro_dev_otp_hash_secret_32_chars_x') {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: ['OTP_HASH_SECRET'],
       message:
         'OTP_HASH_SECRET must be a strong random value in production (dev default is not allowed)',
@@ -101,7 +101,7 @@ export const envSchema = z.object({
   // A real SMS provider (with credentials) is mandatory in production.
   if (value.SMS_PROVIDER === 'console') {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: ['SMS_PROVIDER'],
       message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
     });
@@ -115,7 +115,7 @@ export const envSchema = z.object({
       value.RAZORPAY_WEBHOOK_SECRET === 'rzp_placeholder_webhook_secret')
   ) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: ['RAZORPAY_WEBHOOK_SECRET'],
       message:
         'RAZORPAY_WEBHOOK_SECRET must be independent of the API key secret (placeholder/dev values rejected)',

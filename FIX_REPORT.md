@@ -53,7 +53,7 @@ Every finding from `AUDIT_REPORT.md` was verified against current code before fi
 | API tests | 124 passed | **145 passed** (+21 new behavioral tests) |
 | Mobile tests | 0 | **14 passed** (api-client H5/H6, format utils) |
 | API coverage | unmeasured | **31.6% stmts / 31.1% branch / 26.7% funcs / 32.2% lines** (+ CI thresholds pinned at this floor) |
-| Vulnerabilities | 58 (4 low · 43 mod · 11 high) | **57** (1 low · 49 mod · 7 high · 0 critical) |
+| Vulnerabilities | 58 (4 low · 43 mod · 11 high) | **55** (1 low · 48 mod · 6 high · 0 critical) |
 | Duplicate helpers | 12 sites | **1 shared module** (`utils/format.ts`), variants explicit |
 | CI | none | **GitHub Actions** (`ci.yml`): typecheck×4, lint(0-warning gate), API tests+coverage, audit gate, mobile tests |
 | Graceful shutdown | partial | verified (`enableShutdownHooks` + `PrismaService.onModuleDestroy`) |
@@ -83,8 +83,9 @@ Every finding from `AUDIT_REPORT.md` was verified against current code before fi
 
 | Item | Why deferred | Next step |
 |---|---|---|
+| **prisma@7 + deepmerge-ts CVE (HIGH)** | Migration attempted: v7 drops the `url/directUrl` schema datasource and requires the `prisma-client` generator with driver adapters; the generated TS-only client does not fit this CJS/NestJS yet. `@prisma/config@6.19.3` also pins `deepmerge-ts` exactly (override cannot force v8). Exposure is CLI-dev-only (config parsing at migration time), not the running API | Cold-start the migration on a dedicated branch: v7 `prisma.config.ts` + `@prisma/adapter-pg` + `PrismaPg` in `PrismaService`/seed + repoint 10 `@prisma/client` imports; keep prisma 6 until the client emission compiles clean |
 | **L2** service extraction (quotations 947L / spare-parts 776L) | Pure refactor; risk/benefit poor mid-remediation when all state transitions are already guarded by the new conditional-claim layer | Split after H-fixes soak: extract `QuotationEscrowService` + `SparePartSettlement` state machine; tests unaffected |
-| **7 high vulns** (`deepmerge-ts`→prisma@7.10.1, `zod`→4.6.7, `multer` minor) | zod-v4 + prisma-v7 are breaking upgrades spanning the whole validation layer | Dedicated branch: upgrade zod first (API-only), then prisma, then raise the CI audit gate from `--audit-level=critical` to `high` |
+
 | **OTP prisma migration to hashed column** | Chose to store the HMAC in the existing `code` column (no schema change needed; plaintext never persisted). Existing dev rows will simply fail verification | Optional cleanup migration to rename/comment the column |
 | Real SMS HTTP delivery | Cannot integrate a real provider without an account; stub + fail-fast + pluggable gateway shipped | Implement `StubSmsGateway.send` with provider HTTP client |
 

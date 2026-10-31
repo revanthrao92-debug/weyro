@@ -39,7 +39,7 @@ export const RegisterSchema = z
       (data.latitude === undefined || data.longitude === undefined)
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ['latitude'],
         message: 'Provider registration requires latitude and longitude',
       });
@@ -49,7 +49,7 @@ export const RegisterSchema = z
       (!data.towingVehicleTypes || data.towingVehicleTypes.length === 0)
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ['towingVehicleTypes'],
         message: 'Select at least one towing vehicle type',
       });
@@ -132,7 +132,7 @@ export const CreateServiceRequestSchema = z
 
     if (data.dropoffAddress === undefined) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ['dropoffAddress'],
         message: 'Towing requests require a dropoff address',
       });
@@ -142,14 +142,14 @@ export const CreateServiceRequestSchema = z
       data.dropoffLongitude === undefined
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ['dropoffLatitude'],
         message: 'Towing requests require dropoff coordinates',
       });
     }
     if (data.towingVehicleType === undefined) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ['towingVehicleType'],
         message: 'Select the towing equipment required',
       });

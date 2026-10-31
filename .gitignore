@@ -69,3 +69,6 @@ supabase/.temp/
 
 # database backups
 backups/
+
+# prisma generated client (v7-style location, regenerated on install)
+packages/database/src/generated/

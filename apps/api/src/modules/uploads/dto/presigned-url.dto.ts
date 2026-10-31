@@ -13,10 +13,8 @@ export const presignedUrlQuerySchema = z
   .object({
     filename: z.string().min(1).max(255),
     contentType: z.enum(ALLOWED_MIME_TYPES, {
-      errorMap: () => ({
-        message:
-          'Invalid content type. Allowed types: image/jpeg, image/png, image/webp, image/heic',
-      }),
+      error: () =>
+        'Invalid content type. Allowed types: image/jpeg, image/png, image/webp, image/heic',
     }),
     folder: z
       .enum(['damage-requests', 'vehicles', 'avatars', 'spare-parts'])

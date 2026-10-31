@@ -26,5 +26,8 @@
     "test": "npm run test -w @weyro/api",
     "typecheck": "echo \"Root workspace: no source files (checked via apps/* and packages/)\"",
     "typecheck:all": "npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api"
+  },
+  "overrides": {
+    "multer": "2.5.0"
   }
 }
