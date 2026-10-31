@@ -420,6 +420,31 @@ export class SparePartsService {
       throw new BadRequestException('Invalid payment signature');
     }
 
+    // H2: authoritative confirmation from Razorpay — bind amount, currency
+    // and order id to the local record before settling (signature alone
+    // doesn't prove this payment was for this amount).
+    let remote;
+    try {
+      remote = await this.gateway.fetchPayment(dto.razorpayPaymentId);
+    } catch (err: any) {
+      throw new BadRequestException(
+        `Unable to confirm payment with the gateway: ${err?.message ?? 'fetch failed'}`,
+      );
+    }
+
+    const localMinor = Math.round(Number(order.totalAmount) * 100);
+    if (
+      remote.order_id !== dto.razorpayOrderId ||
+      remote.order_id !== order.gatewayOrderId ||
+      remote.amount !== localMinor ||
+      remote.currency !== order.currency ||
+      !['captured', 'authorized'].includes(remote.status)
+    ) {
+      throw new BadRequestException(
+        'Gateway payment amount, currency, order or status does not match this record',
+      );
+    }
+
     const updated = await this.prisma.$transaction((tx) =>
       settleSparePartOrder(tx, order, dto.razorpayPaymentId, dto.razorpayOrderId),
     );

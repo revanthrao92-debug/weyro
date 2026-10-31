@@ -30,17 +30,32 @@ export class RazorpayPaymentGateway implements PaymentGateway {
   ) {
     const keyId = options?.keyId || env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
     const keySecret = options?.keySecret || env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
+    // H1 fix: the webhook secret MUST be independently configured. Falling
+    // back to the API key secret let a single secret leak forge captured
+    // webhooks. Real webhook signing secrets are only required when webhooks
+    // are used; an explicit empty value disables webhook verification rather
+    // than silently reusing the API secret.
     const webhookSecret =
       options?.webhookSecret ||
       env.RAZORPAY_WEBHOOK_SECRET ||
-      process.env.RAZORPAY_WEBHOOK_SECRET ||
-      keySecret;
+      process.env.RAZORPAY_WEBHOOK_SECRET;
 
     if (!keyId || !keySecret) {
       throw new Error('Razorpay keys must be configured to use RazorpayPaymentGateway');
     }
+    // Recognized placeholder shapes (dev defaults) must never reach production.
+    const looksLikePlaceholder =
+      /^rzp_.*(placeholder|sample|test_placeholder)/i.test(webhookSecret ?? '');
+    if (
+      process.env.NODE_ENV === 'production' &&
+      (!webhookSecret || looksLikePlaceholder || webhookSecret === keySecret)
+    ) {
+      throw new Error(
+        'RAZORPAY_WEBHOOK_SECRET must be set to an independent, non-placeholder value in production',
+      );
+    }
     this.keySecret = keySecret;
-    this.webhookSecret = webhookSecret || keySecret;
+    this.webhookSecret = webhookSecret || '';
     this.instance = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
@@ -62,8 +77,31 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     };
   }
 
-  verifyPaymentSignature(params: VerifyPaymentParams): boolean {
-    const { orderId, paymentId, signature } = params;
+  /**
+   * H2: authoritative server-to-server fetch of a payment from Razorpay.
+   * Used to bind amount/currency/order to the local record before any
+   * client-driven "verify" marks money as captured.
+   */
+  async fetchPayment(
+    paymentId: string,
+  ): Promise<{
+    id: string;
+    order_id: string;
+    amount: number;
+    currency: string;
+    status: string;
+  }> {
+    const payment = await this.instance.payments.fetch(paymentId);
+    return {
+      id: payment.id,
+      order_id: payment.order_id,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      status: payment.status,
+    };
+  }
+
+  verifyPaymentSignature(params: VerifyPaymentParams): boolean {    const { orderId, paymentId, signature } = params;
     try {
       const generatedSignature = crypto
         .createHmac('sha256', this.keySecret)

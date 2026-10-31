@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -60,7 +61,16 @@ export class PaymentsController {
     @Headers('x-razorpay-signature') signature: string,
     @Body() payload: any,
   ) {
-    const rawBody = req.rawBody || JSON.stringify(payload);
-    return this.paymentsService.handleWebhook(rawBody, signature, payload);
+    // M4: webhook signatures are computed over the exact bytes Razorpay sent.
+    // If the proxy/framework stripped rawBody, any re-serialized JSON body
+    // would almost certainly not match the signature — silently "verifying"
+    // against re-serialized bytes is how attackers get lucky. Fail hard
+    // instead so the gap is loud in logs and retries arrive intact.
+    if (!req.rawBody) {
+      throw new BadRequestException(
+        'Raw webhook body unavailable — cannot verify signature over re-serialized JSON',
+      );
+    }
+    return this.paymentsService.handleWebhook(req.rawBody, signature, payload);
   }
 }

@@ -44,4 +44,16 @@ export class MockPaymentGateway implements PaymentGateway {
       status: 'processed',
     };
   }
+
+  /** Mock gateway: fabricates an authoritative matching payment record. */
+  async fetchPayment(paymentId: string) {
+    // Generates a record consistent with any order; dev/test only.
+    return {
+      id: paymentId,
+      order_id: `order_mock_${paymentId}`,
+      amount: 0,
+      currency: 'INR',
+      status: 'captured',
+    };
+  }
 }

@@ -154,18 +154,68 @@ export class PaymentsService {
       throw new BadRequestException('Invalid payment signature verification failed');
     }
 
+    // H2: server-to-server binding — fetch the payment from Razorpay and
+    // assert it really belongs to this order and this amount before touching
+    // local state. A signature alone does not bind the amount.
+    let remote;
+    try {
+      remote = await this.gateway.fetchPayment(dto.paymentId);
+    } catch (err: any) {
+      throw new BadRequestException(
+        `Unable to confirm payment with the gateway: ${err?.message ?? 'fetch failed'}`,
+      );
+    }
+
+    const localMinor = Math.round(Number(payment.amount) * 100);
+    if (
+      remote.order_id !== dto.orderId ||
+      remote.order_id !== payment.gatewayOrderId ||
+      remote.amount !== localMinor ||
+      remote.currency !== payment.currency
+    ) {
+      this.logger.warn(
+        `Rejected client verify for payment ${payment.id}: gateway amount/currency/order mismatch`,
+      );
+      throw new BadRequestException(
+        'Gateway payment amount or order does not match this record',
+      );
+    }
+    if (!['captured', 'authorized'].includes(remote.status)) {
+      throw new BadRequestException(
+        `Gateway payment is not in a captured state (status: ${remote.status})`,
+      );
+    }
+
     // State machine check
     validatePaymentTransition(payment.status, 'CAPTURED', user.role);
 
+    // H3: re-validate inside the transaction with a conditional update so a
+    // concurrent capture (e.g. racing webhook) cannot double-apply or
+    // overwrite a settled state.
     const updatedPayment = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id: payment.id },
+      // Conditionally move to CAPTURED only from the still-valid source
+      // states (PENDING/AUTHORIZED). Returns count 0 when already taken.
+      const claimed = await tx.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: { in: ['PENDING', 'AUTHORIZED'] as never },
+        },
         data: {
-          status: 'CAPTURED',
+          status: 'CAPTURED' as never,
           gatewayPaymentId: dto.paymentId,
           gatewayOrderId: dto.orderId,
           paidAt: new Date(),
         },
+      });
+
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'Payment was captured concurrently — rejecting duplicate capture attempt',
+        );
+      }
+
+      const updated = await tx.payment.findUniqueOrThrow({
+        where: { id: payment.id },
       });
 
       return updated;
@@ -296,13 +346,26 @@ export class PaymentsService {
 
           if (payment && payment.status !== 'CAPTURED') {
             validatePaymentTransition(payment.status, 'CAPTURED', 'SYSTEM');
-            await this.prisma.payment.update({
-              where: { id: payment.id },
-              data: {
-                status: 'CAPTURED',
-                gatewayPaymentId: gatewayPaymentId || payment.gatewayPaymentId,
-                paidAt: new Date(),
-              },
+            // H3: conditional update inside a transaction — racing webhook
+            // duplicates (or a client verify) cannot double-apply capture.
+            await this.prisma.$transaction(async (tx) => {
+              const claimed = await tx.payment.updateMany({
+                where: {
+                  id: payment.id,
+                  status: { in: ['PENDING', 'AUTHORIZED'] as never },
+                },
+                data: {
+                  status: 'CAPTURED' as never,
+                  gatewayPaymentId: gatewayPaymentId || payment.gatewayPaymentId,
+                  paidAt: new Date(),
+                },
+              });
+              if (claimed.count === 0) {
+                this.logger.warn(
+                  `Webhook ${eventId}: payment ${payment.id} already transitioned concurrently — skipping capture`,
+                );
+                return;
+              }
             });
             this.logger.log(`Payment ${payment.id} transitioned to CAPTURED via webhook`);
           }
@@ -459,7 +522,8 @@ export class PaymentsService {
       throw new NotFoundException(`Payment record for booking ${dto.bookingId} not found`);
     }
 
-    // State machine check: must be CAPTURED to release
+    // State machine check: must be CAPTURED to release. RELEASED itself is an
+    // idempotent success (handled below), REFUNDED is caught by the machine.
     validatePaymentTransition(payment.status, 'RELEASED', actor.role);
 
     // Idempotency: if already released, return the existing record
@@ -471,13 +535,26 @@ export class PaymentsService {
     }
 
     const updatedPayment = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id: payment.id },
+      // H3: conditional claim — only a CAPTURED payment can transition to
+      // RELEASED, enforced by the WHERE precondition so a concurrent release
+      // (double-click/admin retry) cannot apply twice.
+      const claimed = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'CAPTURED' },
         data: {
           status: 'RELEASED',
           payoutReference: dto.payoutReference,
           paidToProviderAt: new Date(),
         },
+      });
+
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'Payment release raced with another transition (no longer CAPTURED)',
+        );
+      }
+
+      const updated = await tx.payment.findUniqueOrThrow({
+        where: { id: payment.id },
       });
 
       // Audit log

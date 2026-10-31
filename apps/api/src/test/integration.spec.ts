@@ -230,6 +230,7 @@ describe('End-to-End Core Integration Suite', () => {
           findFirst: jest.fn(),
           findUnique: jest.fn(),
           update: jest.fn(),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         $transaction: jest.fn((cb) => cb(mockPrisma)),
       };
@@ -292,8 +293,10 @@ describe('End-to-End Core Integration Suite', () => {
         webhookPayload,
       );
       expect(res2).toEqual({ status: 'ignored', reason: 'duplicate', eventId: 'evt_idemp_101' });
-      // Payment update should only have been called once across both deliveries
-      expect(mockPrisma.payment.update).toHaveBeenCalledTimes(1);
+      // H3: capture now goes through the conditional `updateMany` claim inside
+      // a transaction; it must have been attempted exactly once across both
+      // deliveries of the same event id.
+      expect(mockPrisma.payment.updateMany).toHaveBeenCalledTimes(1);
     });
   });
 });

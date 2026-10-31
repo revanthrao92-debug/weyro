@@ -20,6 +20,7 @@ describe('PaymentsService', () => {
         update: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       webhookEvent: {
         findUnique: jest.fn(),
@@ -33,6 +34,7 @@ describe('PaymentsService', () => {
       verifyPaymentSignature: jest.fn(),
       verifyWebhookSignature: jest.fn(),
       refundPayment: jest.fn(),
+      fetchPayment: jest.fn(),
     };
 
     mockNotifications = {
@@ -117,11 +119,26 @@ describe('PaymentsService', () => {
             id: 'pay-1',
             status: 'PENDING',
             gatewayOrderId: 'order_123',
+            amount: 100,
+            currency: 'INR',
           },
         ],
       });
 
       mockGateway.verifyPaymentSignature.mockReturnValue(true);
+      // H2: authoritative gateway fetch must agree with the local record
+      (mockGateway.fetchPayment as jest.Mock).mockResolvedValue({
+        id: 'pay_rzp_999',
+        order_id: 'order_123',
+        amount: 10000, // local 100 * 100 paise
+        currency: 'INR',
+        status: 'captured',
+      });
+      mockPrisma.payment.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      mockPrisma.payment.findUniqueOrThrow = jest.fn().mockResolvedValue({
+        id: 'pay-1',
+        status: 'CAPTURED',
+      });
       mockPrisma.payment.update.mockResolvedValue({
         id: 'pay-1',
         status: 'CAPTURED',
@@ -149,6 +166,13 @@ describe('PaymentsService', () => {
         paymentId: 'pay_rzp_999',
         signature: 'valid_sig',
       });
+      expect(mockGateway.fetchPayment).toHaveBeenCalledWith('pay_rzp_999');
+      // H3: capture claimed through the conditional updateMany path
+      expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+        }),
+      );
     });
 
     it('rejects invalid payment signature with 400 Bad Request', async () => {
@@ -322,8 +346,9 @@ describe('PaymentsService', () => {
           payload,
         },
       });
-      expect(mockPrisma.payment.update).toHaveBeenCalledWith({
-        where: { id: 'pay-1' },
+      // H3: capture is claimed via conditional updateMany inside a transaction
+      expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith({
+        where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED'] } },
         data: expect.objectContaining({
           status: 'CAPTURED',
           gatewayPaymentId: 'pay_rzp_123',

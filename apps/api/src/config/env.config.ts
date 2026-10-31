@@ -106,6 +106,21 @@ export const envSchema = z.object({
       message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
     });
   }
+
+  // H1: the webhook signing secret must be independent of the API key secret
+  // and must not be a placeholder value.
+  if (
+    value.RAZORPAY_WEBHOOK_SECRET &&
+    (value.RAZORPAY_WEBHOOK_SECRET === value.RAZORPAY_KEY_SECRET ||
+      value.RAZORPAY_WEBHOOK_SECRET === 'rzp_placeholder_webhook_secret')
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RAZORPAY_WEBHOOK_SECRET'],
+      message:
+        'RAZORPAY_WEBHOOK_SECRET must be independent of the API key secret (placeholder/dev values rejected)',
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

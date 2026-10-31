@@ -55,6 +55,13 @@ describe('SparePartsService order flow', () => {
     verifyPaymentSignature: jest.fn(),
     verifyWebhookSignature: jest.fn(),
     refundPayment: jest.fn(),
+    fetchPayment: jest.fn().mockImplementation(async (_pid: string) => ({
+      id: _pid,
+      order_id: 'order_gw_1',
+      amount: 299900,
+      currency: 'INR',
+      status: 'captured',
+    })),
   } as unknown as PaymentGateway;
 
   let mockPrisma: any;
@@ -134,6 +141,10 @@ describe('SparePartsService order flow', () => {
         data: expect.objectContaining({
           status: 'PENDING',
           gatewayOrderId: 'order_gw_1',
+        totalAmount: 2999,
+        currency: 'INR',
+      totalAmount: 2999,
+      currency: 'INR',
         }),
       }),
     );
@@ -145,6 +156,8 @@ describe('SparePartsService order flow', () => {
       status: 'PENDING',
       customerId: 'cust-1',
       gatewayOrderId: 'order_gw_1',
+      totalAmount: 2999,
+      currency: 'INR',
       quantity: 1,
       sparePartId: 'part-1',
     });
@@ -166,6 +179,8 @@ describe('SparePartsService order flow', () => {
       status: 'PENDING',
       customerId: 'cust-1',
       gatewayOrderId: 'order_gw_1',
+      totalAmount: 2999,
+      currency: 'INR',
       quantity: 1,
       sparePartId: 'part-1',
     });
@@ -188,6 +203,8 @@ describe('SparePartsService order flow', () => {
       status: 'PENDING',
       customerId: 'cust-1',
       gatewayOrderId: 'order_gw_1',
+      totalAmount: 2999,
+      currency: 'INR',
       quantity: 2,
       sparePartId: 'part-1',
     });
@@ -260,6 +277,8 @@ describe('SparePartsService order flow', () => {
       status: 'PENDING',
       customerId: 'cust-1',
       gatewayOrderId: 'order_gw_1',
+      totalAmount: 2999,
+      currency: 'INR',
       quantity: 1,
       sparePartId: 'pkg-1',
     });
@@ -527,9 +546,18 @@ describe('SparePartsService order flow', () => {
         gatewayOrderId: 'order_gw_1',
         quantity: 2,
         totalAmount: 2000,
+        currency: 'INR',
         sparePartId: 'part-1',
       });
       (mockGateway.verifyPaymentSignature as jest.Mock).mockReturnValue(true);
+      // H2: gateway fetch must agree with the order's amount (totalAmount: 2000)
+      (mockGateway.fetchPayment as jest.Mock).mockResolvedValue({
+        id: 'pay_1',
+        order_id: 'order_gw_1',
+        amount: 200000,
+        currency: 'INR',
+        status: 'captured',
+      });
       const tx = {
         sparePart: {
           findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
