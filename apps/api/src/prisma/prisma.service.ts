@@ -5,6 +5,22 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { env } from '../config/env.config';
+
+/** M6: append Postgres pool params unless already present in the URL. */
+export function withPoolParams(databaseUrl: string): string {
+  const poolMax = process.env.DATABASE_POOL_MAX || '10';
+  const poolTimeout = process.env.DATABASE_POOL_TIMEOUT || '10';
+  try {
+    const url = new URL(databaseUrl);
+    url.searchParams.set('connection_limit', poolMax);
+    url.searchParams.set('pool_timeout', poolTimeout);
+    return url.toString();
+  } catch {
+    // Non-URL datasource (e.g. absolute file) — leave untouched.
+    return databaseUrl;
+  }
+}
 
 /**
  * Models that support soft delete (have a `deletedAt` field).
@@ -59,6 +75,22 @@ export function withSoftDelete(where: Record<string, any> = {}): Record<string, 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+
+  constructor() {
+    super({
+      // M6: connection pool tuning via env (Postgres only).
+      // DATABASE_POOL_MAX   — max connections per instance (default 10)
+      // DATABASE_POOL_TIMEOUT — seconds a query waits for a connection (default 10)
+      // Applied by appending pooled params to the DATABASE_URL datasource.
+      datasources: {
+        db: { url: withPoolParams(env.DATABASE_URL) },
+      },
+      log:
+        env.NODE_ENV === 'development'
+          ? (['warn'] as never)
+          : (['error'] as never),
+    });
+  }
 
   async onModuleInit() {
     // Fail fast on app boot if the database is unreachable

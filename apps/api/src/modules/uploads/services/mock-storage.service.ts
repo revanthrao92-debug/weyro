@@ -14,6 +14,12 @@ export class MockStorageService implements StorageService {
   private readonly logger = new Logger(MockStorageService.name);
 
   constructor() {
+    // M8: the mock must NEVER serve production traffic.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'FATAL: MockStorageService cannot run in production. Set STORAGE_DRIVER=s3 with real credentials.',
+      );
+    }
     this.logger.warn(
       'MockStorageService initialized. Only for non-production development.',
     );

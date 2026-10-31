@@ -1,0 +1,70 @@
+# Production compose. Run with:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# SECURITY: fill ALL ${...} variables from a real secret store. This file
+# contains NO credentials and must stay that way. Required env (in .env.prod
+# or an orchestration secret manager):
+#   POSTGRES_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET,
+#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+#   SMS_PROVIDER (=msg91|twilio), OTP_HASH_SECRET,
+#   STORAGE_* (s3 credentials), CORS_ORIGINS, TRUST_PROXY (hop count),
+#   DATABASE_POOL_MAX, DATABASE_POOL_TIMEOUT
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: weyro_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weyro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: weyro_db
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U weyro -d weyro_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    # No ports published: bind only via the API container (expose 5432
+    # explicitly if an external backup/jump host needs it).
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: weyro_api_prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://weyro:${POSTGRES_PASSWORD}@postgres:5432/weyro_db?schema=public
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-20}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT:-10}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET required}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS required}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      STORAGE_DRIVER: s3
+      STORAGE_BUCKET: ${STORAGE_BUCKET:?STORAGE_BUCKET required}
+      STORAGE_REGION: ${STORAGE_REGION:-ap-south-1}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY required}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY required}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?RAZORPAY_KEY_ID required}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?RAZORPAY_KEY_SECRET required}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?RAZORPAY_WEBHOOK_SECRET required}
+      SMS_PROVIDER: ${SMS_PROVIDER:?SMS_PROVIDER required (msg91|twilio)}
+      OTP_HASH_SECRET: ${OTP_HASH_SECRET:?OTP_HASH_SECRET required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:4000/api/v1/ready']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data_prod:
