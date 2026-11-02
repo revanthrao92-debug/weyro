@@ -13,7 +13,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { ScreenContainer, AppHeader, ListItem, StatusPill } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, radii, typography, elevation } from '@/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -149,11 +149,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.lg,
-    shadowColor: palette.textPrimary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    ...elevation.card,
   },
   avatar: {
     width: 56,
@@ -181,8 +177,6 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     marginTop: spacing.xl,
     marginBottom: spacing.xs,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   signOutButton: {
     flexDirection: 'row',

@@ -70,7 +70,7 @@ export default function CreateListingScreen() {
         imageUrl: imageUrl || undefined,
         description: description || undefined,
       });
-      Alert.alert('Success', 'Part listed successfully');
+      Alert.alert('Part listed');
       router.replace('/my-listings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to create listing');

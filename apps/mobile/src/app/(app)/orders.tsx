@@ -49,7 +49,7 @@ export default function DealerOrdersScreen() {
   const header =
     revenue > 0 ? (
       <View style={styles.revenueRow}>
-        <Text style={styles.revenueLabel}>PAID REVENUE (THIS PAGE)</Text>
+        <Text style={styles.revenueLabel}>Paid this page</Text>
         <Text style={styles.revenueValue}>₹{revenue.toLocaleString()}</Text>
       </View>
     ) : undefined;
@@ -134,7 +134,7 @@ function OrderCard({ item }: { item: SparePartOrder }) {
 
       <View style={cardStyles.body}>
         <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>ORDER ID</Text>
+          <Text style={cardStyles.label}>Order</Text>
           <Text style={cardStyles.value}>#{item.id.slice(0, 8)}</Text>
         </View>
         <View style={[cardStyles.row, cardStyles.rowDivider]}>
@@ -142,11 +142,11 @@ function OrderCard({ item }: { item: SparePartOrder }) {
           <Text style={cardStyles.value}>₹{Number(item.unitPrice).toLocaleString()}</Text>
         </View>
         <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>TOTAL</Text>
+          <Text style={cardStyles.label}>Total</Text>
           <Text style={cardStyles.amount}>₹{Number(item.totalAmount).toLocaleString()}</Text>
         </View>
         <View style={cardStyles.row}>
-          <Text style={cardStyles.label}>PLACED</Text>
+          <Text style={cardStyles.label}>Placed</Text>
           <Text style={cardStyles.value}>{formatDate(item.createdAt)}</Text>
         </View>
       </View>

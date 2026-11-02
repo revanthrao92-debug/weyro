@@ -144,8 +144,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.label,
     color: palette.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   detailRow: {

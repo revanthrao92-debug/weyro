@@ -276,7 +276,7 @@ function QuoteForm({
       />
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>TOTAL</Text>
+        <Text style={styles.totalLabel}>Total</Text>
         <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
       </View>
 
@@ -347,8 +347,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.label,
     color: palette.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   detailRow: {
@@ -402,7 +400,6 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typography.label,
     color: palette.textMuted,
-    letterSpacing: 0.5,
   },
   totalValue: {
     ...typography.heading,

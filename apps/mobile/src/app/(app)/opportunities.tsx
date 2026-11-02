@@ -53,7 +53,7 @@ export default function BroadcastFeedScreen() {
           etaDescription: 'Same day',
         },
       });
-      Alert.alert('Success', 'Quotation sent');
+      Alert.alert('Quotation sent');
       router.push(`/requests/${requestId}`);
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to send quotation');

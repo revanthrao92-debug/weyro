@@ -160,7 +160,7 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
-          <Text style={styles.greeting}>Good morning,</Text>
+          <Text style={styles.greeting}>Your garage,</Text>
           <Text style={styles.greetingName}>{firstName}</Text>
           <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
         </View>
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   avatarText: {
     ...typography.label,
     color: palette.onAccent,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   greeting: {
     ...typography.body,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   greetingName: {
     ...typography.display,
     color: palette.onHeader,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   heroTagline: {

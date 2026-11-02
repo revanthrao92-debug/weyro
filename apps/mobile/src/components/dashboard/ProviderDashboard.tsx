@@ -101,7 +101,7 @@ export default function ProviderDashboard() {
               <Text style={styles.roleChipText}>{roleLabel}</Text>
             </View>
           </View>
-          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.greeting}>Work today,</Text>
           <Text style={styles.greetingName} maxFontSizeMultiplier={1.6}>
             {businessName}
           </Text>
@@ -254,8 +254,6 @@ const styles = StyleSheet.create({
   roleChipText: {
     ...typography.label,
     color: palette.onAccent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   greeting: {
     ...typography.body,
@@ -264,7 +262,7 @@ const styles = StyleSheet.create({
   greetingName: {
     ...typography.display,
     color: palette.onHeader,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   heroTagline: {

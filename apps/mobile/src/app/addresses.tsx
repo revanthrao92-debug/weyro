@@ -207,8 +207,6 @@ const styles = StyleSheet.create({
     ...typography.captionMedium,
     color: palette.textSecondary,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   coordsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   coord: { flex: 1 },

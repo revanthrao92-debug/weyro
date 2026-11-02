@@ -50,7 +50,7 @@ export default function CustomerProfileScreen() {
         lastName: lastName || undefined,
         avatarUrl: avatarUrl || null,
       });
-      Alert.alert('Success', 'Profile updated');
+      Alert.alert('Profile saved');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to update profile');
     } finally {

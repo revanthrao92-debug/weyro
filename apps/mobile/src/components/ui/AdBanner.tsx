@@ -154,8 +154,7 @@ const styles = StyleSheet.create({
   sponsored: {
     ...typography.label,
     color: palette.onHeaderMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
   headline: {
     ...typography.heading,

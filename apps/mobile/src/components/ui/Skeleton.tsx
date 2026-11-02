@@ -10,9 +10,8 @@ export interface SkeletonProps {
 }
 
 /**
- * Shimmer placeholder. Subtle opacity-only pulse using React Native's built-in
- * Animated API (no extra animation dependency, no babel plugin required).
- * Motion is purposeful and gentle — a calm "loading" cue, not a distraction.
+ * Skeleton placeholder. One calm fade-in on mount (opacity 0.4 → 0.85) —
+ * unslop: no perpetual looping pulse on a non-live element.
  */
 export function Skeleton({
   width = '100%',
@@ -23,24 +22,12 @@ export function Skeleton({
   const [opacity] = useState(() => new Animated.Value(0.4));
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.4,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
+    Animated.timing(opacity, {
+      toValue: 0.85,
+      duration: 420,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
   }, [opacity]);
 
   return (

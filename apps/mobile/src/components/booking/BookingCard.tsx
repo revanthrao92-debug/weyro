@@ -48,7 +48,7 @@ export function BookingCard({ booking, onPress }: BookingCardProps) {
       <View style={styles.body}>
         {booking.provider ? (
           <View style={[styles.row, styles.rowDivider]}>
-            <Text style={styles.label} maxFontSizeMultiplier={2}>PROVIDER</Text>
+            <Text style={styles.label} maxFontSizeMultiplier={2}>Provider</Text>
             <Text style={styles.value} maxFontSizeMultiplier={2} numberOfLines={1}>
               {booking.provider.businessName}
             </Text>
@@ -57,7 +57,7 @@ export function BookingCard({ booking, onPress }: BookingCardProps) {
 
         {booking.payment ? (
           <View style={[styles.row, styles.rowDivider]}>
-            <Text style={styles.label} maxFontSizeMultiplier={2}>AMOUNT</Text>
+            <Text style={styles.label} maxFontSizeMultiplier={2}>Amount</Text>
             <View style={styles.amountCol}>
               <Text style={styles.amount} maxFontSizeMultiplier={2}>
                 ₹{booking.payment.amount.toLocaleString()}
@@ -71,7 +71,7 @@ export function BookingCard({ booking, onPress }: BookingCardProps) {
         ) : null}
 
         <View style={styles.row}>
-          <Text style={styles.label} maxFontSizeMultiplier={2}>BOOKING ID</Text>
+          <Text style={styles.label} maxFontSizeMultiplier={2}>Booking</Text>
           <View style={styles.idRow}>
             <Text style={styles.value} maxFontSizeMultiplier={2}>#{booking.id.slice(0, 8)}</Text>
             <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />

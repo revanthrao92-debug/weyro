@@ -67,7 +67,7 @@ export default function ProvidersScreen() {
 
   const header = (
     <View style={styles.pendingRow}>
-      <Text style={styles.pendingLabel}>PENDING VERIFICATION</Text>
+      <Text style={styles.pendingLabel}>Pending verification</Text>
       <Text style={styles.pendingValue}>{pendingCount}</Text>
     </View>
   );

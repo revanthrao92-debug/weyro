@@ -91,7 +91,7 @@ export default function EditListingScreen() {
         description: form.description || undefined,
         isActive: form.isActive,
       });
-      Alert.alert('Success', 'Listing updated');
+      Alert.alert('Listing saved');
       router.replace('/my-listings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to update listing');
