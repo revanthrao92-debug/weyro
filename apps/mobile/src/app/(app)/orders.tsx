@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { photo, photoForCategory } from '@/lib/photos';
 import { formatDate } from '@/utils/format';
+
 import { palette, spacing, radii, typography } from '@/theme';
 
 /**
@@ -113,24 +114,27 @@ function OrderCard({ item }: { item: SparePartOrder }) {
 
   return (
     <View style={cardStyles.card}>
-      <View style={cardStyles.photoHeader}>
-        <Image source={{ uri: photoUri }} style={cardStyles.photo} contentFit="cover" />
-        <View style={cardStyles.photoShade} />
-        <View style={cardStyles.photoInner}>
-          <View style={{ flexShrink: 1 }}>
-            <Text style={cardStyles.partName} numberOfLines={1} maxFontSizeMultiplier={2}>
-              {partName}
-            </Text>
-            <Text style={cardStyles.buyer} numberOfLines={1}>
-              {buyer} · x{item.quantity}
-            </Text>
-          </View>
-          <StatusPill
-            label={item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()}
-            tone={orderTone(item.status)}
-          />
+      {/* The moment: square product photo, engraved-style figure */}
+      <View style={cardStyles.partRow}>
+        <Image source={{ uri: photoUri }} style={cardStyles.partPhoto} contentFit="cover" />
+        <View style={cardStyles.partInfo}>
+          <Text style={cardStyles.partName} numberOfLines={1} maxFontSizeMultiplier={2}>
+            {partName}
+          </Text>
+          <Text style={cardStyles.buyer} numberOfLines={1}>
+            {buyer} · x{item.quantity}
+          </Text>
+          <Text style={cardStyles.figure} maxFontSizeMultiplier={2}>
+            ₹{Number(item.totalAmount).toLocaleString()}
+          </Text>
         </View>
+        <StatusPill
+          label={item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()}
+          tone={orderTone(item.status)}
+        />
       </View>
+
+      <View style={cardStyles.divider} />
 
       <View style={cardStyles.body}>
         <View style={[cardStyles.row, cardStyles.rowDivider]}>
@@ -138,12 +142,8 @@ function OrderCard({ item }: { item: SparePartOrder }) {
           <Text style={cardStyles.value}>#{item.id.slice(0, 8)}</Text>
         </View>
         <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>UNIT PRICE</Text>
+          <Text style={cardStyles.label}>Unit price</Text>
           <Text style={cardStyles.value}>₹{Number(item.unitPrice).toLocaleString()}</Text>
-        </View>
-        <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>Total</Text>
-          <Text style={cardStyles.amount}>₹{Number(item.totalAmount).toLocaleString()}</Text>
         </View>
         <View style={cardStyles.row}>
           <Text style={cardStyles.label}>Placed</Text>
@@ -185,40 +185,36 @@ const cardStyles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.borderStrong,
-    overflow: 'hidden',
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
-  photoHeader: {
-    height: 76,
-    justifyContent: 'flex-end',
-  },
-  photo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  photoShade: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(4, 21, 30, 0.66)',
-  },
-  photoInner: {
+  partRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
+  partPhoto: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceAlt,
+  },
+  partInfo: { flex: 1, gap: 2 },
   partName: {
-    ...typography.heading,
-    color: palette.onHeader,
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
   },
   buyer: {
     ...typography.caption,
-    color: palette.onHeaderMuted,
-    marginTop: 2,
+    color: palette.textSecondary,
   },
-  body: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  figure: {
+    ...typography.heading,
+    fontFamily: displayFamily,
+    color: palette.textPrimary,
+  },
+  divider: { height: 1, backgroundColor: palette.border, marginVertical: spacing.sm },
+  body: { paddingBottom: 0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,10 +223,8 @@ const cardStyles = StyleSheet.create({
   },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: palette.border },
   label: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.5,
+    ...typography.caption,
+    color: palette.textSecondary,
   },
   value: { ...typography.captionMedium, color: palette.textPrimary },
-  amount: { ...typography.bodyMedium, color: palette.textPrimary },
 });
