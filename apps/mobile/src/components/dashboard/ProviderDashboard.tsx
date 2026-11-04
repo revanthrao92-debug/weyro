@@ -133,11 +133,12 @@ export default function ProviderDashboard() {
           ))}
         </View>
 
-        {/* Incoming requests (photo-backed) */}
+        {/* Incoming requests — dark band so the light sheet reads as one flow */}
+        <View style={styles.darkBand}>
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <StatusDot />
-            <Text style={styles.sectionTitle}>Requests near you</Text>
+            <Text style={styles.sectionTitleDark}>Requests near you</Text>
           </View>
         </View>
         {loading ? (
@@ -186,6 +187,8 @@ export default function ProviderDashboard() {
             ))}
           </View>
         )}
+
+        </View>
 
         {/* Sponsored slot */}
         <View style={styles.adSlot}>
@@ -273,6 +276,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: palette.onHeaderMuted,
     marginTop: spacing.xs,
+  },
+  darkBand: {
+    backgroundColor: palette.headerAlt,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sectionTitleDark: {
+    ...typography.bodyMedium,
+    color: palette.onHeader,
   },
   body: {
     backgroundColor: palette.canvas,
