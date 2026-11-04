@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, ViewStyle } from 'react-native';
 import { palette } from '@/theme';
 
@@ -8,7 +8,7 @@ import { palette } from '@/theme';
  * sparingly — never decoration.
  */
 export function StatusDot({ style }: { style?: ViewStyle }) {
-  const halo = useRef(new Animated.Value(0.5)).current;
+  const [halo] = useState(() => new Animated.Value(0.5));
 
   useEffect(() => {
     const loop = Animated.loop(

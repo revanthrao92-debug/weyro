@@ -5,7 +5,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
-import { StatusDot } from '@/components/ui';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useVehicles } from '@/hooks/useProfile';
@@ -16,6 +15,7 @@ import {
   SectionCard,
   ListItem,
   StatusPill,
+  StatusDot,
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
