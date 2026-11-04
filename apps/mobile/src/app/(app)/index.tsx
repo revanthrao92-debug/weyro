@@ -61,11 +61,6 @@ const HERO_IMAGE =
 const VEHICLE_IMAGE =
   'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80';
 
-/**
- * Home hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo').
- */
-const HOME_HERO_MODE: 'sketch' | 'photo' = 'sketch';
-
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
@@ -128,18 +123,14 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
+      {/* Layered scene: dawn service-bay photo, sketch overlay, type on the
+          calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        {/* Hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo'). */}
-        {HOME_HERO_MODE === 'sketch' ? (
-          <View style={styles.heroSketch} pointerEvents="none">
-            <PorscheSketch911 opacity={0.18} strokeWidth={2.5} />
-          </View>
-        ) : (
-          <>
-            <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
-            <View style={styles.heroShade} />
-          </>
-        )}
+        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+        <View style={styles.heroShade} />
+        <View style={styles.heroSketch} pointerEvents="none">
+          <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
+        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <Pressable
@@ -167,7 +158,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, styles.sheetOverHero]}>
         {/* Sponsored slot directly under the hero — generous ad space */}
         <View style={styles.adSlot}>
           <AdBanner placement="home-hero-bottom" />
@@ -390,11 +381,15 @@ const styles = StyleSheet.create({
 
   sheet: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
     backgroundColor: palette.canvas,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    marginTop: -radii.lg,
     minHeight: 400,
   },
+  sheetOverHero: { zIndex: 2 },
   adSlot: { marginBottom: spacing.lg },
 
   requestCard: {
