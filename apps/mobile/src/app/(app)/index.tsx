@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 18, 23, 0.72)' },
+  heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,

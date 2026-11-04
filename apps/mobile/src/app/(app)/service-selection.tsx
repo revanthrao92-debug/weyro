@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   card: {
     height: 108,
     borderRadius: radii.lg,
-    backgroundColor: '#0C2330', // deep panel (fallback behind photo)
+    backgroundColor: palette.panel, // deep panel (fallback behind photo)
     overflow: 'hidden',
     justifyContent: 'center',
   },
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(4, 21, 30, 0.78)',
+    backgroundColor: palette.scrim,
   },
   cardInner: {
     flexDirection: 'row',
@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.md,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: palette.glass,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: palette.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },

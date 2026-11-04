@@ -49,6 +49,11 @@ export const palette = {
   inset: '#1B222A', // synonym of surfaceAlt
   metallic: '#303941', // synonym of border
   highlight: '#FF8A32', // Orange Highlight — live moments only
+  scrim: 'rgba(5, 8, 11, 0.72)', // deep carbon scrim over photography
+  scrimSoft: 'rgba(5, 8, 11, 0.52)',
+  panel: '#101820', // deep panel fallback behind imagery
+  glass: 'rgba(245, 246, 247, 0.10)', // titanium glass line on imagery
+  glassBorder: 'rgba(245, 246, 247, 0.16)',
 
   // Semantic — dark-mode-adjusted pairs
   success: '#4CBB87',

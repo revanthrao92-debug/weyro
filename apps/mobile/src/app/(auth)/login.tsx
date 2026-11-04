@@ -233,8 +233,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 18, 23, 0.52)' },
-  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 25, 35, 0.22)' },
+  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: palette.scrimSoft },
+  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: palette.scrimSoft },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
