@@ -54,7 +54,8 @@
         {
           "locationWhenInUsePermission": "Weyro uses your location to match your repair request with nearby workshops and parts dealers."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "reactCompiler": true

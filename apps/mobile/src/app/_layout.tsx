@@ -1,7 +1,10 @@
 import '../../global.css';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import * as Font from 'expo-font';
+import * as Sora from '@expo-google-fonts/sora';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PortalHost } from '@rn-primitives/portal';
 import { useAuth , AuthProvider } from '@/hooks/useAuth';
@@ -11,6 +14,18 @@ import { palette } from '@/theme';
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
+  // Display font (Sora 600) — single load point; fallback type renders while loading.
+  const [fontsReady, setFontsReady] = useState(false);
+  useEffect(() => {
+    Font.loadAsync({ Sora_600SemiBold: Sora.Sora_600SemiBold })
+      .then(() => setFontsReady(true))
+      .catch(() => setFontsReady(true)); // never block the app on a font
+  }, []);
+
+  if (!fontsReady) {
+    return null;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
