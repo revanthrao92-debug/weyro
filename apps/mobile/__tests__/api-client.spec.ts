@@ -1,4 +1,4 @@
-/* eslint-env jest */
+/* global jest, describe, it, expect, beforeEach */
 /**
  * H5/H6 tests: api-client URL resolution + single-flight token refresh.
  * Uses jest-expo preset (see jest.config in apps/mobile) with fetch mocked.

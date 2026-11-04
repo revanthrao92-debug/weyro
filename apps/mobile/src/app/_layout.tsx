@@ -1,77 +1,74 @@
-import '../../global.css';
-import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import * as Font from 'expo-font';
-import * as Sora from '@expo-google-fonts/sora';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PortalHost } from '@rn-primitives/portal';
-import { useAuth , AuthProvider } from '@/hooks/useAuth';
-import { ThemeProvider, NAV_THEME } from '@/lib/theme';
-import { palette } from '@/theme';
+import { Stack } from 'expo-router';
+import { View, Text, StyleSheet } from 'react-native';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 
+/**
+ * Entry — MINIMUM REQUIRED STRUCTURE ONLY.
+ *
+ * The former Weyro presentation layer (screens, components, styling
+ * system, imagery) was removed on purpose for the "complete existing UI
+ * removal" task. No replacement interface exists yet.
+ *
+ * Preserved below: React Query (server state) and AuthProvider
+ * (authentication + session/refresh logic wired to the live API).
+ */
 const queryClient = new QueryClient();
 
-export default function RootLayout() {
-  // Display font (Sora 600) — single load point; fallback type renders while loading.
-  const [fontsReady, setFontsReady] = useState(false);
-  useEffect(() => {
-    Font.loadAsync({ Sora_600SemiBold: Sora.Sora_600SemiBold })
-      .then(() => setFontsReady(true))
-      .catch(() => setFontsReady(true)); // never block the app on a font
-  }, []);
-
-  if (!fontsReady) {
-    return null;
-  }
-
+function BootStatus() {
+  const { isAuthenticated, user } = useAuth();
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {/* Light is the app's active theme (see global.css). */}
-        <StatusBar style="light" />
-        <AuthRouter />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
-
-function AuthRouter() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={palette.accent} />
+    <View style={styles.screen}>
+      <Text style={styles.title}>Weyro — UI intentionally removed</Text>
+      <View style={styles.row}>
+        <Text style={styles.label}>Frontend UI</Text>
+        <Text style={styles.value}>Removed (new build pending)</Text>
       </View>
-    );
-  }
-
-  return (
-    <View style={styles.root}>
-      <ThemeProvider value={NAV_THEME.light}>
-        <Stack screenOptions={{ headerShown: false }}>
-          {isAuthenticated ? (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(app)"
-            />
-          ) : (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(auth)"
-            />
-          )}
-        </Stack>
-      </ThemeProvider>
-      {/* RNR portal host — must stay the last child of the providers. */}
-      <PortalHost />
+      <View style={styles.row}>
+        <Text style={styles.label}>Auth Provider</Text>
+        <Text style={styles.value}>Active</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Query client</Text>
+        <Text style={styles.value}>Active</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Session</Text>
+        <Text style={styles.value}>
+          {isAuthenticated && user ? 'Signed in' : 'Signed out'}
+        </Text>
+      </View>
+      <Text style={styles.note}>
+        Business logic, hooks and API services remain intact.
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
+  screen: {
+    flex: 1,
+    backgroundColor: '#080B0E',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  title: { color: '#F5F6F7', fontSize: 20, marginBottom: 24 },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  label: { width: 110, color: '#6E7A84' },
+  value: { color: '#F5F6F7', flex: 1 },
+  note: { color: '#6E7A84', marginTop: 24, fontSize: 12 },
 });
+
+export default function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+        </Stack>
+        {/* Boot status is informational only — not a replacement UI. */}
+        <BootStatus />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}

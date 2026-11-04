@@ -1,7 +1,7 @@
 {
   "name": "weyro",
   "version": "1.0.0",
-  "description": "Weyro monorepo \u2014 NestJS API backend",
+  "description": "Weyro monorepo — NestJS API backend",
   "private": true,
   "workspaces": [
     "apps/api",
