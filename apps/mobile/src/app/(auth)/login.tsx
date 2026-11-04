@@ -12,7 +12,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
 import { Input, Button } from '@/components/ui';
-import { palette, spacing, typography, radii } from '@/theme';
+import { palette, spacing, typography, radii, displayFamily } from '@/theme';
 import { UserRole } from '@weyro/api-contracts';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
@@ -233,8 +233,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 18, 23, 0.66)' },
-  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 25, 35, 0.35)' },
+  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 18, 23, 0.52)' },
+  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 25, 35, 0.22)' },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,6 +244,7 @@ const styles = StyleSheet.create({
   logo: { width: 34, height: 34 },
   logoText: {
     ...typography.heading,
+    fontFamily: displayFamily,
     color: palette.onHeader,
     letterSpacing: 2,
   },
