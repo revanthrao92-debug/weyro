@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { palette } from '@/theme';
 
 /**
  * Auth group — headers hidden: each screen draws its own full-bleed hero
@@ -7,7 +8,7 @@ import { Stack } from 'expo-router';
  */
 export default function AuthLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#06151E' } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.header } }}>
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot-password" />

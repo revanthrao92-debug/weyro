@@ -12,43 +12,43 @@
    */
   :root {
     /* Content surfaces (light) */
-    --background: 204 33% 97%; /* #F5F8FA canvas */
-    --foreground: 201 58% 10%; /* #0B1F2A */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 201 58% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 201 58% 10%;
+    --background: 195 29% 5%; /* #080B0E Carbon Black canvas */
+    --foreground: 200 20% 96%; /* #F5F6F7 Titanium */
+    --card: 206 16% 11%; /* #171D23 Elevated */
+    --card-foreground: 200 20% 96%;
+    --popover: 206 16% 11%; /* #10151A Graphite */
+    --popover-foreground: 200 20% 96%;
 
-    /* CTA — deep teal-green (reference photo), WHITE label */
-    --primary: 172 80% 29%; /* #0E8577 */
-    --primary-foreground: 0 0% 100%;
-    --primary-pressed: 174 79% 24%; /* #0B6E63 */
+    /* CTA — Racing Orange, carbon ink label */
+    --primary: 25 89% 54%; /* #F47721 */
+    --primary-foreground: 195 29% 5%; /* #080B0E */
+    --primary-pressed: 22 73% 50%; /* #E0591A */
 
     /* Secondary / muted */
-    --secondary: 200 27% 96%; /* #F1F5F7 */
-    --secondary-foreground: 201 58% 10%;
-    --muted: 200 27% 96%;
-    --muted-foreground: 202 15% 39%; /* #546772 */
+    --secondary: 204 14% 17%; /* #1B222A inset */
+    --secondary-foreground: 200 20% 96%;
+    --muted: 204 14% 17%;
+    --muted-foreground: 204 10% 67%; /* #A3ADB6 */
 
-    --accent: 200 27% 96%;
-    --accent-foreground: 201 58% 10%;
+    --accent: 25 89% 54%; /* #F47721 */
+    --accent-foreground: 195 29% 5%;
 
     /* Destructive */
-    --destructive: 0 64% 55%; /* #D64545 */
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 4 66% 61%; /* #E06455 */
+    --destructive-foreground: 195 29% 5%;
 
     /* Lines & focus */
-    --border: 202 24% 91%; /* #E3EAEE */
-    --border-strong: 199 22% 83%; /* #CBD8DE */
-    --input: 202 24% 91%;
-    --ring: 173 98% 23%; /* #017365 teal */
+    --border: 204 14% 22%; /* #303941 Metallic */
+    --border-strong: 206 12% 28%; /* #3E4750 */
+    --input: 204 14% 17%; /* #1B222A */
+    --ring: 25 89% 54%; /* #F47721 */
 
     /* Dark chrome (headers/hero tokens for StyleSheet screens) */
-    --header: 202 67% 7%; /* #06151E */
-    --on-header: 0 0% 100%;
-    --on-header-muted: 201 22% 75%; /* #A8BAC4 */
+    --header: 205 14% 8%; /* #10151A */
+    --on-header: 200 20% 96%;
+    --on-header-muted: 204 10% 67%; /* #A3ADB6 */
 
     /* Geometry — rounded-md = 12px */
-    --radius: 0.875rem;
+    --radius: 1.125rem; /* 18px sheet-corner system */
   }
 }

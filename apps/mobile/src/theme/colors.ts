@@ -1,68 +1,70 @@
 /**
- * Weyro theme — colors (Premium Automotive — hybrid light/dark).
+ * Weyro theme — colors. PREMIUM AUTOMOTIVE / MOTORSPORT LUXURY ("Carbon").
  * Single source of truth for every color used in the app.
  * Do NOT hardcode hex values in screens; import from here.
  *
- * Direction (matches the approved reference design):
- * - Light content canvas with white cards
- * - Deep navy/graphite chrome for headers, hero areas and onboarding
- * - Buttons: deep teal-green (#0E8577, reference photo) — primary CTAs only
- * - Teal for links, active states, info pills and secondary accents
+ * Identity: carbon-black canvas, graphite chrome, elevated surfaces,
+ * metallic hairline borders, restrained racing-orange accent.
+ * Titanium type. Semantic colors are dark-mode-adjusted.
  *
- * All essential text pairs pass WCAG AA (≥4.5:1). Semantic colors are
- * always paired with text/icons — never color alone.
- *
- * NativeWind components read the equivalent CSS variables in `global.css`
- * (`--background`, `--primary`, …) — keep the two files in sync.
+ * Every token name is kept stable (API-compatible with the teal-era screens);
+ * the VALUES changed with the identity cutover (tag `pre-carbon`).
  */
 
 export const palette = {
-  // Content surfaces (light)
-  canvas: '#F5F8FA', // app content background
-  surface: '#FFFFFF', // cards / sheets
-  surfaceAlt: '#F1F5F7', // sunken / inset areas, skeletons
+  // Content surfaces — dark by default now
+  canvas: '#080B0E', // Carbon Black — page background
+  surface: '#171D23', // Elevated Surface — cards
+  surfaceAlt: '#1B222A', // Inset — inputs, wells, skeletons
 
-  // Dark chrome (headers, hero, onboarding)
-  header: '#06151E', // deep navy-teal header bar
-  headerAlt: '#031923', // darker hero overlay base
-  onHeader: '#FFFFFF', // text on dark chrome
-  onHeaderMuted: '#A8BAC4', // secondary text on dark chrome
+  // Dark chrome (headers, hero, tab bar)
+  header: '#10151A', // Graphite
+  headerAlt: '#0B0F13', // deeper chrome for hero blocks
+  onHeader: '#F5F6F7', // Titanium White
+  onHeaderMuted: '#A3ADB6', // Secondary Text
 
-  // Borders (light content)
-  border: '#E3EAEE',
-  borderStrong: '#CBD8DE',
+  // Lines
+  border: '#303941', // Metallic Grey hairline
+  borderStrong: '#3E4750', // derived stronger hairline
 
-  // Text on light content
-  textPrimary: '#0B1F2A', // near-black navy graphite
-  textSecondary: '#546772',
-  textMuted: '#8A98A1', // large / UI use only
+  // Text (three roles)
+  textPrimary: '#F5F6F7',
+  textSecondary: '#A3ADB6',
+  textMuted: '#6E7A84', // derived muted role — large/UI use only
 
-  // CTA — deep teal-green (matches approved reference photo; primary buttons only)
-  accent: '#0E8577',
-  accentPressed: '#0B6E63',
-  accentSoftBg: '#E4F2F0', // CTA-tinted background
-  onAccent: '#FFFFFF', // white label on teal-green
+  // CTA — Racing Orange (primary buttons only)
+  accent: '#F47721',
+  accentPressed: '#E0591A',
+  accentSoftBg: '#F477211F', // 12% orange tint for selected states
+  onAccent: '#080B0E', // Carbon ink on orange (≈9:1 contrast)
 
-  // Secondary accent — deep teal (links, active states, info pills)
-  teal: '#017365',
-  tealPressed: '#015A4F',
-  tealSoftBg: '#E6F3F0',
+  // Legacy alias — link/active color. In Carbon identity, links use the accent.
+  teal: '#F47721',
+  tealPressed: '#E0591A',
+  tealSoftBg: '#F477211F',
 
-  // Semantic
-  success: '#1F9D6B',
-  successSoftBg: '#E4F4ED',
-  warning: '#B07A0B',
-  warningSoftBg: '#FBF1DC',
-  danger: '#D64545',
-  dangerSoftBg: '#FBE8E8',
+  // New-world additions
+  chrome: '#10151A', // synonym of header
+  elevated: '#171D23', // synonym of surface
+  inset: '#1B222A', // synonym of surfaceAlt
+  metallic: '#303941', // synonym of border
+  highlight: '#FF8A32', // Orange Highlight — live moments only
 
-  // On-color text (text placed ON a semantic fill)
-  onSuccess: '#FFFFFF',
-  onWarning: '#FFFFFF',
-  onDanger: '#FFFFFF',
+  // Semantic — dark-mode-adjusted pairs
+  success: '#4CBB87',
+  successSoftBg: '#12271C',
+  warning: '#E0A32E',
+  warningSoftBg: '#2B230F',
+  danger: '#E06455',
+  dangerSoftBg: '#2B1414',
+
+  // On-color text
+  onSuccess: '#080B0E',
+  onWarning: '#080B0E',
+  onDanger: '#080B0E',
 
   // Utility
-  overlay: 'rgba(4, 12, 16, 0.55)', // scrim behind sheets/modals
+  overlay: 'rgba(0, 0, 0, 0.65)',
   transparent: 'transparent',
   white: '#FFFFFF',
 } as const;
@@ -72,7 +74,7 @@ export type ColorToken = keyof typeof palette;
 /** Map a high-level semantic role to a concrete color for status pills, etc. */
 export const statusColors = {
   neutral: { fg: palette.textSecondary, bg: palette.surfaceAlt },
-  info: { fg: palette.teal, bg: palette.tealSoftBg },
+  info: { fg: palette.accent, bg: palette.accentSoftBg },
   success: { fg: palette.success, bg: palette.successSoftBg },
   warning: { fg: palette.warning, bg: palette.warningSoftBg },
   danger: { fg: palette.danger, bg: palette.dangerSoftBg },

@@ -17,21 +17,22 @@ import {
  * (reactnativereusables.com/docs/installation/manual#configure-your-styles).
  */
 const COLORS = {
-  /** canvas — #F5F8FA */
-  background: 'hsl(204 33% 97%)',
-  /** surface — #FFFFFF */
-  card: 'hsl(0 0% 100%)',
-  /** border — #E3EAEE */
-  border: 'hsl(202 24% 91%)',
-  /** teal — #017365 (links/active accent) */
-  primary: 'hsl(173 98% 23%)',
-  /** textPrimary — #0B1F2A */
-  text: 'hsl(201 58% 10%)',
-  /** danger — #D64545 */
-  notification: 'hsl(0 64% 55%)',
+  /** canvas — #080B0E */
+  background: 'hsl(195 29% 5%)', /* #080B0E */
+  /** surface — #171D23 */
+  card: 'hsl(206 16% 11%)', /* #171D23 */
+  /** border — #303941 */
+  border: 'hsl(204 14% 22%)', /* #303941 */
+  /** accent — #F47721 (links/active) */
+  primary: 'hsl(25 89% 54%)', /* #F47721 */
+  /** textPrimary — #F5F6F7 */
+  text: 'hsl(200 20% 96%)', /* #F5F6F7 */
+  /** danger — #E06455 */
+  notification: 'hsl(4 66% 61%)', /* #E06455 */
 } as const;
 
 const LIGHT_TOKENS = {
+  // Both themes resolve dark: Weyro ships single-mode dark (Carbon identity).
   background: COLORS.background,
   foreground: COLORS.text,
   card: COLORS.card,

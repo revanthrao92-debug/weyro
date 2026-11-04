@@ -1,11 +1,10 @@
-import { Platform, ViewStyle } from 'react-native';
-import { palette } from './colors';
-
 /**
- * Weyro theme — elevation.
- * Soft, never heavy. A hairline border carries most of the definition;
- * shadows are a whisper of depth, not a drop-shadow showpiece.
+ * Weyro theme — elevation. DARK THEME rules from the design system:
+ * depth comes from surface steps and metallic hairlines, not drop shadows.
+ * The token shape is preserved (props spread) so existing screens do not
+ * break; each level now reads as +1 surface step over Carbon Black.
  */
+import { Platform, ViewStyle } from 'react-native';
 
 export const elevation = {
   none: {
@@ -13,26 +12,16 @@ export const elevation = {
     shadowRadius: 0,
     elevation: 0,
   },
-  /** Standard card: hairline border + whisper of shadow. */
+  /** Standard card: hairline border for definition, no shadow. */
   card: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: palette.textPrimary,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 2,
-    },
-    android: { elevation: 1 },
+    ios: { shadowOpacity: 0 },
+    android: { elevation: 0 },
     default: {},
   }) as ViewStyle,
-  /** Raised surfaces: sheets, floating bars. */
+  /** Raised surfaces: +1 step (visually enforced via border tokens). */
   sheet: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: palette.textPrimary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-    },
-    android: { elevation: 4 },
+    ios: { shadowOpacity: 0 },
+    android: { elevation: 0 },
     default: {},
   }) as ViewStyle,
 } as const;
