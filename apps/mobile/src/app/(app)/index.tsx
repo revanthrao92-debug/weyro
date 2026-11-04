@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
+import { StatusDot } from '@/components/ui';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useVehicles } from '@/hooks/useProfile';
@@ -256,7 +257,10 @@ export default function HomeScreen() {
         {/* Promotional placement is now the AdBanner slot above (single source) */}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Requests</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <StatusDot />
+            <Text style={styles.sectionTitle}>Active requests</Text>
+          </View>
           <Pressable onPress={() => router.push('/requests/my')} accessibilityRole="link" className="active:opacity-60">
             <Text style={styles.link}>View all</Text>
           </Pressable>

@@ -19,6 +19,7 @@ import {
   Skeleton,
   StatusPill,
   AdBanner,
+  StatusDot,
 } from '@/components/ui';
 import { photoForCategory, photo } from '@/lib/photos';
 import { labelize, formatDate, humanizeKey } from '@/utils/format';
@@ -134,7 +135,10 @@ export default function ProviderDashboard() {
 
         {/* Incoming requests (photo-backed) */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Requests near you</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <StatusDot />
+            <Text style={styles.sectionTitle}>Requests near you</Text>
+          </View>
         </View>
         {loading ? (
           <Skeleton width="100%" height={96} />

@@ -55,5 +55,7 @@ export type { AvatarProps } from './Avatar';
 export { ButtonRow } from './ButtonRow';
 export type { ButtonRowProps } from './ButtonRow';
 
+export { StatusDot } from './StatusDot';
+
 export { AdBanner } from './AdBanner';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
