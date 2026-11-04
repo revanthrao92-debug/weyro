@@ -116,7 +116,9 @@ export default function ProfileScreen() {
         />
 
         <Pressable
-          onPress={() => void logout()}
+          onPress={() => {
+            void logout().then(() => router.replace('/(auth)/login'));
+          }}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
           className="active:opacity-70"
