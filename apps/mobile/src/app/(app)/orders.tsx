@@ -14,9 +14,9 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { photo, photoForCategory } from '@/lib/photos';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
 import { formatDate } from '@/utils/format';
 
-import { palette, spacing, radii, typography } from '@/theme';
 
 /**
  * Dealer orders — Checkpoint 3. Photo strip per order (part photo with

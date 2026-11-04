@@ -10,7 +10,7 @@
 import { palette } from './colors';
 import { spacing } from './spacing';
 import { radii } from './radii';
-import { typography, displayFamily } from './typography';
+import { typography } from './typography';
 import { elevation } from './elevation';
 
 export { palette, statusColors } from './colors';
