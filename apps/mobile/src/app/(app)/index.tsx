@@ -19,6 +19,7 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
@@ -58,9 +59,6 @@ function bookingTone(status: string): StatusTone {
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
-const VEHICLE_IMAGE =
-  'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80';
-
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
@@ -232,7 +230,7 @@ export default function HomeScreen() {
             className="active:opacity-90"
             style={styles.garageCard}
           >
-            <Image source={VEHICLE_IMAGE} style={styles.garageThumb} contentFit="cover" />
+            <Image source={{ uri: carPhotoFor(vehicles[0].make, vehicles[0].model) }} style={styles.garageThumb} contentFit="cover" />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.garageTitle}>
                 {vehicles[0].make} {vehicles[0].model}

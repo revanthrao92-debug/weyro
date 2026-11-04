@@ -7,6 +7,18 @@
  * photo imports from here — never hardcode URLs in screens.
  */
 
+export type CarMake =
+  | 'maruti'
+  | 'hyundai'
+  | 'tata'
+  | 'honda'
+  | 'toyota'
+  | 'mahindra'
+  | 'kia'
+  | 'bmw'
+  | 'audi'
+  | 'generic';
+
 export type PhotoSubject =
   | 'repair'
   | 'spare-parts'
@@ -42,6 +54,38 @@ const S: Record<PhotoSubject, string> = {
 /** Get a photo URL by subject. Always returns something renderable. */
 export function photo(subject: PhotoSubject): string {
   return S[subject];
+}
+
+// Curated real photography per make (stable Unsplash CDN). A deliberately
+// small map; unknown makes fall back to the garage shot.
+export const CAR_PHOTOS: Record<CarMake, string> = {
+  maruti:
+    'https://images.unsplash.com/photo-1590362891991-f776e747a5a5?auto=format&fit=crop&w=800&q=80',
+  hyundai:
+    'https://images.unsplash.com/photo-1629896624721-d6ac6a576aca?auto=format&fit=crop&w=800&q=80',
+  tata:
+    'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=800&q=80',
+  honda:
+    'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=800&q=80',
+  toyota:
+    'https://images.unsplash.com/photo-1621007947382-bcc3c390d9ed?auto=format&fit=crop&w=800&q=80',
+  mahindra:
+    'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80',
+  kia:
+    'https://images.unsplash.com/photo-1552519507-88aa2dfa9fdb?auto=format&fit=crop&w=800&q=80',
+  bmw:
+    'https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=800&q=80',
+  audi:
+    'https://images.unsplash.com/photo-1614200187524-dc4b892acf16?auto=format&fit=crop&w=800&q=80',
+  generic: S['garage-default'],
+};
+
+/** Garage photo for a make/model string (reversible: swap for your CDN). */
+export function carPhotoFor(make?: string | null, _model?: string | null): string {
+  const key = (make ?? '').toLowerCase();
+  const known = Object.keys(CAR_PHOTOS) as CarMake[];
+  const hit = known.find((m) => key.includes(m));
+  return CAR_PHOTOS[hit ?? 'generic'];
 }
 
 /** Map an API category string (e.g. 'REPAIR', 'TOWING') to a subject. */
