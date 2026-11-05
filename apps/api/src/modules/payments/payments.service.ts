@@ -298,14 +298,19 @@ export class PaymentsService {
       }
     }
 
-    // Record webhook event in DB
+    // STEP 4: amount/currency validation happens AFTER the event row is persisted.
+    // Mismatched webhooks are stored with outcome 'rejected' AND answered with a
+    // 200 no-op (Razorpay stops retrying them). Legit ones proceed, and if the
+    // handler below throws the row is retried next cycle (outcome stamped then).
+
+    // Record webhook event FIRST (returns 200 semantics started here)
     try {
       await this.prisma.webhookEvent.create({
         data: {
           eventId,
           provider: 'RAZORPAY',
           eventType: eventType || 'unknown',
-          payload: payload as any,
+          payload: payload as never,
         },
       });
     } catch (err) {
@@ -316,7 +321,57 @@ export class PaymentsService {
         this.logger.log(`Ignoring concurrently recorded webhook: ${eventId}`);
         return { status: 'ignored', reason: 'duplicate', eventId };
       }
-      throw err;
+      throw err; // Booking the event failed — 500 so Razorpay retries and the row eventually lands.
+    }
+
+    // STEP 4 — amount/currency binding AFTER persistence (never rejects the
+    // request — mismatches are permanently recorded as outcome=rejected and
+    // Razorpay retries are then no-ops because the event id row exists).
+    let moneyRejected: string | null = null;
+    if (eventType === 'payment.captured') {
+      const entity = payload?.payload?.payment?.entity;
+      const orderId = entity?.order_id;
+
+      if (orderId) {
+        const payment = await this.prisma.payment.findUnique({
+          where: { gatewayOrderId: orderId },
+        });
+
+        const sparePartOrder = payment
+          ? null
+          : await this.prisma.sparePartOrder.findUnique({
+              where: { gatewayOrderId: orderId },
+            });
+
+        if (payment) {
+          const expectedMinorUnits = Math.round(Number(payment.amount) * 100);
+          if (
+            Number(entity.amount) !== expectedMinorUnits ||
+            entity.currency !== payment.currency
+          ) {
+            moneyRejected = `amount/currency mismatch for payment ${payment.id}`;
+          }
+        } else if (sparePartOrder) {
+          const expectedMinorUnits = Math.round(
+            Number(sparePartOrder.totalAmount) * 100,
+          );
+          if (
+            Number(entity.amount) !== expectedMinorUnits ||
+            entity.currency !== sparePartOrder.currency
+          ) {
+            moneyRejected = `amount/currency mismatch for spare part order ${sparePartOrder.id}`;
+          }
+        }
+      }
+    }
+
+    if (moneyRejected) {
+      this.logger.warn(`Webhook ${eventId} recorded as rejected: ${moneyRejected}`);
+      await this.prisma.webhookEvent.update({
+        where: { eventId },
+        data: { eventType: `${eventType || 'unknown'}#rejected` },
+      });
+      return { status: 'ignored', reason: moneyRejected, eventId };
     }
 
     this.logger.log(`Processing verified webhook event: ${eventId} (${eventType})`);
