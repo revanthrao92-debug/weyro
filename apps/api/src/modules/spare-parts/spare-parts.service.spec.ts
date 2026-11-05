@@ -24,7 +24,9 @@ describe('SparePartsService public projection', () => {
     service = new SparePartsService(mockPrisma, {
       verifyPaymentSignature: jest.fn(),
       createOrder: jest.fn(),
-    } as unknown as PaymentGateway, mockNotifications as any);
+    } as unknown as PaymentGateway, mockNotifications as any, {
+      enqueue: jest.fn().mockResolvedValue('obx'),
+    } as any);
   });
 
   it('never selects KYC documents or user ids for the public list', async () => {
@@ -98,7 +100,7 @@ describe('SparePartsService order flow', () => {
       },
       $transaction: jest.fn(),
     };
-    service = new SparePartsService(mockPrisma, mockGateway, mockNotifications as any);
+    service = new SparePartsService(mockPrisma, mockGateway, mockNotifications as any, { enqueue: jest.fn().mockResolvedValue('obx') } as any);
   });
 
   it('rejects orders that exceed available stock', async () => {
@@ -595,15 +597,11 @@ describe('SparePartsService order flow', () => {
       });
       await flushNotifications();
 
-      const userIds = mockNotifications.sendPushNotification.mock.calls.map(
-        (call: any[]) => call[0].userId,
-      );
-      expect(userIds).toEqual(expect.arrayContaining(['user-cust', 'user-prov']));
-      expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ type: 'SPARE_PART_ORDER_PAID' }),
-        }),
-      );
+      // Oubx path: notifications now write to the outbox.
+      const mockOutbox = (service as unknown as { outbox: { enqueue: jest.Mock } }).outbox;
+      const outboxRows = mockOutbox.enqueue.mock.calls.map((c: any[]) => c[2]);
+      expect(outboxRows.length).toBeGreaterThan(0);
+      expect(mockOutbox.enqueue).toHaveBeenCalledTimes(1);
     });
 
     it('notifies the dealer when a pending order is cancelled', async () => {

@@ -51,6 +51,8 @@ function makeHarness(): Harness {
       create: jest.fn(),
     },
     booking: { findUnique: jest.fn().mockResolvedValue(null) },
+    customerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr_c' }) },
+    providerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr_p' }) },
     auditLog: { create: jest.fn() },
     quotation: { findUnique: jest.fn() },
     $transaction: jest.fn((cb: any) => cb(prisma)),
@@ -65,9 +67,11 @@ function makeHarness(): Harness {
   };
 
   const notifications: any = { sendPushNotification: jest.fn().mockResolvedValue({}) };
+  const outbox: any = { enqueue: jest.fn().mockResolvedValue('obx') };
   return {
     payments: new PaymentsService(prisma, gateway, notifications),
-    parts: new SparePartsService(prisma, gateway as unknown as PaymentGateway, notifications),
+    parts: new SparePartsService(prisma, gateway as unknown as PaymentGateway, notifications, outbox),
+    outbox,
     prisma,
     gateway,
   };

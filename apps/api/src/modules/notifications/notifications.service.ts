@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+import { OutboxDeliverer } from './outbox.service';
 import { RegisterPushTokenDto } from './dto/notifications.dto';
 import {
   buildCursorWhere,
@@ -20,6 +21,29 @@ export class NotificationsService {
   private readonly expo = new Expo();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * STEP 5 outbox deliverer: an outbox row becomes an in-app notification
+   * + push fan-out through the standard (validation-safe) pipeline.
+   */
+  public deliverOutboxRow: OutboxDeliverer = (event) => {
+    const payload = event.payload as {
+      userId?: string;
+      title?: string;
+      body?: string;
+      data?: Record<string, unknown>;
+    };
+    if (!payload?.userId) {
+      // In-app rows require a user; nothing plausible to deliver
+      return Promise.resolve();
+    }
+    return this.sendPushNotification({
+      userId: payload.userId,
+      title: payload.title ?? 'Weyro',
+      body: payload.body ?? '',
+      data: payload.data,
+    }) as unknown as Promise<void>;
+  };
 
   async registerPushToken(userId: string, dto: RegisterPushTokenDto) {
     if (!Expo.isExpoPushToken(dto.token)) {

@@ -19,11 +19,12 @@ import {
 import { settleSparePartOrderPayment } from '../payments/settle-payment';
 import {
   notifyOrderCancelled,
-  notifyOrderPaid,
   notifyOrderPlaced,
   notifyOrderRefunded,
 } from './spare-part-notifications';
+import { enqueueOrderPaid } from './spare-part-notifications';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OutboxService } from '../notifications/outbox.service';
 import { PAYMENT_GATEWAY, PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 import {
   buildCursorWhere,
@@ -38,6 +39,7 @@ export class SparePartsService {
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
     private readonly notifications: NotificationsService,
+    private readonly outbox: OutboxService,
   ) {}
 
   private async notificationContext(order: {
@@ -446,24 +448,27 @@ export class SparePartsService {
     }
 
     // STEP 1: shared idempotent settlement (same fn the webhook uses)
-    const settled = await this.prisma.$transaction((tx) =>
-      settleSparePartOrderPayment(
+    const settled = await this.prisma.$transaction(async (tx) => {
+      const result = await settleSparePartOrderPayment(
         tx,
         { orderId: order.id, sparePartId: order.sparePartId, quantity: order.quantity },
         { gatewayPaymentId: dto.razorpayPaymentId, gatewayOrderId: dto.razorpayOrderId },
-      ),
-    );
+      );
+
+      // STEP 5 — outbox: written in the same tx as the settlement, so a
+      // rollback deletes the notification alongside the work.
+      if (result.applied) {
+        const context = await this.notificationContext(order);
+        await enqueueOrderPaid(this.outbox, tx, context);
+      }
+
+      return result;
+    });
 
     const updated =
       settled.status === 'PAID'
         ? await this.prisma.sparePartOrder.findUniqueOrThrow({ where: { id: order.id } })
         : { id: order.id, status: settled.status ?? 'ALREADY_PAID' };
-
-    if (updated.status === 'PAID') {
-      void this.notificationContext(order)
-        .then((context) => notifyOrderPaid(this.notifications, context))
-        .catch(() => {});
-    }
 
     return updated;
   }
