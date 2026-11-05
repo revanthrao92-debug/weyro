@@ -81,10 +81,15 @@ describe('SparePartsService order flow', () => {
       sparePartOrder: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue(null),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          status: 'PAID',
+          gatewayPaymentId: 'pay_1',
+        }),
         findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
         update: jest.fn(),
-        updateMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       customerProfile: {
         findUnique: jest.fn().mockResolvedValue({ userId: 'user-cust' }),
@@ -215,6 +220,12 @@ describe('SparePartsService order flow', () => {
         update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
       },
       sparePartOrder: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          status: 'PAID',
+          gatewayPaymentId: 'pay_1',
+        }),
         update: jest.fn().mockResolvedValue({ id: 'order-1', status: 'PAID' }),
       },
     };
@@ -232,7 +243,7 @@ describe('SparePartsService order flow', () => {
       where: { id: 'part-1' },
       data: { stockQuantity: { decrement: 2 } },
     });
-    expect(tx.sparePartOrder.update).toHaveBeenCalledWith(
+    expect(tx.sparePartOrder.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'PAID' }),
       }),
@@ -289,6 +300,8 @@ describe('SparePartsService order flow', () => {
         update: jest.fn(),
       },
       sparePartOrder: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'order-pkg', status: 'PAID' }),
         update: jest.fn().mockResolvedValue({ id: 'order-pkg', status: 'PAID' }),
       },
     };
@@ -564,6 +577,11 @@ describe('SparePartsService order flow', () => {
           update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
         },
         sparePartOrder: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUniqueOrThrow: jest.fn().mockResolvedValue({
+            id: 'order-1',
+            status: 'PAID',
+          }),
           update: jest
             .fn()
             .mockResolvedValue({ id: 'order-1', status: 'PAID' }),

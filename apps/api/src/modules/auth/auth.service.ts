@@ -14,7 +14,7 @@ import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
-import { buildSmsGateway, ConsoleSmsGateway, SmsGateway, StubSmsGateway } from './sms.gateway';
+import { buildSmsGateway, SmsGateway } from './sms.gateway';
 
 // Pre-computed bcrypt hash for constant-time comparison when user does not exist
 const DUMMY_HASH =

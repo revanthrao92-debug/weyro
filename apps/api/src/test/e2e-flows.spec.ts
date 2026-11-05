@@ -28,9 +28,9 @@ jest.mock('@nestjs/schedule', () => ({
   CronExpression: { EVERY_MINUTE: '* * * * *' },
 }));
 
-// eslint-disable-next-line import/first
+
 import { AppModule } from '../app.module';
-// eslint-disable-next-line import/first
+
 import { PrismaService } from '../prisma/prisma.service';
 
 jest.setTimeout(120_000);
