@@ -16,7 +16,7 @@ import {
 import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
-import { settleSparePartOrder } from './spare-part-settlement';
+import { settleSparePartOrderPayment } from '../payments/settle-payment';
 import {
   notifyOrderCancelled,
   notifyOrderPaid,
@@ -445,9 +445,19 @@ export class SparePartsService {
       );
     }
 
-    const updated = await this.prisma.$transaction((tx) =>
-      settleSparePartOrder(tx, order, dto.razorpayPaymentId, dto.razorpayOrderId),
+    // STEP 1: shared idempotent settlement (same fn the webhook uses)
+    const settled = await this.prisma.$transaction((tx) =>
+      settleSparePartOrderPayment(
+        tx,
+        { orderId: order.id, sparePartId: order.sparePartId, quantity: order.quantity },
+        { gatewayPaymentId: dto.razorpayPaymentId, gatewayOrderId: dto.razorpayOrderId },
+      ),
     );
+
+    const updated =
+      settled.status === 'PAID'
+        ? await this.prisma.sparePartOrder.findUniqueOrThrow({ where: { id: order.id } })
+        : { id: order.id, status: settled.status ?? 'ALREADY_PAID' };
 
     if (updated.status === 'PAID') {
       void this.notificationContext(order)

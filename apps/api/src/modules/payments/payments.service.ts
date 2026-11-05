@@ -23,7 +23,7 @@ import {
   validatePaymentTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
-import { settleSparePartOrder } from '../spare-parts/spare-part-settlement';
+import { settleBookingPayment, settleSparePartOrderPayment } from './settle-payment';
 import { notifyOrderPaid } from '../spare-parts/spare-part-notifications';
 import { env } from '../../config/env.config';
 
@@ -186,44 +186,32 @@ export class PaymentsService {
       );
     }
 
-    // State machine check
-    validatePaymentTransition(payment.status, 'CAPTURED', user.role);
+    // STEP 1: single shared, idempotent settlement (same fn the webhook
+    // uses). A racing webhook claim is a safe no-op, not an error.
+    const settleResult = await this.prisma.$transaction(async (tx) =>
+      settleBookingPayment(tx, { paymentId: payment.id }, {
+        gatewayPaymentId: dto.paymentId,
+        gatewayOrderId: dto.orderId,
+      }),
+    );
 
-    // H3: re-validate inside the transaction with a conditional update so a
-    // concurrent capture (e.g. racing webhook) cannot double-apply or
-    // overwrite a settled state.
-    const updatedPayment = await this.prisma.$transaction(async (tx) => {
-      // Conditionally move to CAPTURED only from the still-valid source
-      // states (PENDING/AUTHORIZED). Returns count 0 when already taken.
-      const claimed = await tx.payment.updateMany({
-        where: {
-          id: payment.id,
-          status: { in: ['PENDING', 'AUTHORIZED'] as never },
-        },
-        data: {
-          status: 'CAPTURED' as never,
-          gatewayPaymentId: dto.paymentId,
-          gatewayOrderId: dto.orderId,
-          paidAt: new Date(),
-        },
-      });
-
-      if (claimed.count === 0) {
-        throw new ConflictException(
-          'Payment was captured concurrently — rejecting duplicate capture attempt',
-        );
-      }
-
-      const updated = await tx.payment.findUniqueOrThrow({
+    if (!settleResult.applied) {
+      const settledRow = await this.prisma.payment.findUniqueOrThrow({
         where: { id: payment.id },
       });
+      return {
+        status: settleResult.alreadySettled ? 'ALREADY_CAPTURED' : 'IDEMPOTENT_NOOP',
+        payment: settledRow,
+      };
+    }
 
-      return updated;
+    const settledPayment = await this.prisma.payment.findUniqueOrThrow({
+      where: { id: payment.id },
     });
 
     return {
       status: 'CAPTURED',
-      payment: updatedPayment,
+      payment: settledPayment,
     };
   }
 
@@ -391,18 +379,21 @@ export class PaymentsService {
 
             if (sparePartOrder && sparePartOrder.status === 'PENDING') {
               const settled = await this.prisma.$transaction((tx) =>
-                settleSparePartOrder(
+                settleSparePartOrderPayment(
                   tx,
-                  sparePartOrder,
-                  gatewayPaymentId,
-                  orderId,
+                  {
+                    orderId: sparePartOrder.id,
+                    sparePartId: sparePartOrder.sparePartId,
+                    quantity: sparePartOrder.quantity,
+                  },
+                  { gatewayPaymentId, gatewayOrderId: orderId },
                 ),
               );
               this.logger.log(
-                `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status})`,
+                `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status ?? 'no-op'})`,
               );
 
-              if (settled.status === 'PAID') {
+              if (settled.applied) {
                 notifyOrderPaid(this.notifications, {
                   orderId: sparePartOrder.id,
                   partName: sparePartOrder.sparePart?.name ?? 'your order',
