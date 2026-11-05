@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import pino from 'pino';
+
 import pinoHttp from 'pino-http';
 import { AppModule } from './app.module';
 import { env } from './config/env.config';

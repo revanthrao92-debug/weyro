@@ -593,7 +593,10 @@ export class AuthService {
   }
 
   private sanitizeUser(user: any) {
+    // exclusions for token/secret columns — kept explicit for future dates
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, refreshTokens, ...sanitized } = user;
+    return sanitized;
     return sanitized;
   }
 }

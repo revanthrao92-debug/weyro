@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentGateway } from './interfaces/payment-gateway.interface';
 import { RazorpayPaymentGateway } from './gateways/razorpay.gateway';

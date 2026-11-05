@@ -767,7 +767,22 @@ export class SparePartsService {
 
     if (isDealer) {
       // Dealer sees the part, itself, and customer names only
-      const { customerId: _c, providerId: _p, provider: _prov, gatewayOrderId: _go, gatewayPaymentId: _gp, ...dealerView } = order;
+      const dealerView: Record<string, unknown> & { customer?: unknown } = { ...order };
+      // remove fields the dealer must not see
+      const hidden: Array<keyof typeof order> = [
+        'customerId',
+        'providerId',
+        'gatewayOrderId',
+        'gatewayPaymentId',
+        'provider',
+        'providerId2',
+      ] as Array<keyof typeof order>;
+      for (const h of hidden) {
+        delete dealerView[h];
+      }
+      (dealerView as Record<string, unknown>).customer = {
+        firstName: order.customer.firstName,
+      };
       return {
         ...dealerView,
         customer: {

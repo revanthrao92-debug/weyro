@@ -48,6 +48,9 @@ export const envSchema = z.object({
   SMS_TWILIO_ACCOUNT_SID: z.string().optional(),
   SMS_TWILIO_AUTH_TOKEN: z.string().optional(),
   SMS_TWILIO_FROM: z.string().optional(),
+  // STEP 2 — reconciliation knobs
+  PAYMENT_RECONCILE_WINDOW_MINUTES: z.coerce.number().default(15),
+  PAYMENT_RECONCILE_BATCH: z.coerce.number().default(25),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV !== 'production') {
     return;

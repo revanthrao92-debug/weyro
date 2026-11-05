@@ -5,7 +5,7 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
-import { from, Observable, of, switchMap, tap, catchError, throwError } from 'rxjs';
+import { from, Observable, switchMap, tap, catchError, throwError } from 'rxjs';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';

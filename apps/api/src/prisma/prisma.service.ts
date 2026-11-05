@@ -25,7 +25,9 @@ export function withPoolParams(databaseUrl: string): string {
 /**
  * Models that support soft delete (have a `deletedAt` field).
  */
-const SOFT_DELETE_MODELS = new Set([
+// Kept for reference — the actual soft-delete lookup is the Set below.
+// This variable is dynamic per model name in softDelete(model, where).
+const SOFT_DELETE_MODELS: Set<string> = new Set([
   'User',
   'CustomerProfile',
   'ProviderProfile',
@@ -106,6 +108,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Bypasses the normal Prisma delete which would hard-delete.
    */
   async softDelete(model: string, where: any) {
+    // Guardrail: unknown model names fall back to plain update (no softDelete).
+    if (!SOFT_DELETE_MODELS.has(model)) {
+      return (this as any)[model].update({ where, data: { deletedAt: new Date() } });
+    }
     const modelInstance = (this as any)[model];
     if (!modelInstance) {
       throw new Error(`Unknown model: ${model}`);

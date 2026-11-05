@@ -63,7 +63,7 @@ export class StubSmsGateway implements SmsGateway {
     }
   }
 
-  async send(to: string, _text: string): Promise<void> {
+  async send(_to: string, _text: string): Promise<void> {
     // Real HTTP integration intentionally left to the provider-specific
     // implementation; this stub exists so the selection/config plumbing,
     // fail-fast checks and tests can be built before signing up for SMS.

@@ -1,6 +1,5 @@
 import { SparePartsService } from './spare-parts.service';
 import {
-  PAYMENT_GATEWAY,
   PaymentGateway,
 } from '../payments/interfaces/payment-gateway.interface';
 
