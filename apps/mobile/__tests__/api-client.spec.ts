@@ -11,7 +11,6 @@ import {
   setSessionExpiredHandler,
   refreshTokenSingleFlight,
 } from '../src/services/api-client';
-import * as tokenStorage from '../services/token-storage';
 
 // Avoid loading the real token-storage (SecureStore) in unit tests
 jest.mock('../src/services/token-storage', () => ({
