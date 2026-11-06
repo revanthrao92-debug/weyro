@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
-import {
-  FlatList,
- Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { UserRound, Bell, ArrowRight, ChevronRight, Package, Cog, CircleDot, Zap, Filter } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -21,8 +19,9 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
-import { BrandMark } from '@/components/art/BrandMark';
+import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -58,20 +57,13 @@ function bookingTone(status: string): StatusTone {
 }
 
 
-const HERO_IMAGE = require('../../../assets/images/home-blueprint.jpg');
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
 const QUICK_ACTIONS = [
-  { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
-  { label: 'Find Parts', Icon: Package, route: '/shop' },
-  { label: 'Find Dealers', Icon: UserRound, route: '/(app)/provider-search' },
-];
-
-const CATEGORIES: { label: string; Icon: typeof CircleDot }[] = [
-  { label: 'Brakes', Icon: CircleDot },
-  { label: 'Engine', Icon: Cog },
-  { label: 'Suspension', Icon: CircleDot },
-  { label: 'Electrical', Icon: Zap },
-  { label: 'Body Parts', Icon: Package },
-  { label: 'Filters', Icon: Filter },
+  { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
+  { label: 'Spare Parts', Icon: Package, route: '/shop' },
+  { label: 'Towing', Icon: Truck, route: '/requests/create?category=TOWING' },
+  { label: 'Home Mechanic', Icon: House, route: '/requests/create?category=ROADSIDE' },
 ];
 
 export default function HomeScreen() {
@@ -132,23 +124,22 @@ export default function HomeScreen() {
       {/* Layered scene: dawn service-bay photo, sketch overlay, type on the
           calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        <Image source={HERO_IMAGE} style={styles.heroImage} contentFit="cover" />
+        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         <View style={styles.heroShade} />
+        <View style={styles.heroSketch} pointerEvents="none">
+          <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
+        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
-            <BrandMark size="sm" />
             <Pressable
-              onPress={() => router.push('/(app)/notifications')}
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-              className="active:opacity-60"
-              style={styles.bellBtn}
+              onPress={() => router.push('/(app)')}
+              accessibilityRole="image"
+              accessibilityLabel="Weyro"
             >
-              <Bell size={18} color={palette.onHeader} strokeWidth={1.8} />
-              <View style={styles.bellDot} />
+              <Image source={require('../../../assets/images/weyro-logo.png')} style={styles.logoSmall} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(app)/profile')}
+              onPress={() => router.push('/profile')}
               accessibilityRole="button"
               accessibilityLabel="Profile"
               className="active:opacity-60"
@@ -159,9 +150,9 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
-          <Text style={styles.greeting}>Premium Auto Care</Text>
-          <Text style={styles.greetingName}>Get the Right{'\n'}Part. Right Away.</Text>
-          <Text style={styles.heroTagline}>Trusted dealers. Genuine parts.</Text>
+          <Text style={styles.greeting}>Your garage,</Text>
+          <Text style={styles.greetingName}>{firstName}</Text>
+          <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
         </View>
       </View>
 
@@ -211,42 +202,6 @@ export default function HomeScreen() {
           ))}
         </View>
 
-
-        {/* Popular categories — mock grid, real shop routing */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular Categories</Text>
-          <Pressable
-            onPress={() => router.push('/(app)/shop')}
-            accessibilityRole="link"
-            className="active:opacity-60"
-          >
-            <Text style={styles.link}>View all →</Text>
-          </Pressable>
-        </View>
-        <FlatList
-          horizontal
-          data={CATEGORIES}
-          keyExtractor={(c) => c.label}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.catRow}
-          renderItem={({ item: c }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Browse ${c.label}`}
-              onPress={() => router.push('/(app)/shop')}
-              style={styles.catCard}
-              className="active:opacity-80"
-            >
-              <View style={styles.catIcon}>
-                <c.Icon size={20} color={palette.textSecondary} strokeWidth={1.75} />
-              </View>
-              <Text style={styles.catLabel} maxFontSizeMultiplier={2} numberOfLines={2}>
-                {c.label}
-              </Text>
-            </Pressable>
-          )}
-        />
-
         {/* My Garage */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>My Garage</Text>
@@ -275,6 +230,7 @@ export default function HomeScreen() {
             className="active:opacity-90"
             style={styles.garageCard}
           >
+            <Image source={{ uri: carPhotoFor(vehicles[0].make, vehicles[0].model) }} style={styles.garageThumb} contentFit="cover" />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.garageTitle}>
                 {vehicles[0].make} {vehicles[0].model}
@@ -373,6 +329,13 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
+  heroSketch: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
   heroInner: {
     paddingBottom: spacing.xxl,
@@ -385,24 +348,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   logoSmall: { height: 20, width: 72, resizeMode: 'contain' },
-  bellBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: palette.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellDot: {
-    position: 'absolute',
-    right: 9,
-    top: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: palette.accent,
-  },
   avatar: {
     width: 36,
     height: 36,
@@ -513,31 +458,6 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: palette.textPrimary,
   },
-  catRow: { gap: spacing.md, paddingRight: spacing.lg },
-  catCard: {
-    width: 100,
-    height: 88,
-    borderRadius: radii.md,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  catIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    backgroundColor: palette.accentSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catLabel: {
-    ...typography.label,
-    color: palette.textSecondary,
-    textAlign: 'center',
-  },
   link: {
     ...typography.captionMedium,
     color: palette.teal,
@@ -563,7 +483,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     flex: 1,
   },
-
+  garageThumb: { width: 64, height: 44, borderRadius: radii.sm, backgroundColor: palette.surfaceAlt },
   garageTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   garageMeta: {
     ...typography.caption,
