@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Car,
@@ -10,6 +10,10 @@ import {
   LifeBuoy,
   Settings2,
   LogOut,
+  ShoppingBag,
+  LayoutDashboard,
+  Heart,
+  Bell,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { ScreenContainer, AppHeader, ListItem, StatusPill } from '@/components/ui';
@@ -48,7 +52,17 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Account</Text>
+        
+        <View style={styles.headRow}>
+          <View style={styles.avatarBig}>
+            <Text style={styles.avatarLetter}>{(name?.[0] || 'W').toUpperCase()}</Text>
+          </View>
+          <Text style={styles.profileName} maxFontSizeMultiplier={2}>{name}</Text>
+          <Text style={styles.profileEmail} maxFontSizeMultiplier={2}>{email}</Text>
+          <View style={styles.roleChip}><Text style={styles.roleChipText}>Customer</Text></View>
+        </View>
+
+<Text style={styles.sectionTitle}>Account</Text>
         <ListItem
           bare
           divider
@@ -68,11 +82,47 @@ export default function ProfileScreen() {
         <ListItem
           bare
           divider
+          title="My Orders"
+          left={<IconRow Icon={ShoppingBag} />}
+          onPress={() => router.push('/(app)/bookings')}
+          accessibilityLabel="My orders"
+        />
+        <ListItem
+          bare
+          divider
+          title="My Requirements"
+          left={<IconRow Icon={LayoutDashboard} />}
+          onPress={() => router.push('/requests/my')}
+          accessibilityLabel="My requirements"
+        />
+        <ListItem
+          bare
+          divider
+          title="Wishlist"
+          left={<IconRow Icon={Heart} />}
+          onPress={() =>
+            Alert.alert('Wishlist', 'Coming soon — saved parts are on their way')
+          }
+          accessibilityLabel="Wishlist"
+        />
+        <ListItem
+          bare
+          divider
           title="Addresses"
           left={<IconRow Icon={MapPin} />}
           onPress={() => router.push('/addresses')}
           accessibilityLabel="Addresses"
         />
+        <ListItem
+          bare
+          divider
+          title="Notifications"
+          left={<IconRow Icon={Bell} />}
+          onPress={() => router.push('/(app)/notifications')}
+          accessibilityLabel="Notifications"
+        />
+
+
         <ListItem
           bare
           divider
@@ -142,6 +192,41 @@ function IconRow({ Icon }: { Icon: any }) {
 
 const styles = StyleSheet.create({
   body: { paddingBottom: spacing.xxl },
+  headRow: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  avatarBig: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.lg,
+    backgroundColor: palette.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  avatarLetter: { ...typography.display, color: palette.onAccent },
+  profileName: {
+    ...typography.title,
+    fontFamily: undefined,
+    color: palette.textPrimary,
+  },
+  profileEmail: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: 2,
+  },
+  roleChip: {
+    backgroundColor: palette.accent,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 2,
+    marginTop: spacing.sm,
+  },
+  roleChipText: {
+    ...typography.label,
+    color: palette.onAccent,
+  },
   accountCard: {
     flexDirection: 'row',
     alignItems: 'center',
