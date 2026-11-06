@@ -1,4 +1,4 @@
-import { Logger, Injectable } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { env } from '../../config/env.config';
 
 /**
