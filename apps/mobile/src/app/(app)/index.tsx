@@ -22,7 +22,6 @@ import {
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 import { labelize, formatDate } from '@/utils/format';
-import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 import { BrandMark } from '@/components/art/BrandMark';
 
 function requestTone(status: string): StatusTone {
@@ -136,9 +135,6 @@ export default function HomeScreen() {
       <View style={[styles.hero, { paddingTop: 48 }]}>
         <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         <View style={styles.heroShade} />
-        <View style={styles.heroSketch} pointerEvents="none">
-          <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
-        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <BrandMark size="sm" />
@@ -378,13 +374,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
-  heroSketch: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
   heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
   heroInner: {
     paddingBottom: spacing.xxl,
