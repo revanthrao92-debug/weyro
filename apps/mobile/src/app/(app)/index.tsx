@@ -379,6 +379,13 @@ const styles = StyleSheet.create({
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
   heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
+  heroBlueprint: {
+    position: 'absolute',
+    top: 60,
+    right: 0,
+    left: 0,
+    height: 260,
+  },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,
