@@ -51,7 +51,7 @@ const ROLES: {
 
 /** The dark-orange Porsche GT3 RS artwork (full-bleed hero). */
 const HERO_CAR =
-  'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=1200&q=85';
+  'https://images.unsplash.com/photo-1611821064430-0d40291d0f0b?auto=format&fit=crop&w=1200&q=85';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -108,7 +108,7 @@ export default function LoginScreen() {
           right: 0,
           bottom: 0,
           left: 0,
-          backgroundColor: 'rgba(3, 4, 5, 0.38)',
+          backgroundColor: 'rgba(3, 4, 5, 0.42)',
         }}
       />
 
