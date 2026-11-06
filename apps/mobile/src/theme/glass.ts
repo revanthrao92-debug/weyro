@@ -13,7 +13,7 @@ import { palette } from './colors';
  * borders + 3 gradient hues — no native blur, no expensive effects.
  */
 
-export const GLASS_ENABLED = true;
+export const GLASS_ENABLED = false;
 
 const alpha = (hex: string, a: number) => `${hex}${Math.round(a * 255).toString(16).padStart(2, '0')}`;
 

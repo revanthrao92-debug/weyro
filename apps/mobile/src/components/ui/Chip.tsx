@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
+    borderRadius: radii.sm,
     borderWidth: 1,
     // borderStrong: plain `border` was invisible (white chips on off-white canvas)
     borderColor: palette.borderStrong,

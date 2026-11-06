@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderRadius: radii.pill,
+    borderRadius: radii.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
