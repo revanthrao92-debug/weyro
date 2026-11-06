@@ -1,5 +1,5 @@
-import { ReactElement } from 'react';
-import type { ColorValue } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import type { ColorValue, Text as RNText } from 'react-native';
 import { Tabs } from 'expo-router';
 import {
   Activity,
@@ -77,9 +77,46 @@ export default function AppLayout() {
           ]
         : [
             <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,
-            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Requests', tabBarIcon: tabIcon(CalendarDays) }} />,
+            <Tabs.Screen key="shop" name="shop" options={{ title: 'Search', tabBarIcon: tabIcon(ShoppingBag) }} />
+            ,
+            // mock has a center FAB (＋ = Post Requirement)
+            <Tabs.Screen
+              key="fab"
+              name="requests/create"
+              options={{
+                title: '',
+                tabBarButton: (props: Record<string, unknown>) => (
+                  <View
+                    pointerEvents="box-none"
+                    style={{
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      top: -14,
+                      width: 64,
+                      height: 64,
+                    }}
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Post requirement"
+                      style={{
+                        width: 54,
+                        height: 54,
+                        borderRadius: 27,
+                        backgroundColor: '#FF5A1F',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 27, fontWeight: '600', marginTop: -3 }}>＋</Text>
+                    </Pressable>
+                  </View>
+                ),
+              }}
+            />,
+            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Orders', tabBarIcon: tabIcon(CalendarDays) }} />,
             <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
-            <Tabs.Screen key="shop" name="shop" options={{ title: 'Shop', tabBarIcon: tabIcon(ShoppingBag) }} />,
+            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
             <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,
             <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
