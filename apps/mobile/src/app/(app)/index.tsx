@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Bell, ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
+import { UserRound, Bell, ArrowRight, ChevronRight, Package } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -61,10 +61,9 @@ function bookingTone(status: string): StatusTone {
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
 const QUICK_ACTIONS = [
-  { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
-  { label: 'Spare Parts', Icon: Package, route: '/shop' },
-  { label: 'Towing', Icon: Truck, route: '/requests/create?category=TOWING' },
-  { label: 'Home Mechanic', Icon: House, route: '/requests/create?category=ROADSIDE' },
+  { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
+  { label: 'Find Parts', Icon: Package, route: '/shop' },
+  { label: 'Find Dealers', Icon: UserRound, route: '/(app)/provider-search' },
 ];
 
 export default function HomeScreen() {
