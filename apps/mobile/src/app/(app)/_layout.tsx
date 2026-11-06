@@ -65,11 +65,11 @@ export default function AppLayout() {
       : role === 'PROVIDER' || role === 'BOTH'
         ? [
             <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
-            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Opportunities', tabBarIcon: tabIcon(Radar) }} />,
-            <Tabs.Screen key="orders" name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon(Package) }} />,
-            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
-            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,
+            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Requests', tabBarIcon: tabIcon(Radar) }} />,
+            <Tabs.Screen key="orders" name="orders" options={{ title: 'Inventory', tabBarIcon: tabIcon(Package) }} />,
             <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
+            <Tabs.Screen key="messages" name="messages" options={{ href: null }} />,
+            <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
             <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
