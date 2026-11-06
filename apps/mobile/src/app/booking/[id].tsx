@@ -195,6 +195,66 @@ const BookingTimelineBlock = ({ booking }: { booking: any }) => (
   </View>
 );
 
+
+const RouteMapCard = () => (
+  <View style={mapCard.wrap}>
+    {/* stylised route-path graphic panel (live maps dependency not present) */}
+    <View style={mapCard.inner}>
+      <View style={mapCard.bgLine} />
+      <View style={mapCard.bgLine2} />
+      <View style={mapCard.route} />
+      <View style={[mapCard.pinStart]} />
+      <View style={[mapCard.pinEnd]} />
+    </View>
+  </View>
+);
+
+const mapCard = StyleSheet.create({
+  wrap: {
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    height: 150,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  inner: {
+    ...{ width: '100%', height: '100%' },
+    backgroundColor: '#16181C',
+    position: 'relative',
+  },
+  bgLine: { width: '100%', height: 1, backgroundColor: '#22262B', position: 'absolute', top: 40 },
+  bgLine2: { height: '100%', width: 1, backgroundColor: '#22262B', position: 'absolute', left: 96 },
+  route: {
+    position: 'absolute',
+    top: 70,
+    left: 40,
+    width: 180,
+    height: 2,
+    backgroundColor: palette.accent,
+    transform: [{ rotate: '-12deg' }],
+  },
+  pinStart: {
+    position: 'absolute',
+    top: 66,
+    left: 46,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: palette.textPrimary,
+  },
+  pinEnd: {
+    position: 'absolute',
+    right: 24,
+    top: 34,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: palette.accent,
+  },
+});
+
 const tlmBlock = StyleSheet.create({
   block: {
     backgroundColor: palette.surface,
@@ -213,6 +273,7 @@ const tlmBlock = StyleSheet.create({
         <Card>
           <Text style={styles.sectionTitle}>Status</Text>
           <BookingTimelineBlock booking={booking} />
+        <RouteMapCard />
         <View style={styles.statusRow}>
             <StatusPill
               label={labelize(booking.status)}
