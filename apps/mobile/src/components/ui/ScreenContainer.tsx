@@ -2,6 +2,7 @@ import { StyleSheet, View, ViewStyle } from 'react-native';
 import { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing } from '@/theme';
+import { glass } from '@/theme/glass';
 
 export interface ScreenContainerProps {
   children: ReactNode;
@@ -83,8 +84,8 @@ export interface CardProps {
 export function Card({ children, style }: CardProps) {
   return (
     <View
-      className="rounded-md border border-border bg-card p-4 shadow-sm shadow-black/5"
-      style={style}
+      className="rounded-md border border-border bg-card/60 p-4"
+      style={[{ borderColor: glass.border, backgroundColor: glass.bg }, style]}
     >
       {children}
     </View>

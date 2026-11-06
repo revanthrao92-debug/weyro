@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { palette, fontFamilyMedium } from '@/theme';
+import { glass } from '@/theme/glass';
 
 /**
  * Premium line icons for the tab bar (lucide — already a dependency via
@@ -133,8 +134,8 @@ export default function AppLayout() {
         tabBarActiveTintColor: palette.teal,
         tabBarInactiveTintColor: palette.textMuted,
         tabBarStyle: {
-          backgroundColor: palette.surface,
-          borderTopColor: palette.border,
+          backgroundColor: glass.sheet,
+          borderTopColor: glass.border,
         },
         tabBarLabelStyle: { fontFamily: fontFamilyMedium, fontSize: 11 },
       }}

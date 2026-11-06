@@ -25,6 +25,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
 import { palette, spacing, radii, typography, displayFamily } from '@/theme';
+import { glass } from '@/theme/glass';
 
 /**
  * Login — reference screen 1 (premium automotive dark).
@@ -354,9 +355,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
+    backgroundColor: glass.bgInput,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: glass.borderStrong,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     height: 52,
@@ -416,8 +417,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
-    backgroundColor: palette.surface,
+    borderColor: glass.borderStrong,
+    backgroundColor: glass.bgStrong,
   },
   createBtnText: {
     ...typography.bodyMedium,

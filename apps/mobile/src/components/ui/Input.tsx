@@ -2,6 +2,7 @@ import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 're
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { palette, spacing, typography } from '@/theme';
+import { glass } from '@/theme/glass';
 
 export interface InputProps extends Omit<TextInputProps, 'autoCompleteType'> {
   autoCompleteType?: string;
@@ -69,7 +70,7 @@ export function Input({
           props.editable === false && 'opacity-50'
         )}
         style={[
-          { borderColor, backgroundColor: hasError ? palette.dangerSoftBg : palette.surface },
+          { borderColor: hasError ? palette.danger : glass.border, backgroundColor: hasError ? palette.dangerSoftBg : glass.bgInput },
           style,
         ]}
         placeholderTextColor={palette.textMuted}
