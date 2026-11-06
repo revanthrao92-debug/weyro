@@ -1,212 +1,271 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  Image,
+  Pressable,
 } from 'react-native';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  CheckSquare,
+  Square,
+  UserRound as UserIcon,
+  Wrench,
+  Package,
+} from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { Input, Button } from '@/components/ui';
-import { palette, spacing, typography, radii, displayFamily } from '@/theme';
-import { UserRole } from '@weyro/api-contracts';
-import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
+import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 
 /**
- * Welcome / Login — first screen a user sees.
- *
- * Matches the approved reference design:
- * - Dark navy hero with logo + "More than repairs. Total vehicle care."
- * - White sheet with role selection (Customer / Dealer / Mechanic) + login form
- *
- * Role note: the backend knows CUSTOMER / PROVIDER / BOTH / ADMIN.
- * "Dealer" and "Mechanic" both sign in as PROVIDER — `providerKind` is a
- * UI-level preference used in later checkpoints to pick the interface,
- * and is passed to the register screen so new accounts register correctly.
+ * Login — reference screen 1 (premium automotive dark).
+ * Brand: orange "V" mark + "weyro" wordmark · headline · role segmented
+ * selector · icon'd fields · password visibility eye · remember me ·
+ * orange pill Log in → · "or" · Create account · diagonal accents.
  */
+
+const ROLE_OPTIONS: { key: EntryRole; label: string; Icon: typeof UserIcon }[] = [
+  { key: 'CUSTOMER', label: 'Customer', Icon: UserIcon },
+  { key: 'DEALER', label: 'Dealer', Icon: Package },
+  { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
+];
 
 export type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
 
-/**
- * Hero background switch — REVERSIBILITY: one line to flip the look.
- * 'sketch' → Porsche 911 line art · 'photo' → night-car photography.
- */
-const HERO_MODE: 'sketch' | 'photo' = 'sketch';
+/** Hero-brand row: orange V mark + lowercase wordmark (matches mock). */
+export function BrandMark({ size = 'md' }: { size?: 'md' | 'sm' }) {
+  const markSize = size === 'md' ? 24 : 18;
+  return (
+    <View style={brandStyles.row}>
+      <Text style={[brandStyles.mark, { fontSize: markSize }]}>V</Text>
+      <Text
+        style={[
+          brandStyles.word,
+          size === 'md' ? { fontSize: 22 } : { fontSize: 16 },
+        ]}
+      >
+        weyro
+      </Text>
+    </View>
+  );
+}
 
-const ROLE_OPTIONS: { key: EntryRole; label: string }[] = [
-  { key: 'CUSTOMER', label: 'Customer' },
-  { key: 'DEALER', label: 'Dealer' },
-  { key: 'MECHANIC', label: 'Mechanic' },
-];
+const brandStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mark: {
+    fontFamily: displayFamily,
+    color: palette.accent,
+    fontWeight: '700',
+  },
+  word: {
+    fontFamily: displayFamily,
+    color: palette.onHeader,
+    letterSpacing: 0.5,
+  },
+});
 
 export default function LoginScreen() {
-  const [role, setRole] = useState<EntryRole | null>(null);
-  const [errorNote, setErrorNote] = useState<string | null>(null);
+  const router = useRouter();
+  const { login } = useAuth();
+  const [role, setRole] = useState<EntryRole>('CUSTOMER');
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const router = useRouter();
+  const [errorNote, setErrorNote] = useState<string | null>(null);
+  const mounted = useRef(true);
 
-  function resolveApiRole(): UserRole {
-    return role === 'CUSTOMER' ? 'CUSTOMER' : 'PROVIDER';
-  }
 
   async function handleLogin() {
-    if (!role) return; // role chips only enable submit — see styles below
-    if (!emailOrPhone || !password) return;
+    if (!emailOrPhone.trim() || !password) return;
     setLoading(true);
+    setErrorNote(null);
     try {
-      await login(emailOrPhone, password);
-      router.replace('/(app)');
-    } catch (error: any) {
-      setPassword('');
-      setErrorNote(error?.message || 'Invalid credentials');
+      await login(emailOrPhone.trim(), password);
+      // Remember-me: portrait of session persistence (SecureStore already
+      // persists tokens unconditionally; the flag can adjust that later).
+      if (mounted.current) router.replace('/(app)');
+    } catch (err: any) {
+      if (!mounted.current) return;
+      setErrorNote(err?.message || 'Invalid email/phone or password');
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
-      {/* Dark hero — reference photo bottom-right frame */}
-      <View style={styles.hero}>
-        {/* Hero background — REVERSIBILITY: flip HERO_MODE above.
-            'sketch' = Porsche 911 line art (default)
-            'photo'  = night-car photography (previous look) */}
-        {HERO_MODE === 'sketch' ? (
-          <View style={styles.heroSketch} pointerEvents="none">
-            <PorscheSketch911 opacity={0.25} strokeWidth={2.5} />
-          </View>
-        ) : (
-          <>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=1200&q=80' }}
-              style={[styles.heroPhoto, { resizeMode: 'cover' }]}
-            />
-            <View style={styles.heroShade} />
-            <View style={styles.heroShadeBottom} />
-          </>
-        )}
-        <View style={styles.logoRow}>
-          <Image
-            source={require('../../../assets/images/weyro-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.logoText}>WEYRO</Text>
-        </View>
-        <Text style={styles.heroTitle}>More than repairs.</Text>
-        <Text style={styles.heroTitleAccent}>Total vehicle care.</Text>
-        <Text style={styles.heroCaption}>
-          Repairs · Spare Parts · Towing · Home Mechanic
-        </Text>
-      </View>
+      {/* Diagonal accent slashes — brand signature (bottom-left) */}
+      <View pointerEvents="none" style={styles.slashA} />
+      <View pointerEvents="none" style={styles.slashB} />
 
-      {/* White sheet: role buttons + login form */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.sheetWrap}
+        style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.sheetContent}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.whoTitle}>I am a…</Text>
+          <BrandMark />
+
+          <Text style={styles.heroTitle}>
+            Your Vehicle.{'\n'}
+            <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
+          </Text>
+          <Text style={styles.heroSub}>Find parts. Get expert help.\nKeep moving.</Text>
+
+          {/* Role segmented selector */}
           <View style={styles.roleRow}>
-            {ROLE_OPTIONS.map(({ key, label }) => {
+            {ROLE_OPTIONS.map(({ key, label, Icon }) => {
               const selected = role === key;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={key}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => setRole(key)}
                   style={[styles.roleChip, selected && styles.roleChipSelected]}
                 >
+                  <Icon
+                    size={16}
+                    color={selected ? palette.accent : palette.textMuted}
+                    strokeWidth={1.8}
+                  />
                   <Text
                     style={[
-                      styles.roleChipText,
-                      selected && styles.roleChipTextSelected,
+                      styles.roleText,
+                      selected && styles.roleTextSelected,
                     ]}
                   >
                     {label}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </View>
 
-          <View style={role ? styles.formArea : styles.formAreaMuted}>
-            <Input
-              label="Email or phone"
-              placeholder="you@example.com"
+          {/* Email field — mail icon */}
+          <View style={styles.fieldWrap}>
+            <Mail size={16} color={palette.textMuted} strokeWidth={1.8} />
+            <TextInput
+              accessibilityLabel="Email or phone"
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor={palette.textMuted}
               value={emailOrPhone}
               onChangeText={(t) => {
                 setEmailOrPhone(t);
                 setErrorNote(null);
               }}
               autoCapitalize="none"
-              editable={!!role}
+              keyboardType="email-address"
             />
-            <Input
-              label="Password"
-              placeholder="••••••••"
+          </View>
+
+          {/* Password field — lock icon + visibility eye */}
+          <View style={styles.fieldWrap}>
+            <Lock size={16} color={palette.textMuted} strokeWidth={1.8} />
+            <TextInput
+              accessibilityLabel="Password"
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={palette.textMuted}
               value={password}
               onChangeText={(t) => {
                 setPassword(t);
                 setErrorNote(null);
               }}
-              secureTextEntry
-              editable={!!role}
+              secureTextEntry={!showPassword}
             />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={8}
+            >
+              {showPassword ? (
+                <EyeOff size={16} color={palette.textMuted} strokeWidth={1.8} />
+              ) : (
+                <Eye size={16} color={palette.textMuted} strokeWidth={1.8} />
+              )}
+            </Pressable>
+          </View>
 
-            {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
+          {/* Remember me + forgot password */}
+          <View style={styles.rememberRow}>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: rememberMe }}
+              onPress={() => setRememberMe((v) => !v)}
+              style={styles.rememberLeft}
+            >
+              {rememberMe ? (
+                <CheckSquare size={16} color={palette.accent} strokeWidth={1.8} />
+              ) : (
+                <Square size={16} color={palette.textMuted} strokeWidth={1.8} />
+              )}
+              <Text style={styles.rememberText}>Remember me</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push('/(auth)/forgot-password')}
+            >
+              <Text style={styles.link}>Forgot password?</Text>
+            </Pressable>
+          </View>
 
-            {/* The ONE primary CTA on this screen */}
-            <Button
-              title="Log in"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={!role || !emailOrPhone || !password}
-            />
+          {/* Error note */}
+          {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                New to Weyro?{' '}
-                <Text
-                  style={styles.link}
-                  onPress={() =>
-                    router.push({
-                      // pass the chosen role into registration
-                      pathname: '/(auth)/register',
-                      params: {
-                        roleKey: role ?? 'CUSTOMER',
-                        apiRole: resolveApiRole(),
-                      },
-                    })
-                  }
-                  accessibilityRole="link"
-                  accessibilityLabel="Register"
-                >
-                  Create account
-                </Text>
-              </Text>
-              <TouchableOpacity
-                disabled={!role}
-                onPress={() => router.push('/(auth)/forgot-password')}
-                accessibilityRole="link"
-                accessibilityLabel="Forgot password"
-              >
-                <Text style={[styles.link, !role && styles.linkMuted]}>
-                  Forgot password?
-                </Text>
-              </TouchableOpacity>
-            </View>
+          {/*The ONE primary CTA */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Log in"
+            style={[styles.loginBtn, loading && styles.loginBtnLoading]}
+            onPress={() => void handleLogin()}
+            disabled={loading || !role || !emailOrPhone.trim() || !password}
+          >
+            <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
+            <ArrowRight size={18} color={palette.onAccent} strokeWidth={2.2} />
+          </TouchableOpacity>
+
+          {/* or divider */}
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.orLine} />
+          </View>
+
+          {/* Create account outline */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Create account"
+            style={styles.createBtn}
+            onPress={() => router.push('/(auth)/register')}
+          >
+            <Text style={styles.createBtnText}>Create account</Text>
+          </TouchableOpacity>
+
+          <View style={styles.footerLine}>
+            <Text style={styles.footerText}>New to Weyro? </Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push('/(auth)/register')}
+            >
+              <Text style={[styles.link, { marginLeft: 2 }]}>Create account</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -215,106 +274,160 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.header },
-
-  // ---- Hero (dark chrome) ----
-  hero: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl + spacing.xl,
-    paddingBottom: spacing.xl,
-    height: 300,
-    justifyContent: 'flex-start',
+  container: {
+    flex: 1,
+    backgroundColor: palette.canvas,
   },
-  heroPhoto: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  heroSketch: {
+  slashA: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    bottom: -80,
+    left: -40,
+    width: 260,
+    height: 160,
+    backgroundColor: palette.accent,
+    opacity: 0.08,
+    transform: [{ rotate: '-35deg' }],
+    borderRadius: 24,
   },
-  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: palette.scrimSoft },
-  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: palette.scrimSoft },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
+  slashB: {
+    position: 'absolute',
+    bottom: -120,
+    left: -60,
+    width: 300,
+    height: 140,
+    backgroundColor: palette.accent,
+    opacity: 0.05,
+    transform: [{ rotate: '-35deg' }],
+    borderRadius: 24,
   },
-  logo: { width: 34, height: 34 },
-  logoText: {
-    ...typography.heading,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg + spacing.sm,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
+  },
+  heroTitle: {
+    ...typography.display,
     fontFamily: displayFamily,
     color: palette.onHeader,
-    letterSpacing: 2,
+    marginTop: spacing.lg,
   },
-  heroTitle: { ...typography.display, color: palette.onHeader },
-  heroTitleAccent: { ...typography.display, color: palette.onHeader },
-  heroCaption: {
+  heroSub: {
     ...typography.caption,
-    color: palette.onHeaderMuted,
+    color: palette.textMuted,
     marginTop: spacing.sm,
-  },
-
-  // ---- White sheet ----
-  sheetWrap: { flex: 1 },
-  sheetContent: {
-    flexGrow: 1,
-    backgroundColor: palette.canvas,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    padding: spacing.xl,
-  },
-
-  // ---- Role selector ----
-  whoTitle: {
-    ...typography.captionMedium,
-    color: palette.textSecondary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xl,
   },
   roleRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    backgroundColor: palette.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 4,
     marginBottom: spacing.lg,
+    gap: 4,
   },
   roleChip: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    borderRadius: radii.sm,
+  },
+  roleChipSelected: {
+    borderWidth: 1,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
+  },
+  roleText: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+  },
+  roleTextSelected: {
+    color: palette.accent,
+    fontWeight: '600',
+  },
+  fieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    height: 52,
+    marginBottom: spacing.md,
   },
-  roleChipSelected: {
-    backgroundColor: palette.accent,
-    borderColor: palette.accent,
-  },
-  roleChipText: {
-    ...typography.bodyMedium,
+  input: {
+    flex: 1,
+    ...typography.body,
     color: palette.textPrimary,
+    paddingVertical: 0,
   },
-  roleChipTextSelected: {
-    color: palette.onAccent,
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
   },
-
-  // ---- Form (progressive reveal once a role is chosen) ----
-  formArea: {},
-  formAreaMuted: { opacity: 0.55 },
+  rememberLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rememberText: {
+    ...typography.caption,
+    color: palette.textSecondary,
+  },
+  link: { ...typography.captionMedium, color: palette.accent },
   errorNote: {
     ...typography.caption,
     color: palette.danger,
     marginBottom: spacing.sm,
   },
-  footer: {
-    marginTop: spacing.lg,
+  loginBtn: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: spacing.sm,
+    backgroundColor: palette.accent,
+    borderRadius: radii.pill,
+    height: 56,
   },
-  footerText: { ...typography.caption, color: palette.textSecondary },
-  link: { ...typography.captionMedium, color: palette.accent },
-  linkMuted: { opacity: 0.5 },
+  loginBtnLoading: { opacity: 0.7 },
+  loginText: {
+    ...typography.bodyMedium,
+    color: palette.onAccent,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.lg,
+  },
+  orLine: { flex: 1, height: 1, backgroundColor: palette.border },
+  orText: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
+  createBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: palette.borderStrong,
+    backgroundColor: palette.surface,
+  },
+  createBtnText: {
+    ...typography.bodyMedium,
+    color: palette.textPrimary,
+  },
+  footerLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+  },
+  footerText: { ...typography.caption, color: palette.textMuted },
 });
