@@ -18,17 +18,17 @@ import {
  */
 const COLORS = {
   /** canvas — #080B0E */
-  background: 'hsl(195 29% 5%)', /* #080B0E */
+  background: 'hsl(225 8% 5%)', /* #0B0C0E */
   /** surface — #171D23 */
-  card: 'hsl(206 16% 11%)', /* #171D23 */
+  card: 'hsl(225 8% 11%)', /* #191C20 */
   /** border — #303941 */
-  border: 'hsl(204 14% 22%)', /* #303941 */
+  border: 'hsl(222 6% 24%)', /* #3A3F45 */
   /** accent — #F47721 (links/active) */
-  primary: 'hsl(25 89% 54%)', /* #F47721 */
+  primary: 'hsl(22 100% 56%)', /* #FF5A1F */
   /** textPrimary — #F5F6F7 */
-  text: 'hsl(200 20% 96%)', /* #F5F6F7 */
+  text: 'hsl(220 4% 96%)', /* #F4F5F6 */
   /** danger — #E06455 */
-  notification: 'hsl(4 66% 61%)', /* #E06455 */
+  notification: 'hsl(4 66% 61%)', /* danger */
 } as const;
 
 const LIGHT_TOKENS = {

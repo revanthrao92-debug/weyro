@@ -13,47 +13,47 @@
 
 export const palette = {
   // Content surfaces — dark by default now
-  canvas: '#080B0E', // Carbon Black — page background
-  surface: '#171D23', // Elevated Surface — cards
-  surfaceAlt: '#1B222A', // Inset — inputs, wells, skeletons
+  canvas: '#0B0C0E', // near-black page background
+  surface: '#191C20', // Graphite — cards
+  surfaceAlt: '#24282D', // Dark surface — elevated cards, inputs
 
   // Dark chrome (headers, hero, tab bar)
-  header: '#10151A', // Graphite
-  headerAlt: '#0B0F13', // deeper chrome for hero blocks
+  header: '#0B0C0E', // same as canvas — header chrome
+  headerAlt: '#191C20', // hero blocks match card tone
   onHeader: '#F5F6F7', // Titanium White
   onHeaderMuted: '#A3ADB6', // Secondary Text
 
   // Lines
-  border: '#303941', // Metallic Grey hairline
-  borderStrong: '#3E4750', // derived stronger hairline
+  border: '#3A3F45', // hairline borders
+  borderStrong: '#4A5058', // stronger hairline
 
   // Text (three roles)
-  textPrimary: '#F5F6F7',
-  textSecondary: '#A3ADB6',
-  textMuted: '#6E7A84', // derived muted role — large/UI use only
+  textPrimary: '#F4F5F6', // Titanium
+  textSecondary: '#A5A9AD', // Metallic grey
+  textMuted: '#8A8F94', // muted role
 
   // CTA — Racing Orange (primary buttons only)
-  accent: '#F47721',
-  accentPressed: '#E0591A',
-  accentSoftBg: '#F477211F', // 12% orange tint for selected states
+  accent: '#FF5A1F', // Racing Orange — primary actions
+  accentPressed: '#E14E17', // darker orange on press
+  accentSoftBg: '#FF5A1F22', // orange tint
   onAccent: '#080B0E', // Carbon ink on orange (≈9:1 contrast)
 
   // Legacy alias — link/active color. In Carbon identity, links use the accent.
-  teal: '#F47721',
-  tealPressed: '#E0591A',
-  tealSoftBg: '#F477211F',
+  teal: '#FF5A1F', // === accent (orange identity)
+  tealPressed: '#E14E17',
+  tealSoftBg: '#FF5A1F22',
 
   // New-world additions
   chrome: '#10151A', // synonym of header
   elevated: '#171D23', // synonym of surface
   inset: '#1B222A', // synonym of surfaceAlt
   metallic: '#303941', // synonym of border
-  highlight: '#FF8A32', // Orange Highlight — live moments only
-  scrim: 'rgba(5, 8, 11, 0.72)', // deep carbon scrim over photography
-  scrimSoft: 'rgba(5, 8, 11, 0.52)',
-  panel: '#101820', // deep panel fallback behind imagery
-  glass: 'rgba(245, 246, 247, 0.10)', // titanium glass line on imagery
-  glassBorder: 'rgba(245, 246, 247, 0.16)',
+  highlight: '#FF8A32', // Orange highlight (logo gradient end)
+  scrim: 'rgba(3, 4, 5, 0.72)', // carbon scrim
+  scrimSoft: 'rgba(3, 4, 5, 0.52)',
+  panel: '#141618', // deep panel behind imagery
+  glass: 'rgba(244, 245, 246, 0.08)', // titanium glass
+  glassBorder: 'rgba(244, 245, 246, 0.14)',
 
   // Semantic — dark-mode-adjusted pairs
   success: '#4CBB87',
