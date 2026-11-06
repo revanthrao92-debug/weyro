@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
+import { Bell, ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -22,6 +22,7 @@ import { StatusTone, palette, spacing, radii, typography, elevation } from '@/th
 import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
+import { BrandMark } from '@/app/(auth)/login';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -131,15 +132,19 @@ export default function HomeScreen() {
         </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
+            <BrandMark size="sm" />
             <Pressable
-              onPress={() => router.push('/(app)')}
-              accessibilityRole="image"
-              accessibilityLabel="Weyro"
+              onPress={() => router.push('/(app)/notifications')}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+              className="active:opacity-60"
+              style={styles.bellBtn}
             >
-              <Image source={require('../../../assets/images/weyro-logo.png')} style={styles.logoSmall} />
+              <Bell size={18} color={palette.onHeader} strokeWidth={1.8} />
+              <View style={styles.bellDot} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/profile')}
+              onPress={() => router.push('/(app)/profile')}
               accessibilityRole="button"
               accessibilityLabel="Profile"
               className="active:opacity-60"
@@ -150,9 +155,9 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
-          <Text style={styles.greeting}>Your garage,</Text>
-          <Text style={styles.greetingName}>{firstName}</Text>
-          <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
+          <Text style={styles.greeting}>Premium Auto Care</Text>
+          <Text style={styles.greetingName}>Get the Right{'\n'}Part. Right Away.</Text>
+          <Text style={styles.heroTagline}>Trusted dealers. Genuine parts.</Text>
         </View>
       </View>
 
@@ -348,6 +353,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   logoSmall: { height: 20, width: 72, resizeMode: 'contain' },
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: palette.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellDot: {
+    position: 'absolute',
+    right: 9,
+    top: 9,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: palette.accent,
+  },
   avatar: {
     width: 36,
     height: 36,
