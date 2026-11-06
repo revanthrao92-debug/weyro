@@ -55,16 +55,26 @@ services:
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?RAZORPAY_KEY_SECRET required}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?RAZORPAY_WEBHOOK_SECRET required}
       SMS_PROVIDER: ${SMS_PROVIDER:?SMS_PROVIDER required (msg91|twilio)}
+      REDIS_URL: redis://redis:6379
       OTP_HASH_SECRET: ${OTP_HASH_SECRET:?OTP_HASH_SECRET required}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:4000/api/v1/ready']
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: weyro_redis_prod
+    restart: unless-stopped
+    command: ['redis-server']
+    # No ports published: only reachable via the API container network.
 
 volumes:
   postgres_data_prod:

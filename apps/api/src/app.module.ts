@@ -22,15 +22,28 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { PinoLogger } from './common/logger/pino.logger';
+import { env } from './config/env.config';
+
+// STEP 7 — Redis-backed throttler storage when REDIS_URL is present; the
+// in-memory storage remains the fallback for single-instance dev/test.
+let throttlerStorage: unknown = undefined;
+if (env.REDIS_URL) {
+  try {
+    // Lazy require keeps dev/test environments free of a hard Redis dep.
+    const { createThrottlerStorageRedis } = require('@nest-lab/throttler-storage-redis');
+    throttlerStorage = createThrottlerStorageRedis({ url: env.REDIS_URL });
+  } catch (err: any) {
+    console.warn('REDIS_URL set but throttler-storage-redis unavailable — falling back to memory.', err?.message);
+  }
+}
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    ThrottlerModule.forRoot(
+      throttlerStorage
+        ? ({ throttlers: [{ ttl: 60000, limit: 100 }], storage: throttlerStorage } as never)
+        : [{ ttl: 60000, limit: 100 }],
+    ),
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
