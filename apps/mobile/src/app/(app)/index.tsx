@@ -4,7 +4,7 @@ import {
  Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { UserRound, Bell, ArrowRight, ChevronRight, Package } from 'lucide-react-native';
+import { UserRound, Bell, ArrowRight, ChevronRight, Package, Cog, CircleDot, Zap, Filter } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
@@ -21,7 +21,6 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 import { BrandMark } from '@/components/art/BrandMark';
@@ -61,20 +60,20 @@ function bookingTone(status: string): StatusTone {
 
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 const QUICK_ACTIONS = [
   { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
   { label: 'Find Parts', Icon: Package, route: '/shop' },
   { label: 'Find Dealers', Icon: UserRound, route: '/(app)/provider-search' },
 ];
 
-const CATEGORIES: { label: string; img: string }[] = [
-  { label: 'Brake System', img: 'https://images.unsplash.com/photo-1600661653561-629509216228?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Engine Parts', img: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Suspension', img: 'https://images.unsplash.com/photo-1605559424361-f9402e34d17e?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Electrical', img: 'https://images.unsplash.com/photo-1494905934712-bd0c25f59ada?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Body Parts', img: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Filters', img: 'https://images.unsplash.com/photo-1518987048-93e3c8855ED1?auto=format&fit=crop&w=400&q=80' },
+const CATEGORIES: { label: string; Icon: typeof CircleDot }[] = [
+  { label: 'Brakes', Icon: CircleDot },
+  { label: 'Engine', Icon: Cog },
+  { label: 'Suspension', Icon: CircleDot },
+  { label: 'Electrical', Icon: Zap },
+  { label: 'Body Parts', Icon: Package },
+  { label: 'Filters', Icon: Filter },
 ];
 
 export default function HomeScreen() {
@@ -243,13 +242,9 @@ export default function HomeScreen() {
               style={styles.catCard}
               className="active:opacity-80"
             >
-              <Image
-                source={{ uri: c.img }}
-                style={styles.catImg}
-                contentFit="cover"
-                accessibilityLabel={c.label}
-              />
-              <View style={styles.catImgShade} />
+              <View style={styles.catIcon}>
+                <c.Icon size={20} color={palette.textSecondary} strokeWidth={1.75} />
+              </View>
               <Text style={styles.catLabel} maxFontSizeMultiplier={2} numberOfLines={2}>
                 {c.label}
               </Text>
@@ -285,7 +280,6 @@ export default function HomeScreen() {
             className="active:opacity-90"
             style={styles.garageCard}
           >
-            <Image source={{ uri: carPhotoFor(vehicles[0].make, vehicles[0].model) }} style={styles.garageThumb} contentFit="cover" />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.garageTitle}>
                 {vehicles[0].make} {vehicles[0].model}
@@ -533,23 +527,28 @@ const styles = StyleSheet.create({
   },
   catRow: { gap: spacing.md, paddingRight: spacing.lg },
   catCard: {
-    width: 118,
-    height: 110,
+    width: 100,
+    height: 88,
     borderRadius: radii.md,
-    overflow: 'hidden',
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
   },
-  catImg: { position: 'absolute', top: 0, right: 0, bottom: 0, width: '70%' },
-  catImgShade: { position: 'absolute', top: 0, right: 0, bottom: 0, width: '70%', backgroundColor: 'rgba(0,0,0,0.18)' },
+  catIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: palette.accentSoftBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   catLabel: {
-    position: 'absolute',
-    left: spacing.sm,
-    bottom: spacing.sm,
     ...typography.label,
-    color: palette.textPrimary,
-    textAlign: 'left',
+    color: palette.textSecondary,
+    textAlign: 'center',
   },
   link: {
     ...typography.captionMedium,
@@ -576,7 +575,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     flex: 1,
   },
-  garageThumb: { width: 64, height: 44, borderRadius: radii.sm, backgroundColor: palette.surfaceAlt },
+
   garageTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   garageMeta: {
     ...typography.caption,
