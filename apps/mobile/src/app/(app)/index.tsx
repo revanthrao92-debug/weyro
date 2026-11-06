@@ -23,6 +23,7 @@ import {
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 import { labelize, formatDate } from '@/utils/format';
 import { BrandMark } from '@/components/art/BrandMark';
+import { BlueprintSpec } from '@/components/art/BlueprintSpec';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -135,6 +136,9 @@ export default function HomeScreen() {
       <View style={[styles.hero, { paddingTop: 48 }]}>
         <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         <View style={styles.heroShade} />
+        <View style={styles.heroBlueprint} pointerEvents="none">
+          <BlueprintSpec opacity={0.45} grid={true} dimensions={true} specs={true} strokeWidth={1.8} />
+        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <BrandMark size="sm" />
