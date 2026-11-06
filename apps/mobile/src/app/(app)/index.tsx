@@ -19,6 +19,7 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { glass } from '@/theme/glass';
 import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
@@ -58,7 +59,7 @@ function bookingTone(status: string): StatusTone {
 
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
+  heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 4, 5, 0.42)' },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,
@@ -381,10 +382,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
-    backgroundColor: palette.canvas,
+    backgroundColor: 'rgba(11, 12, 14, 0.88)',
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
-    marginTop: -radii.lg,
+    borderTopWidth: 1,
+    borderTopColor: glass.border,
+    marginTop: -18,
     minHeight: 400,
   },
   sheetOverHero: { zIndex: 2 },
@@ -394,10 +397,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     padding: spacing.lg,
   },
   requestCardTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -424,10 +427,10 @@ const styles = StyleSheet.create({
   quickItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
   },
@@ -468,10 +471,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     padding: spacing.sm,
   },
   garageEmpty: {
