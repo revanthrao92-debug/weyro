@@ -541,8 +541,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
-  catImg: { ...StyleSheet.absoluteFillObject!, width: '70%', marginLeft: 'auto' },
-  catImgShade: { ...StyleSheet.absoluteFillObject!, backgroundColor: 'rgba(0,0,0,0.18)' },
+  catImg: { position: 'absolute', top: 0, right: 0, bottom: 0, width: '70%' },
+  catImgShade: { position: 'absolute', top: 0, right: 0, bottom: 0, width: '70%', backgroundColor: 'rgba(0,0,0,0.18)' },
   catLabel: {
     position: 'absolute',
     left: spacing.sm,
