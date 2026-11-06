@@ -5,6 +5,9 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
+import { palette, spacing, typography, radii } from '@/theme';
+import { glass } from '@/theme/glass';
 import { useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
@@ -19,7 +22,6 @@ import {
   EmptyState,
   BackButton,
 } from '@/components/ui';
-import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
 const TIMELINE: { key: string; label: string }[] = [
@@ -28,8 +30,6 @@ const TIMELINE: { key: string; label: string }[] = [
   { key: 'PROVIDER_EN_ROUTE', label: 'Out for Delivery' },
   { key: 'COMPLETED', label: 'Delivered' },
 ];
-import { palette, spacing, typography, radii } from '@/theme';
-import { glass } from '@/theme/glass';
 
 type BookingDetailParams = { id: string };
 

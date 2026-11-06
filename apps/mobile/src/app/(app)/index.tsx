@@ -24,7 +24,7 @@ import { StatusTone, palette, spacing, radii, typography, elevation } from '@/th
 import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
-import { BrandMark } from '@/app/(auth)/login';
+import { BrandMark } from '@/components/art/BrandMark';
 
 function requestTone(status: string): StatusTone {
   switch (status) {

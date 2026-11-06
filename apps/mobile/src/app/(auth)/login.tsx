@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
+import { Image } from 'expo-image';
 import {
   Mail,
   Lock,
@@ -18,61 +19,50 @@ import {
   ArrowRight,
   CheckSquare,
   Square,
-  UserRound as UserIcon,
-  Wrench,
+  UserRound,
   Package,
+  Wrench,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 import { glass } from '@/theme/glass';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
+import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
 /**
- * Login — reference screen 1 (premium automotive dark).
- * Brand: orange "V" mark + "weyro" wordmark · headline · role segmented
- * selector · icon'd fields · password visibility eye · remember me ·
- * orange pill Log in → · "or" · Create account · diagonal accents.
+ * Login — reference screen 1 EXACT layout.
+ *
+ * Layer order (top → bottom):
+ *   1. "weyro" wordmark (no "V" mark, lowercase, plain white)
+ *   2. Headline: "Your Vehicle." / "Our Responsibility." (Our in orange)
+ *      with "Find parts. Get expert help. Keep moving." + orange underline
+ *   3. Big orange-glow Porsche GT3 artwork filling the mid-band
+ *   4. Role segmented selector (Customer / Dealer / Mechanic) with icons
+ *   5. Email + Password icon'd inputs (password-visibility eye)
+ *   6. Remember me (checked orange) + Forgot password?
+ *   7. Full-width orange "Log in →" pill with strong orange edge-glow
+ *   8. "or" divider
+ *   9. Create account pill (dark, glassed)
+ *   10. "New to Weyro? Create account" footer link
+ *  Extra: blueprint sketch top-right, orange diagonal circuit accents at
+ *  bottom-left/right (subtle tire-tread + glowing curves)
  */
 
-const ROLE_OPTIONS: { key: EntryRole; label: string; Icon: typeof UserIcon }[] = [
-  { key: 'CUSTOMER', label: 'Customer', Icon: UserIcon },
+export type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
+
+const ROLES: {
+  key: EntryRole;
+  label: string;
+  Icon: typeof UserRound;
+}[] = [
+  { key: 'CUSTOMER', label: 'Customer', Icon: UserRound },
   { key: 'DEALER', label: 'Dealer', Icon: Package },
   { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
 ];
 
-export type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
-
-/** Hero-brand row: orange V mark + lowercase wordmark (matches mock). */
-export function BrandMark({ size = 'md' }: { size?: 'md' | 'sm' }) {
-  const markSize = size === 'md' ? 24 : 18;
-  return (
-    <View style={brandStyles.row}>
-      <Text style={[brandStyles.mark, { fontSize: markSize }]}>V</Text>
-      <Text
-        style={[
-          brandStyles.word,
-          size === 'md' ? { fontSize: 22 } : { fontSize: 16 },
-        ]}
-      >
-        weyro
-      </Text>
-    </View>
-  );
-}
-
-const brandStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mark: {
-    fontFamily: displayFamily,
-    color: palette.accent,
-    fontWeight: '700',
-  },
-  word: {
-    fontFamily: displayFamily,
-    color: palette.onHeader,
-    letterSpacing: 0.5,
-  },
-});
+/** Porsche artwork — dark orange GT3 hero (~1494976388531 = ripe Porsche GT3 shot) */
+const HERO_CAR =
+  'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=900&q=85';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -86,6 +76,11 @@ export default function LoginScreen() {
   const [errorNote, setErrorNote] = useState<string | null>(null);
   const mounted = useRef(true);
 
+  useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   async function handleLogin() {
     if (!emailOrPhone.trim() || !password) return;
@@ -93,43 +88,68 @@ export default function LoginScreen() {
     setErrorNote(null);
     try {
       await login(emailOrPhone.trim(), password);
-      // Remember-me: portrait of session persistence (SecureStore already
-      // persists tokens unconditionally; the flag can adjust that later).
-      if (mounted.current) router.replace('/(app)');
+      if (mounted.current) {
+        router.replace('/(app)');
+      }
     } catch (err: any) {
-      if (!mounted.current) return;
-      setErrorNote(err?.message || 'Invalid email/phone or password');
+      if (mounted.current) {
+        setErrorNote(err?.message || 'Invalid email/phone or password');
+      }
     } finally {
-      if (mounted.current) setLoading(false);
+      if (mounted.current) {
+        setLoading(false);
+      }
     }
   }
 
   return (
     <View style={styles.container}>
-      {/* Diagonal accent slashes — brand signature (bottom-left) */}
-      <View pointerEvents="none" style={styles.slashA} />
-      <View pointerEvents="none" style={styles.slashB} />
+      {/* ── Decorative background layers ────────────────────────────────── */}
+      {/* top-right blueprint sketch */}
+      <View pointerEvents="none" style={styles.blueprint}>
+        <PorscheSketch911 opacity={0.09} strokeWidth={2} />
+      </View>
 
+      {/* bottom-left tire-tread block */}
+      <View pointerEvents="none" style={styles.treadBlock} />
+      {/* bottom-right circuit diagonal */}
+      <View pointerEvents="none" style={styles.circuitSlashA} />
+      <View pointerEvents="none" style={styles.circuitSlashB} />
+
+      {/* ── Content ──────────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <BrandMark />
+          {/* 1. brand mark */}
+          <Text style={styles.wordmark}>weyro</Text>
 
-          <Text style={styles.heroTitle}>
+          {/* 2. headline */}
+          <Text style={styles.headline}>
             Your Vehicle.{'\n'}
             <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
           </Text>
-          <Text style={styles.heroSub}>Find parts. Get expert help.\nKeep moving.</Text>
+          <Text style={styles.subline}>Find parts. Get expert help. Keep moving.</Text>
+          <View style={styles.underlineBar} />
 
-          {/* Role segmented selector */}
+          {/* 3. car artwork */}
+          <View style={styles.carWrap}>
+            <Image source={{ uri: HERO_CAR }} style={styles.carImg} contentFit="cover" />
+            {/* orange rim glow */}
+            <View style={styles.carGlowEdgeTop} />
+            <View style={styles.carGlowEdgeBottom} />
+            {/* carbon shade for readability */}
+            <View style={styles.carShade} />
+          </View>
+
+          {/* 4. role selector */}
           <View style={styles.roleRow}>
-            {ROLE_OPTIONS.map(({ key, label, Icon }) => {
+            {ROLES.map(({ key, label, Icon }) => {
               const selected = role === key;
               return (
                 <Pressable
@@ -141,7 +161,7 @@ export default function LoginScreen() {
                 >
                   <Icon
                     size={16}
-                    color={selected ? palette.accent : palette.textMuted}
+                    color={selected ? palette.accent : palette.textSecondary}
                     strokeWidth={1.8}
                   />
                   <Text
@@ -157,11 +177,11 @@ export default function LoginScreen() {
             })}
           </View>
 
-          {/* Email field — mail icon */}
+          {/* 5. email */}
           <View style={styles.fieldWrap}>
-            <Mail size={16} color={palette.textMuted} strokeWidth={1.8} />
+            <Mail size={17} color={palette.textMuted} strokeWidth={1.8} />
             <TextInput
-              accessibilityLabel="Email or phone"
+              accessibilityLabel="Email address"
               style={styles.input}
               placeholder="Email address"
               placeholderTextColor={palette.textMuted}
@@ -175,9 +195,9 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* Password field — lock icon + visibility eye */}
+          {/* password */}
           <View style={styles.fieldWrap}>
-            <Lock size={16} color={palette.textMuted} strokeWidth={1.8} />
+            <Lock size={17} color={palette.textMuted} strokeWidth={1.8} />
             <TextInput
               accessibilityLabel="Password"
               style={styles.input}
@@ -197,14 +217,14 @@ export default function LoginScreen() {
               hitSlop={8}
             >
               {showPassword ? (
-                <EyeOff size={16} color={palette.textMuted} strokeWidth={1.8} />
+                <EyeOff size={18} color={palette.textMuted} strokeWidth={1.8} />
               ) : (
-                <Eye size={16} color={palette.textMuted} strokeWidth={1.8} />
+                <Eye size={18} color={palette.textMuted} strokeWidth={1.8} />
               )}
             </Pressable>
           </View>
 
-          {/* Remember me + forgot password */}
+          {/* remember + forgot */}
           <View style={styles.rememberRow}>
             <Pressable
               accessibilityRole="checkbox"
@@ -213,9 +233,9 @@ export default function LoginScreen() {
               style={styles.rememberLeft}
             >
               {rememberMe ? (
-                <CheckSquare size={16} color={palette.accent} strokeWidth={1.8} />
+                <CheckSquare size={17} color={palette.accent} strokeWidth={1.8} />
               ) : (
-                <Square size={16} color={palette.textMuted} strokeWidth={1.8} />
+                <Square size={17} color={palette.textMuted} strokeWidth={1.8} />
               )}
               <Text style={styles.rememberText}>Remember me</Text>
             </Pressable>
@@ -227,29 +247,30 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {/* Error note */}
           {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
-          {/*The ONE primary CTA */}
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Log in"
-            style={[styles.loginBtn, loading && styles.loginBtnLoading]}
-            onPress={() => void handleLogin()}
-            disabled={loading || !role || !emailOrPhone.trim() || !password}
-          >
-            <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
-            <ArrowRight size={18} color={palette.onAccent} strokeWidth={2.2} />
-          </TouchableOpacity>
+          {/* 7. Login pill with orange glow */}
+          <View style={styles.loginGlow}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Log in"
+              style={[styles.loginBtn, loading && styles.loginBtnLoading]}
+              onPress={() => void handleLogin()}
+              disabled={loading || !role || !emailOrPhone.trim() || !password}
+            >
+              <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
+              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.4} />
+            </TouchableOpacity>
+          </View>
 
-          {/* or divider */}
+          {/* 8. or divider */}
           <View style={styles.orRow}>
             <View style={styles.orLine} />
             <Text style={styles.orText}>or</Text>
             <View style={styles.orLine} />
           </View>
 
-          {/* Create account outline */}
+          {/* 9. Create account */}
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Create account"
@@ -259,13 +280,14 @@ export default function LoginScreen() {
             <Text style={styles.createBtnText}>Create account</Text>
           </TouchableOpacity>
 
+          {/* footer line */}
           <View style={styles.footerLine}>
             <Text style={styles.footerText}>New to Weyro? </Text>
             <Pressable
               accessibilityRole="link"
               onPress={() => router.push('/(auth)/register')}
             >
-              <Text style={[styles.link, { marginLeft: 2 }]}>Create account</Text>
+              <Text style={styles.link}>Create account</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -277,57 +299,130 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.canvas,
+    backgroundColor: '#08090B', // deepest carbon (matches the mock edge color)
+    overflow: 'hidden',
   },
-  slashA: {
+
+  // — decorative overlays —
+  blueprint: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: -spacing.sm,
+    width: 200,
+    height: 90,
+  },
+  treadBlock: {
     position: 'absolute',
     bottom: -80,
-    left: -40,
-    width: 260,
-    height: 160,
-    backgroundColor: palette.accent,
-    opacity: 0.08,
-    transform: [{ rotate: '-35deg' }],
-    borderRadius: 24,
-  },
-  slashB: {
-    position: 'absolute',
-    bottom: -120,
     left: -60,
-    width: 300,
-    height: 140,
-    backgroundColor: palette.accent,
-    opacity: 0.05,
-    transform: [{ rotate: '-35deg' }],
-    borderRadius: 24,
+    width: 400,
+    height: 240,
+    backgroundColor: 'rgba(255, 90, 31, 0.04)',
+    borderTopLeftRadius: radii.lg,
+    transform: [{ rotate: '-20deg' }],
   },
-  scrollContent: {
+  circuitSlashA: {
+    position: 'absolute',
+    bottom: 140,
+    right: -100,
+    width: 340,
+    height: 2,
+    backgroundColor: 'rgba(255, 90, 31, 0.35)',
+    transform: [{ rotate: '-30deg' }],
+  },
+  circuitSlashB: {
+    position: 'absolute',
+    bottom: 100,
+    right: -80,
+    width: 220,
+    height: 1,
+    backgroundColor: 'rgba(255, 90, 31, 0.2)',
+    transform: [{ rotate: '-30deg' }],
+  },
+
+  scroll: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg + spacing.sm,
-    paddingTop: spacing.xxl,
+    paddingHorizontal: spacing.lg + spacing.xs,
+    paddingTop: spacing.xxl + spacing.sm,
     paddingBottom: spacing.xxl,
   },
-  heroTitle: {
+
+  // — brand —
+  wordmark: {
+    ...typography.title,
+    fontFamily: displayFamily,
+    color: palette.textPrimary,
+    fontSize: 24,
+    marginBottom: spacing.lg,
+    alignContent: 'flex-start',
+  },
+
+  // — headline block —
+  headline: {
     ...typography.display,
     fontFamily: displayFamily,
-    color: palette.onHeader,
-    marginTop: spacing.lg,
+    color: palette.textPrimary,
+    fontSize: 30,
+    lineHeight: 38,
+    marginBottom: spacing.sm,
   },
-  heroSub: {
+  subline: {
     ...typography.caption,
-    color: palette.textMuted,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
   },
+  underlineBar: {
+    width: 96,
+    height: 2,
+    backgroundColor: palette.accent,
+    borderRadius: 1,
+    marginTop: spacing.sm,
+    marginBottom: 0,
+  },
+
+  // — car artwork —
+  carWrap: {
+    height: 220,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg + spacing.xs,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  carImg: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  carGlowEdgeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255, 90, 31, 0.4)',
+  },
+  carGlowEdgeBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255, 90, 31, 0.35)',
+  },
+  carShade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(3, 4, 5, 0.25)',
+  },
+
+  // — role selector —
   roleRow: {
     flexDirection: 'row',
-    backgroundColor: palette.surface,
+    backgroundColor: palette.surfaceAlt,
     borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: glass.border,
+    overflow: 'hidden',
     marginBottom: spacing.lg,
-    gap: 4,
   },
   roleChip: {
     flex: 1,
@@ -336,31 +431,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: spacing.md,
-    borderRadius: radii.sm,
   },
   roleChipSelected: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
+    backgroundColor: 'rgba(255, 90, 31, 0.09)',
+    borderRadius: radii.md,
   },
   roleText: {
-    ...typography.captionMedium,
+    ...typography.bodyMedium,
     color: palette.textSecondary,
   },
   roleTextSelected: {
     color: palette.accent,
     fontWeight: '600',
   },
+
+  // — inputs (glass) —
   fieldWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     backgroundColor: glass.bgInput,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: glass.borderStrong,
+    borderWidth: 1,
+    borderColor: glass.border,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
-    height: 52,
+    height: 56,
     marginBottom: spacing.md,
   },
   input: {
@@ -369,6 +466,8 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     paddingVertical: 0,
   },
+
+  // — remember row —
   rememberRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -381,44 +480,58 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
   },
   link: { ...typography.captionMedium, color: palette.accent },
+
   errorNote: {
     ...typography.caption,
     color: palette.danger,
     marginBottom: spacing.sm,
   },
+
+  // — Log in pill (orange-glow) —
+  loginGlow: {
+    borderRadius: radii.pill,
+    // outer soft glow via nested layer
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 90, 31, 0.5)',
+    padding: 2,
+    backgroundColor: 'rgba(255, 90, 31, 0.12)',
+  },
   loginBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: palette.accent,
-    borderRadius: radii.pill,
     height: 56,
+    borderRadius: radii.pill,
+    backgroundColor: palette.accent,
   },
-  loginBtnLoading: { opacity: 0.7 },
+  loginBtnLoading: { opacity: 0.8 },
   loginText: {
     ...typography.bodyMedium,
-    color: palette.onAccent,
+    fontFamily: displayFamily,
+    fontSize: 17,
+    color: '#FFFFFF',
   },
+
+  // — or divider —
   orRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     marginVertical: spacing.lg,
   },
-  orLine: { flex: 1, height: 1, backgroundColor: palette.border },
-  orText: {
-    ...typography.caption,
-    color: palette.textMuted,
-  },
+  orLine: { flex: 1, height: 1, backgroundColor: glass.border },
+  orText: { ...typography.caption, color: palette.textMuted },
+
+  // — create account —
   createBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 56,
+    height: 54,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: glass.borderStrong,
-    backgroundColor: glass.bgStrong,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: glass.border,
+    backgroundColor: glass.bg,
   },
   createBtnText: {
     ...typography.bodyMedium,
