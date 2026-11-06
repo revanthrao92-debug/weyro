@@ -49,7 +49,9 @@ const ROLES: {
   { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
 ];
 
-/** Login hero — user-provided image (bundled locally, always renders). */
+/** The dark-orange Porsche GT3 RS artwork (full-bleed hero). */
+const HERO_CAR =
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -93,7 +95,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       {/* ── FULL-BLEED car artwork behind EVERYTHING ────────────────────── */}
       <Image
-        source={require('../../../assets/images/login-hero.jpg')}
+        source={{ uri: HERO_CAR }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={200}
@@ -135,7 +137,8 @@ export default function LoginScreen() {
             <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
           </Text>
           <Text style={styles.subline}>Find parts. Get expert help. Keep moving.</Text>
-          
+          <View style={styles.underlineBar} />
+
           {/* 3. role selector */}
           <View style={styles.roleRow}>
             {ROLES.map(({ key, label, Icon }) => {
@@ -322,6 +325,14 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: palette.textSecondary,
     marginBottom: spacing.xs,
+  },
+  underlineBar: {
+    width: 96,
+    height: 2,
+    backgroundColor: palette.accent,
+    borderRadius: 1,
+    marginTop: spacing.sm,
+    marginBottom: 0,
   },
 
   roleRow: {
