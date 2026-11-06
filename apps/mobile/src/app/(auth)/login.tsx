@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 import { glass } from '@/theme/glass';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
+import { GlassPanel } from '@/components/ui';
 
 /**
  * Login — reference screen 1, FULL-BLEED layout.
@@ -140,76 +141,82 @@ export default function LoginScreen() {
           <View style={styles.underlineBar} />
 
           {/* 3. role selector */}
-          <View style={styles.roleRow}>
-            {ROLES.map(({ key, label, Icon }) => {
-              const selected = role === key;
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setRole(key)}
-                  style={[styles.roleChip, selected && styles.roleChipSelected]}
-                >
-                  <Icon
-                    size={16}
-                    color={selected ? palette.accent : palette.textSecondary}
-                    strokeWidth={1.8}
-                  />
-                  <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <GlassPanel intensity={35} radius={12} style={styles.roleGlass}>
+            <View style={styles.roleRow}>
+              {ROLES.map(({ key, label, Icon }) => {
+                const selected = role === key;
+                return (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setRole(key)}
+                    style={[styles.roleChip, selected && styles.roleChipSelected]}
+                  >
+                    <Icon
+                      size={16}
+                      color={selected ? palette.accent : palette.textSecondary}
+                      strokeWidth={1.8}
+                    />
+                    <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </GlassPanel>
 
           {/* 4. email */}
-          <View style={styles.fieldWrap}>
-            <Mail size={17} color={palette.textSecondary} strokeWidth={1.8} />
-            <TextInput
-              accessibilityLabel="Email address"
-              style={styles.input}
-              placeholder="Email address"
-              placeholderTextColor={palette.textMuted}
-              value={emailOrPhone}
-              onChangeText={(t) => {
-                setEmailOrPhone(t);
-                setErrorNote(null);
-              }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
+          <GlassPanel intensity={30} radius={12} style={styles.fieldGlass}>
+            <View style={styles.fieldWrap}>
+              <Mail size={17} color={palette.textSecondary} strokeWidth={1.8} />
+              <TextInput
+                accessibilityLabel="Email address"
+                style={styles.input}
+                placeholder="Email address"
+                placeholderTextColor={palette.textMuted}
+                value={emailOrPhone}
+                onChangeText={(t) => {
+                  setEmailOrPhone(t);
+                  setErrorNote(null);
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
+          </GlassPanel>
 
           {/* 5. password */}
-          <View style={styles.fieldWrap}>
-            <Lock size={17} color={palette.textSecondary} strokeWidth={1.8} />
-            <TextInput
-              accessibilityLabel="Password"
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={palette.textMuted}
-              value={password}
-              onChangeText={(t) => {
-                setPassword(t);
-                setErrorNote(null);
-              }}
-              secureTextEntry={!showPassword}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-              onPress={() => setShowPassword((v) => !v)}
-              hitSlop={8}
-            >
-              {showPassword ? (
-                <EyeOff size={18} color={palette.textSecondary} strokeWidth={1.8} />
-              ) : (
-                <Eye size={18} color={palette.textSecondary} strokeWidth={1.8} />
-              )}
-            </Pressable>
-          </View>
+          <GlassPanel intensity={30} radius={12} style={styles.fieldGlass}>
+            <View style={styles.fieldWrap}>
+              <Lock size={17} color={palette.textSecondary} strokeWidth={1.8} />
+              <TextInput
+                accessibilityLabel="Password"
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={palette.textMuted}
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  setErrorNote(null);
+                }}
+                secureTextEntry={!showPassword}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={8}
+              >
+                {showPassword ? (
+                  <EyeOff size={18} color={palette.textSecondary} strokeWidth={1.8} />
+                ) : (
+                  <Eye size={18} color={palette.textSecondary} strokeWidth={1.8} />
+                )}
+              </Pressable>
+            </View>
+          </GlassPanel>
 
           {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
@@ -260,14 +267,16 @@ export default function LoginScreen() {
           </View>
 
           {/* 9. create account */}
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Create account"
-            style={styles.createBtn}
-            onPress={() => router.push('/(auth)/register')}
-          >
-            <Text style={styles.createBtnText}>Create account</Text>
-          </TouchableOpacity>
+          <GlassPanel intensity={25} radius={27} style={styles.createGlass}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              style={styles.createBtn}
+              onPress={() => router.push('/(auth)/register')}
+            >
+              <Text style={styles.createBtnText}>Create account</Text>
+            </TouchableOpacity>
+          </GlassPanel>
 
           <View style={styles.footerLine}>
             <Text style={styles.footerText}>New to Weyro? </Text>
@@ -367,6 +376,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  roleGlass: { overflow: 'hidden' },
+  fieldGlass: { overflow: 'hidden' },
+  createGlass: { overflow: 'hidden' },
   fieldWrap: {
     flexDirection: 'row',
     alignItems: 'center',

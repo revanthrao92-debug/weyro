@@ -56,6 +56,8 @@ export { ButtonRow } from './ButtonRow';
 export type { ButtonRowProps } from './ButtonRow';
 
 export { StatusDot } from './StatusDot';
+export { GlassPanel } from './GlassPanel';
+export type { GlassPanelProps } from './GlassPanel';
 
 export { AdBanner } from './AdBanner';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
