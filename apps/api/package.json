@@ -27,6 +27,7 @@
     "@nestjs/websockets": "^11.2.7",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^6.19.3",
+    "@sentry/node": "^9.47.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "@weyro/api-contracts": "*",
     "@weyro/database": "*",

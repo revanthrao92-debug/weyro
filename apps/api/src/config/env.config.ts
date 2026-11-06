@@ -51,6 +51,9 @@ export const envSchema = z.object({
   // STEP 2 — reconciliation knobs
   PAYMENT_RECONCILE_WINDOW_MINUTES: z.coerce.number().default(15),
   PAYMENT_RECONCILE_BATCH: z.coerce.number().default(25),
+  // STEP 8 — Sentry (optional): only active when DSN set
+  SENTRY_DSN: z.string().optional(),
+  SENTRY_ENABLED: z.string().optional(),
   // STEP 7 — Redis (optional; in-memory throttler + no socket adapter when unset)
   REDIS_URL: z.string().optional(),
 }).superRefine((value, ctx) => {

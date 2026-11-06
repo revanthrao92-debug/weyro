@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -26,22 +27,16 @@ import { env } from './config/env.config';
 
 // STEP 7 — Redis-backed throttler storage when REDIS_URL is present; the
 // in-memory storage remains the fallback for single-instance dev/test.
-let throttlerStorage: unknown = undefined;
-if (env.REDIS_URL) {
-  try {
-    // Lazy require keeps dev/test environments free of a hard Redis dep.
-    const { createThrottlerStorageRedis } = require('@nest-lab/throttler-storage-redis');
-    throttlerStorage = createThrottlerStorageRedis({ url: env.REDIS_URL });
-  } catch (err: any) {
-    console.warn('REDIS_URL set but throttler-storage-redis unavailable — falling back to memory.', err?.message);
-  }
-}
+const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
 
 @Module({
   imports: [
     ThrottlerModule.forRoot(
-      throttlerStorage
-        ? ({ throttlers: [{ ttl: 60000, limit: 100 }], storage: throttlerStorage } as never)
+      USE_REDIS_THROTTLER
+        ? {
+            throttlers: [{ ttl: 60000, limit: 100 }],
+            storage: new ThrottlerStorageRedisService(env.REDIS_URL),
+          }
         : [{ ttl: 60000, limit: 100 }],
     ),
     ScheduleModule.forRoot(),
