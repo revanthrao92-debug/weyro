@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
-import type { ColorValue, Text as RNText } from 'react-native';
+import type { ColorValue } from 'react-native';
+import type { ReactElement } from 'react';
 import { Tabs } from 'expo-router';
 import {
   Activity,
