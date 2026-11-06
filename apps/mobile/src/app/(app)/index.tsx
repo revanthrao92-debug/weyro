@@ -23,7 +23,6 @@ import {
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 import { labelize, formatDate } from '@/utils/format';
 import { BrandMark } from '@/components/art/BrandMark';
-import { BlueprintSpec } from '@/components/art/BlueprintSpec';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -59,8 +58,7 @@ function bookingTone(status: string): StatusTone {
 }
 
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
+const HERO_IMAGE = require('../../assets/images/home-blueprint.jpg');
 const QUICK_ACTIONS = [
   { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
   { label: 'Find Parts', Icon: Package, route: '/shop' },
@@ -134,11 +132,8 @@ export default function HomeScreen() {
       {/* Layered scene: dawn service-bay photo, sketch overlay, type on the
           calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+        <Image source={HERO_IMAGE} style={styles.heroImage} contentFit="cover" />
         <View style={styles.heroShade} />
-        <View style={styles.heroBlueprint} pointerEvents="none">
-          <BlueprintSpec opacity={0.45} grid={true} dimensions={true} specs={true} strokeWidth={1.8} />
-        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <BrandMark size="sm" />
@@ -379,13 +374,6 @@ const styles = StyleSheet.create({
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
   heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
-  heroBlueprint: {
-    position: 'absolute',
-    top: 60,
-    right: 0,
-    left: 0,
-    height: 260,
-  },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,
