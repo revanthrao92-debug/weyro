@@ -29,6 +29,7 @@ const TIMELINE: { key: string; label: string }[] = [
   { key: 'COMPLETED', label: 'Delivered' },
 ];
 import { palette, spacing, typography, radii } from '@/theme';
+import { glass } from '@/theme/glass';
 
 type BookingDetailParams = { id: string };
 

@@ -31,7 +31,7 @@ export function Input({
   const [isFocused, setIsFocused] = useState(false);
   const hasError = !!error;
 
-  const borderColor = hasError
+  const glassBorderColor = hasError
     ? palette.danger
     : isFocused
       ? palette.accent
@@ -70,7 +70,7 @@ export function Input({
           props.editable === false && 'opacity-50'
         )}
         style={[
-          { borderColor: hasError ? palette.danger : glass.border, backgroundColor: hasError ? palette.dangerSoftBg : glass.bgInput },
+          { borderColor: hasError ? glassBorderColor : glass.border, backgroundColor: hasError ? palette.dangerSoftBg : glass.bgInput },
           style,
         ]}
         placeholderTextColor={palette.textMuted}

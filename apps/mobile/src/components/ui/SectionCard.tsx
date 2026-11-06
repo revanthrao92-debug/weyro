@@ -4,7 +4,6 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Card } from './ScreenContainer';
 import { Badge } from './Badge';
 import { palette, spacing, typography } from '@/theme';
-import { glassCard } from '@/theme/glass';
 
 export interface SectionCardProps {
   title?: string;
