@@ -36,7 +36,7 @@ const SERVICES = [
     title: 'Towing',
     subtitle: '24/7 roadside assistance and towing services',
     Icon: Truck,
-    photo: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=900&q=80',
+    photo: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'ROADSIDE',
