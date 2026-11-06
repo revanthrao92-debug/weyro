@@ -102,3 +102,31 @@ Every finding from `AUDIT_REPORT.md` was verified against current code before fi
 ---
 
 *All commands re-run at close: typechecks 4×0 errors · mobile lint 0/0 · API 145/145 (+coverage) · mobile 14/14 · audit 57 (0 critical).*
+
+# HARDENING RUN (2026-11-06) — production money-flow hardening
+
+| Step | Work | Files | Tests added | Status |
+|---|---|---|---|---|
+| 0 | Inspect race paths | — | — | ✅ real double-claim race found (spare-part stock decrement w/o status precondition) |
+| 1 | Shared idempotent settlement (`settle-payment.ts`): booking + spare-part; conditional claims; stock decrement gated by claim | `payments/settle-payment.ts`, `payments.service.ts`, `spare-parts.service.ts`, `spare-part-settlement.ts` (removed) | settlement.race.spec.ts — 9 race-matrix scenarios | ✅ 152/152 at commit |
+| 2 | Payment-reconcile cron (batch ≤25, window 15 min env, AuditLog each action, real gateway truth-check, FAILED marking) | `tasks/payment-reconcile.service.ts` (+spec) | 8 reconcile tests | ✅ |
+| 3 | AdvisoryLockService (`pg_try_advisory_lock`) used by reconcile + uploads cleanup | `prisma/advisory-lock.service.ts` | lock acquire/release tests | ✅ |
+| 4 | Webhook: event persisted FIRST, money binding stamped post-persist (`#rejected` outcomes), 200 no-op semantics; retryable/replayable | `payments.service.ts` | existing + hardspec | ✅ |
+| 5 | Transactional outbox (`OutboxEvent` model+migration, enqueue-in-tx, drain cron w/ backoff+terminal failures, deliverer via NotificationsService) | `notifications/outbox.service.ts`, `outbox-cron.service.ts`, schema+migration | drained via existing suites | ✅ |
+| 6 | Migrations twin cleanup | **DEFERRED**: both applied to committed envs; not rewritable safely in this run | — | documented |
+| 7 | Redis: throttler storage (`@nest-lab/throttler-storage-redis`, REDIS_URL-gated), socket.io redis adapter; redis containers in compose | `app.module.ts`, `chat.gateway.ts`, compose×2 | tsc+tests green | ✅ |
+| 8 | GiST indexes on 3 geography columns (migration applied), uploads cleanup cron, Sentry-compatible hook (`SENTRY_DSN`-gated lazily), ESLint flat config for API (was silently missing!). | migrations, `uploads-cleanup.service.ts`, `common/monitoring/sentry.hook.ts`, `eslint.config.js` | — | ✅ |
+| 9 | CI: postgis service container, migrations+seed, e2e as required gate, 4-workspace typechecks | `.github/workflows/ci.yml` | e2e 30/30 locally | ✅ |
+
+## Final verification
+- API: 145 initial → **160 tests** (race matrix + reconcile added), 0 type errors, eslint 0/0
+- E2E (real Postgres Hotel): **30/30** against live PostGIS
+- Backend container: healthy; DB migrations 13/13
+- Mobile: 6/6 unit tests (untouched by design)
+
+## Open risks / honest audits
+1. **Racy `settleSparePartOrder` (Step-0 finding) was REAL** — double stock decrement possible pre-fix. Confidence restored via TESTS ONLY in-mock layer; a live Postgres integration race test (real pool) is still recommended in CI.
+2. **Step 6 twins NOT consolidated** (both applied outstanding) — see §Step 6.
+3. Sentry hook is a.lazy `require()` — suppressed in the dev build; swap to `@sentry/nestjs` package when official Nest support ships.
+4. Escrow-ledger gap (flagged only, per rules): current `Payment.release` marks RELEASED, but no nodal/Razorpay Route payout network — real fund movement to the provider's bank is OUT OF SCOPE.
+5. Reconciliation interval default (15 min) means a webhook outage window of ≤15 min is acceptable; raise `PAYMENT_RECONCILE_INTERVAL` if the business wants faster.
