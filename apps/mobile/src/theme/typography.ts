@@ -23,6 +23,12 @@ export const fontFamily = Platform.select({
   default: 'System',
 });
 
+export const fontFamilyMono = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace',
+  default: 'monospace',
+});
+
 export const fontFamilyMedium = Platform.select({
   ios: 'System',
   android: 'sans-serif-medium',
@@ -39,16 +45,18 @@ export const fontWeight = {
 export const typography = {
   display: {
     fontFamily: displayFamily,
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: fontWeight.semibold,
-  },
+    letterSpacing: -0.5,
+  } as TextStyle,
   title: {
-    fontFamily: fontFamilyMedium,
-    fontSize: 24,
-    lineHeight: 30,
+    fontFamily: displayFamily,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: fontWeight.semibold,
-  },
+    letterSpacing: -0.3,
+  } as TextStyle,
   heading: {
     fontFamily: fontFamilyMedium,
     fontSize: 20,
@@ -81,9 +89,17 @@ export const typography = {
   },
   label: {
     fontFamily: fontFamilyMedium,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: fontWeight.medium,
+    letterSpacing: 0.5,
+  },
+  mono: {
+    fontFamily: fontFamilyMono,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: fontWeight.medium,
+    fontVariant: ['tabular-nums'],
   },
 } satisfies Record<string, TextStyle>;
 

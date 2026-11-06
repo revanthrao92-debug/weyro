@@ -2,7 +2,6 @@ import { StyleSheet, View, ViewStyle } from 'react-native';
 import { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing } from '@/theme';
-import { glass } from '@/theme/glass';
 
 export interface ScreenContainerProps {
   children: ReactNode;
@@ -82,12 +81,5 @@ export interface CardProps {
  * The single surface container: consistent radius, border, and depth.
  */
 export function Card({ children, style }: CardProps) {
-  return (
-    <View
-      className="rounded-md border border-border bg-card/60 p-4"
-      style={[{ borderColor: glass.border, backgroundColor: glass.bg }, style]}
-    >
-      {children}
-    </View>
-  );
+  return <View style={style}>{children}</View>;
 }
