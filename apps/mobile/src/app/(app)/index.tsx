@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+ Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { UserRound, Bell, ArrowRight, ChevronRight, Package } from 'lucide-react-native';
@@ -64,6 +66,15 @@ const QUICK_ACTIONS = [
   { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
   { label: 'Find Parts', Icon: Package, route: '/shop' },
   { label: 'Find Dealers', Icon: UserRound, route: '/(app)/provider-search' },
+];
+
+const CATEGORIES: { label: string; img: string }[] = [
+  { label: 'Brake System', img: 'https://images.unsplash.com/photo-1600661653561-629509216228?auto=format&fit=crop&w=400&q=80' },
+  { label: 'Engine Parts', img: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=400&q=80' },
+  { label: 'Suspension', img: 'https://images.unsplash.com/photo-1605559424361-f9402e34d17e?auto=format&fit=crop&w=400&q=80' },
+  { label: 'Electrical', img: 'https://images.unsplash.com/photo-1494905934712-bd0c25f59ada?auto=format&fit=crop&w=400&q=80' },
+  { label: 'Body Parts', img: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80' },
+  { label: 'Filters', img: 'https://images.unsplash.com/photo-1518987048-93e3c8855ED1?auto=format&fit=crop&w=400&q=80' },
 ];
 
 export default function HomeScreen() {
@@ -205,6 +216,46 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
+
+
+        {/* Popular categories — mock grid, real shop routing */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Popular Categories</Text>
+          <Pressable
+            onPress={() => router.push('/(app)/shop')}
+            accessibilityRole="link"
+            className="active:opacity-60"
+          >
+            <Text style={styles.link}>View all →</Text>
+          </Pressable>
+        </View>
+        <FlatList
+          horizontal
+          data={CATEGORIES}
+          keyExtractor={(c) => c.label}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.catRow}
+          renderItem={({ item: c }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Browse ${c.label}`}
+              onPress={() => router.push('/(app)/shop')}
+              style={styles.catCard}
+              className="active:opacity-80"
+            >
+              <Image
+                source={{ uri: c.img }}
+                style={styles.catImg}
+                contentFit="cover"
+                accessibilityLabel={c.label}
+              />
+              <View style={styles.catImgShade} />
+              <Text style={styles.catLabel} maxFontSizeMultiplier={2} numberOfLines={2}>
+                {c.label}
+              </Text>
+            </Pressable>
+          )}
+        />
 
         {/* My Garage */}
         <View style={styles.sectionHeader}>
@@ -479,6 +530,26 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.bodyMedium,
     color: palette.textPrimary,
+  },
+  catRow: { gap: spacing.md, paddingRight: spacing.lg },
+  catCard: {
+    width: 118,
+    height: 110,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  catImg: { ...StyleSheet.absoluteFillObject!, width: '70%', marginLeft: 'auto' },
+  catImgShade: { ...StyleSheet.absoluteFillObject!, backgroundColor: 'rgba(0,0,0,0.18)' },
+  catLabel: {
+    position: 'absolute',
+    left: spacing.sm,
+    bottom: spacing.sm,
+    ...typography.label,
+    color: palette.textPrimary,
+    textAlign: 'left',
   },
   link: {
     ...typography.captionMedium,
