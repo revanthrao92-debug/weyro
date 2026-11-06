@@ -97,7 +97,7 @@ export default function ShopScreen() {
         <View style={styles.filterBar}>
         <Input
           label="Search"
-          placeholder="Search parts..."
+          placeholder="Search parts…"
           value={search}
           onChangeText={setSearch}
           autoCapitalize="words"
