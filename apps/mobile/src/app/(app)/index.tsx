@@ -58,7 +58,7 @@ function bookingTone(status: string): StatusTone {
 }
 
 
-const HERO_IMAGE = require('../../assets/images/home-blueprint.jpg');
+const HERO_IMAGE = require('../../../assets/images/home-blueprint.jpg');
 const QUICK_ACTIONS = [
   { label: 'Post\nRequirement', Icon: Package, route: '/requests/create' },
   { label: 'Find Parts', Icon: Package, route: '/shop' },
