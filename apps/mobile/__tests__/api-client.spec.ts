@@ -1,4 +1,4 @@
-/* eslint-env jest */
+/* global jest, describe, it, expect, beforeEach */
 /**
  * H5/H6 tests: api-client URL resolution + single-flight token refresh.
  * Uses jest-expo preset (see jest.config in apps/mobile) with fetch mocked.
@@ -38,6 +38,7 @@ describe('H5 — API URL resolution', () => {
 
     // __DEV__ true here (jest) → localhost dev fallback is allowed.
     jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { API_URL } = require('../src/services/api-client');
       expect(API_URL).toBe(devUrl);
     });
@@ -47,6 +48,7 @@ describe('H5 — API URL resolution', () => {
     jest.resetModules();
     process.env.EXPO_PUBLIC_API_URL = 'https://api.example.com/api/v1/';
     jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { API_URL } = require('../src/services/api-client');
       expect(API_URL).toBe('https://api.example.com/api/v1'); // trailing slash stripped
     });
