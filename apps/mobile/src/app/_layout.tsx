@@ -1,6 +1,6 @@
 import '../../global.css';
 import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import * as Font from 'expo-font';
@@ -48,24 +48,19 @@ function AuthRouter() {
     );
   }
 
+  // Redirect pattern — the recommended Expo Router auth flow.
+  // The conditional Stack.Screen swap does NOT remount on auth change,
+  // which is why the logout button appeared to do nothing.
   return (
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
         <Stack screenOptions={{ headerShown: false }}>
-          {isAuthenticated ? (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(app)"
-            />
-          ) : (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(auth)"
-            />
-          )}
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="(auth)" />
         </Stack>
+        {!isAuthenticated && <Redirect href="/(auth)/login" />}
+        {isAuthenticated && <Redirect href="/(app)" />}
       </ThemeProvider>
-      {/* RNR portal host — must stay the last child of the providers. */}
       <PortalHost />
     </View>
   );

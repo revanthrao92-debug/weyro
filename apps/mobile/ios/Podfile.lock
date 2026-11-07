@@ -128,6 +128,8 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (58.0.19):
     - ExpoModulesCore
+  - ExpoBlur (58.0.5):
+    - ExpoModulesCore
   - ExpoDomWebView (58.0.2):
     - ExpoModulesCore
   - ExpoFileSystem (58.0.13):
@@ -2370,6 +2372,7 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoApplication (from `../../../node_modules/expo-application/ios`)
   - ExpoAsset (from `../../../node_modules/expo-asset/ios`)
+  - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - "ExpoDomWebView (from `../../../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)
   - ExpoFont (from `../../../node_modules/expo-font/ios/ExpoFont.podspec`)
@@ -2510,6 +2513,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-application/ios"
   ExpoAsset:
     :path: "../../../node_modules/expo-asset/ios"
+  ExpoBlur:
+    :path: "../../../node_modules/expo-blur/ios"
   ExpoDomWebView:
     :path: "../../../node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
@@ -2751,6 +2756,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: d304e400271187edf1534704a4a05dcc140076e2
   ExpoApplication: c83355b2f69f996b5d26b64fef39228e7f1e1208
   ExpoAsset: 9c966d4d2c67a13de7d449561558f782df1c1787
+  ExpoBlur: 68f7f85ae6584f0bec52a0a42ee5088b093d1473
   ExpoDomWebView: b2a6d681b9d34c23b1f584321386ca8da1d36afb
   ExpoFileSystem: b619d80b490c53117a9a9c976021a4ce5a9da440
   ExpoFont: 77eaad26c6a7ef6be8d431963358def09d8e3a73
