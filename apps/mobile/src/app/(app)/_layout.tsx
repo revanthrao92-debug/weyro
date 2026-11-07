@@ -76,6 +76,9 @@ export default function AppLayout() {
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
             <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
+            <Tabs.Screen key="requests-create" name="requests-create" options={{ href: null }} />,
+            <Tabs.Screen key="requests-my" name="requests-my" options={{ href: null }} />,
+            <Tabs.Screen key="request-detail" name="request-detail" options={{ href: null }} />,
           ]
         : [
             <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,

@@ -93,7 +93,7 @@ export default function MyRequestsScreen() {
           }
           action={
             statusFilter ? undefined : (
-              <Button title="Create Request" onPress={() => router.push('/requests/create')} />
+              <Button title="Create Request" onPress={() => router.push('/requests-create')} />
             )
           }
         />
@@ -103,7 +103,7 @@ export default function MyRequestsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <RequestCard item={item} onPress={() => router.push(`/requests/${item.id}`)} />
+            <RequestCard item={item} onPress={() => router.push(`/request-detail?requestId=${item.id}`)} />
           )}
         />
       )}

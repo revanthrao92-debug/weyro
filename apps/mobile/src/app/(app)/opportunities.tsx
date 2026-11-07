@@ -54,7 +54,7 @@ export default function BroadcastFeedScreen() {
         },
       });
       Alert.alert('Quotation sent');
-      router.push(`/requests/${requestId}`);
+      router.push(`/request-detail?requestId=${requestId}`);
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to send quotation');
     }

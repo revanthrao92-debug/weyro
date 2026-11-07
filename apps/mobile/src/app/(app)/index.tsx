@@ -61,10 +61,10 @@ function bookingTone(status: string): StatusTone {
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 const QUICK_ACTIONS = [
-  { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
+  { label: 'Repair', Icon: Wrench, route: '/requests-create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
-  { label: 'Towing', Icon: Truck, route: '/requests/create?category=TOWING' },
-  { label: 'Home Mechanic', Icon: House, route: '/requests/create?category=ROADSIDE' },
+  { label: 'Towing', Icon: Truck, route: '/requests-create?category=TOWING' },
+  { label: 'Home Mechanic', Icon: House, route: '/requests-create?category=ROADSIDE' },
 ];
 
 export default function HomeScreen() {
@@ -251,7 +251,7 @@ export default function HomeScreen() {
             <StatusDot />
             <Text style={styles.sectionTitle}>Active requests</Text>
           </View>
-          <Pressable onPress={() => router.push('/requests/my')} accessibilityRole="link" className="active:opacity-60">
+          <Pressable onPress={() => router.push('/requests-my')} accessibilityRole="link" className="active:opacity-60">
             <Text style={styles.link}>View all</Text>
           </Pressable>
         </View>
@@ -276,7 +276,7 @@ export default function HomeScreen() {
                 title={request.title}
                 subtitle={labelize(request.category)}
                 right={<StatusPill label={labelize(request.status)} tone={requestTone(request.status)} />}
-                onPress={() => router.push(`/requests/${request.id}`)}
+                onPress={() => router.push(`/request-detail?requestId=request.id}`)}
                 accessibilityLabel={`Request ${request.title}`}
               />
             ))

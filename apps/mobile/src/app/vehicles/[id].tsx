@@ -112,7 +112,7 @@ export default function VehicleDetailScreen() {
           <ButtonRow>
             <Button
               title="Request Service"
-              onPress={() => router.push('/requests/create')}
+              onPress={() => router.push('/requests-create')}
               style={styles.flex}
             />
             <Button

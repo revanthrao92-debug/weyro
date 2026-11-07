@@ -92,7 +92,7 @@ export default function ProfileScreen() {
           divider
           title="My Requirements"
           left={<IconRow Icon={LayoutDashboard} />}
-          onPress={() => router.push('/requests/my')}
+          onPress={() => router.push('/requests-my')}
           accessibilityLabel="My requirements"
         />
         <ListItem

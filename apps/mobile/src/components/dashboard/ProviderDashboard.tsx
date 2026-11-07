@@ -153,7 +153,7 @@ export default function ProviderDashboard() {
             {feed.map((item) => (
               <Pressable
                 key={item.id}
-                onPress={() => router.push(`/requests/${item.id}`)}
+                onPress={() => router.push(`/request-detail?requestId=${item.id}`)}
                 accessibilityRole="button"
                 accessibilityLabel={`Request ${item.title}`}
                 className="active:opacity-80"
