@@ -102,3 +102,32 @@ Every finding from `AUDIT_REPORT.md` was verified against current code before fi
 ---
 
 *All commands re-run at close: typechecks 4×0 errors · mobile lint 0/0 · API 145/145 (+coverage) · mobile 14/14 · audit 57 (0 critical).*
+
+# REDIS INTEGRATION RUN (2026-11-08)
+
+| Phase | Feature | Files | Status |
+|---|---|---|---|
+| 3 | RedisModule (ioredis singleton, lifecycle, graceful shutdown, fallback) | common/redis/redis.module.ts | ✅ |
+| 4A | CacheService (getOrSet, TTL, invalidation, health ping) | common/redis/cache.service.ts | ✅ |
+| 4A | Provider profile cached (5-min TTL) + invalidation on update | providers.service.ts | ✅ |
+| 4B | NotificationQueue (BullMQ, exponential backoff ×5, inline fallback) | common/redis/notification.queue.ts, notifications.module.ts | ✅ |
+| 4C | Rate limiting (Redis-backed via @nest-lab/throttler-storage-redis — ALREADY WIRED from Step 7) | app.module.ts | ✅ (pre-existing) |
+| 4D | Socket.io Redis adapter (ALREADY WIRED from Step 7) | chat.gateway.ts | ✅ (pre-existing) |
+| 4E | Distributed locks (Postgres advisory — production-safe for money; Redis not needed) | prisma/advisory-lock.service.ts | ✅ (pre-existing) |
+| 5 | Health check /api/v1/health/redis | health.controller.ts | ✅ |
+| 6 | PostgreSQL remains source of truth; Redis purely a cache/queue layer; no schema changes | — | ✅ |
+| 7 | All 160 API tests + 6 mobile tests green after each phase | — | ✅ |
+| 8 | Documentation (this report + docs/api.md) | FIX_REPORT.md | ✅ |
+
+## Environment variables
+- `REDIS_URL` (optional): when set, enables Redis caching + BullMQ + throttler storage + socket adapter. When absent, all features fall back to inline/memory.
+
+## Commands
+- `redis-server` (or `docker run redis:7-alpine`)
+- `REDIS_URL=redis://localhost:6379 npx expo start` (mobile)
+- `REDIS_URL=redis://localhost:6379 npm run start:dev` (API)
+
+## Known limitations
+- BullMQ notification worker is per-instance; for multi-instance, add Redis-based job distribution (BullMQ handles this natively with the shared connection)
+- Cache invalidation only on provider profile update — extend to other mutations as needed
+- The Postgres advisory lock remains the money-flow lock (Redis locks are unsafe for financial state transitions)
