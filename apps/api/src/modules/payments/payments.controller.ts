@@ -5,7 +5,6 @@ import {
   Headers,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreateOrderDto, VerifyPaymentDto } from './dto/payment.dto';

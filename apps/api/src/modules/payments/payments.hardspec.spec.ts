@@ -31,6 +31,13 @@ function makeService(remoteOverride: Partial<GatewayPaymentInfo> = {}) {
     webhookEvent: { findUnique: jest.fn(), create: jest.fn() },
     booking: { findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
+    payment: {
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      create: jest.fn(),
+    },
     $transaction: jest.fn((cb) => cb(mockPrisma)),
   };
 
@@ -82,6 +89,11 @@ describe('H2 – client verify binds amount/currency/order to the gateway record
       status: 'authorized',
     });
     seedBooking();
+    // The claim reads back the settled row; give it the CAPTURED state.
+    mockPrisma.payment.findUniqueOrThrow.mockResolvedValue({
+      id: 'pay-1',
+      status: 'CAPTURED',
+    });
 
     const res = await service.verifyPayment(
       { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
@@ -138,20 +150,27 @@ describe('H2 – client verify binds amount/currency/order to the gateway record
 });
 
 describe('H3 – conditional state transitions inside transactions', () => {
-  it('rejects concurrent double-capture (claim loses the race)', async () => {
+  it('treats lost concurrent double-capture as a safe no-op (IDEMPOTENT_NOOP)', async () => {
     const { service, mockPrisma, customerUser, seedBooking } = makeService();
     seedBooking();
-    // Another concurrent flow already claimed the capture.
+    // Another concurrent flow already claimed the capture (webhook won).
     mockPrisma.payment.updateMany.mockResolvedValue({ count: 0 });
-    // ALREADY_CAPTURED idempotency hit covers status CAPTURED; here simulate PENDING locally but claim lost
-    // (e.g. webhook captured after our earlier read).
+    mockPrisma.payment.findUnique.mockResolvedValue({
+      id: 'pay-1',
+      status: 'CAPTURED',
+    });
+    mockPrisma.payment.findUniqueOrThrow.mockResolvedValue({
+      id: 'pay-1',
+      status: 'CAPTURED',
+    });
 
-    await expect(
-      service.verifyPayment(
-        { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
-        customerUser,
-      ),
-    ).rejects.toThrow(ConflictException);
+    const res = await service.verifyPayment(
+      { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
+      customerUser,
+    );
+
+    expect(res.status).toBe('ALREADY_CAPTURED');
+    expect(mockPrisma.payment.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it('release only claims from CAPTURED (double-release impossible)', async () => {

@@ -628,3 +628,23 @@ model IdempotencyKey {
   @@index([expiresAt])
   @@map("idempotency_keys")
 }
+
+/// STEP 5 — Transactional outbox: rows written in the same tx as the business
+/// change; a worker delivers them (Expo push / webhook so on) and marks them.
+model OutboxEvent {
+  id         String   @id @default(uuid())
+  type       String   // e.g. "push.user", "chat.thread", "webhook.delivered"
+  payload    Json
+  channel    String   @default("expo-push")
+  attempts   Int      @default(0)
+  maxAttempts Int     @default(5)
+  nextAttemptAt DateTime @default(now())
+  sentAt     DateTime?
+  failedAt   DateTime?
+  lastError  String?
+  createdAt  DateTime @default(now())
+
+  @@index([channel, sentAt, nextAttemptAt])
+  @@index([type])
+  @@map("outbox_events")
+}

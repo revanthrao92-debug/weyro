@@ -11,7 +11,7 @@ export class Expo {
   }
 
   async sendPushNotificationsAsync(messages: any[]): Promise<any[]> {
-    return messages.map((m) => ({ status: 'ok', id: 'mock-ticket-id' }));
+    return messages.map((_m) => ({ status: 'ok', id: 'mock-ticket-id' }));
   }
 }
 

@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { env } from '../../config/env.config';

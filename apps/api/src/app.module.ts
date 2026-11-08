@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -22,15 +23,22 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { PinoLogger } from './common/logger/pino.logger';
+import { env } from './config/env.config';
+
+// STEP 7 — Redis-backed throttler storage when REDIS_URL is present; the
+// in-memory storage remains the fallback for single-instance dev/test.
+const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    ThrottlerModule.forRoot(
+      USE_REDIS_THROTTLER
+        ? {
+            throttlers: [{ ttl: 60000, limit: 100 }],
+            storage: new ThrottlerStorageRedisService(env.REDIS_URL),
+          }
+        : [{ ttl: 60000, limit: 100 }],
+    ),
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,

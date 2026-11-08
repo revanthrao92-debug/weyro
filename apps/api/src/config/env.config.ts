@@ -48,6 +48,14 @@ export const envSchema = z.object({
   SMS_TWILIO_ACCOUNT_SID: z.string().optional(),
   SMS_TWILIO_AUTH_TOKEN: z.string().optional(),
   SMS_TWILIO_FROM: z.string().optional(),
+  // STEP 2 — reconciliation knobs
+  PAYMENT_RECONCILE_WINDOW_MINUTES: z.coerce.number().default(15),
+  PAYMENT_RECONCILE_BATCH: z.coerce.number().default(25),
+  // STEP 8 — Sentry (optional): only active when DSN set
+  SENTRY_DSN: z.string().optional(),
+  SENTRY_ENABLED: z.string().optional(),
+  // STEP 7 — Redis (optional; in-memory throttler + no socket adapter when unset)
+  REDIS_URL: z.string().optional(),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV !== 'production') {
     return;

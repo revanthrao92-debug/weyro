@@ -2,7 +2,6 @@ import { ConflictException, ForbiddenException, UnauthorizedException } from '@n
 import { AuthService } from '../modules/auth/auth.service';
 import { QuotationsService } from '../modules/quotations/quotations.service';
 import { PaymentsService } from '../modules/payments/payments.service';
-import { RazorpayPaymentGateway } from '../modules/payments/gateways/razorpay.gateway';
 import { AuthUserPayload } from '../common/types/auth-user-payload.type';
 import * as crypto from 'crypto';
 

@@ -307,7 +307,7 @@ export class QuotationsService {
     quotationId: string,
     user: AuthUserPayload,
     dto: AcceptQuotationDto,
-    idempotencyKey?: string,
+    _idempotencyKey?: string,
   ) {
     const quote = await this.prisma.quotation.findUnique({
       where: { id: quotationId },

@@ -23,7 +23,7 @@ import {
   validatePaymentTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
-import { settleSparePartOrder } from '../spare-parts/spare-part-settlement';
+import { settleBookingPayment, settleSparePartOrderPayment } from './settle-payment';
 import { notifyOrderPaid } from '../spare-parts/spare-part-notifications';
 import { env } from '../../config/env.config';
 
@@ -186,44 +186,32 @@ export class PaymentsService {
       );
     }
 
-    // State machine check
-    validatePaymentTransition(payment.status, 'CAPTURED', user.role);
+    // STEP 1: single shared, idempotent settlement (same fn the webhook
+    // uses). A racing webhook claim is a safe no-op, not an error.
+    const settleResult = await this.prisma.$transaction(async (tx) =>
+      settleBookingPayment(tx, { paymentId: payment.id }, {
+        gatewayPaymentId: dto.paymentId,
+        gatewayOrderId: dto.orderId,
+      }),
+    );
 
-    // H3: re-validate inside the transaction with a conditional update so a
-    // concurrent capture (e.g. racing webhook) cannot double-apply or
-    // overwrite a settled state.
-    const updatedPayment = await this.prisma.$transaction(async (tx) => {
-      // Conditionally move to CAPTURED only from the still-valid source
-      // states (PENDING/AUTHORIZED). Returns count 0 when already taken.
-      const claimed = await tx.payment.updateMany({
-        where: {
-          id: payment.id,
-          status: { in: ['PENDING', 'AUTHORIZED'] as never },
-        },
-        data: {
-          status: 'CAPTURED' as never,
-          gatewayPaymentId: dto.paymentId,
-          gatewayOrderId: dto.orderId,
-          paidAt: new Date(),
-        },
-      });
-
-      if (claimed.count === 0) {
-        throw new ConflictException(
-          'Payment was captured concurrently — rejecting duplicate capture attempt',
-        );
-      }
-
-      const updated = await tx.payment.findUniqueOrThrow({
+    if (!settleResult.applied) {
+      const settledRow = await this.prisma.payment.findUniqueOrThrow({
         where: { id: payment.id },
       });
+      return {
+        status: settleResult.alreadySettled ? 'ALREADY_CAPTURED' : 'IDEMPOTENT_NOOP',
+        payment: settledRow,
+      };
+    }
 
-      return updated;
+    const settledPayment = await this.prisma.payment.findUniqueOrThrow({
+      where: { id: payment.id },
     });
 
     return {
       status: 'CAPTURED',
-      payment: updatedPayment,
+      payment: settledPayment,
     };
   }
 
@@ -310,14 +298,19 @@ export class PaymentsService {
       }
     }
 
-    // Record webhook event in DB
+    // STEP 4: amount/currency validation happens AFTER the event row is persisted.
+    // Mismatched webhooks are stored with outcome 'rejected' AND answered with a
+    // 200 no-op (Razorpay stops retrying them). Legit ones proceed, and if the
+    // handler below throws the row is retried next cycle (outcome stamped then).
+
+    // Record webhook event FIRST (returns 200 semantics started here)
     try {
       await this.prisma.webhookEvent.create({
         data: {
           eventId,
           provider: 'RAZORPAY',
           eventType: eventType || 'unknown',
-          payload: payload as any,
+          payload: payload as never,
         },
       });
     } catch (err) {
@@ -328,7 +321,57 @@ export class PaymentsService {
         this.logger.log(`Ignoring concurrently recorded webhook: ${eventId}`);
         return { status: 'ignored', reason: 'duplicate', eventId };
       }
-      throw err;
+      throw err; // Booking the event failed — 500 so Razorpay retries and the row eventually lands.
+    }
+
+    // STEP 4 — amount/currency binding AFTER persistence (never rejects the
+    // request — mismatches are permanently recorded as outcome=rejected and
+    // Razorpay retries are then no-ops because the event id row exists).
+    let moneyRejected: string | null = null;
+    if (eventType === 'payment.captured') {
+      const entity = payload?.payload?.payment?.entity;
+      const orderId = entity?.order_id;
+
+      if (orderId) {
+        const payment = await this.prisma.payment.findUnique({
+          where: { gatewayOrderId: orderId },
+        });
+
+        const sparePartOrder = payment
+          ? null
+          : await this.prisma.sparePartOrder.findUnique({
+              where: { gatewayOrderId: orderId },
+            });
+
+        if (payment) {
+          const expectedMinorUnits = Math.round(Number(payment.amount) * 100);
+          if (
+            Number(entity.amount) !== expectedMinorUnits ||
+            entity.currency !== payment.currency
+          ) {
+            moneyRejected = `amount/currency mismatch for payment ${payment.id}`;
+          }
+        } else if (sparePartOrder) {
+          const expectedMinorUnits = Math.round(
+            Number(sparePartOrder.totalAmount) * 100,
+          );
+          if (
+            Number(entity.amount) !== expectedMinorUnits ||
+            entity.currency !== sparePartOrder.currency
+          ) {
+            moneyRejected = `amount/currency mismatch for spare part order ${sparePartOrder.id}`;
+          }
+        }
+      }
+    }
+
+    if (moneyRejected) {
+      this.logger.warn(`Webhook ${eventId} recorded as rejected: ${moneyRejected}`);
+      await this.prisma.webhookEvent.update({
+        where: { eventId },
+        data: { eventType: `${eventType || 'unknown'}#rejected` },
+      });
+      return { status: 'ignored', reason: moneyRejected, eventId };
     }
 
     this.logger.log(`Processing verified webhook event: ${eventId} (${eventType})`);
@@ -391,18 +434,21 @@ export class PaymentsService {
 
             if (sparePartOrder && sparePartOrder.status === 'PENDING') {
               const settled = await this.prisma.$transaction((tx) =>
-                settleSparePartOrder(
+                settleSparePartOrderPayment(
                   tx,
-                  sparePartOrder,
-                  gatewayPaymentId,
-                  orderId,
+                  {
+                    orderId: sparePartOrder.id,
+                    sparePartId: sparePartOrder.sparePartId,
+                    quantity: sparePartOrder.quantity,
+                  },
+                  { gatewayPaymentId, gatewayOrderId: orderId },
                 ),
               );
               this.logger.log(
-                `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status})`,
+                `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status ?? 'no-op'})`,
               );
 
-              if (settled.status === 'PAID') {
+              if (settled.applied) {
                 notifyOrderPaid(this.notifications, {
                   orderId: sparePartOrder.id,
                   partName: sparePartOrder.sparePart?.name ?? 'your order',

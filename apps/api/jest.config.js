@@ -21,5 +21,7 @@ module.exports = {
   moduleNameMapper: {
     '^expo-server-sdk$': '<rootDir>/__mocks__/expo-server-sdk.ts',
   },
+  // Some deps (e.g. @nestjs/schedule) ship ESM — transform for CJS jest.
+  transformIgnorePatterns: ['/node_modules/(?!(@nestjs/schedule))'],
   testEnvironment: 'node',
 };

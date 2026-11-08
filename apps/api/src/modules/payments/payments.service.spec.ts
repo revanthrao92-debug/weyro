@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentGateway } from './interfaces/payment-gateway.interface';
 import { RazorpayPaymentGateway } from './gateways/razorpay.gateway';
@@ -319,6 +319,10 @@ describe('PaymentsService', () => {
         amount: 100,
         currency: 'INR',
       });
+      mockPrisma.payment.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      mockPrisma.payment.findUniqueOrThrow = jest
+        .fn()
+        .mockResolvedValue({ id: 'pay-1', status: 'CAPTURED' });
 
       const payload = {
         id: 'evt_new_123',
@@ -436,7 +440,12 @@ describe('PaymentsService', () => {
           currency: 'INR',
         }),
         update: jest.fn().mockResolvedValue({ id: 'spo-1', status: 'PAID' }),
-        updateMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'spo-1',
+          status: 'PAID',
+          gatewayPaymentId: 'pay_sp_123',
+        }),
       };
       mockPrisma.sparePart = {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
@@ -465,8 +474,8 @@ describe('PaymentsService', () => {
         where: { id: 'part-1' },
         data: { stockQuantity: { decrement: 2 } },
       });
-      expect(mockPrisma.sparePartOrder.update).toHaveBeenCalledWith({
-        where: { id: 'spo-1' },
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: 'spo-1', status: 'PENDING' },
         data: expect.objectContaining({
           status: 'PAID',
           gatewayPaymentId: 'pay_sp_123',
@@ -488,7 +497,8 @@ describe('PaymentsService', () => {
           currency: 'INR',
         }),
         update: jest.fn().mockResolvedValue({ id: 'spo-pkg', status: 'PAID' }),
-        updateMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'spo-pkg', status: 'PAID' }),
       };
       mockPrisma.sparePart = {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PACKAGE' }),
@@ -511,7 +521,11 @@ describe('PaymentsService', () => {
       });
 
       expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
-      expect(mockPrisma.sparePartOrder.update).toHaveBeenCalled();
+      // settle claims the order via the conditional updateMany
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: 'spo-pkg', status: 'PENDING' },
+        data: expect.objectContaining({ status: 'PAID' }),
+      });
     });
 
     it('rejects spare-part webhooks whose amount does not match the order', async () => {

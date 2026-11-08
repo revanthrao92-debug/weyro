@@ -1,5 +1,6 @@
-name: CI
+# STEP 9 — CI with real PostGIS e2e gate (unit + integration + e2e all required)
 
+name: CI
 on:
   push:
     branches: [main]
@@ -14,31 +15,74 @@ env:
 
 jobs:
   api:
-    name: API • typecheck, lint, tests+coverage
+    name: API • typecheck, lint, unit, integration, e2e (real PostGIS)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: weyro
+          POSTGRES_PASSWORD: weyro_ci_password
+          POSTGRES_DB: weyro_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U weyro -d weyro_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://weyro:weyro_ci_password@localhost:5432/weyro_db?schema=public
+      DIRECT_URL: postgresql://weyro:weyro_ci_password@localhost:5432/weyro_db?schema=public
+      JWT_ACCESS_SECRET: ci_jwt_access_secret_super_key_32_chars_x
+      JWT_REFRESH_SECRET: ci_jwt_refresh_secret_super_key_32_chars
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8081,http://localhost:19006,http://localhost:8082
+      STORAGE_DRIVER: local
+      RAZORPAY_KEY_ID: rzp_test_ci_placeholder
+      RAZORPAY_KEY_SECRET: rzp_test_ci_placeholder_secret_value
+      RAZORPAY_WEBHOOK_SECRET: ci_webhook_secret
+      OTP_HASH_SECRET: ci_otp_hash_secret_super_key_32_chars
+      SMS_PROVIDER: console
+      PAYMENT_RECONCILE_WINDOW_MINUTES: 15
+      PAYMENT_RECONCILE_BATCH: 25
+      NODE_ENV: test
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+
       - name: Install dependencies
         run: npm ci
-      - name: Typecheck (all workspaces)
+
+      - name: Apply Prisma migrations + seed
+        run: |
+          cd packages/database && npx prisma generate
+          npx prisma migrate deploy
+          npx prisma db seed
+
+      - name: Typecheck workspaces
         run: |
           npx tsc --noEmit -p apps/api/tsconfig.json
-          npx tsc --noEmit -p packages/api-contracts
-          npx tsc --noEmit -p packages/validation
+          npx tsc --noEmit -p packages/api-contracts/tsconfig.json
+          npx tsc --noEmit -p packages/validation/tsconfig.json
+          npx tsc --noEmit -p packages/database/tsconfig.json
+
       - name: Lint (API)
-        run: npm run lint --if-present -w @weyro/api || true
-      - name: Tests + coverage (thresholds enforced)
-        env:
-          NODE_ENV: test
-        run: npx jest --coverage --silent -w @weyro/api
+        run: cd apps/api && npx eslint src --max-warnings 0
+
+      - name: Unit tests + coverage (thresholds enforced)
+        run: cd apps/api && npx jest --coverage --silent
+
+      - name: Integration + E2E suites (real Postgres)
+        run: cd apps/api && npx jest --config jest.config.js --testPathPattern 'src/test' --runInBand --silent
+
       - name: Dependency audit gate (critical only for now)
-        # Ground rule: a real audit gate. Today 7 high findings remain that
-        # need breaking upgrades (zod v4 / prisma v7). Gate on critical until
-        # those land, then tighten to --audit-level=high.
         run: npm audit --audit-level=critical
 
   mobile:
@@ -53,11 +97,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
       - name: Typecheck
         run: npx tsc --noEmit
+
       - name: Lint
-        run: npx eslint src --max-warnings 0
-      - name: Unit tests (jest-expo)
+        run: npx eslint . --ext .ts,.tsx --max-warnings 0
+
+      - name: Unit tests
         run: npx jest --silent
+

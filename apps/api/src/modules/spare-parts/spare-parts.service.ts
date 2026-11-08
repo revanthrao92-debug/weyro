@@ -16,14 +16,15 @@ import {
 import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
-import { settleSparePartOrder } from './spare-part-settlement';
+import { settleSparePartOrderPayment } from '../payments/settle-payment';
 import {
   notifyOrderCancelled,
-  notifyOrderPaid,
   notifyOrderPlaced,
   notifyOrderRefunded,
 } from './spare-part-notifications';
+import { enqueueOrderPaid } from './spare-part-notifications';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OutboxService } from '../notifications/outbox.service';
 import { PAYMENT_GATEWAY, PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 import {
   buildCursorWhere,
@@ -38,6 +39,7 @@ export class SparePartsService {
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
     private readonly notifications: NotificationsService,
+    private readonly outbox: OutboxService,
   ) {}
 
   private async notificationContext(order: {
@@ -445,15 +447,28 @@ export class SparePartsService {
       );
     }
 
-    const updated = await this.prisma.$transaction((tx) =>
-      settleSparePartOrder(tx, order, dto.razorpayPaymentId, dto.razorpayOrderId),
-    );
+    // STEP 1: shared idempotent settlement (same fn the webhook uses)
+    const settled = await this.prisma.$transaction(async (tx) => {
+      const result = await settleSparePartOrderPayment(
+        tx,
+        { orderId: order.id, sparePartId: order.sparePartId, quantity: order.quantity },
+        { gatewayPaymentId: dto.razorpayPaymentId, gatewayOrderId: dto.razorpayOrderId },
+      );
 
-    if (updated.status === 'PAID') {
-      void this.notificationContext(order)
-        .then((context) => notifyOrderPaid(this.notifications, context))
-        .catch(() => {});
-    }
+      // STEP 5 — outbox: written in the same tx as the settlement, so a
+      // rollback deletes the notification alongside the work.
+      if (result.applied) {
+        const context = await this.notificationContext(order);
+        await enqueueOrderPaid(this.outbox, tx, context);
+      }
+
+      return result;
+    });
+
+    const updated =
+      settled.status === 'PAID'
+        ? await this.prisma.sparePartOrder.findUniqueOrThrow({ where: { id: order.id } })
+        : { id: order.id, status: settled.status ?? 'ALREADY_PAID' };
 
     return updated;
   }
@@ -757,7 +772,22 @@ export class SparePartsService {
 
     if (isDealer) {
       // Dealer sees the part, itself, and customer names only
-      const { customerId: _c, providerId: _p, provider: _prov, gatewayOrderId: _go, gatewayPaymentId: _gp, ...dealerView } = order;
+      const dealerView: Record<string, unknown> & { customer?: unknown } = { ...order };
+      // remove fields the dealer must not see
+      const hidden: Array<keyof typeof order> = [
+        'customerId',
+        'providerId',
+        'gatewayOrderId',
+        'gatewayPaymentId',
+        'provider',
+        'providerId2',
+      ] as Array<keyof typeof order>;
+      for (const h of hidden) {
+        delete dealerView[h];
+      }
+      (dealerView as Record<string, unknown>).customer = {
+        firstName: order.customer.firstName,
+      };
       return {
         ...dealerView,
         customer: {

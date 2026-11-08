@@ -1,4 +1,5 @@
 import type { NotificationsService } from '../notifications/notifications.service';
+import { OutboxService } from '../notifications/outbox.service';
 
 type Notifier = Pick<NotificationsService, 'sendPushNotification'>;
 
@@ -40,6 +41,21 @@ export function notifyOrderPlaced(
       orderId: order.orderId,
     },
   });
+}
+
+export function enqueueOrderPaid(
+  outbox: OutboxService,
+  tx: Parameters<OutboxService['enqueue']>[0],
+  order: OrderNotificationBase,
+) {
+  const params: Parameters<Notifier['sendPushNotification']>[0] = {
+    userId: order.customerUserId ?? '',
+    title: 'Order paid ✓',
+    body: `Your order for ${order.partName} is confirmed — ₹${rupees(order.totalAmount)} (x${order.quantity}).`,
+    data: { type: 'SPARE_PART_ORDER_PAID', orderId: order.orderId },
+  };
+  if (!params.userId) return;
+  return outbox.enqueue(tx as never, 'spare-part.paid', params, 'expo-push');
 }
 
 export function notifyOrderPaid(
