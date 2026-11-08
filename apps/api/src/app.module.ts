@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DamageRequestsModule } from './modules/damage-requests/damage-requests.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
@@ -41,6 +42,7 @@ const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
     ),
     ScheduleModule.forRoot(),
     PrismaModule,
+    RedisModule,
     AuthModule,
     DamageRequestsModule,
     QuotationsModule,

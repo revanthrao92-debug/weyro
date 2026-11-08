@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../common/redis/cache.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
   buildCursorWhere,
@@ -15,7 +16,10 @@ import { UpdateProviderProfileDto } from './dto/providers.dto';
 
 @Injectable()
 export class ProvidersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private providerId(user: AuthUserPayload): string {
     if (!user.providerProfileId) {
@@ -65,10 +69,12 @@ export class ProvidersService {
     dto: UpdateProviderProfileDto,
   ) {
     const id = this.providerId(user);
-    return this.prisma.providerProfile.update({
+    const updated = await this.prisma.providerProfile.update({
       where: { id },
       data: dto,
     });
+    await this.cache.del(`provider:public:${id}`);
+    return updated;
   }
 
   /**
@@ -76,6 +82,16 @@ export class ProvidersService {
    * documents: customers only get the marketing-safe projection.
    */
   async getPublicProfile(id: string) {
+    return this.cache.getOrSet(
+      `provider:public:${id}`,
+      300, // 5 min TTL
+      async () => {
+        return this._loadPublicProfile(id);
+      },
+    );
+  }
+
+  private async _loadPublicProfile(id: string) {
     const provider = await this.prisma.providerProfile.findFirst({
       where: { id, deletedAt: null },
       select: {
