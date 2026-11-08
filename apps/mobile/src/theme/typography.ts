@@ -1,25 +1,20 @@
 import { Platform, TextStyle } from 'react-native';
 
 /**
- * Weyro typography.
- *
- * Display face: **Sora** (600) — loaded once in `app/_layout.tsx` via
- * `@expo-google-fonts/sora`. It is reserved for the moments: hero headline
- * and big figures (KPI numbers). Interface text remains the system family.
- *
- * Contracts: constants below are the single import surface; when the font
- * is not yet loaded, `displayFamily` falls back to `fontFamilyMedium`
- * (system) so text renders before the font swap and nothing breaks.
+ * Weyro theme — typography.
+ * System font only (no new font dependencies). One family, clear scale.
+ * Weights limited to regular / medium / semibold.
  */
-export const displayFamily = Platform.select({
-  ios: 'Sora_600SemiBold',
-  android: 'Sora_600SemiBold',
-  default: 'System',
-});
 
 export const fontFamily = Platform.select({
   ios: 'System',
   android: 'sans-serif',
+  default: 'System',
+});
+
+export const fontFamilyMedium = Platform.select({
+  ios: 'System',
+  android: 'sans-serif-medium',
   default: 'System',
 });
 
@@ -29,9 +24,10 @@ export const fontFamilyMono = Platform.select({
   default: 'monospace',
 });
 
-export const fontFamilyMedium = Platform.select({
-  ios: 'System',
-  android: 'sans-serif-medium',
+/** Display face: Sora 600 — loaded once in app/_layout.tsx via @expo-google-fonts/sora. */
+export const displayFamily = Platform.select({
+  ios: 'Sora_600SemiBold',
+  android: 'Sora_600SemiBold',
   default: 'System',
 });
 
@@ -44,19 +40,17 @@ export const fontWeight = {
 /** Type scale: display / title / heading / body / caption / label. */
 export const typography = {
   display: {
-    fontFamily: displayFamily,
-    fontSize: 34,
-    lineHeight: 40,
+    fontFamily: fontFamilyMedium,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: fontWeight.semibold,
-    letterSpacing: -0.5,
-  } as TextStyle,
+  },
   title: {
-    fontFamily: displayFamily,
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: fontFamilyMedium,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: fontWeight.semibold,
-    letterSpacing: -0.3,
-  } as TextStyle,
+  },
   heading: {
     fontFamily: fontFamilyMedium,
     fontSize: 20,
@@ -89,17 +83,9 @@ export const typography = {
   },
   label: {
     fontFamily: fontFamilyMedium,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: fontWeight.medium,
-    letterSpacing: 0.5,
-  },
-  mono: {
-    fontFamily: fontFamilyMono,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: fontWeight.medium,
-    fontVariant: ['tabular-nums'],
   },
 } satisfies Record<string, TextStyle>;
 

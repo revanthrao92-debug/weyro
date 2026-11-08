@@ -1,291 +1,212 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  Pressable,
+  Image,
 } from 'react-native';
-import { Image } from 'expo-image';
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  CheckSquare,
-  Square,
-  UserRound,
-  Package,
-  Wrench,
-} from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { palette, spacing, radii, typography, displayFamily } from '@/theme';
-import { glass } from '@/theme/glass';
+import { Input, Button } from '@/components/ui';
+import { palette, spacing, typography, radii } from '@/theme';
+import { UserRole } from '@weyro/api-contracts';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
-import { GlassPanel } from '@/components/ui';
 
 /**
- * Login — reference screen 1, FULL-BLEED layout.
+ * Welcome / Login — first screen a user sees.
  *
- * The Porsche GT3 RS artwork fills the ENTIRE screen behind everything.
- * Form fields are glass panels floating on top (you see the car through
- * them). Headline sits at the top on the calm part of the image.
+ * Matches the approved reference design:
+ * - Dark navy hero with logo + "More than repairs. Total vehicle care."
+ * - White sheet with role selection (Customer / Dealer / Mechanic) + login form
+ *
+ * Role note: the backend knows CUSTOMER / PROVIDER / BOTH / ADMIN.
+ * "Dealer" and "Mechanic" both sign in as PROVIDER — `providerKind` is a
+ * UI-level preference used in later checkpoints to pick the interface,
+ * and is passed to the register screen so new accounts register correctly.
  */
 
 export type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
 
-const ROLES: {
-  key: EntryRole;
-  label: string;
-  Icon: typeof UserRound;
-}[] = [
-  { key: 'CUSTOMER', label: 'Customer', Icon: UserRound },
-  { key: 'DEALER', label: 'Dealer', Icon: Package },
-  { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
+/**
+ * Hero background switch — REVERSIBILITY: one line to flip the look.
+ * 'sketch' → Porsche 911 line art · 'photo' → night-car photography.
+ */
+const HERO_MODE: 'sketch' | 'photo' = 'sketch';
+
+const ROLE_OPTIONS: { key: EntryRole; label: string }[] = [
+  { key: 'CUSTOMER', label: 'Customer' },
+  { key: 'DEALER', label: 'Dealer' },
+  { key: 'MECHANIC', label: 'Mechanic' },
 ];
 
-/** The dark-orange Porsche GT3 RS artwork (full-bleed hero). */
-const HERO_CAR =
-  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
-
 export default function LoginScreen() {
-  const router = useRouter();
-  const { login } = useAuth();
-  const [role, setRole] = useState<EntryRole>('CUSTOMER');
+  const [role, setRole] = useState<EntryRole | null>(null);
+  const [errorNote, setErrorNote] = useState<string | null>(null);
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [errorNote, setErrorNote] = useState<string | null>(null);
-  const mounted = useRef(true);
+  const { login } = useAuth();
+  const router = useRouter();
 
-  useEffect(() => {
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  function resolveApiRole(): UserRole {
+    return role === 'CUSTOMER' ? 'CUSTOMER' : 'PROVIDER';
+  }
 
   async function handleLogin() {
-    if (!emailOrPhone.trim() || !password) return;
+    if (!role) return; // role chips only enable submit — see styles below
+    if (!emailOrPhone || !password) return;
     setLoading(true);
-    setErrorNote(null);
     try {
-      await login(emailOrPhone.trim(), password);
-      if (mounted.current) {
-        router.replace('/(app)');
-      }
-    } catch (err: any) {
-      if (mounted.current) {
-        setErrorNote(err?.message || 'Invalid email/phone or password');
-      }
+      await login(emailOrPhone, password);
+      router.replace('/(app)');
+    } catch (error: any) {
+      setPassword('');
+      setErrorNote(error?.message || 'Invalid credentials');
     } finally {
-      if (mounted.current) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
-      {/* ── FULL-BLEED car artwork behind EVERYTHING ────────────────────── */}
-      <Image
-        source={{ uri: HERO_CAR }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={200}
-      />
-      {/* deep carbon scrim — keeps top readable + bottom dark for the form */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: 'rgba(3, 4, 5, 0.42)',
-        }}
-      />
-
-      {/* blueprint sketch top-right (faint) */}
-      <View pointerEvents="none" style={styles.blueprint}>
-        <PorscheSketch911 opacity={0.1} strokeWidth={2} />
+      {/* Dark hero — reference photo bottom-right frame */}
+      <View style={styles.hero}>
+        {/* Hero background — REVERSIBILITY: flip HERO_MODE above.
+            'sketch' = Porsche 911 line art (default)
+            'photo'  = night-car photography (previous look) */}
+        {HERO_MODE === 'sketch' ? (
+          <View style={styles.heroSketch} pointerEvents="none">
+            <PorscheSketch911 opacity={0.25} strokeWidth={2.5} />
+          </View>
+        ) : (
+          <>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=1200&q=80' }}
+              style={[styles.heroPhoto, { resizeMode: 'cover' }]}
+            />
+            <View style={styles.heroShade} />
+            <View style={styles.heroShadeBottom} />
+          </>
+        )}
+        <View style={styles.logoRow}>
+          <Image
+            source={require('../../../assets/images/weyro-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoText}>WEYRO</Text>
+        </View>
+        <Text style={styles.heroTitle}>More than repairs.</Text>
+        <Text style={styles.heroTitleAccent}>Total vehicle care.</Text>
+        <Text style={styles.heroCaption}>
+          Repairs · Spare Parts · Towing · Home Mechanic
+        </Text>
       </View>
 
-      {/* ── Content (all floating on top of the artwork) ────────────────── */}
+      {/* White sheet: role buttons + login form */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+        style={styles.sheetWrap}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={styles.sheetContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
-          {/* 1. brand */}
-          <Text style={styles.wordmark}>weyro</Text>
-
-          {/* 2. headline */}
-          <Text style={styles.headline}>
-            Your Vehicle.
-            {'\n'}
-            <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
-          </Text>
-          <Text style={styles.subline}>Find parts. Get expert help. Keep moving.</Text>
-          <View style={styles.underlineBar} />
-
-          {/* 3. role selector */}
-          <GlassPanel intensity={35} radius={12} style={styles.roleGlass}>
-            <View style={styles.roleRow}>
-              {ROLES.map(({ key, label, Icon }) => {
-                const selected = role === key;
-                return (
-                  <Pressable
-                    key={key}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => setRole(key)}
-                    style={[styles.roleChip, selected && styles.roleChipSelected]}
+          <Text style={styles.whoTitle}>I am a…</Text>
+          <View style={styles.roleRow}>
+            {ROLE_OPTIONS.map(({ key, label }) => {
+              const selected = role === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setRole(key)}
+                  style={[styles.roleChip, selected && styles.roleChipSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.roleChipText,
+                      selected && styles.roleChipTextSelected,
+                    ]}
                   >
-                    <Icon
-                      size={16}
-                      color={selected ? palette.accent : palette.textSecondary}
-                      strokeWidth={1.8}
-                    />
-                    <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </GlassPanel>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-          {/* 4. email */}
-          <GlassPanel intensity={30} radius={12} style={styles.fieldGlass}>
-            <View style={styles.fieldWrap}>
-              <Mail size={17} color={palette.textSecondary} strokeWidth={1.8} />
-              <TextInput
-                accessibilityLabel="Email address"
-                style={styles.input}
-                placeholder="Email address"
-                placeholderTextColor={palette.textMuted}
-                value={emailOrPhone}
-                onChangeText={(t) => {
-                  setEmailOrPhone(t);
-                  setErrorNote(null);
-                }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-          </GlassPanel>
+          <View style={role ? styles.formArea : styles.formAreaMuted}>
+            <Input
+              label="Email or phone"
+              placeholder="you@example.com"
+              value={emailOrPhone}
+              onChangeText={(t) => {
+                setEmailOrPhone(t);
+                setErrorNote(null);
+              }}
+              autoCapitalize="none"
+              editable={!!role}
+            />
+            <Input
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                setErrorNote(null);
+              }}
+              secureTextEntry
+              editable={!!role}
+            />
 
-          {/* 5. password */}
-          <GlassPanel intensity={30} radius={12} style={styles.fieldGlass}>
-            <View style={styles.fieldWrap}>
-              <Lock size={17} color={palette.textSecondary} strokeWidth={1.8} />
-              <TextInput
-                accessibilityLabel="Password"
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={palette.textMuted}
-                value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  setErrorNote(null);
-                }}
-                secureTextEntry={!showPassword}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                onPress={() => setShowPassword((v) => !v)}
-                hitSlop={8}
+            {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
+
+            {/* The ONE primary CTA on this screen */}
+            <Button
+              title="Log in"
+              onPress={handleLogin}
+              loading={loading}
+              disabled={!role || !emailOrPhone || !password}
+            />
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                New to Weyro?{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    router.push({
+                      // pass the chosen role into registration
+                      pathname: '/(auth)/register',
+                      params: {
+                        roleKey: role ?? 'CUSTOMER',
+                        apiRole: resolveApiRole(),
+                      },
+                    })
+                  }
+                  accessibilityRole="link"
+                  accessibilityLabel="Register"
+                >
+                  Create account
+                </Text>
+              </Text>
+              <TouchableOpacity
+                disabled={!role}
+                onPress={() => router.push('/(auth)/forgot-password')}
+                accessibilityRole="link"
+                accessibilityLabel="Forgot password"
               >
-                {showPassword ? (
-                  <EyeOff size={18} color={palette.textSecondary} strokeWidth={1.8} />
-                ) : (
-                  <Eye size={18} color={palette.textSecondary} strokeWidth={1.8} />
-                )}
-              </Pressable>
+                <Text style={[styles.link, !role && styles.linkMuted]}>
+                  Forgot password?
+                </Text>
+              </TouchableOpacity>
             </View>
-          </GlassPanel>
-
-          {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
-
-          {/* 6. remember + forgot */}
-          <View style={styles.rememberRow}>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: rememberMe }}
-              onPress={() => setRememberMe((v) => !v)}
-              style={styles.rememberLeft}
-            >
-              {rememberMe ? (
-                <CheckSquare size={17} color={palette.accent} strokeWidth={1.8} />
-              ) : (
-                <Square size={17} color={palette.textMuted} strokeWidth={1.8} />
-              )}
-              <Text style={styles.rememberText}>Remember me</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push('/(auth)/forgot-password')}
-            >
-              <Text style={styles.link}>Forgot password?</Text>
-            </Pressable>
-          </View>
-
-          {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
-
-          {/* 7. orange login pill */}
-          <View style={styles.loginGlow}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Log in"
-              style={[styles.loginBtn, loading && styles.loginBtnLoading]}
-              onPress={() => void handleLogin()}
-              disabled={loading || !role || !emailOrPhone.trim() || !password}
-            >
-              <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
-              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.4} />
-            </TouchableOpacity>
-          </View>
-
-          {/* 8. or divider */}
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>or</Text>
-            <View style={styles.orLine} />
-          </View>
-
-          {/* 9. create account */}
-          <GlassPanel intensity={25} radius={27} style={styles.createGlass}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Create account"
-              style={styles.createBtn}
-              onPress={() => router.push('/(auth)/register')}
-            >
-              <Text style={styles.createBtnText}>Create account</Text>
-            </TouchableOpacity>
-          </GlassPanel>
-
-          <View style={styles.footerLine}>
-            <Text style={styles.footerText}>New to Weyro? </Text>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push('/(auth)/register')}
-            >
-              <Text style={styles.link}>Create account</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -294,180 +215,105 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#08090B',
-  },
+  container: { flex: 1, backgroundColor: palette.header },
 
-  blueprint: {
+  // ---- Hero (dark chrome) ----
+  hero: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl + spacing.xl,
+    paddingBottom: spacing.xl,
+    height: 300,
+    justifyContent: 'flex-start',
+  },
+  heroPhoto: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  heroSketch: {
     position: 'absolute',
-    top: spacing.sm,
-    right: -spacing.xs,
-    width: 200,
-    height: 90,
-    zIndex: 5,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  heroShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 18, 23, 0.66)' },
+  heroShadeBottom: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3, 25, 35, 0.35)' },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  logo: { width: 34, height: 34 },
+  logoText: {
+    ...typography.heading,
+    color: palette.onHeader,
+    letterSpacing: 2,
+  },
+  heroTitle: { ...typography.display, color: palette.onHeader },
+  heroTitleAccent: { ...typography.display, color: palette.onHeader },
+  heroCaption: {
+    ...typography.caption,
+    color: palette.onHeaderMuted,
+    marginTop: spacing.sm,
   },
 
-  scroll: {
+  // ---- White sheet ----
+  sheetWrap: { flex: 1 },
+  sheetContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg + spacing.xs,
-    paddingTop: spacing.xxl + spacing.sm,
-    paddingBottom: spacing.xxl,
+    backgroundColor: palette.canvas,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    padding: spacing.xl,
   },
 
-  wordmark: {
-    fontFamily: displayFamily,
-    color: palette.textPrimary,
-    fontSize: 24,
-    marginBottom: spacing.lg,
-  },
-
-  headline: {
-    ...typography.display,
-    fontFamily: displayFamily,
-    color: palette.textPrimary,
-    fontSize: 30,
-    lineHeight: 38,
+  // ---- Role selector ----
+  whoTitle: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
     marginBottom: spacing.sm,
   },
-  subline: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  underlineBar: {
-    width: 96,
-    height: 2,
-    backgroundColor: palette.accent,
-    borderRadius: 1,
-    marginTop: spacing.sm,
-    marginBottom: 0,
-  },
-
   roleRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(25, 28, 32, 0.85)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: glass.border,
-    overflow: 'hidden',
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   roleChip: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   roleChipSelected: {
-    borderWidth: 1.5,
+    backgroundColor: palette.accent,
     borderColor: palette.accent,
-    backgroundColor: 'rgba(255, 90, 31, 0.09)',
-    borderRadius: radii.md,
   },
-  roleText: {
+  roleChipText: {
     ...typography.bodyMedium,
-    color: palette.textSecondary,
-  },
-  roleTextSelected: {
-    color: palette.accent,
-    fontWeight: '600',
-  },
-
-  roleGlass: { overflow: 'hidden' },
-  fieldGlass: { overflow: 'hidden' },
-  createGlass: { overflow: 'hidden' },
-  fieldWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: 'rgba(20, 22, 24, 0.7)',
-    borderWidth: 1,
-    borderColor: glass.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    height: 56,
-    marginBottom: spacing.md,
-  },
-  input: {
-    flex: 1,
-    ...typography.body,
     color: palette.textPrimary,
-    paddingVertical: 0,
+  },
+  roleChipTextSelected: {
+    color: palette.onAccent,
   },
 
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  rememberLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rememberText: {
-    ...typography.caption,
-    color: palette.textSecondary,
-  },
-  link: { ...typography.captionMedium, color: palette.accent },
-
+  // ---- Form (progressive reveal once a role is chosen) ----
+  formArea: {},
+  formAreaMuted: { opacity: 0.55 },
   errorNote: {
     ...typography.caption,
     color: palette.danger,
     marginBottom: spacing.sm,
   },
-
-  loginGlow: {
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 90, 31, 0.5)',
-    padding: 2,
-    backgroundColor: 'rgba(255, 90, 31, 0.12)',
-  },
-  loginBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    height: 56,
-    borderRadius: radii.pill,
-    backgroundColor: palette.accent,
-  },
-  loginBtnLoading: { opacity: 0.8 },
-  loginText: {
-    ...typography.bodyMedium,
-    fontFamily: displayFamily,
-    fontSize: 17,
-    color: '#FFFFFF',
-  },
-
-  orRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginVertical: spacing.lg,
-  },
-  orLine: { flex: 1, height: 1, backgroundColor: glass.border },
-  orText: { ...typography.caption, color: palette.textMuted },
-
-  createBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 54,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: glass.border,
-    backgroundColor: glass.bg,
-  },
-  createBtnText: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
-  footerLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  footer: {
     marginTop: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
-  footerText: { ...typography.caption, color: palette.textMuted },
+  footerText: { ...typography.caption, color: palette.textSecondary },
+  link: { ...typography.captionMedium, color: palette.accent },
+  linkMuted: { opacity: 0.5 },
 });

@@ -12,43 +12,43 @@
    */
   :root {
     /* Content surfaces (light) */
-    --background: 225 8% 5%; /* #0B0C0E */
-    --foreground: 220 4% 96%; /* #F4F5F6 */
-    --card: 225 8% 11%; /* #191C20 */
-    --card-foreground: 200 20% 96%;
-    --popover: 225 8% 11%;
-    --popover-foreground: 200 20% 96%;
+    --background: 204 33% 97%; /* #F5F8FA canvas */
+    --foreground: 201 58% 10%; /* #0B1F2A */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 201 58% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 201 58% 10%;
 
-    /* CTA — Racing Orange, carbon ink label */
-    --primary: 22 100% 56%; /* #FF5A1F */
-    --primary-foreground: 225 8% 5%;
-    --primary-pressed: 21 91% 49%; /* #E14E17 */
+    /* CTA — deep teal-green (reference photo), WHITE label */
+    --primary: 172 80% 29%; /* #0E8577 */
+    --primary-foreground: 0 0% 100%;
+    --primary-pressed: 174 79% 24%; /* #0B6E63 */
 
     /* Secondary / muted */
-    --secondary: 220 6% 13%; /* #24282D */
-    --secondary-foreground: 200 20% 96%;
-    --muted: 220 6% 13%;
-    --muted-foreground: 204 10% 67%; /* #A3ADB6 */
+    --secondary: 200 27% 96%; /* #F1F5F7 */
+    --secondary-foreground: 201 58% 10%;
+    --muted: 200 27% 96%;
+    --muted-foreground: 202 15% 39%; /* #546772 */
 
-    --accent: 22 100% 56%; /* #FF5A1F */
-    --accent-foreground: 195 29% 5%;
+    --accent: 200 27% 96%;
+    --accent-foreground: 201 58% 10%;
 
     /* Destructive */
-    --destructive: 4 66% 61%; /* #E06455 */
-    --destructive-foreground: 195 29% 5%;
+    --destructive: 0 64% 55%; /* #D64545 */
+    --destructive-foreground: 0 0% 100%;
 
     /* Lines & focus */
-    --border: 222 6% 24%; /* #3A3F45 */
-    --border-strong: 219 8% 29%; /* #4A5058 */
-    --input: 220 6% 13%; /* #24282D */
-    --ring: 22 100% 56%; /* #FF5A1F */
+    --border: 202 24% 91%; /* #E3EAEE */
+    --border-strong: 199 22% 83%; /* #CBD8DE */
+    --input: 202 24% 91%;
+    --ring: 173 98% 23%; /* #017365 teal */
 
     /* Dark chrome (headers/hero tokens for StyleSheet screens) */
-    --header: 225 8% 5%; /* #0B0C0E */
-    --on-header: 200 20% 96%;
-    --on-header-muted: 204 10% 67%; /* #A3ADB6 */
+    --header: 202 67% 7%; /* #06151E */
+    --on-header: 0 0% 100%;
+    --on-header-muted: 201 22% 75%; /* #A8BAC4 */
 
     /* Geometry — rounded-md = 12px */
-    --radius: 1.125rem; /* 18px sheet-corner system */
+    --radius: 0.875rem;
   }
 }

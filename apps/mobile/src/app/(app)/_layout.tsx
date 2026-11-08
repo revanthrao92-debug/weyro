@@ -1,6 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { ReactElement } from 'react';
 import type { ColorValue } from 'react-native';
-import type { ReactElement } from 'react';
 import { Tabs } from 'expo-router';
 import {
   Activity,
@@ -20,7 +19,6 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { palette, fontFamilyMedium } from '@/theme';
-import { glass } from '@/theme/glass';
 
 /**
  * Premium line icons for the tab bar (lucide — already a dependency via
@@ -66,63 +64,24 @@ export default function AppLayout() {
       : role === 'PROVIDER' || role === 'BOTH'
         ? [
             <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
-            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Requests', tabBarIcon: tabIcon(Radar) }} />,
-            <Tabs.Screen key="orders" name="orders" options={{ title: 'Inventory', tabBarIcon: tabIcon(Package) }} />,
+            <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Opportunities', tabBarIcon: tabIcon(Radar) }} />,
+            <Tabs.Screen key="orders" name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon(Package) }} />,
+            <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
+            <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,
             <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
-            <Tabs.Screen key="messages" name="messages" options={{ href: null }} />,
-            <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
             <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
             <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
-            <Tabs.Screen key="requests-create" name="requests-create" options={{ href: null }} />,
-            <Tabs.Screen key="requests-my" name="requests-my" options={{ href: null }} />,
-            <Tabs.Screen key="request-detail" name="request-detail" options={{ href: null }} />,
           ]
         : [
             <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,
-            <Tabs.Screen key="shop" name="shop" options={{ title: 'Search', tabBarIcon: tabIcon(ShoppingBag) }} />
-            ,
-            // mock has a center FAB (＋ = Post Requirement)
-            <Tabs.Screen
-              key="fab"
-              name="requests/create"
-              options={{
-                title: '',
-                tabBarButton: (props: Record<string, unknown>) => (
-                  <View
-                    pointerEvents="box-none"
-                    style={{
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      top: -14,
-                      width: 64,
-                      height: 64,
-                    }}
-                  >
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Post requirement"
-                      style={{
-                        width: 54,
-                        height: 54,
-                        borderRadius: 27,
-                        backgroundColor: '#FF5A1F',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ color: '#FFFFFF', fontSize: 27, fontWeight: '600', marginTop: -3 }}>＋</Text>
-                    </Pressable>
-                  </View>
-                ),
-              }}
-            />,
-            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Orders', tabBarIcon: tabIcon(CalendarDays) }} />,
+            <Tabs.Screen key="bookings" name="bookings" options={{ title: 'Requests', tabBarIcon: tabIcon(CalendarDays) }} />,
             <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
-            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
+            <Tabs.Screen key="shop" name="shop" options={{ title: 'Shop', tabBarIcon: tabIcon(ShoppingBag) }} />,
             <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,
+            <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
             <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
             <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
@@ -137,8 +96,8 @@ export default function AppLayout() {
         tabBarActiveTintColor: palette.teal,
         tabBarInactiveTintColor: palette.textMuted,
         tabBarStyle: {
-          backgroundColor: glass.sheet,
-          borderTopColor: glass.border,
+          backgroundColor: palette.surface,
+          borderTopColor: palette.border,
         },
         tabBarLabelStyle: { fontFamily: fontFamilyMedium, fontSize: 11 },
       }}

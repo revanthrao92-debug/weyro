@@ -117,48 +117,48 @@ export function BlueprintSpec({
 
       {dimensions && (
         <G>
-          <Line x1={84} y1={330} x2={860} y2={330} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} />
-          <Line x1={84} y1={324} x2={84} y2={336} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} />
-          <Line x1={860} y1={324} x2={860} y2={336} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} />
-          <SvgText x={470} y={346} textAnchor="middle" fill={ORANGE} fillOpacity={opacity * 1.3} fontSize={11} fontFamily="monospace">
+          <Line x1={84} y1={330} x2={860} y2={330} {...dim} />
+          <Line x1={84} y1={324} x2={84} y2={336} {...dim} />
+          <Line x1={860} y1={324} x2={860} y2={336} {...dim} />
+          <SvgText x={470} y={346} textAnchor="middle" {...dimText}>
             4549 mm
           </SvgText>
 
-          <Line x1={880} y1={100} x2={880} y2={308} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} />
-          <SvgText x={892} y={204} textAnchor="middle" fill={ORANGE} fillOpacity={opacity * 1.3} fontSize={11} fontFamily="monospace">
+          <Line x1={880} y1={100} x2={880} y2={308} {...dim} />
+          <SvgText x={892} y={204} textAnchor="middle" {...dimText}>
             1298
           </SvgText>
 
-          <Line x1={230} y1={330} x2={750} y2={330} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} />
-          <SvgText x={490} y={320} textAnchor="middle" fill={ORANGE} fillOpacity={opacity * 1.3} fontSize={11} fontFamily="monospace">
+          <Line x1={230} y1={330} x2={750} y2={330} {...dim} />
+          <SvgText x={490} y={320} textAnchor="middle" {...dimText}>
             2457 mm
           </SvgText>
 
-          <SvgText x={820} y={100} textAnchor="end" fill={ORANGE} fillOpacity={opacity * 1.3} fontSize={11} fontFamily="monospace">
+          <SvgText x={820} y={100} textAnchor="end" {...dimText}>
             LED Matrix
           </SvgText>
-          <SvgText x={820} y={114} textAnchor="end" fill={ORANGE} fillOpacity={opacity * 1.3} fontSize={11} fontFamily="monospace">
+          <SvgText x={820} y={114} textAnchor="end" {...dimText}>
             Headlights
           </SvgText>
-          <Line x1={824} y1={106} x2={850} y2={200} stroke={ORANGE} strokeOpacity={opacity * 1.2} strokeWidth={strokeWidth * 0.7} strokeDasharray="4 3" />
+          <Line x1={824} y1={106} x2={850} y2={200} {...dim} strokeDasharray="4 3" />
         </G>
       )}
 
       {specs && (
         <G>
-          <SvgText x={60} y={60} fill={color} fillOpacity={opacity * 1.1} fontSize={13} fontFamily="monospace">
+          <SvgText x={60} y={60} {...textProps}>
             4.0L NA Flat-6
           </SvgText>
-          <SvgText x={60} y={78} fill={color} fillOpacity={opacity * 1.1} fontSize={13} fontFamily="monospace">
+          <SvgText x={60} y={78} {...textProps}>
             525 HP @ 8,250 RPM
           </SvgText>
-          <SvgText x={60} y={96} fill={color} fillOpacity={opacity * 1.1} fontSize={13} fontFamily="monospace">
+          <SvgText x={60} y={96} {...textProps}>
             465 Nm @ 6,300 RPM
           </SvgText>
-          <SvgText x={60} y={114} fill={color} fillOpacity={opacity * 1.1} fontSize={13} fontFamily="monospace">
+          <SvgText x={60} y={114} {...textProps}>
             0-100 km/h : 3.2 s
           </SvgText>
-          <SvgText x={60} y={132} fill={color} fillOpacity={opacity * 1.1} fontSize={13} fontFamily="monospace">
+          <SvgText x={60} y={132} {...textProps}>
             Top Speed : 296 km/h
           </SvgText>
           <SvgText x={900} y={30} textAnchor="end" fill={color} fillOpacity={opacity * 1.1} fontSize={18} fontFamily="monospace">

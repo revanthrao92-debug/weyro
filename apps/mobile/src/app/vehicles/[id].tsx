@@ -18,8 +18,12 @@ import { BackButton ,
 import { useVehicles } from '@/hooks/useProfile';
 import { palette, spacing, radii } from '@/theme';
 import { Image as ChemImage } from 'expo-image';
-import { carPhotoFor } from '@/lib/photos';
+import { photo } from '@/lib/photos';
 
+/** Catalogue photo for a garage vehicle (reversible: swap for your CDN mapping). */
+function vehiclePhoto(_make: string, _model: string): string {
+  return photo('garage-default');
+}
 
 export default function VehicleDetailScreen() {
   const { vehicleId } = useLocalSearchParams();
@@ -69,7 +73,7 @@ export default function VehicleDetailScreen() {
         <SectionCard title="Vehicle" icon={Car} style={styles.section}>
           <View style={styles.vehicleImage}>
             <ChemImage
-              source={{ uri: carPhotoFor(vehicle.make, vehicle.model) }}
+              source={{ uri: vehiclePhoto(vehicle.make, vehicle.model) }}
               style={{ width: '100%', height: '100%' }}
               contentFit="cover"
               accessibilityLabel={`${vehicle.make} ${vehicle.model}`}
@@ -112,7 +116,7 @@ export default function VehicleDetailScreen() {
           <ButtonRow>
             <Button
               title="Request Service"
-              onPress={() => router.push('/requests-create')}
+              onPress={() => router.push('/requests/create')}
               style={styles.flex}
             />
             <Button

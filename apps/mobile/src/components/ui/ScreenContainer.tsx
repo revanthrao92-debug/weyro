@@ -81,5 +81,12 @@ export interface CardProps {
  * The single surface container: consistent radius, border, and depth.
  */
 export function Card({ children, style }: CardProps) {
-  return <View style={style}>{children}</View>;
+  return (
+    <View
+      className="rounded-md border border-border bg-card p-4 shadow-sm shadow-black/5"
+      style={style}
+    >
+      {children}
+    </View>
+  );
 }

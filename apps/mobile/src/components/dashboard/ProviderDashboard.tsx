@@ -19,7 +19,6 @@ import {
   Skeleton,
   StatusPill,
   AdBanner,
-  StatusDot,
 } from '@/components/ui';
 import { photoForCategory, photo } from '@/lib/photos';
 import { labelize, formatDate, humanizeKey } from '@/utils/format';
@@ -102,7 +101,7 @@ export default function ProviderDashboard() {
               <Text style={styles.roleChipText}>{roleLabel}</Text>
             </View>
           </View>
-          <Text style={styles.greeting}>Work today,</Text>
+          <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.greetingName} maxFontSizeMultiplier={1.6}>
             {businessName}
           </Text>
@@ -133,13 +132,9 @@ export default function ProviderDashboard() {
           ))}
         </View>
 
-        {/* Incoming requests — dark band so the light sheet reads as one flow */}
-        <View style={styles.darkBand}>
+        {/* Incoming requests (photo-backed) */}
         <View style={styles.sectionHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <StatusDot />
-            <Text style={styles.sectionTitleDark}>Requests near you</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Requests near you</Text>
         </View>
         {loading ? (
           <Skeleton width="100%" height={96} />
@@ -153,7 +148,7 @@ export default function ProviderDashboard() {
             {feed.map((item) => (
               <Pressable
                 key={item.id}
-                onPress={() => router.push(`/request-detail?requestId=${item.id}`)}
+                onPress={() => router.push(`/requests/${item.id}`)}
                 accessibilityRole="button"
                 accessibilityLabel={`Request ${item.title}`}
                 className="active:opacity-80"
@@ -187,8 +182,6 @@ export default function ProviderDashboard() {
             ))}
           </View>
         )}
-
-        </View>
 
         {/* Sponsored slot */}
         <View style={styles.adSlot}>
@@ -261,6 +254,8 @@ const styles = StyleSheet.create({
   roleChipText: {
     ...typography.label,
     color: palette.onAccent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   greeting: {
     ...typography.body,
@@ -269,23 +264,13 @@ const styles = StyleSheet.create({
   greetingName: {
     ...typography.display,
     color: palette.onHeader,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 2,
   },
   heroTagline: {
     ...typography.caption,
     color: palette.onHeaderMuted,
     marginTop: spacing.xs,
-  },
-  darkBand: {
-    backgroundColor: palette.headerAlt,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  sectionTitleDark: {
-    ...typography.bodyMedium,
-    color: palette.onHeader,
   },
   body: {
     backgroundColor: palette.canvas,
@@ -345,7 +330,7 @@ const styles = StyleSheet.create({
   feedCard: {
     height: 84,
     borderRadius: radii.md,
-    backgroundColor: palette.panel,
+    backgroundColor: '#0C2330',
     overflow: 'hidden',
     justifyContent: 'center',
   },
@@ -362,7 +347,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: palette.scrim,
+    backgroundColor: 'rgba(4, 21, 30, 0.72)',
   },
   feedInner: {
     flexDirection: 'row',

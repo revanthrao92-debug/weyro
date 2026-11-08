@@ -36,7 +36,7 @@ const SERVICES = [
     title: 'Towing',
     subtitle: '24/7 roadside assistance and towing services',
     Icon: Truck,
-    photo: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=900&q=80',
+    photo: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd6?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'ROADSIDE',
@@ -119,7 +119,7 @@ export default function ServiceSelectionScreen() {
             <ServiceCard
               {...s}
               key={s.key}
-              onPress={() => router.push(`/requests-create?category=${s.key}`)}
+              onPress={() => router.push(`/requests/create?category=${s.key}`)}
             />
           ))}
         </View>
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   card: {
     height: 108,
     borderRadius: radii.lg,
-    backgroundColor: palette.panel, // deep panel (fallback behind photo)
+    backgroundColor: '#0C2330', // deep panel (fallback behind photo)
     overflow: 'hidden',
     justifyContent: 'center',
   },
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: palette.scrim,
+    backgroundColor: 'rgba(4, 21, 30, 0.78)',
   },
   cardInner: {
     flexDirection: 'row',
@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.md,
-    backgroundColor: palette.glass,
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
-    borderColor: palette.glassBorder,
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },

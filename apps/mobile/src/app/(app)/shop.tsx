@@ -58,7 +58,7 @@ export default function ShopScreen() {
         {CATEGORIES.map((c) => (
           <Pressable
             key={c.label}
-            onPress={() => router.push(`/requests-create?category=SPARE_PART`)}
+            onPress={() => router.push(`/requests/create?category=SPARE_PART`)}
             accessibilityRole="button"
             accessibilityLabel={c.label}
             className="active:opacity-70"
@@ -76,7 +76,7 @@ export default function ShopScreen() {
 
       {/* Rare-part request banner */}
       <Pressable
-        onPress={() => router.push('/requests-create?category=SPARE_PART')}
+        onPress={() => router.push('/requests/create?category=SPARE_PART')}
         accessibilityRole="button"
         accessibilityLabel="Can't find what you need? Upload a photo"
         className="active:opacity-90"
@@ -97,7 +97,7 @@ export default function ShopScreen() {
         <View style={styles.filterBar}>
         <Input
           label="Search"
-          placeholder="Search parts…"
+          placeholder="Search parts..."
           value={search}
           onChangeText={setSearch}
           autoCapitalize="words"
