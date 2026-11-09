@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Queue, Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.module';
+import { env } from '../../config/env.config';
 
 /**
  * NotificationQueue — BullMQ background queue for push notifications.
@@ -35,9 +36,21 @@ export class NotificationQueue implements OnModuleDestroy {
     handler?: (data: NotificationJobData) => Promise<void>,
   ) {
     this.handler = handler;
-    if (this.redis) {
+    // Only create the BullMQ queue/worker when REDIS_URL is explicitly set.
+    // Without it (dev/test), notifications fall back to inline delivery —
+    // never blocking on a Redis connection that doesn't exist.
+    if (this.redis && env.REDIS_URL) {
+      // BullMQ requires maxRetriesPerRequest: null on its connection —
+      // the shared cache connection has retry limits, so create a
+      // dedicated connection for the queue/worker pair.
+      // BullMQ requires maxRetriesPerRequest: null at construction time.
+      const bqConnection = new Redis(this.redis.options.host ?? '127.0.0.1', {
+        ...this.redis.options,
+        maxRetriesPerRequest: null,
+      });
+
       this.queue = new Queue<NotificationJobData>(NOTIFICATION_QUEUE, {
-        connection: this.redis,
+        connection: bqConnection,
         defaultJobOptions: {
           attempts: 5,
           backoff: { type: 'exponential', delay: 3000 },
@@ -53,7 +66,7 @@ export class NotificationQueue implements OnModuleDestroy {
             await this.handler(job.data);
           }
         },
-        { connection: this.redis },
+        { connection: bqConnection.duplicate() },
       );
 
       this.worker.on('failed', (job, err) => {

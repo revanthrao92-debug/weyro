@@ -44,6 +44,8 @@ export interface PaymentGateway {
   refundPayment(params: RefundPaymentParams): Promise<RefundPaymentResult>;
   /** Fetch the real payment record from the gateway (server-to-server). */
   fetchPayment(paymentId: string): Promise<GatewayPaymentInfo>;
+  /** Whether this gateway supports authoritative server-side binding (real gateways do; mocks don't). */
+  supportsServerBinding(): boolean;
 }
 
 export const PAYMENT_GATEWAY = Symbol('PAYMENT_GATEWAY');

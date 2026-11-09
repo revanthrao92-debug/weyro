@@ -82,6 +82,10 @@ export class RazorpayPaymentGateway implements PaymentGateway {
    * Used to bind amount/currency/order to the local record before any
    * client-driven "verify" marks money as captured.
    */
+  supportsServerBinding(): boolean {
+    return true;
+  }
+
   async fetchPayment(
     paymentId: string,
   ): Promise<{

@@ -46,6 +46,10 @@ export class MockPaymentGateway implements PaymentGateway {
   }
 
   /** Mock gateway: fabricates an authoritative matching payment record. */
+  supportsServerBinding(): boolean {
+    return false;
+  }
+
   async fetchPayment(paymentId: string) {
     // Generates a record consistent with any order; dev/test only.
     return {

@@ -34,6 +34,7 @@ describe('PaymentsService', () => {
       verifyPaymentSignature: jest.fn(),
       verifyWebhookSignature: jest.fn(),
       refundPayment: jest.fn(),
+    supportsServerBinding: jest.fn().mockReturnValue(true),
       fetchPayment: jest.fn(),
     };
 

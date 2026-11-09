@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.module';
 
@@ -14,7 +14,9 @@ export const CACHE_PREFIX = 'weyro:cache:';
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
 
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {}
+  constructor(
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis | null,
+  ) {}
 
   /** GET a cached value (parsed). Returns null on miss / Redis down. */
   async get<T>(key: string): Promise<T | null> {

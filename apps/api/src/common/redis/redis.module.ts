@@ -19,17 +19,17 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
 
 const redisProvider: Provider = {
   provide: REDIS_CLIENT,
-  useFactory: (): Redis | null => {
-    if (!env.REDIS_URL) {
-      return null; // Redis optional — dev/test without Redis works fine
-    }
-    const client = new Redis(env.REDIS_URL, {
+  useFactory: (): Redis => {
+    // Always return a valid Redis instance so NestJS can resolve the token.
+    // Without REDIS_URL: lazyConnect + no offline queue = the client never
+    // dials, CacheService catches errors, and Postgres remains the fallback.
+    const client = new Redis(env.REDIS_URL ?? 'redis://127.0.0.1:6379', {
       maxRetriesPerRequest: 2,
       retryStrategy(times: number) {
         return Math.min(times * 200, 5000);
       },
-      lazyConnect: false,
-      enableOfflineQueue: false, // fail fast when Redis is down
+      lazyConnect: !env.REDIS_URL, // don't dial when no URL configured
+      enableOfflineQueue: false,
     });
 
     client.on('error', (err: Error) => {

@@ -56,6 +56,7 @@ describe('SparePartsService order flow', () => {
     verifyPaymentSignature: jest.fn(),
     verifyWebhookSignature: jest.fn(),
     refundPayment: jest.fn(),
+    supportsServerBinding: jest.fn().mockReturnValue(true),
     fetchPayment: jest.fn().mockImplementation(async (_pid: string) => ({
       id: _pid,
       order_id: 'order_gw_1',

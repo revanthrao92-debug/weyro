@@ -63,6 +63,7 @@ function makeHarness(): Harness {
     verifyWebhookSignature: jest.fn().mockReturnValue(true),
     createOrder: jest.fn(),
     refundPayment: jest.fn(),
+    supportsServerBinding: jest.fn().mockReturnValue(true),
     fetchPayment: jest.fn().mockResolvedValue({ ...remote }),
   };
 

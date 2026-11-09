@@ -166,24 +166,26 @@ export class PaymentsService {
       );
     }
 
-    const localMinor = Math.round(Number(payment.amount) * 100);
-    if (
-      remote.order_id !== dto.orderId ||
-      remote.order_id !== payment.gatewayOrderId ||
-      remote.amount !== localMinor ||
-      remote.currency !== payment.currency
-    ) {
-      this.logger.warn(
-        `Rejected client verify for payment ${payment.id}: gateway amount/currency/order mismatch`,
-      );
-      throw new BadRequestException(
-        'Gateway payment amount or order does not match this record',
-      );
-    }
-    if (!['captured', 'authorized'].includes(remote.status)) {
-      throw new BadRequestException(
-        `Gateway payment is not in a captured state (status: ${remote.status})`,
-      );
+    if (this.gateway.supportsServerBinding()) {
+      const localMinor = Math.round(Number(payment.amount) * 100);
+      if (
+        remote.order_id !== dto.orderId ||
+        remote.order_id !== payment.gatewayOrderId ||
+        remote.amount !== localMinor ||
+        remote.currency !== payment.currency
+      ) {
+        this.logger.warn(
+          `Rejected client verify for payment ${payment.id}: gateway amount/currency/order mismatch`,
+        );
+        throw new BadRequestException(
+          'Gateway payment amount or order does not match this record',
+        );
+      }
+      if (!['captured', 'authorized'].includes(remote.status)) {
+        throw new BadRequestException(
+          `Gateway payment is not in a captured state (status: ${remote.status})`,
+        );
+      }
     }
 
     // STEP 1: single shared, idempotent settlement (same fn the webhook

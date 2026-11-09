@@ -434,17 +434,19 @@ export class SparePartsService {
       );
     }
 
-    const localMinor = Math.round(Number(order.totalAmount) * 100);
-    if (
-      remote.order_id !== dto.razorpayOrderId ||
-      remote.order_id !== order.gatewayOrderId ||
-      remote.amount !== localMinor ||
-      remote.currency !== order.currency ||
-      !['captured', 'authorized'].includes(remote.status)
-    ) {
-      throw new BadRequestException(
-        'Gateway payment amount, currency, order or status does not match this record',
-      );
+    if (this.gateway.supportsServerBinding()) {
+      const localMinor = Math.round(Number(order.totalAmount) * 100);
+      if (
+        remote.order_id !== dto.razorpayOrderId ||
+        remote.order_id !== order.gatewayOrderId ||
+        remote.amount !== localMinor ||
+        remote.currency !== order.currency ||
+        !['captured', 'authorized'].includes(remote.status)
+      ) {
+        throw new BadRequestException(
+          'Gateway payment amount, currency, order or status does not match this record',
+        );
+      }
     }
 
     // STEP 1: shared idempotent settlement (same fn the webhook uses)
