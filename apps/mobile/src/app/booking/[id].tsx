@@ -5,6 +5,8 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
+import { palette, spacing, typography, radii } from '@/theme';
 import { useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { CostBreakdown } from '@/components/booking/CostBreakdown';
@@ -19,8 +21,14 @@ import {
   EmptyState,
   BackButton,
 } from '@/components/ui';
-import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
-import { palette, spacing, typography } from '@/theme';
+
+/** Reference-screen step order; chained from booking mutation timestamps. */
+const TIMELINE: { key: string; label: string }[] = [
+  { key: 'CONFIRMED', label: 'Order Confirmed' },
+  { key: 'IN_PROGRESS', label: 'Processing & Packaging' },
+  { key: 'PROVIDER_EN_ROUTE', label: 'Out for Delivery' },
+  { key: 'COMPLETED', label: 'Delivered' },
+];
 
 type BookingDetailParams = { id: string };
 
@@ -93,14 +101,15 @@ export default function BookingDetailScreen() {
       'Provider location tracking will appear here once the job is en route.'
     );
   };
-
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader left={<BackButton />} title={`Booking #${booking.id.slice(0, 8)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
           <Text style={styles.sectionTitle}>Status</Text>
-          <View style={styles.statusRow}>
+          <BookingTimelineBlock booking={booking} />
+        <RouteMapCard />
+        <View style={styles.statusRow}>
             <StatusPill
               label={labelize(booking.status)}
               tone={statusTone(booking.status)}
@@ -188,14 +197,177 @@ export default function BookingDetailScreen() {
   );
 }
 
+
+const BookingTimeline = ({ booking }: { booking: any }) => {
+  const steps = TIMELINE.map((t) => ({ ...t, active: booking.status === t.key }));
+  // "done" = everything before the current status index in the flow order
+  const flowOrder = ['CONFIRMED', 'IN_PROGRESS', 'PROVIDER_EN_ROUTE', 'COMPLETED'];
+  const currentIndex = flowOrder.indexOf(booking.status as string);
+  const doneMap = flowOrder.reduce<Record<string, boolean>>((acc, key, i) => {
+    acc[key] = currentIndex >= i && currentIndex >= 0;
+    return acc;
+  }, {});
+  const timestamps: Record<string, string | undefined> = {
+    CONFIRMED: booking.createdAt,
+    IN_PROGRESS: booking.providerLocationUpdatedAt ?? booking.updatedAt,
+    PROVIDER_EN_ROUTE: booking.providerLocationUpdatedAt,
+    COMPLETED: booking.completedAt ?? (booking.status === 'COMPLETED' ? booking.updatedAt : undefined),
+  };
+
+  return (
+    <View style={tlm.container}>
+      {steps.map((step, i) => {
+        const done = doneMap[step.key] ?? false;
+        const isLast = i === steps.length - 1;
+        const active = step.key === booking.status && booking.status !== 'COMPLETED';
+        const time = timestamps[step.key];
+        return (
+          <View key={step.key}>
+            <View style={tlm.row}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={[tlm.dot, done && tlm.dotDone, active && tlm.dotActive]} />
+                {!isLast && steps.length > 1 && (
+                  <View style={[tlm.line, done && tlm.lineDone]} />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[tlm.label, done && tlm.labelDone, active && tlm.labelActive]}>
+                  {step.label}
+                </Text>
+                {time ? (
+                  <Text style={tlm.time}>
+                    {new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                ) : null}
+                {active && step.key === 'PROVIDER_EN_ROUTE' ? (
+                  <Text style={tlm.expected}>{'Expected: Today, 6 PM'}</Text>
+                ) : null}
+              </View>
+              {active && step.key === 'PROVIDER_EN_ROUTE' ? (
+                <Text style={{ fontSize: 18 }} accessibilityLabel="Out for delivery">
+                  🚚
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+const tlm = StyleSheet.create({
+  container: { marginTop: spacing.md, paddingHorizontal: spacing.xs },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    minHeight: 44,
+  },
+  dot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: palette.textMuted,
+    backgroundColor: palette.surface,
+  },
+  dotDone: { borderColor: palette.accent, backgroundColor: palette.accent },
+  dotActive: { borderColor: palette.accent },
+  line: { position: 'absolute', top: 22, bottom: -24, width: 2, backgroundColor: palette.border },
+  lineDone: { backgroundColor: palette.accent },
+  label: { ...typography.caption, color: palette.textMuted },
+  labelDone: { color: palette.textPrimary },
+  labelActive: { ...typography.captionMedium, color: palette.accent },
+  time: { ...typography.label, color: palette.textSecondary },
+  expected: { ...typography.label, color: palette.accent, marginTop: 2 },
+});
+
+const BookingTimelineBlock = ({ booking }: { booking: any }) => (
+  <View style={tlmBlock.block}>
+    <Text style={tlmBlock.title}>{'Track order timeline'}</Text>
+    <BookingTimeline booking={booking} />
+  </View>
+);
+
+
+const RouteMapCard = () => (
+  <View style={mapCard.wrap}>
+    {/* stylised route-path graphic panel (live maps dependency not present) */}
+    <View style={mapCard.inner}>
+      <View style={mapCard.bgLine} />
+      <View style={mapCard.bgLine2} />
+      <View style={mapCard.route} />
+      <View style={[mapCard.pinStart]} />
+      <View style={[mapCard.pinEnd]} />
+    </View>
+  </View>
+);
+
+const mapCard = StyleSheet.create({
+  wrap: {
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    height: 150,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  inner: {
+    ...{ width: '100%', height: '100%' },
+    backgroundColor: '#16181C',
+    position: 'relative',
+  },
+  bgLine: { width: '100%', height: 1, backgroundColor: '#22262B', position: 'absolute', top: 40 },
+  bgLine2: { height: '100%', width: 1, backgroundColor: '#22262B', position: 'absolute', left: 96 },
+  route: {
+    position: 'absolute',
+    top: 70,
+    left: 40,
+    width: 180,
+    height: 2,
+    backgroundColor: palette.accent,
+    transform: [{ rotate: '-12deg' }],
+  },
+  pinStart: {
+    position: 'absolute',
+    top: 66,
+    left: 46,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: palette.textPrimary,
+  },
+  pinEnd: {
+    position: 'absolute',
+    right: 24,
+    top: 34,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: palette.accent,
+  },
+});
+
+const tlmBlock = StyleSheet.create({
+  block: {
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  title: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.sm },
+});
+
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
   sectionTitle: {
     ...typography.label,
     color: palette.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   statusRow: {

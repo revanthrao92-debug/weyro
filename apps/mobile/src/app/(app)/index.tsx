@@ -18,6 +18,8 @@ import {
   AdBanner,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
+import { glass } from '@/theme/glass';
+import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
@@ -56,15 +58,7 @@ function bookingTone(status: string): StatusTone {
 
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1400&q=80';
-const VEHICLE_IMAGE =
-  'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80';
-
-/**
- * Home hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo').
- */
-const HOME_HERO_MODE: 'sketch' | 'photo' = 'sketch';
-
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
@@ -127,18 +121,14 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
+      {/* Layered scene: dawn service-bay photo, sketch overlay, type on the
+          calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        {/* Hero art — REVERSIBILITY: flip HOME_HERO_MODE ('sketch' | 'photo'). */}
-        {HOME_HERO_MODE === 'sketch' ? (
-          <View style={styles.heroSketch} pointerEvents="none">
-            <PorscheSketch911 opacity={0.18} strokeWidth={2.5} />
-          </View>
-        ) : (
-          <>
-            <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
-            <View style={styles.heroShade} />
-          </>
-        )}
+        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+        <View style={styles.heroShade} />
+        <View style={styles.heroSketch} pointerEvents="none">
+          <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
+        </View>
         <View style={styles.heroInner}>
           <View style={styles.brandRow}>
             <Pressable
@@ -160,13 +150,13 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
-          <Text style={styles.greeting}>Good morning,</Text>
+          <Text style={styles.greeting}>Your garage,</Text>
           <Text style={styles.greetingName}>{firstName}</Text>
           <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
         </View>
       </View>
 
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, styles.sheetOverHero]}>
         {/* Sponsored slot directly under the hero — generous ad space */}
         <View style={styles.adSlot}>
           <AdBanner placement="home-hero-bottom" />
@@ -240,7 +230,7 @@ export default function HomeScreen() {
             className="active:opacity-90"
             style={styles.garageCard}
           >
-            <Image source={VEHICLE_IMAGE} style={styles.garageThumb} contentFit="cover" />
+            <Image source={{ uri: carPhotoFor(vehicles[0].make, vehicles[0].model) }} style={styles.garageThumb} contentFit="cover" />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.garageTitle}>
                 {vehicles[0].make} {vehicles[0].model}
@@ -256,7 +246,9 @@ export default function HomeScreen() {
         {/* Promotional placement is now the AdBanner slot above (single source) */}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Requests</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={styles.sectionTitle}>Active requests</Text>
+          </View>
           <Pressable onPress={() => router.push('/requests/my')} accessibilityRole="link" className="active:opacity-60">
             <Text style={styles.link}>View all</Text>
           </Pressable>
@@ -343,7 +335,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 18, 23, 0.72)' },
+  heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 4, 5, 0.42)' },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,
@@ -366,7 +358,7 @@ const styles = StyleSheet.create({
   avatarText: {
     ...typography.label,
     color: palette.onAccent,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   greeting: {
     ...typography.body,
@@ -375,7 +367,7 @@ const styles = StyleSheet.create({
   greetingName: {
     ...typography.display,
     color: palette.onHeader,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   heroTagline: {
@@ -386,21 +378,27 @@ const styles = StyleSheet.create({
 
   sheet: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
-    backgroundColor: palette.canvas,
+    backgroundColor: 'rgba(11, 12, 14, 0.88)',
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    borderTopWidth: 1,
+    borderTopColor: glass.border,
+    marginTop: -18,
     minHeight: 400,
   },
+  sheetOverHero: { zIndex: 2 },
   adSlot: { marginBottom: spacing.lg },
 
   requestCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     padding: spacing.lg,
   },
   requestCardTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -427,10 +425,10 @@ const styles = StyleSheet.create({
   quickItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
   },
@@ -471,10 +469,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: palette.surface,
+    backgroundColor: glass.bg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: glass.border,
     padding: spacing.sm,
   },
   garageEmpty: {
