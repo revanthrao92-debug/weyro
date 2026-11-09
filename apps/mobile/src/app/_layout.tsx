@@ -37,17 +37,12 @@ function AuthRouter() {
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
         <Stack screenOptions={{ headerShown: false }}>
-          {isAuthenticated ? (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(app)"
-            />
-          ) : (
-            <Stack.Screen
-              options={{ headerShown: false }}
-              name="(auth)"
-            />
-          )}
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="(app)" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Protected guard={!isAuthenticated}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          </Stack.Protected>
         </Stack>
       </ThemeProvider>
       {/* RNR portal host — must stay the last child of the providers. */}
