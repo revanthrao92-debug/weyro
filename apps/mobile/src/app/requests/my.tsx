@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useMyRequests } from '@/hooks/useRequests';
 import {
   ScreenContainer,
-  AppHeader,
   Card,
   Chip,
   StatusPill,
@@ -46,7 +45,10 @@ export default function MyRequestsScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark">
-        <AppHeader title="My Requests" subtitle="Your service requests" />
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Requests</Text>
+          <Text style={styles.title}>Your requests</Text>
+        </View>
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="60%" height={18} />
@@ -64,7 +66,13 @@ export default function MyRequestsScreen() {
 
   return (
     <ScreenContainer chrome="dark">
-      <AppHeader title="My Requests" subtitle="Your service requests" />
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>Requests</Text>
+        <Text style={styles.title}>Your requests</Text>
+        <Text style={styles.subtitle}>
+          {requests.length === 0 ? 'No active requests yet.' : `${requests.length} total`}
+        </Text>
+      </View>
 
       {showFilters ? (
         <FilterBar>
@@ -93,7 +101,7 @@ export default function MyRequestsScreen() {
           }
           action={
             statusFilter ? undefined : (
-              <Button title="Create Request" onPress={() => router.push('/requests/create')} />
+              <Button title="Post a request" onPress={() => router.push('/requests/create')} />
             )
           }
         />
@@ -137,6 +145,15 @@ function RequestCard({ item, onPress }: { item: any; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  header: { marginBottom: spacing.lg },
+  eyebrow: {
+    ...typography.label,
+    color: palette.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  title: { ...typography.display, color: palette.textPrimary, marginTop: spacing.xs },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.xs },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

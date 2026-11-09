@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   feedCard: {
     height: 84,
     borderRadius: radii.md,
-    backgroundColor: '#0C2330',
+    backgroundColor: palette.surface,
     overflow: 'hidden',
     justifyContent: 'center',
   },
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(4, 21, 30, 0.72)',
+    backgroundColor: 'rgba(3, 4, 5, 0.62)',
   },
   feedInner: {
     flexDirection: 'row',

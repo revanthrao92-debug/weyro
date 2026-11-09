@@ -3,7 +3,6 @@ import { FlatList, Text, View, Pressable, TouchableOpacity, StyleSheet } from 'r
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
 import {
-  EllipsisVertical,
   Package,
   Wrench,
   Disc3,
@@ -12,8 +11,8 @@ import {
   Car,
   Filter,
 } from 'lucide-react-native';
-import { Input, IconButton, ScreenContainer, AppHeader, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
-import { palette, spacing, radii, typography, elevation } from '@/theme';
+import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
+import { palette, spacing, radii, typography } from '@/theme';
 import { Image } from 'expo-image';
 import { photo, photoForCategory } from '@/lib/photos';
 
@@ -30,14 +29,17 @@ export default function ShopScreen() {
   const [search, setSearch] = useState('');
   const [make, setMake] = useState('');
   const router = useRouter();
-  const { data, isLoading, refetch } = useParts({ search, make });
+  const { data, isLoading } = useParts({ search, make });
 
   const parts = data?.items ?? [];
 
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark">
-        <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Spare parts</Text>
+          <Text style={styles.title}>Find the right part</Text>
+        </View>
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="100%" height={22} />
@@ -51,7 +53,11 @@ export default function ShopScreen() {
 
   return (
     <ScreenContainer chrome="dark">
-      <AppHeader title="Spare Parts" subtitle="Genuine parts & accessories" />
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>Spare parts</Text>
+        <Text style={styles.title}>Find the right part</Text>
+        <Text style={styles.subtitle}>Genuine parts from verified dealers.</Text>
+      </View>
 
       {/* Category tiles */}
       <View style={styles.catGrid}>
@@ -110,11 +116,6 @@ export default function ShopScreen() {
           onChangeText={setMake}
           autoCapitalize="characters"
           containerStyle={styles.filterField}
-        />
-        <IconButton
-          icon={<EllipsisVertical size={20} color={palette.textPrimary} strokeWidth={2} />}
-          onPress={() => refetch()}
-          accessibilityLabel="Filter parts"
         />
         </View>
       </FilterBar>
@@ -183,6 +184,15 @@ function StockBadge({ stock }: { stock: number }) {
 }
 
 const styles = StyleSheet.create({
+  header: { marginBottom: spacing.lg },
+  eyebrow: {
+    ...typography.label,
+    color: palette.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  title: { ...typography.display, color: palette.textPrimary, marginTop: spacing.xs },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.xs },
   filterBar: {
     flexDirection: 'row',
     // Bottom-align: the labelled inputs are taller than the square icon
@@ -198,7 +208,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   catTile: {
-    width: (375 - 32 - 12) / 3,
+    flexBasis: '31%',
+    flexGrow: 1,
     alignItems: 'center',
     paddingVertical: spacing.md,
     backgroundColor: palette.surface,
@@ -222,18 +233,20 @@ const styles = StyleSheet.create({
   rareBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: palette.header,
+    backgroundColor: palette.accentSoftBg,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: palette.accent,
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
   rareTitle: {
     ...typography.bodyMedium,
-    color: palette.onHeader,
+    color: palette.textPrimary,
   },
   rareSub: {
     ...typography.caption,
-    color: palette.onHeaderMuted,
+    color: palette.textSecondary,
     marginTop: 2,
     marginBottom: spacing.sm,
   },
@@ -255,9 +268,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
-    ...elevation.card,
-    padding: spacing.lg,
+    borderColor: palette.border,
+    padding: spacing.md,
     marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -274,10 +286,8 @@ const styles = StyleSheet.create({
   partName: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
   partNumber: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },
   priceStock: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
+    alignItems: 'flex-end',
+    gap: spacing.xs,
   },
   price: { ...typography.bodyMedium, fontSize: 18, color: palette.textPrimary },
 });
