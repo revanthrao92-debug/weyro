@@ -13,7 +13,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation, useCreateQuotation } from '@/hooks/useRequests';
 import {
   ScreenContainer,
-  AppHeader,
   Card,
   Button,
   StatusPill,
@@ -28,10 +27,6 @@ import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
 
 type RequestParams = { id: string };
-
-
-
-
 
 export default function RequestDetailScreen() {
   const router = useRouter();
@@ -53,7 +48,10 @@ export default function RequestDetailScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="Request" />
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.eyebrow}>Request</Text>
+        </View>
         <Card style={styles.skeletonCard}>
           <Skeleton width="50%" height={18} />
           {[0, 1, 2, 3].map((i) => (
@@ -67,7 +65,7 @@ export default function RequestDetailScreen() {
   if (!request) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="Request" />
+        <BackButton />
         <ErrorState title="Request not found" message="This request may have been removed." />
       </ScreenContainer>
     );
@@ -109,61 +107,74 @@ export default function RequestDetailScreen() {
     }
   };
 
+  const photos = request.damagePhotos?.length ? request.damagePhotos : request.mediaUrls;
+
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader left={<BackButton />} title={`Request #${request.id.slice(0, 8)}`} />
-      <ScrollView contentContainerStyle={styles.body}>
-        <Card>
-          <Text style={styles.sectionTitle}>Request Details</Text>
-          <DetailRow label="Category" value={labelize(request.category)} />
-          <DetailRow label="Title" value={request.title} />
-          <DetailRow label="Description" value={request.description} />
-          <DetailRow label="Address" value={request.address} />
-          <DetailRow label="Urgency" value={request.urgency} last />
-        </Card>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.eyebrow}>Request</Text>
+          <View style={styles.topBarSpacer} />
+        </View>
 
-        {(request.damagePhotos?.length || request.mediaUrls?.length) ? (
-          <Card>
-            <Text style={styles.sectionTitle}>Photos</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.photoRow}
-            >
-              {(request.damagePhotos?.length ? request.damagePhotos : request.mediaUrls).map(
-                (url, index) => (
-                  <Image
-                    key={`${url}-${index}`}
-                    source={{ uri: url }}
-                    style={styles.photo}
-                    contentFit="cover"
-                    accessibilityLabel={`Damage photo ${index + 1}`}
-                  />
-                )
-              )}
-            </ScrollView>
-          </Card>
+        <Text style={styles.title}>{request.title}</Text>
+        <View style={styles.metaRow}>
+          <StatusPill label={labelize(request.status)} tone={statusTone(request.status)} />
+          <StatusPill label={labelize(request.category)} tone="neutral" />
+          <StatusPill label={labelize(request.urgency)} tone={request.urgency === 'EMERGENCY' ? 'danger' : request.urgency === 'URGENT' ? 'warning' : 'neutral'} />
+        </View>
+        <Text style={styles.address}>{request.address}</Text>
+
+        {photos?.length ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoRow}
+          >
+            {photos.map((url, index) => (
+              <Image
+                key={`${url}-${index}`}
+                source={{ uri: url }}
+                style={styles.photo}
+                contentFit="cover"
+                accessibilityLabel={`Damage photo ${index + 1}`}
+              />
+            ))}
+          </ScrollView>
         ) : null}
 
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Dealer responses</Text>
+          <Text style={styles.sectionCount}>{quotes.length}</Text>
+        </View>
+
+        {quotesLoading ? (
+          <Card>
+            <Skeleton width="100%" height={72} radius={radii.md} />
+          </Card>
+        ) : quotes.length === 0 ? (
+          <Card>
+            <EmptyState title="No quotes yet" message="Verified garages nearby will respond here." />
+          </Card>
+        ) : (
+          <FlatList
+            data={quotes}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
+            )}
+          />
+        )}
+
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Details</Text>
+        </View>
         <Card>
-          <View style={styles.quotesHeader}>
-            <Text style={styles.sectionTitle}>Quotes</Text>
-            <StatusPill label={`${quotes.length}`} tone="neutral" />
-          </View>
-          {quotesLoading ? (
-            <Skeleton width="100%" height={48} radius={radii.md} />
-          ) : quotes.length === 0 ? (
-            <EmptyState title="No quotes yet" message="Providers will send quotes here." />
-          ) : (
-            <FlatList
-              data={quotes}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => (
-                <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
-              )}
-            />
-          )}
+          <DetailRow label="Vehicle" value={[request.vehicle?.make, request.vehicle?.model, request.vehicle?.year].filter(Boolean).join(' ') || '—'} />
+          <DetailRow label="Description" value={request.description} />
+          <DetailRow label="Address" value={request.address} last />
         </Card>
 
         {canQuote && (
@@ -181,7 +192,12 @@ export default function RequestDetailScreen() {
         )}
 
         {canCancel && (
-          <Button title="Cancel Request" variant="destructive" onPress={handleCancel} />
+          <Button
+            title="Cancel request"
+            variant="destructive"
+            onPress={handleCancel}
+            style={styles.cancelBtn}
+          />
         )}
       </ScrollView>
     </ScreenContainer>
@@ -222,8 +238,8 @@ function QuoteForm({
   const valid = parts > 0;
 
   return (
-    <Card>
-      <View style={styles.quotesHeader}>
+    <View style={styles.quoteForm}>
+      <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>Submit quotation</Text>
         <StatusPill label={condition} tone="info" />
       </View>
@@ -250,6 +266,7 @@ function QuoteForm({
         keyboardType="number-pad"
       />
 
+      <Text style={styles.fieldLabel}>Part condition</Text>
       <View style={styles.conditionRow}>
         {(['OEM', 'AFTERMARKET', 'USED'] as const).map((c) => (
           <Chip
@@ -276,7 +293,7 @@ function QuoteForm({
       />
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>TOTAL</Text>
+        <Text style={styles.totalLabel}>Total</Text>
         <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
       </View>
 
@@ -295,7 +312,7 @@ function QuoteForm({
           })
         }
       />
-    </Card>
+    </View>
   );
 }
 
@@ -317,18 +334,43 @@ function QuoteCard({
   onAccept: (q: any) => void;
   canAccept?: boolean;
 }) {
+  const provider = quote.provider;
+  const name = provider?.businessName || 'Verified garage';
+  const initial = name.charAt(0).toUpperCase();
+  const rating = provider?.avgRating ? provider.avgRating.toFixed(1) : null;
+  const jobs = provider?.completedJobs ?? 0;
+  const canAcceptNow = canAccept !== false && quote.status === 'PENDING';
+
   return (
-    <View style={styles.quoteCard}>
-      <View style={styles.quoteInfo}>
-        <Text style={styles.quoteProvider}>Provider</Text>
-        <Text style={styles.quoteAmount}>₹{quote.totalCost.toLocaleString()}</Text>
-        <StatusPill label={labelize(quote.status)} tone={statusTone(quote.status)} />
-        {quote.warrantyDays !== undefined && (
-          <Text style={styles.quoteWarranty}>{quote.warrantyDays} days warranty</Text>
-        )}
+    <View style={styles.dealerCard}>
+      <View style={styles.dealerTop}>
+        <View style={styles.dealerAvatar}>
+          <Text style={styles.dealerAvatarText}>{initial}</Text>
+        </View>
+        <View style={styles.dealerIdentity}>
+          <Text style={styles.dealerName} numberOfLines={1}>{name}</Text>
+          <Text style={styles.dealerMeta}>
+            {rating ? `★ ${rating}  ·  ` : ''}{jobs} jobs completed
+          </Text>
+        </View>
+        <Text style={styles.dealerAmount}>₹{quote.totalCost.toLocaleString()}</Text>
       </View>
-      {canAccept !== false ? (
-        <Button title="Accept" onPress={() => onAccept(quote)} style={styles.acceptBtn} />
+
+      <View style={styles.dealerTags}>
+        {quote.partCondition ? (
+          <StatusPill label={quote.partCondition} tone="neutral" />
+        ) : null}
+        <StatusPill label={`${quote.warrantyDays}d warranty`} tone="success" />
+        <StatusPill label={labelize(quote.status)} tone={statusTone(quote.status)} />
+      </View>
+
+      {quote.etaDescription ? (
+        <Text style={styles.dealerEta}>{quote.etaDescription}</Text>
+      ) : null}
+      {quote.notes ? <Text style={styles.dealerNotes}>{quote.notes}</Text> : null}
+
+      {canAcceptNow ? (
+        <Button title="Accept quote" onPress={() => onAccept(quote)} style={styles.acceptBtn} />
       ) : null}
     </View>
   );
@@ -336,7 +378,32 @@ function QuoteCard({
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  photoRow: { gap: spacing.sm, paddingTop: spacing.sm },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  topBarSpacer: { width: 44 },
+  eyebrow: {
+    ...typography.label,
+    color: palette.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  title: { ...typography.display, color: palette.textPrimary },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  address: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: spacing.sm,
+  },
+  photoRow: { gap: spacing.sm, paddingTop: spacing.lg },
   photo: {
     width: 96,
     height: 96,
@@ -344,13 +411,23 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceAlt,
   },
   skeletonCard: { marginBottom: spacing.md },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingTop: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     ...typography.label,
     color: palette.textSecondary,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
   },
+  sectionCount: { ...typography.label, color: palette.accent },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -367,27 +444,60 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
-  quotesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+  dealerCard: {
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
-  quoteCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  dealerTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  dealerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: palette.surfaceAlt,
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.surfaceAlt,
-    gap: spacing.md,
+    justifyContent: 'center',
   },
-  quoteInfo: { flex: 1 },
-  quoteProvider: { ...typography.caption, color: palette.textSecondary },
-  quoteAmount: { ...typography.title, color: palette.textPrimary, marginBottom: spacing.xs },
-  quoteWarranty: { ...typography.label, color: palette.success, marginTop: spacing.xs },
-  acceptBtn: { minWidth: 96 },
-  conditionRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  dealerAvatarText: {
+    ...typography.bodyMedium,
+    color: palette.accent,
+  },
+  dealerIdentity: { flex: 1 },
+  dealerName: { ...typography.bodyMedium, color: palette.textPrimary },
+  dealerMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
+  dealerAmount: { ...typography.heading, color: palette.textPrimary },
+  dealerTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  dealerEta: {
+    ...typography.caption,
+    color: palette.textPrimary,
+    marginTop: spacing.md,
+  },
+  dealerNotes: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: spacing.xs,
+  },
+  acceptBtn: { marginTop: spacing.lg },
+  quoteForm: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingTop: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  fieldLabel: {
+    ...typography.captionMedium,
+    color: palette.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  conditionRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   totalRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,10 +512,10 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typography.label,
     color: palette.textMuted,
-    letterSpacing: 0.5,
   },
   totalValue: {
     ...typography.heading,
     color: palette.textPrimary,
   },
+  cancelBtn: { marginTop: spacing.xxl },
 });
