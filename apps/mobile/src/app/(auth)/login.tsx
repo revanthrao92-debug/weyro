@@ -248,7 +248,7 @@ export default function LoginScreen() {
               disabled={loading || !role || !emailOrPhone.trim() || !password}
             >
               <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
-              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.4} />
+              <ArrowRight size={20} color={palette.onAccent} strokeWidth={2.4} />
             </TouchableOpacity>
           </View>
 
@@ -337,11 +337,7 @@ const styles = StyleSheet.create({
 
   roleRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(25, 28, 32, 0.85)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: glass.border,
-    overflow: 'hidden',
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   roleChip: {
@@ -351,12 +347,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: glass.border,
+    backgroundColor: 'rgba(25, 28, 32, 0.85)',
   },
   roleChipSelected: {
-    borderWidth: 1.5,
     borderColor: palette.accent,
-    backgroundColor: 'rgba(255, 90, 31, 0.09)',
-    borderRadius: radii.md,
+    backgroundColor: palette.accentSoftBg,
   },
   roleText: {
     ...typography.bodyMedium,
@@ -426,7 +424,7 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     fontFamily: displayFamily,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: palette.onAccent,
   },
 
   orRow: {
@@ -442,6 +440,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 54,
+    marginTop: spacing.sm,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: glass.border,

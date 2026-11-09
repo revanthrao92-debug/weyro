@@ -178,7 +178,9 @@ export default function RegisterScreen() {
           )}
         </View>
 
-        <Button title="Create account" onPress={handleRegister} loading={loading} />
+        <View style={{ marginTop: spacing.lg }}>
+          <Button title="Create account" onPress={handleRegister} loading={loading} />
+        </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
