@@ -40,7 +40,7 @@ export const fontWeight = {
 /** Type scale: display / title / heading / body / caption / label. */
 export const typography = {
   display: {
-    fontFamily: fontFamilyMedium,
+    fontFamily: displayFamily,
     fontSize: 32,
     lineHeight: 38,
     fontWeight: fontWeight.semibold,

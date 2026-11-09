@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Input, Button, Chip } from '@/components/ui';
+import { Input, Button, Chip, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
 
@@ -53,6 +54,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   async function handleRegister() {
     const { email, phone, password, role, firstName, lastName, businessName } = form;
@@ -96,12 +98,18 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.eyebrow}>New account</Text>
+          <View style={styles.topBarSpacer} />
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>
@@ -193,6 +201,19 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.canvas },
   scrollContent: { padding: spacing.xl, paddingBottom: spacing.xxl },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  topBarSpacer: { width: 44 },
+  eyebrow: {
+    ...typography.label,
+    color: palette.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   header: { marginBottom: spacing.xl },
   title: { ...typography.display, color: palette.textPrimary },
   subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.sm },

@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   selected: {
-    backgroundColor: palette.header,
-    borderColor: palette.header,
+    backgroundColor: palette.accentSoftBg,
+    borderColor: palette.accent,
   },
   pressed: {
     backgroundColor: palette.surfaceAlt,
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
   },
   labelSelected: {
-    color: palette.onHeader,
+    color: palette.accent,
   },
 });
 

@@ -4,49 +4,49 @@
 
 @layer base {
   /*
-   * Weyro — premium automotive light theme (content) + dark chrome tokens.
+   * Weyro — Carbon identity (dark-only). NativeWind mirror of src/theme/colors.ts.
    *
    * Space-separated HSL triples consumed by `tailwind.config.js` as
    * `hsl(var(--token))`. Values are mirrored from `src/theme/colors.ts`
    * (the single source of truth for the StyleSheet layer) — keep in sync.
    */
   :root {
-    /* Content surfaces (light) */
-    --background: 204 33% 97%; /* #F5F8FA canvas */
-    --foreground: 201 58% 10%; /* #0B1F2A */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 201 58% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 201 58% 10%;
+    /* Carbon identity — mirrors src/theme/colors.ts. Dark-only app. */
+    --background: 225 21% 5%; /* #0B0C0E canvas */
+    --foreground: 210 8% 96%; /* #F4F5F6 titanium */
+    --card: 218 12% 11%; /* #191C20 surface */
+    --card-foreground: 210 8% 96%;
+    --popover: 218 12% 11%;
+    --popover-foreground: 210 8% 96%;
 
-    /* CTA — deep teal-green (reference photo), WHITE label */
-    --primary: 172 80% 29%; /* #0E8577 */
-    --primary-foreground: 0 0% 100%;
-    --primary-pressed: 174 79% 24%; /* #0B6E63 */
+    /* CTA — racing orange, near-black label */
+    --primary: 17 100% 56%; /* #FF5A1F */
+    --primary-foreground: 210 27% 4%; /* #080B0E */
+    --primary-pressed: 17 81% 49%; /* #E14E17 */
 
     /* Secondary / muted */
-    --secondary: 200 27% 96%; /* #F1F5F7 */
-    --secondary-foreground: 201 58% 10%;
-    --muted: 200 27% 96%;
-    --muted-foreground: 202 15% 39%; /* #546772 */
+    --secondary: 213 11% 16%; /* #24282D */
+    --secondary-foreground: 210 8% 96%;
+    --muted: 213 11% 16%;
+    --muted-foreground: 210 6% 66%; /* #A5A9AD */
 
-    --accent: 200 27% 96%;
-    --accent-foreground: 201 58% 10%;
+    --accent: 213 11% 16%;
+    --accent-foreground: 210 8% 96%;
 
     /* Destructive */
-    --destructive: 0 64% 55%; /* #D64545 */
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 6 68% 61%; /* #E06455 */
+    --destructive-foreground: 210 27% 4%;
 
     /* Lines & focus */
-    --border: 202 24% 91%; /* #E3EAEE */
-    --border-strong: 199 22% 83%; /* #CBD8DE */
-    --input: 202 24% 91%;
-    --ring: 173 98% 23%; /* #017365 teal */
+    --border: 213 9% 25%; /* #3A3F45 */
+    --border-strong: 214 9% 32%; /* #4A5058 */
+    --input: 213 9% 25%;
+    --ring: 17 100% 56%;
 
-    /* Dark chrome (headers/hero tokens for StyleSheet screens) */
-    --header: 202 67% 7%; /* #06151E */
-    --on-header: 0 0% 100%;
-    --on-header-muted: 201 22% 75%; /* #A8BAC4 */
+    /* Dark chrome */
+    --header: 225 21% 5%;
+    --on-header: 210 8% 96%;
+    --on-header-muted: 210 6% 69%;
 
     /* Geometry — rounded-md = 12px */
     --radius: 0.875rem;

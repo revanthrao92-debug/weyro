@@ -7,10 +7,15 @@ import { PortalHost } from '@rn-primitives/portal';
 import { useAuth , AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
 import { palette } from '@/theme';
+import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
+  // Registers the display face used by typography.display (Sora 600).
+  // Non-blocking: text falls back to the system face for the first frames.
+  useFonts({ Sora_600SemiBold });
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
