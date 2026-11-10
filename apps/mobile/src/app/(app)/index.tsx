@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, {
@@ -10,22 +10,14 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import {
-  ArrowRight,
-  BadgeCheck,
   BatteryCharging,
   Bell,
   ChevronRight,
-  ClipboardCheck,
   Fuel,
   LifeBuoy,
   MapPin,
-  Package,
   Search,
-  Settings2,
-  ShieldCheck,
-  Sparkles,
   Truck,
-  Wrench,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
@@ -40,18 +32,15 @@ import {
   SectionCard,
   ListItem,
   StatusPill,
-  AdBanner,
   PressableScale,
   Section,
   Surface,
   MetallicEdge,
-  RadialGlow,
   BottomFade,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
+import { carPhotoFor, photo, photoForCategory } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
-import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
 function requestTone(status: string): StatusTone {
   switch (status) {
@@ -90,12 +79,12 @@ function bookingTone(status: string): StatusTone {
 const HERO_IMAGE = require('../../../assets/images/hero-primary.jpg');
 
 const CATEGORIES = [
-  { key: 'REPAIR', label: 'Repair', Icon: Wrench },
-  { key: 'MAINTENANCE', label: 'Maintenance', Icon: Settings2 },
-  { key: 'SPARE_PART', label: 'Spare parts', Icon: Package },
-  { key: 'TOWING', label: 'Towing', Icon: Truck },
-  { key: 'ROADSIDE', label: 'Roadside', Icon: LifeBuoy },
-  { key: 'INSPECTION', label: 'Inspection', Icon: ClipboardCheck },
+  { key: 'REPAIR', label: 'Repair' },
+  { key: 'MAINTENANCE', label: 'Maintenance' },
+  { key: 'SPARE_PART', label: 'Spare parts' },
+  { key: 'TOWING', label: 'Towing' },
+  { key: 'ROADSIDE', label: 'Roadside' },
+  { key: 'INSPECTION', label: 'Inspection' },
 ];
 
 const ROADSIDE = [
@@ -103,12 +92,6 @@ const ROADSIDE = [
   { key: 'TYRE', label: 'Tyre', Icon: LifeBuoy },
   { key: 'FUEL', label: 'Fuel', Icon: Fuel },
   { key: 'TOW', label: 'Tow', Icon: Truck },
-];
-
-const GUARANTEE = [
-  { label: 'Verified providers', Icon: BadgeCheck },
-  { label: 'Photo-based quotes', Icon: ShieldCheck },
-  { label: 'Secure escrow', Icon: Sparkles },
 ];
 
 const PACKAGES = [
@@ -218,10 +201,6 @@ export default function HomeScreen() {
             />
           </Animated.View>
           <View style={styles.heroShade} />
-          <RadialGlow size={340} opacity={0.12} style={styles.heroGlow} />
-          <View style={styles.heroSketch} pointerEvents="none">
-            <PorscheSketch911 opacity={0.1} strokeWidth={2.5} />
-          </View>
 
           <View style={styles.heroInner}>
             <View style={styles.brandRow}>
@@ -255,14 +234,12 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <Text style={styles.heroEyebrow}>Weyro · Premium care</Text>
             <Text style={styles.greeting}>Your garage,</Text>
             <Text style={styles.greetingName} numberOfLines={1}>
               {firstName}
             </Text>
             <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
           </View>
-          <BottomFade height={110} />
         </View>
 
         {/* ── Page content ───────────────────────────────────────────── */}
@@ -291,22 +268,26 @@ export default function HomeScreen() {
             <Text style={styles.searchText}>Search services &amp; parts</Text>
           </PressableScale>
 
-          {/* Categories */}
+          {/* Categories — photo-led, not icon chips */}
           <View style={styles.categoryGrid}>
-            {CATEGORIES.map(({ key, label, Icon }) => (
+            {CATEGORIES.map(({ key, label }) => (
               <PressableScale
                 key={key}
                 onPress={() => router.push(`/requests/create?category=${key}`)}
                 accessibilityRole="button"
                 accessibilityLabel={label}
-                scaleTo={0.95}
+                scaleTo={0.97}
                 style={styles.categoryTile}
               >
-                <MetallicEdge style={styles.cardEdge} opacity={0.14} />
-                <View style={styles.categoryIcon}>
-                  <Icon size={21} color={palette.accent} strokeWidth={1.7} />
-                </View>
-                <Text style={styles.categoryLabel} maxFontSizeMultiplier={1.6}>
+                <Image
+                  source={{ uri: photo(photoForCategory(key)) }}
+                  style={styles.categoryImage}
+                  contentFit="cover"
+                  transition={150}
+                />
+                <View style={styles.categoryScrim} />
+                <BottomFade height={64} />
+                <Text style={styles.categoryLabel} maxFontSizeMultiplier={1.4}>
                   {label}
                 </Text>
               </PressableScale>
@@ -345,25 +326,13 @@ export default function HomeScreen() {
             </View>
           </Surface>
 
-          {/* Guarantee */}
-          <View style={styles.guaranteeRow}>
-            {GUARANTEE.map(({ label, Icon }) => (
-              <View key={label} style={styles.guaranteeItem}>
-                <Icon size={16} color={palette.textSecondary} strokeWidth={1.7} />
-                <Text style={styles.guaranteeLabel} maxFontSizeMultiplier={1.5}>
-                  {label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.adSlot}>
-            <AdBanner placement="home-hero-bottom" />
-          </View>
+          <Text style={styles.trustLine}>
+            Verified providers · Photo-based quotes · Escrow payments
+          </Text>
 
           {/* Garage */}
           <Section
-            eyebrow="01 — Your garage"
+            eyebrow="Your garage"
             title="My vehicle"
             actionLabel={vehicles.length > 0 ? 'View all' : undefined}
             onAction={() => router.push('/vehicles')}
@@ -413,7 +382,7 @@ export default function HomeScreen() {
 
           {/* Live activity */}
           <Section
-            eyebrow="02 — Live"
+            eyebrow="Live now"
             title="Active requests"
             actionLabel="View all"
             onAction={() => router.push('/requests/my')}
@@ -448,7 +417,7 @@ export default function HomeScreen() {
           </Section>
 
           <Section
-            eyebrow="03 — Schedule"
+            eyebrow="Schedule"
             title="Next booking"
             actionLabel="View all"
             onAction={() => router.push('/bookings')}
@@ -481,51 +450,80 @@ export default function HomeScreen() {
           {/* Parts */}
           {parts.length > 0 ? (
             <Section
-              eyebrow="04 — Marketplace"
+              eyebrow="Shop"
               title="Parts worth a look"
               actionLabel="Shop"
               onAction={() => router.push('/shop')}
             >
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.partsRow}
-              >
-                {parts.map((part) => (
+              <View style={styles.partList}>
+                {parts.slice(0, 5).map((part, index) => (
                   <PressableScale
                     key={part.id}
                     onPress={() => router.push(`/shop/${part.id}`)}
                     accessibilityRole="button"
                     accessibilityLabel={`Part ${part.name}`}
-                    scaleTo={0.96}
-                    style={styles.partCard}
+                    scaleTo={0.99}
+                    style={[
+                      styles.partRow,
+                      index < Math.min(parts.length, 5) - 1 && styles.partRowDivider,
+                    ]}
                   >
-                    <Image
-                      source={
-                        part.imageUrl
-                          ? { uri: part.imageUrl }
-                          : require('../../../assets/images/hero-secondary.jpg')
-                      }
-                      style={styles.partImage}
-                      contentFit="cover"
-                      transition={150}
-                    />
-                    <Text style={styles.partName} numberOfLines={1}>
-                      {part.name}
-                    </Text>
+                    {part.imageUrl ? (
+                      <Image
+                        source={{ uri: part.imageUrl }}
+                        style={styles.partThumb}
+                        contentFit="cover"
+                        transition={150}
+                      />
+                    ) : null}
+                    <View style={styles.partInfo}>
+                      <Text style={styles.partName} numberOfLines={1}>
+                        {part.name}
+                      </Text>
+                      <Text style={styles.partMeta} numberOfLines={1}>
+                        {part.partNumber} · {labelize(part.condition)}
+                      </Text>
+                    </View>
                     <Text style={styles.partPrice}>
                       ₹{Number(part.price).toLocaleString('en-IN')}
                     </Text>
+                    <ChevronRight size={15} color={palette.textMuted} strokeWidth={2} />
                   </PressableScale>
                 ))}
-              </ScrollView>
+              </View>
             </Section>
           ) : null}
 
           {/* Packages */}
-          <Section eyebrow="05 — Services" title="Popular packages">
+          <Section eyebrow="Services" title="Popular packages">
             <View style={styles.packages}>
-              {PACKAGES.map((pkg) => (
+              <PressableScale
+                onPress={() =>
+                  router.push(
+                    `/requests/create?category=${PACKAGES[0].category}&title=${encodeURIComponent(
+                      PACKAGES[0].title
+                    )}`
+                  )
+                }
+                accessibilityRole="button"
+                accessibilityLabel={PACKAGES[0].title}
+                scaleTo={0.98}
+                style={styles.featurePackage}
+              >
+                <Image
+                  source={{ uri: photo('mechanic') }}
+                  style={styles.featureImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+                <View style={styles.featureScrim} />
+                <BottomFade height={130} />
+                <Text style={styles.featureKicker}>Service package</Text>
+                <Text style={styles.featureTitle}>{PACKAGES[0].title}</Text>
+                <Text style={styles.featureBlurb}>{PACKAGES[0].blurb}</Text>
+              </PressableScale>
+
+              {PACKAGES.slice(1).map((pkg, index) => (
                 <PressableScale
                   key={pkg.title}
                   onPress={() =>
@@ -535,17 +533,14 @@ export default function HomeScreen() {
                   }
                   accessibilityRole="button"
                   accessibilityLabel={pkg.title}
-                  scaleTo={0.98}
-                  style={styles.packageCard}
+                  scaleTo={0.99}
+                  style={[styles.packageRow, index > 0 && styles.packageRowDivider]}
                 >
-                  <MetallicEdge style={styles.cardEdge} opacity={0.16} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.packageTitle}>{pkg.title}</Text>
                     <Text style={styles.packageBlurb}>{pkg.blurb}</Text>
                   </View>
-                  <View style={styles.packageCta}>
-                    <ArrowRight size={16} color={palette.onAccent} strokeWidth={2.2} />
-                  </View>
+                  <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
                 </PressableScale>
               ))}
             </View>
@@ -700,26 +695,37 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   categoryTile: {
-    flexBasis: '31%',
+    flexBasis: '48%',
     flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
+    height: 116,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
     overflow: 'hidden',
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     backgroundColor: palette.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
   },
-  categoryLabel: { ...typography.label, color: palette.textSecondary, textAlign: 'center' },
+  categoryImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  categoryScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(16, 18, 20, 0.30)',
+  },
+  categoryLabel: {
+    ...typography.captionMedium,
+    color: '#F5F5F3',
+    letterSpacing: 0.2,
+  },
   cardEdge: { position: 'absolute', top: 0, left: 0, right: 0 },
   roadside: { padding: spacing.md, marginBottom: spacing.lg },
   roadsideHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -733,23 +739,15 @@ const styles = StyleSheet.create({
   },
   roadsideItem: { alignItems: 'center', gap: spacing.xs, flex: 1 },
   roadsideLabel: { ...typography.label, color: palette.textSecondary },
-  guaranteeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+  trustLine: {
+    ...typography.label,
+    color: palette.textMuted,
+    textAlign: 'center',
     paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
   },
-  guaranteeItem: { flex: 1, alignItems: 'center', gap: 4 },
-  guaranteeLabel: {
-    ...typography.label,
-    color: palette.textMuted,
-    textAlign: 'center',
-    fontSize: 10,
-  },
-  adSlot: { marginTop: spacing.lg },
   garageSkeleton: {
     height: 64,
     borderRadius: radii.md,
@@ -782,47 +780,81 @@ const styles = StyleSheet.create({
   vehicleTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   vehicleMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
   emptyText: { ...typography.caption, color: palette.textMuted },
-  partsRow: { gap: spacing.sm, paddingRight: spacing.lg },
-  partCard: {
-    width: 148,
+  partList: {
     borderRadius: radii.md,
-    backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
     overflow: 'hidden',
-    padding: spacing.sm,
   },
-  partImage: {
-    width: '100%',
-    height: 82,
-    borderRadius: radii.sm,
-    backgroundColor: palette.surfaceAlt,
-    marginBottom: spacing.sm,
-  },
-  partName: { ...typography.captionMedium, color: palette.textPrimary },
-  partPrice: { ...typography.label, color: palette.accent, marginTop: 4 },
-  packages: { gap: spacing.sm },
-  packageCard: {
+  partRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  partRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
+  },
+  partThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.sm,
+    backgroundColor: palette.surfaceAlt,
+  },
+  partInfo: { flex: 1 },
+  partName: { ...typography.captionMedium, color: palette.textPrimary },
+  partMeta: { ...typography.label, color: palette.textMuted, marginTop: 2 },
+  partPrice: { ...typography.captionMedium, color: palette.textPrimary },
+  packages: { gap: 0 },
+  featurePackage: {
+    height: 168,
+    justifyContent: 'flex-end',
     padding: spacing.lg,
     borderRadius: radii.md,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
     overflow: 'hidden',
+    marginBottom: spacing.sm,
+    backgroundColor: palette.surfaceAlt,
   },
+  featureImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  featureScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(16, 18, 20, 0.28)',
+  },
+  featureKicker: {
+    ...typography.label,
+    color: palette.accent,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  featureTitle: { ...typography.heading, color: '#F5F5F3' },
+  featureBlurb: { ...typography.caption, color: '#D8D9D6', marginTop: 2 },
+  packageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+  },
+  packageRowDivider: {},
   packageTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   packageBlurb: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
-  packageCta: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   supportRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
   supportCard: {
     flex: 1,
