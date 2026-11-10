@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Pressable,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,8 +11,8 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Input, Button, Chip, BackButton } from '@/components/ui';
-import { palette, spacing, typography } from '@/theme';
+import { Input, Chip, BackButton } from '@/components/ui';
+import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
@@ -106,7 +107,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.topBar}>
           <BackButton />
-          <Text style={styles.eyebrow}>New account</Text>
+          <Text style={styles.eyebrow}>New account · v3</Text>
           <View style={styles.topBarSpacer} />
         </View>
 
@@ -178,9 +179,17 @@ export default function RegisterScreen() {
           )}
         </View>
 
-        <View style={{ marginTop: spacing.lg }}>
-          <Button title="Create account" onPress={handleRegister} loading={loading} />
-        </View>
+        <Pressable
+          onPress={() => void handleRegister()}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Sign up"
+          style={[styles.signupBtn, loading && styles.signupBtnLoading]}
+        >
+          <Text style={styles.signupText}>
+            {loading ? 'Creating account…' : 'Sign up'}
+          </Text>
+        </Pressable>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -223,6 +232,21 @@ const styles = StyleSheet.create({
     ...typography.captionMedium,
     color: palette.textSecondary,
     marginBottom: spacing.xs,
+  },
+  signupBtn: {
+    height: 54,
+    borderRadius: radii.pill,
+    backgroundColor: '#FF5A1F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+  },
+  signupBtnPressed: { backgroundColor: '#E14E17' },
+  signupBtnLoading: { opacity: 0.7 },
+  signupText: {
+    fontFamily: displayFamily,
+    fontSize: 17,
+    color: '#080B0E',
   },
   roleSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   roleChip: { flex: 1, minWidth: 90 },
