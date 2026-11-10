@@ -1,5 +1,12 @@
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight, ChevronRight, Wrench, Package, Truck, House } from 'lucide-react-native';
@@ -16,6 +23,7 @@ import {
   ListItem,
   StatusPill,
   AdBanner,
+  PressableScale,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 import { glass } from '@/theme/glass';
@@ -99,6 +107,22 @@ export default function HomeScreen() {
     user?.customerProfile?.firstName ||
     (user?.email ? user.email.split('@')[0] : 'there');
 
+  // Hero parallax — runs on the UI thread, transform-only.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+  const heroParallax = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(scrollY.value, [0, 240], [0, -48], Extrapolation.CLAMP),
+      },
+      { scale: 1.08 },
+    ],
+  }));
+
   if (role === 'ADMIN') {
     return (
       <ScreenContainer chrome="dark">
@@ -124,7 +148,9 @@ export default function HomeScreen() {
       {/* Layered scene: dawn service-bay photo, sketch overlay, type on the
           calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
-        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+        <Animated.View style={[styles.heroImageWrap, heroParallax]}>
+          <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+        </Animated.View>
         <View style={styles.heroShade} />
         <View style={styles.heroSketch} pointerEvents="none">
           <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
@@ -156,18 +182,24 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={[styles.sheet, styles.sheetOverHero]}>
+      <Animated.ScrollView
+        style={styles.sheet}
+        contentContainerStyle={styles.sheetContent}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Sponsored slot directly under the hero — generous ad space */}
         <View style={styles.adSlot}>
           <AdBanner placement="home-hero-bottom" />
         </View>
 
         {/* Primary service card */}
-        <Pressable
+        <PressableScale
           onPress={() => router.push('/service-selection')}
           accessibilityRole="button"
           accessibilityLabel="Request a Service"
-          className="active:opacity-90"
+          scaleTo={0.98}
           style={styles.requestCard}
         >
           <View style={{ flex: 1 }}>
@@ -179,17 +211,17 @@ export default function HomeScreen() {
           <View style={styles.arrowCircle}>
             <ArrowRight size={20} color={palette.onAccent} strokeWidth={2.2} />
           </View>
-        </Pressable>
+        </PressableScale>
 
         {/* Quick actions */}
         <View style={styles.quickRow}>
           {QUICK_ACTIONS.map(({ label, Icon, route }) => (
-            <Pressable
+            <PressableScale
               key={label}
               onPress={() => router.push(route)}
               accessibilityRole="button"
               accessibilityLabel={label}
-              className="active:opacity-60"
+              scaleTo={0.96}
               style={[styles.quickItem, elevation.card]}
             >
               <View style={styles.quickCircle}>
@@ -198,7 +230,7 @@ export default function HomeScreen() {
               <Text style={styles.quickLabel} maxFontSizeMultiplier={2}>
                 {label}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
 
@@ -314,7 +346,7 @@ export default function HomeScreen() {
             </View>
           )}
         </SectionCard>
-      </View>
+      </Animated.ScrollView>
 
     </ScreenContainer>
   );
@@ -327,7 +359,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.header,
     paddingTop: 24,
   },
-  heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
+  heroImageWrap: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  heroImage: { width: '100%', height: '100%' },
   heroSketch: {
     position: 'absolute',
     top: 0,
@@ -377,18 +416,20 @@ const styles = StyleSheet.create({
   },
 
   sheet: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
+    flex: 1,
+    zIndex: 2,
     backgroundColor: palette.canvas,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     borderTopWidth: 1,
     borderTopColor: glass.border,
     marginTop: -18,
-    minHeight: 400,
   },
-  sheetOverHero: { zIndex: 2 },
+  sheetContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
   adSlot: { marginBottom: spacing.lg },
 
   requestCard: {

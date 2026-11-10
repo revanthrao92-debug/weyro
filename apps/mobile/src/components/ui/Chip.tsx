@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from './Motion';
 import { palette, spacing, radii, typography } from '@/theme';
 
 export interface ChipProps {
@@ -11,12 +12,12 @@ export interface ChipProps {
 /** Selectable chip for categories/filters. Selection shown by fill + border + weight (not color alone). */
 export function Chip({ label, selected = false, onPress, accessibilityLabel }: ChipProps) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={accessibilityLabel || label}
-      className="active:bg-secondary"
+      scaleTo={0.95}
       style={[styles.chip, selected && styles.selected]}
     >
       <Text
@@ -25,7 +26,7 @@ export function Chip({ label, selected = false, onPress, accessibilityLabel }: C
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

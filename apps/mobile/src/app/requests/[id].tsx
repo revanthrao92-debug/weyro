@@ -22,6 +22,7 @@ import {
   BackButton,
   Input,
   Chip,
+  FadeSlideIn,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
@@ -162,8 +163,10 @@ export default function RequestDetailScreen() {
             data={quotes}
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
-            renderItem={({ item }) => (
-              <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
+            renderItem={({ item, index }) => (
+              <FadeSlideIn delay={index * 60}>
+                <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
+              </FadeSlideIn>
             )}
           />
         )}

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from './Motion';
 import { ReactNode } from 'react';
 import { palette, spacing, typography } from '@/theme';
 
@@ -53,18 +54,15 @@ export function ListItem({
 
   if (onPress) {
     return (
-      <Pressable
+      <PressableScale
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel || title}
-        // Static style on purpose: NativeWind's Pressable patch drops
-        // function-style props, which silently unstyles the whole row.
-        // Press feedback comes from the `active:` class instead.
-        className="active:bg-secondary"
+        scaleTo={0.99}
         style={rowStyle}
       >
         {content}
-      </Pressable>
+      </PressableScale>
     );
   }
 

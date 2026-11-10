@@ -20,6 +20,7 @@ import {
   Skeleton,
   EmptyState,
   BackButton,
+  FadeSlideIn,
 } from '@/components/ui';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
@@ -222,7 +223,7 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
         const active = step.key === booking.status && booking.status !== 'COMPLETED';
         const time = timestamps[step.key];
         return (
-          <View key={step.key}>
+          <FadeSlideIn key={step.key} delay={i * 70}>
             <View style={tlm.row}>
               <View style={{ alignItems: 'center' }}>
                 <View style={[tlm.dot, done && tlm.dotDone, active && tlm.dotActive]} />
@@ -249,7 +250,7 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
                 </Text>
               ) : null}
             </View>
-          </View>
+          </FadeSlideIn>
         );
       })}
     </View>

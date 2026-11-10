@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCreateServiceRequest } from '@/hooks/useRequests';
-import { Input, Button, Chip, BackButton, ScreenContainer } from '@/components/ui';
+import { Input, Button, Chip, BackButton, ScreenContainer, FadeSlideIn } from '@/components/ui';
 import { PhotoPicker } from '@/components/requests/PhotoPicker';
 import type { UploadedImage } from '@/services/uploads';
 import { palette, spacing, radii, typography } from '@/theme';
@@ -29,14 +29,18 @@ function Section({
   title: string;
   children: ReactNode;
 }) {
+  const delay = Number(number) * 45;
+
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionNumber}>{number}</Text>
-        <Text style={styles.sectionTitle}>{title}</Text>
+    <FadeSlideIn delay={delay}>
+      <View style={styles.section}>
+          <View style={styles.sectionHead}>
+          <Text style={styles.sectionNumber}>{number}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        {children}
       </View>
-      {children}
-    </View>
+    </FadeSlideIn>
   );
 }
 

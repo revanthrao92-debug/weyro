@@ -11,6 +11,7 @@ import {
   StatusPill,
   EmptyState,
   Skeleton,
+  FadeSlideIn,
   FilterBar,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
@@ -89,8 +90,10 @@ export default function BroadcastFeedScreen() {
           data={requests}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <FeedRequestCard item={item} onQuote={handleQuote} />
+          renderItem={({ item, index }) => (
+            <FadeSlideIn delay={Math.min(index, 6) * 50}>
+              <FeedRequestCard item={item} onQuote={handleQuote} />
+            </FadeSlideIn>
           )}
         />
       )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Text, View, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
+import { FlatList, Text, View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
 import {
@@ -11,7 +11,7 @@ import {
   Car,
   Filter,
 } from 'lucide-react-native';
-import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner } from '@/components/ui';
+import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { Image } from 'expo-image';
 import { photo, photoForCategory } from '@/lib/photos';
@@ -136,8 +136,10 @@ export default function ShopScreen() {
               <AdBanner placement="shop-section" />
             </View>
           }
-          renderItem={({ item }) => (
-            <PartCard part={item} onPress={() => router.push(`/shop/${item.id}`)} />
+          renderItem={({ item, index }) => (
+            <FadeSlideIn delay={Math.min(index, 6) * 50}>
+              <PartCard part={item} onPress={() => router.push(`/shop/${item.id}`)} />
+            </FadeSlideIn>
           )}
         />
       )}
@@ -147,11 +149,12 @@ export default function ShopScreen() {
 
 function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
   return (
-    <TouchableOpacity
+    <PressableScale
       style={styles.card}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Part ${part.name}, ₹${part.price.toLocaleString()}`}
+      scaleTo={0.98}
     >
       <View style={styles.cardContent}>
         <Image
@@ -173,7 +176,7 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
           <StockBadge stock={part.stockQuantity} />
         </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 

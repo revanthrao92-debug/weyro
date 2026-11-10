@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, ViewStyle } from 'react-native';
+import { PressableScale } from './Motion';
 import { palette, radii, typography } from '@/theme';
 
 export interface ButtonProps {
@@ -15,28 +16,25 @@ export interface ButtonProps {
 const VARIANTS = {
   primary: {
     backgroundColor: palette.accent,
-    pressedColor: palette.accentPressed,
     textColor: palette.onAccent,
     borderColor: palette.accent,
   },
   secondary: {
     backgroundColor: palette.transparent,
-    pressedColor: palette.surfaceAlt,
     textColor: palette.textPrimary,
     borderColor: palette.borderStrong,
   },
   destructive: {
     backgroundColor: palette.danger,
-    pressedColor: palette.dangerPressed,
     textColor: palette.onDanger,
     borderColor: palette.danger,
   },
 } as const;
 
 /**
- * Primary action control — pure StyleSheet (no className dependency) so the
- * CTA can never render invisible when the styling pipeline misbehaves.
- * ≥48px touch target, disabled/loading states exposed to assistive tech.
+ * Primary action control — pure StyleSheet (no className dependency) with the
+ * shared spring press feedback. ≥48px touch target, disabled/loading exposed
+ * to assistive tech.
  */
 export function Button({
   title,
@@ -51,16 +49,17 @@ export function Button({
   const v = VARIANTS[variant];
 
   return (
-    <Pressable
-      onPress={isDisabled ? undefined : onPress}
+    <PressableScale
+      onPress={onPress}
       disabled={isDisabled}
       accessibilityLabel={accessibilityLabel || title}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: !!loading }}
-      style={({ pressed }) => [
+      scaleTo={0.97}
+      style={[
         styles.base,
         {
-          backgroundColor: pressed ? v.pressedColor : v.backgroundColor,
+          backgroundColor: v.backgroundColor,
           borderColor: v.borderColor,
         },
         variant === 'secondary' && styles.outlined,
@@ -75,7 +74,7 @@ export function Button({
           {title}
         </Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
