@@ -10,7 +10,6 @@ import {
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { BlurView } from 'expo-blur';
 import {
   Mail,
   Lock,
@@ -283,7 +282,6 @@ export default function LoginScreen() {
               onPress={() => router.push('/(auth)/register')}
               scaleTo={0.98}
             >
-              <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
               <Text style={styles.createBtnText}>Create account</Text>
             </PressableScale>
           </FadeSlideIn>

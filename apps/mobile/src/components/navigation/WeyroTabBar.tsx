@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/ui/Motion';
 import { palette, spacing } from '@/theme';
@@ -44,7 +43,7 @@ export function WeyroTabBar({ state, descriptors, navigation }: TabBarProps) {
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
-      <BlurView intensity={50} tint="dark" style={styles.blur}>
+      <View style={styles.blur}>
         <View style={styles.row}>
           {state.routes.map((route, index) => {
             const focused = state.index === index;
@@ -90,7 +89,7 @@ export function WeyroTabBar({ state, descriptors, navigation }: TabBarProps) {
             );
           })}
         </View>
-      </BlurView>
+      </View>
     </View>
   );
 }
@@ -102,7 +101,8 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   blur: {
-    backgroundColor: 'rgba(16, 18, 20, 0.55)',
+    // Layered translucency (no native blur module in the current build).
+    backgroundColor: 'rgba(16, 18, 20, 0.92)',
   },
   row: {
     flexDirection: 'row',
