@@ -20,6 +20,8 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z
     .string()
     .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  // Reserved for signed refresh tokens. Current refresh tokens are opaque
+  // (40 random bytes) and stored only as SHA-256 hashes — stronger than a JWT.
   JWT_REFRESH_SECRET: z
     .string()
     .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
@@ -35,6 +37,8 @@ export const envSchema = z.object({
   STORAGE_ACCESS_KEY: z.string().optional(),
   STORAGE_SECRET_KEY: z.string().optional(),
   STORAGE_PUBLIC_URL: z.string().optional(),
+  // Private buckets serve uploads through short-lived presigned GETs.
+  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(604800),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),

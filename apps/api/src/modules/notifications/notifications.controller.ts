@@ -12,6 +12,8 @@ import { NotificationsService } from './notifications.service';
 import { DeletePushTokenDto, RegisterPushTokenDto } from './dto/notifications.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { idParamSchema } from '../../common/dto/id-param.schema';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -59,7 +61,7 @@ export class NotificationsController {
   @Patch(':id/read')
   async markAsRead(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
   ) {
     return this.service.markAsRead(user.sub, id);
   }

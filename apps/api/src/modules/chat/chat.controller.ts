@@ -21,6 +21,7 @@ import {
   CursorPaginationQuery,
   cursorPaginationSchema,
 } from '../../common/dto/query.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 @Controller('chat')
 export class ChatController {
@@ -52,7 +53,7 @@ export class ChatController {
   @Get('threads/:id/messages')
   async getMessages(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Query(new ZodValidationPipe(cursorPaginationSchema))
     query: CursorPaginationQuery,
   ) {
@@ -68,7 +69,7 @@ export class ChatController {
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   async sendMessage(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Body() dto: SendMessageDto,
   ) {
     return this.chatService.sendMessage(
@@ -82,7 +83,7 @@ export class ChatController {
   @Patch('threads/:id/read')
   async markRead(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Body() dto: MarkReadDto,
   ) {
     return this.chatService.markMessagesRead(id, user, dto.messageIds);

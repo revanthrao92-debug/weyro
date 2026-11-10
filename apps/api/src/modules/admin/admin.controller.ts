@@ -20,6 +20,7 @@ import {
   AdminActivityQuery,
   adminActivityQuerySchema,
 } from '../../common/dto/query.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 @Controller('admin')
 @UseGuards(AdminAuthGuard)
@@ -41,13 +42,13 @@ export class AdminController {
   }
 
   @Get('providers/:id')
-  async getProviderDetail(@Param('id') id: string) {
+  async getProviderDetail(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
     return this.service.getProviderDetail(id);
   }
 
   @Patch('providers/:id/verify')
   async verifyProvider(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: VerifyProviderDto,
   ) {

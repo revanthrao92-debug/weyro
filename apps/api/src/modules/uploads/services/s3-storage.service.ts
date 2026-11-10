@@ -27,6 +27,7 @@ export class S3StorageService implements StorageService {
   private readonly s3Client: S3Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
+  private readonly isPublicBucket: boolean;
 
   constructor(options?: {
     bucket?: string;
@@ -49,6 +50,9 @@ export class S3StorageService implements StorageService {
       (endpoint
         ? `${endpoint}/${bucket}`
         : `https://${bucket}.s3.${region}.amazonaws.com`);
+    // Public only when a public base URL is explicitly configured. Everything
+    // else is served through short-lived presigned GETs.
+    this.isPublicBucket = Boolean(options?.publicUrl || env.STORAGE_PUBLIC_URL);
 
     this.s3Client = new S3Client({
       region,
@@ -91,7 +95,7 @@ export class S3StorageService implements StorageService {
       expiresIn: expiresInSeconds,
     });
 
-    const fileUrl = `${this.publicUrl}/${key}`;
+    const fileUrl = this.isPublicBucket ? `${this.publicUrl}/${key}` : '';
 
     this.logger.log(`Generated presigned PUT URL for key: ${key}`);
 
@@ -101,6 +105,11 @@ export class S3StorageService implements StorageService {
       key,
       expiresInSeconds,
     };
+  }
+
+  private async createDownloadUrl(key: string, expiresInSeconds: number): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    return getSignedUrl(this.s3Client, command, { expiresIn: expiresInSeconds });
   }
 
   async getPresignedDownloadUrl(
@@ -143,6 +152,12 @@ export class S3StorageService implements StorageService {
       throw new BadRequestException('Uploaded object exceeds the size limit');
     }
 
+    // H2: verify magic bytes match the declared type before storing.
+    this.imageProcessor.assertValidImage(
+      Buffer.from(bytes),
+      params.contentType,
+    );
+
     const cleaned = await this.imageProcessor.stripExif(Buffer.from(bytes));
 
     await this.s3Client.send(
@@ -158,7 +173,12 @@ export class S3StorageService implements StorageService {
     this.logger.log(`Sanitized image metadata for key: ${params.key}`);
 
     return {
-      fileUrl: `${this.publicUrl}/${params.key}`,
+      fileUrl: this.isPublicBucket
+        ? `${this.publicUrl}/${params.key}`
+        : await this.createDownloadUrl(
+            params.key,
+            env.STORAGE_SIGNED_URL_TTL_SECONDS,
+          ),
       key: params.key,
     };
   }

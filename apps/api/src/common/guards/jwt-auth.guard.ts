@@ -38,11 +38,24 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload = await this.jwtService.verifyAsync<AuthUserPayload>(token, {
         secret: env.JWT_ACCESS_SECRET,
+        // Pin the algorithm — never let the token choose it.
+        algorithms: ['HS256'],
       });
+
+      // Required claims. A valid signature alone is not enough.
+      if (typeof payload?.sub !== 'string' || payload.sub.length === 0) {
+        throw new UnauthorizedException('Invalid authentication token claims');
+      }
+      if (
+        !['CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN'].includes(payload.role as string)
+      ) {
+        throw new UnauthorizedException('Invalid authentication token claims');
+      }
 
       (request as any).user = payload;
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired authentication token');
     }
   }

@@ -29,6 +29,7 @@ import {
   CursorPaginationQuery,
   cursorPaginationSchema,
 } from '../../common/dto/query.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 const myQuotationsQuerySchema = cursorPaginationSchema.extend({
   status: z
@@ -50,7 +51,7 @@ export class QuotationsController {
   @UseGuards(VerifiedProviderGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   async create(
-    @Param('requestId') requestId: string,
+    @Param('requestId', new ZodValidationPipe(idParamSchema)) requestId: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateQuotationDto,
   ) {
@@ -63,7 +64,7 @@ export class QuotationsController {
 
   @Get('damage-requests/:requestId/quotations')
   async findByRequest(
-    @Param('requestId') requestId: string,
+    @Param('requestId', new ZodValidationPipe(idParamSchema)) requestId: string,
     @CurrentUser() user: AuthUserPayload,
     @Query(new ZodValidationPipe(cursorPaginationSchema))
     query: CursorPaginationQuery,
@@ -80,7 +81,7 @@ export class QuotationsController {
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async accept(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: AcceptQuotationDto,
     @Headers('x-idempotency-key') idempotencyKey?: string,
@@ -106,7 +107,7 @@ export class QuotationsController {
   @Post('quotations/:id/withdraw')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   async withdraw(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.withdrawQuotation(id, user);
@@ -127,7 +128,7 @@ export class QuotationsController {
 
   @Get(['bookings/:id', 'quotations/bookings/:id'])
   async getBooking(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.getBooking(id, user);
@@ -135,7 +136,7 @@ export class QuotationsController {
 
   @Patch(['bookings/:id/status', 'quotations/bookings/:id/status'])
   async updateStatus(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() body: UpdateBookingStatusDto,
   ) {
@@ -151,7 +152,7 @@ export class QuotationsController {
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   async updateLocation(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() body: UpdateBookingLocationDto,
   ) {
@@ -175,7 +176,7 @@ export class QuotationsController {
 
   @Get(['bookings/:id/tracking', 'quotations/bookings/:id/tracking'])
   async getTracking(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.getTracking(id, user);
@@ -184,7 +185,7 @@ export class QuotationsController {
   @Post(['bookings/:id/reviews', 'quotations/bookings/:id/reviews'])
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async addReview(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() body: CreateReviewDto,
   ) {

@@ -7,6 +7,7 @@ import pinoHttp from 'pino-http';
 import { AppModule } from './app.module';
 import { env } from './config/env.config';
 import { PinoLogger } from './common/logger/pino.logger';
+import { httpSerializers } from './common/logger/http-serializers';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -68,6 +69,17 @@ async function bootstrap() {
       base: {
         service: 'weyro-api',
         env: process.env.NODE_ENV || 'development',
+      },
+      // H1: never log credentials. The custom serializers drop headers
+      // entirely; redact is a second line of defence.
+      serializers: httpSerializers,
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'res.headers["set-cookie"]',
+        ],
+        censor: '[REDACTED]',
       },
       // Custom request ID header — MCP5: client-supplied IDs are validated
       // (alphanumeric + _/- only, max 64 chars); anything else is regenerated

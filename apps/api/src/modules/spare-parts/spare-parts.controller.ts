@@ -30,6 +30,7 @@ import {
   SparePartOrderQuery,
   sparePartOrderQuerySchema,
 } from '../../common/dto/query.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 @Controller('spare-parts')
 export class SparePartsController {
@@ -109,7 +110,7 @@ export class SparePartsController {
   @Get('orders/:orderId')
   @Roles('CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN')
   async findOrderDetail(
-    @Param('orderId') orderId: string,
+    @Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.findOrderDetail(orderId, {
@@ -120,7 +121,7 @@ export class SparePartsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
     return this.service.findOne(id);
   }
 
@@ -140,7 +141,7 @@ export class SparePartsController {
   @Patch(':id')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   async update(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: UpdateSparePartDto,
   ) {
@@ -150,7 +151,7 @@ export class SparePartsController {
   @Delete(':id')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
   async remove(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.remove(id, user);
@@ -160,7 +161,7 @@ export class SparePartsController {
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async createOrder(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: CreateSparePartOrderDto,
   ) {
@@ -173,7 +174,7 @@ export class SparePartsController {
   @Post('orders/:orderId/verify')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async verifyOrder(
-    @Param('orderId') orderId: string,
+    @Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string,
     @CurrentUser() user: AuthUserPayload,
     @Body() dto: VerifySparePartOrderDto,
   ) {
@@ -188,7 +189,7 @@ export class SparePartsController {
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async cancelOrder(
-    @Param('orderId') orderId: string,
+    @Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.cancelOrder(
@@ -201,7 +202,7 @@ export class SparePartsController {
   @Post('orders/:orderId/refund')
   @Roles('ADMIN')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async refundOrder(@Param('orderId') orderId: string) {
+  async refundOrder(@Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string) {
     return this.service.refundOrder(orderId);
   }
 }

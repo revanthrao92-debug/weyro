@@ -22,6 +22,7 @@ import {
   FeedQuery,
   feedQuerySchema,
 } from '../../common/dto/query.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 const myRequestsQuerySchema = cursorPaginationSchema.extend({
   status: z
@@ -94,7 +95,7 @@ export class DamageRequestsController {
   @Post(':id/cancel')
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async cancel(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.cancel(id, user);
@@ -102,7 +103,7 @@ export class DamageRequestsController {
 
   @Get(':id')
   async findOne(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
     return this.service.findOne(id, user);

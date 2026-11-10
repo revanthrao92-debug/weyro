@@ -17,6 +17,7 @@ import {
   cursorPaginationSchema,
 } from '../../common/dto/query.dto';
 import { UpdateProviderProfileDto } from './dto/providers.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
 
 @Controller('providers')
 export class ProvidersController {
@@ -39,14 +40,14 @@ export class ProvidersController {
 
   @Public()
   @Get(':id')
-  async getPublicProfile(@Param('id') id: string) {
+  async getPublicProfile(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
     return this.providers.getPublicProfile(id);
   }
 
   @Public()
   @Get(':id/reviews')
   async getPublicReviews(
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Query(new ZodValidationPipe(cursorPaginationSchema))
     query: CursorPaginationQuery,
   ) {

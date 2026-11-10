@@ -18,6 +18,8 @@ import {
   UpdateCustomerProfileDto,
   UpdateVehicleDto,
 } from './dto/customers.dto';
+import { idParamSchema } from '../../common/dto/id-param.schema';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @Controller('customers')
 @Roles('CUSTOMER', 'BOTH')
@@ -66,7 +68,7 @@ export class CustomersController {
   @Patch('me/vehicles/:id')
   async updateVehicle(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Body() dto: UpdateVehicleDto,
   ) {
     return this.customers.updateVehicle(user, id, dto);
@@ -75,7 +77,7 @@ export class CustomersController {
   @Delete('me/vehicles/:id')
   async deleteVehicle(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id') id: string,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
   ) {
     return this.customers.deleteVehicle(user, id);
   }
