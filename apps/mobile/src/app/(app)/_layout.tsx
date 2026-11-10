@@ -90,6 +90,12 @@ export default function AppLayout() {
             <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
           ];
 
+  // Non-tab screens available to every role (pushed, not shown in the bar).
+  screens.push(
+    <Tabs.Screen key="sos" name="sos" options={{ href: null }} />,
+    <Tabs.Screen key="help" name="help" options={{ href: null }} />
+  );
+
   return (
     <Tabs
       tabBar={(props) => (

@@ -45,7 +45,11 @@ function Section({
 }
 
 export default function CreateRequestScreen() {
-  const { category: requestedCategory } = useLocalSearchParams<{ category?: string }>();
+  const {
+    category: requestedCategory,
+    title: requestedTitle,
+    urgency: requestedUrgency,
+  } = useLocalSearchParams<{ category?: string; title?: string; urgency?: string }>();
   const [form, setForm] = useState<{
     vehicleMake: string;
     vehicleModel: string;
@@ -65,12 +69,14 @@ export default function CreateRequestScreen() {
     vehicleModel: '',
     vehicleYear: '',
     category: CATEGORIES.includes(requestedCategory ?? '') ? (requestedCategory as string) : 'REPAIR',
-    title: '',
+    title: requestedTitle ?? '',
     description: '',
     address: '',
     latitude: '',
     longitude: '',
-    urgency: 'NORMAL',
+    urgency: ['NORMAL', 'URGENT', 'EMERGENCY'].includes(requestedUrgency ?? '')
+      ? (requestedUrgency as string)
+      : 'NORMAL',
     mediaUrls: [],
     damagePhotos: [],
     isBroadcast: true,
