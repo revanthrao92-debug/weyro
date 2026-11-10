@@ -35,6 +35,8 @@ export type { TypographyToken } from './typography';
 export { elevation } from './elevation';
 export type { ElevationToken } from './elevation';
 
+export { durations, easings, springs, slideDistance, stagger } from './motion';
+
 /** The complete theme object for convenience / future ThemeProvider. */
 export const theme = {
   colors: palette,

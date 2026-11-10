@@ -57,3 +57,6 @@ export type { ButtonRowProps } from './ButtonRow';
 
 export { AdBanner } from './AdBanner';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
+
+export { FadeSlideIn, PressableScale } from './Motion';
+export type { FadeSlideInProps, PressableScaleProps } from './Motion';

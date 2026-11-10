@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -25,7 +24,8 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
-import { palette, spacing, radii, typography, displayFamily } from '@/theme';
+import { palette, spacing, radii, typography, displayFamily, stagger } from '@/theme';
+import { FadeSlideIn, PressableScale } from '@/components/ui';
 import { glass } from '@/theme/glass';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
@@ -128,44 +128,52 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* 1. brand */}
-          <Text style={styles.wordmark}>weyro</Text>
+          <FadeSlideIn delay={stagger(0)}>
+            <Text style={styles.wordmark}>weyro</Text>
+          </FadeSlideIn>
 
           {/* 2. headline */}
-          <Text style={styles.headline}>
-            Your Vehicle.
-            {'\n'}
-            <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
-          </Text>
-          <Text style={styles.subline}>Find parts. Get expert help. Keep moving.</Text>
-          <View style={styles.underlineBar} />
+          <FadeSlideIn delay={stagger(1)}>
+            <Text style={styles.headline}>
+              Your Vehicle.
+              {'\n'}
+              <Text style={{ color: palette.accent }}>Our</Text> Responsibility.
+            </Text>
+            <Text style={styles.subline}>Find parts. Get expert help. Keep moving.</Text>
+            <View style={styles.underlineBar} />
+          </FadeSlideIn>
 
           {/* 3. role selector */}
-          <View style={styles.roleRow}>
-            {ROLES.map(({ key, label, Icon }) => {
-              const selected = role === key;
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setRole(key)}
-                  style={[styles.roleChip, selected && styles.roleChipSelected]}
-                >
-                  <Icon
-                    size={16}
-                    color={selected ? palette.accent : palette.textSecondary}
-                    strokeWidth={1.8}
-                  />
-                  <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <FadeSlideIn delay={stagger(2)}>
+            <View style={styles.roleRow}>
+              {ROLES.map(({ key, label, Icon }) => {
+                const selected = role === key;
+                return (
+                  <PressableScale
+                    key={key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setRole(key)}
+                    scaleTo={0.96}
+                    style={[styles.roleChip, selected && styles.roleChipSelected]}
+                  >
+                    <Icon
+                      size={16}
+                      color={selected ? palette.accent : palette.textSecondary}
+                      strokeWidth={1.8}
+                    />
+                    <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
+                      {label}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+          </FadeSlideIn>
 
           {/* 4. email */}
-          <View style={styles.fieldWrap}>
+          <FadeSlideIn delay={stagger(3)} style={styles.fieldWrap}>
+            <Mail size={17} color={palette.textSecondary} strokeWidth={1.8} />
             <Mail size={17} color={palette.textSecondary} strokeWidth={1.8} />
             <TextInput
               accessibilityLabel="Email address"
@@ -180,10 +188,11 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
             />
-          </View>
+          </FadeSlideIn>
 
           {/* 5. password */}
-          <View style={styles.fieldWrap}>
+          <FadeSlideIn delay={stagger(4)} style={styles.fieldWrap}>
+            <Lock size={17} color={palette.textSecondary} strokeWidth={1.8} />
             <Lock size={17} color={palette.textSecondary} strokeWidth={1.8} />
             <TextInput
               accessibilityLabel="Password"
@@ -209,11 +218,12 @@ export default function LoginScreen() {
                 <Eye size={18} color={palette.textSecondary} strokeWidth={1.8} />
               )}
             </Pressable>
-          </View>
+          </FadeSlideIn>
 
           {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
           {/* 6. remember + forgot */}
+          <FadeSlideIn delay={stagger(5)}>
           <View style={styles.rememberRow}>
             <Pressable
               accessibilityRole="checkbox"
@@ -235,12 +245,14 @@ export default function LoginScreen() {
               <Text style={styles.link}>Forgot password?</Text>
             </Pressable>
           </View>
+          </FadeSlideIn>
 
           {errorNote ? <Text style={styles.errorNote}>{errorNote}</Text> : null}
 
           {/* 7. orange login pill */}
+          <FadeSlideIn delay={stagger(6)}>
           <View style={styles.loginGlow}>
-            <TouchableOpacity
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel="Log in"
               style={[styles.loginBtn, loading && styles.loginBtnLoading]}
@@ -249,8 +261,9 @@ export default function LoginScreen() {
             >
               <Text style={styles.loginText}>{loading ? 'Logging in…' : 'Log in'}</Text>
               <ArrowRight size={20} color={palette.onAccent} strokeWidth={2.4} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
+          </FadeSlideIn>
 
           {/* 8. or divider */}
           <View style={styles.orRow}>
@@ -260,14 +273,17 @@ export default function LoginScreen() {
           </View>
 
           {/* 9. create account */}
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Create account"
-            style={styles.createBtn}
-            onPress={() => router.push('/(auth)/register')}
-          >
-            <Text style={styles.createBtnText}>Create account</Text>
-          </TouchableOpacity>
+          <FadeSlideIn delay={stagger(7)}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              style={styles.createBtn}
+              onPress={() => router.push('/(auth)/register')}
+              scaleTo={0.98}
+            >
+              <Text style={styles.createBtnText}>Create account</Text>
+            </PressableScale>
+          </FadeSlideIn>
 
           <View style={styles.footerLine}>
             <Text style={styles.footerText}>New to Weyro? </Text>
