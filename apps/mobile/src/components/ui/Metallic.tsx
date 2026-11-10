@@ -98,6 +98,37 @@ export function BottomFade({ height = 160, color = palette.canvas, style }: Bott
   );
 }
 
+export interface SideFadeProps {
+  from?: string;
+  /** Width of the opaque band as a fraction (0–1). */
+  reach?: number;
+  opacity?: number;
+  style?: StyleProp<ViewStyle>;
+}
+
+/** Horizontal neutral fade for text over photography (left → transparent). */
+export function SideFade({
+  from = palette.canvas,
+  reach = 0.6,
+  opacity = 0.9,
+  style,
+}: SideFadeProps) {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <LinearGradient id="weyroSide" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={from} stopOpacity={opacity} />
+            <Stop offset={reach * 0.6} stopColor={from} stopOpacity={opacity * 0.45} />
+            <Stop offset={reach} stopColor={from} stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#weyroSide)" />
+      </Svg>
+    </View>
+  );
+}
+
 export interface SurfaceProps {
   children: ReactNode;
   /** 'elevated' = raised card, 'deep' = inset well. */
