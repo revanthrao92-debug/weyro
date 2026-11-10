@@ -34,9 +34,9 @@ export default function VehicleDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="light">
+      <ScreenContainer chrome="dark">
         <AppHeader
-          variant="light"
+          variant="dark"
           title="Vehicle Details"
           left={<BackButton />}
         />
@@ -49,9 +49,9 @@ export default function VehicleDetailScreen() {
 
   if (!vehicle) {
     return (
-      <ScreenContainer chrome="light">
+      <ScreenContainer chrome="dark">
         <AppHeader
-          variant="light"
+          variant="dark"
           title="Vehicle Details"
           left={<BackButton />}
         />
@@ -61,9 +61,9 @@ export default function VehicleDetailScreen() {
   }
 
   return (
-    <ScreenContainer chrome="light">
+    <ScreenContainer chrome="dark">
       <AppHeader
-        variant="light"
+        variant="dark"
         title="Vehicle Details"
         subtitle={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
         left={<BackButton />}

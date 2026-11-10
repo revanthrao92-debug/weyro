@@ -1,6 +1,6 @@
 import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { ReactNode } from 'react';
-import { palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography, displayFamily } from '@/theme';
 
 export interface AppHeaderProps {
   title?: string;
@@ -75,14 +75,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     minHeight: 56,
     borderBottomWidth: 1,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     // Escape ScreenContainer's 16px content padding so the
     // chrome bar spans edge-to-edge while its content stays aligned at 16.
     marginHorizontal: -spacing.lg,
   },
   headerDark: {
     backgroundColor: palette.header,
-    borderBottomWidth: 0,
+    borderBottomColor: palette.border,
   },
   headerLight: {
     backgroundColor: palette.surface,
@@ -102,6 +102,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.heading,
+    fontFamily: displayFamily,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.2,
     textAlign: 'left',
   },
   titleDark: {
@@ -118,7 +122,7 @@ const styles = StyleSheet.create({
     width: 93, // 26 * logo aspect ratio (715/200)
   },
   subtitle: {
-    ...typography.caption,
+    ...typography.label,
     textAlign: 'left',
     marginTop: 2,
   },

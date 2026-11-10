@@ -30,8 +30,8 @@ export default function ProfileScreen() {
   const email = user?.email ?? '';
 
   return (
-    <ScreenContainer chrome="light">
-      <AppHeader variant="light" title="Profile" />
+    <ScreenContainer chrome="dark">
+      <AppHeader variant="dark" title="Profile" />
 
       <ScrollView contentContainerStyle={styles.body}>
         {/* Account header */}
