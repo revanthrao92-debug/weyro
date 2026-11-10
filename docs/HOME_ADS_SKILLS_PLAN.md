@@ -91,7 +91,26 @@ order, one screen per checkpoint:
 - Check: one accent, 4pt rhythm, no stock-photo filler, labelled ad slot if the
   screen is monetised, real empty states.
 
-## 6. Known constraints
+## 6. Imagery rule and needed photos
+
+Only owned or clearly relevant photography is used. Random luxury-car stock was
+removed after it showed a Ferrari for "Spare parts" and a Bugatti for "Towing".
+
+Currently used: `hero-primary.jpg` (hero), `hero-secondary.jpg` (editorial
+band), `carPhotoFor()` for the user's vehicle, and real `part.imageUrl` only.
+
+To add more real pictures, drop these into `apps/mobile/assets/images/`:
+
+| File | Size | Use |
+|---|---|---|
+| `workshop-1.jpg` | 1200×800, ≤300 KB | service band / roadside |
+| `tow-1.jpg` | 1200×800 | towing service |
+| `parts-1.jpg` | 1000×700 | parts rail header |
+| `inspection-1.jpg` | 1000×700 | inspection service |
+
+No text baked into images; dark edges where type may sit.
+
+## 7. Known constraints
 
 - `react-native-google-mobile-ads` needs a native rebuild (no AdMob until then).
 - `expo-blur` is not in the installed binary — no native blur.

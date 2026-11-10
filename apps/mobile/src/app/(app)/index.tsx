@@ -4,10 +4,16 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowRight,
+  BatteryCharging,
   Bell,
   ChevronRight,
+  Cog,
+  Disc3,
+  Filter,
   MapPin,
   Search,
+  Settings2,
+  Zap,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
@@ -89,12 +95,12 @@ const ROADSIDE_KINDS = ['Battery', 'Tyre', 'Fuel', 'Tow'];
 
 /** Shop navigation categories — used when the catalogue has no listings yet. */
 const PART_CATEGORIES = [
-  { label: 'Brakes', detail: 'Pads, discs, fluid' },
-  { label: 'Filters', detail: 'Oil, air, cabin' },
-  { label: 'Batteries', detail: 'Start-stop, EFB, AGM' },
-  { label: 'Suspension', detail: 'Shocks, bushes, links' },
-  { label: 'Engine', detail: 'Belts, sensors, gaskets' },
-  { label: 'Electrical', detail: 'Bulbs, relays, wiring' },
+  { label: 'Brakes', detail: 'Pads, discs, fluid', Icon: Disc3 },
+  { label: 'Filters', detail: 'Oil, air, cabin', Icon: Filter },
+  { label: 'Batteries', detail: 'Start-stop, EFB, AGM', Icon: BatteryCharging },
+  { label: 'Suspension', detail: 'Shocks, bushes, links', Icon: Settings2 },
+  { label: 'Engine', detail: 'Belts, sensors, gaskets', Icon: Cog },
+  { label: 'Electrical', detail: 'Bulbs, relays, wiring', Icon: Zap },
 ];
 
 const PACKAGES = [
@@ -486,9 +492,12 @@ export default function HomeScreen() {
                   scaleTo={0.98}
                   style={styles.railCard}
                 >
-                  <Text style={styles.railKicker}>Catalogue</Text>
-                  <Text style={styles.railTitle}>{category.label}</Text>
-                  <Text style={styles.railMeta}>{category.detail}</Text>
+                  <View style={styles.railBody}>
+                    <category.Icon size={16} color={palette.textSecondary} strokeWidth={1.7} />
+                    <Text style={styles.railKicker}>Catalogue</Text>
+                    <Text style={styles.railTitle}>{category.label}</Text>
+                    <Text style={styles.railMeta}>{category.detail}</Text>
+                  </View>
                 </PressableScale>
               ))
             ) : (
@@ -501,14 +510,24 @@ export default function HomeScreen() {
                   scaleTo={0.98}
                   style={styles.railCard}
                 >
-                  <Text style={styles.railKicker}>{labelize(part.condition)}</Text>
-                  <Text style={styles.railTitle} numberOfLines={2}>
-                    {part.name}
-                  </Text>
-                  <Text style={styles.railMeta}>{part.partNumber}</Text>
-                  <Text style={styles.railPrice}>
-                    ₹{Number(part.price).toLocaleString('en-IN')}
-                  </Text>
+                  {part.imageUrl ? (
+                    <Image
+                      source={{ uri: part.imageUrl }}
+                      style={styles.railImage}
+                      contentFit="cover"
+                      transition={120}
+                    />
+                  ) : null}
+                  <View style={styles.railBody}>
+                    <Text style={styles.railKicker}>{labelize(part.condition)}</Text>
+                    <Text style={styles.railTitle} numberOfLines={2}>
+                      {part.name}
+                    </Text>
+                    <Text style={styles.railMeta}>{part.partNumber}</Text>
+                    <Text style={styles.railPrice}>
+                      ₹{Number(part.price).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
                 </PressableScale>
               ))
             )}
@@ -538,6 +557,22 @@ export default function HomeScreen() {
                 <Text style={styles.packageCta}>Get quotes</Text>
               </PressableScale>
             ))}
+          </View>
+
+          {/* Editorial image band — one owned photo, one line */}
+          <View style={styles.band}>
+            <Image
+              source={require('../../../assets/images/hero-secondary.jpg')}
+              style={styles.bandImage}
+              contentFit="cover"
+              transition={200}
+            />
+            <View style={styles.bandScrim} />
+            <View style={styles.bandContent}>
+              <Text style={styles.bandTitle}>Every repair,{`
+`}documented.</Text>
+              <Text style={styles.bandMeta}>Photo quotes · escrow payments</Text>
+            </View>
           </View>
 
           {/* History — second horizontal rail */}
@@ -874,13 +909,13 @@ const styles = StyleSheet.create({
   rail: { gap: spacing.sm, paddingRight: spacing.lg },
   railCard: {
     width: 172,
-    minHeight: 128,
-    padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
-    justifyContent: 'space-between',
+    overflow: 'hidden',
   },
+  railImage: { width: '100%', height: 72, backgroundColor: palette.surfaceAlt },
+  railBody: { padding: spacing.md, minHeight: 112, gap: 4 },
   railKicker: {
     fontFamily: fontFamilyMono,
     fontSize: 10,
@@ -900,6 +935,39 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontVariant: ['tabular-nums'],
   },
+  band: {
+    height: 184,
+    marginTop: spacing.xl,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: palette.surfaceAlt,
+  },
+  bandImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  bandScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(16, 18, 20, 0.46)',
+  },
+  bandContent: { flex: 1, justifyContent: 'flex-end', padding: spacing.lg },
+  bandTitle: {
+    fontFamily: displayFamily,
+    fontSize: 24,
+    lineHeight: 27,
+    letterSpacing: -0.3,
+    color: palette.textPrimary,
+  },
+  bandMeta: { ...typography.label, color: palette.textSecondary, marginTop: 4 },
   assurance: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
