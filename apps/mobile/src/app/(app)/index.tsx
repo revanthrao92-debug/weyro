@@ -68,8 +68,12 @@ function bookingTone(status: string): StatusTone {
 }
 
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
+/**
+ * WEYRO-owned hero plate (night garage, graphite sedan, orange rim light).
+ * Cropped from assets/images/hero-primary.jpg; contentPosition="right"
+ * keeps the car in frame on portrait phones.
+ */
+const HERO_IMAGE = require('../../../assets/images/hero-primary.jpg');
 const QUICK_ACTIONS = [
   { label: 'Repair', Icon: Wrench, route: '/requests/create?category=REPAIR' },
   { label: 'Spare Parts', Icon: Package, route: '/shop' },
@@ -152,7 +156,13 @@ export default function HomeScreen() {
           calm upper band. The garage card below rises over the hero edge. */}
       <View style={[styles.hero, { paddingTop: 48 }]}>
         <Animated.View style={[styles.heroImageWrap, heroParallax]}>
-          <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
+          <Image
+            source={HERO_IMAGE}
+            style={styles.heroImage}
+            contentFit="cover"
+            contentPosition="right"
+            transition={250}
+          />
         </Animated.View>
         <View style={styles.heroShade} />
         <RadialGlow size={340} opacity={0.12} style={styles.heroGlow} />
