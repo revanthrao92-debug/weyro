@@ -28,13 +28,13 @@ export const glass = {
   borderStrong: GLASS_ENABLED ? 'rgba(255, 255, 255, 0.22)' : palette.borderStrong,
 
   // Depth — the darker layer strokes under the surface
-  innerShade: 'rgba(0, 0, 0, 0.28)',
+  innerShade: 'rgba(23, 25, 28, 0.4)',
 
   // Panel-over-glass (>Login sheet, modals): darker, frosted
   sheet: GLASS_ENABLED ? 'rgba(20, 22, 24, 0.78)' : palette.surface,
 
   // Accent-glass: orange CTA with glass treatment
-  accentBg: GLASS_ENABLED ? alpha('#FF5A1F', 0.16) : palette.accentSoftBg,
+  accentBg: GLASS_ENABLED ? alpha(palette.accent, 0.16) : palette.accentSoftBg,
 } as const;
 
 /**

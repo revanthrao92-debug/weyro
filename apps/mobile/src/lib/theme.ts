@@ -17,22 +17,22 @@ import {
  * (reactnativereusables.com/docs/installation/manual#configure-your-styles).
  */
 const COLORS = {
-  /** canvas — #080B0E */
-  background: 'hsl(225 8% 5%)', /* #0B0C0E */
-  /** surface — #171D23 */
-  card: 'hsl(225 8% 11%)', /* #191C20 */
-  /** border — #303941 */
-  border: 'hsl(222 6% 24%)', /* #3A3F45 */
-  /** accent — #F47721 (links/active) */
-  primary: 'hsl(22 100% 56%)', /* #FF5A1F */
-  /** textPrimary — #F5F6F7 */
-  text: 'hsl(220 4% 96%)', /* #F4F5F6 */
-  /** danger — #E06455 */
-  notification: 'hsl(4 66% 61%)', /* danger */
+  /** graphite — #17191C */
+  background: 'hsl(216 10% 10%)',
+  /** raised graphite — #1C1F23 */
+  card: 'hsl(214 11% 12%)',
+  /** titanium 18% — #313437 */
+  border: 'hsl(214 6% 20%)',
+  /** performance orange — #FF5A1F */
+  primary: 'hsl(17 100% 56%)',
+  /** titanium — #A7ADB4 */
+  text: 'hsl(212 8% 68%)',
+  /** functional error — #E06455 */
+  notification: 'hsl(7 68% 61%)',
 } as const;
 
 const LIGHT_TOKENS = {
-  // Both themes resolve dark: Weyro ships single-mode dark (Carbon identity).
+  // Both themes resolve dark: Weyro ships single-mode dark (three-colour identity).
   background: COLORS.background,
   foreground: COLORS.text,
   card: COLORS.card,
@@ -40,15 +40,15 @@ const LIGHT_TOKENS = {
   popover: COLORS.card,
   popoverForeground: COLORS.text,
   primary: COLORS.primary,
-  primaryForeground: 'hsl(0 0% 100%)',
-  secondary: 'hsl(200 27% 96%)',
+  primaryForeground: 'hsl(216 10% 10%)',
+  secondary: 'hsl(216 12% 8%)',
   secondaryForeground: COLORS.text,
-  muted: 'hsl(200 27% 96%)',
-  mutedForeground: 'hsl(202 15% 39%)',
-  accent: 'hsl(200 27% 96%)',
+  muted: 'hsl(216 12% 8%)',
+  mutedForeground: 'hsl(212 5% 52%)',
+  accent: 'hsl(216 12% 8%)',
   accentForeground: COLORS.text,
   destructive: COLORS.notification,
-  destructiveForeground: 'hsl(0 0% 100%)',
+  destructiveForeground: 'hsl(216 10% 10%)',
   border: COLORS.border,
   input: COLORS.border,
   ring: COLORS.primary,

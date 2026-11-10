@@ -1,4 +1,5 @@
 import { Svg, Path, Circle, Line } from 'react-native-svg';
+import { palette } from '@/theme';
 
 /**
  * Porsche 911 side-profile sketch — line art for dark hero backgrounds.
@@ -12,7 +13,7 @@ import { Svg, Path, Circle, Line } from 'react-native-svg';
  */
 
 export function PorscheSketch911({
-  color = '#FFFFFF',
+  color = palette.textPrimary,
   opacity = 0.22,
   strokeWidth = 2.5,
 }: {

@@ -315,11 +315,11 @@ const mapCard = StyleSheet.create({
   },
   inner: {
     ...{ width: '100%', height: '100%' },
-    backgroundColor: '#16181C',
+    backgroundColor: palette.surfaceAlt,
     position: 'relative',
   },
-  bgLine: { width: '100%', height: 1, backgroundColor: '#22262B', position: 'absolute', top: 40 },
-  bgLine2: { height: '100%', width: 1, backgroundColor: '#22262B', position: 'absolute', left: 96 },
+  bgLine: { width: '100%', height: 1, backgroundColor: palette.border, position: 'absolute', top: 40 },
+  bgLine2: { height: '100%', width: 1, backgroundColor: palette.border, position: 'absolute', left: 96 },
   route: {
     position: 'absolute',
     top: 70,

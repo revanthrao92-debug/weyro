@@ -193,7 +193,7 @@ export default function HomeScreen() {
               style={[styles.quickItem, elevation.card]}
             >
               <View style={styles.quickCircle}>
-                <Icon size={22} color={palette.teal} strokeWidth={1.75} />
+                <Icon size={22} color={palette.accent} strokeWidth={1.75} />
               </View>
               <Text style={styles.quickLabel} maxFontSizeMultiplier={2}>
                 {label}
@@ -324,7 +324,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   hero: {
-    backgroundColor: palette.headerAlt,
+    backgroundColor: palette.header,
     paddingTop: 24,
   },
   heroImage: { position: 'absolute', inset: 0, width: '100%', height: '100%' },
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  heroShade: { position: 'absolute', inset: 0, backgroundColor: 'rgba(3, 4, 5, 0.42)' },
+  heroShade: { position: 'absolute', inset: 0, backgroundColor: palette.scrim },
   heroInner: {
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.lg,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
-    backgroundColor: 'rgba(11, 12, 14, 0.88)',
+    backgroundColor: palette.canvas,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     borderTopWidth: 1,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: palette.teal,
+    backgroundColor: palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radii.md,
-    backgroundColor: palette.tealSoftBg,
+    backgroundColor: palette.accentSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   link: {
     ...typography.captionMedium,
-    color: palette.teal,
+    color: palette.accent,
   },
   section: { marginBottom: spacing.lg },
 

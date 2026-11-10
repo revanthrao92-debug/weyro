@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(3, 25, 35, 0.82)',
+    backgroundColor: palette.scrimStrong,
     paddingHorizontal: spacing.md,
   },
   textCol: {

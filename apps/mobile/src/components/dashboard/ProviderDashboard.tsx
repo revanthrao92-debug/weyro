@@ -118,7 +118,7 @@ export default function ProviderDashboard() {
           {kpis.map(({ label, value, Icon }) => (
             <View style={styles.kpiCard} key={label}>
               <View style={styles.kpiIcon}>
-                <Icon size={18} color={palette.teal} strokeWidth={1.75} />
+                <Icon size={18} color={palette.accent} strokeWidth={1.75} />
               </View>
               {loading ? (
                 <Skeleton width={36} height={22} />
@@ -235,7 +235,7 @@ export default function ProviderDashboard() {
 
 const styles = StyleSheet.create({
   hero: {
-    backgroundColor: palette.headerAlt,
+    backgroundColor: palette.header,
   },
   heroInner: {
     paddingHorizontal: spacing.lg,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: radii.sm,
-    backgroundColor: palette.tealSoftBg,
+    backgroundColor: palette.accentSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   link: {
     ...typography.captionMedium,
-    color: palette.teal,
+    color: palette.accent,
   },
   feed: { gap: spacing.sm },
   feedCard: {
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(3, 4, 5, 0.62)',
+    backgroundColor: palette.scrimStrong,
   },
   feedInner: {
     flexDirection: 'row',

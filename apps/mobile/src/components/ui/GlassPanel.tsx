@@ -39,8 +39,8 @@ export function GlassPanel({
         styles.layers,
         {
           borderRadius: radius,
-          backgroundColor: `rgba(255, 255, 255, ${bgAlpha.toFixed(2)})`,
-          borderColor: `rgba(255, 255, 255, ${borderAlpha.toFixed(2)})`,
+          backgroundColor: `rgba(167, 173, 180, ${bgAlpha.toFixed(2)})`,
+          borderColor: `rgba(167, 173, 180, ${borderAlpha.toFixed(2)})`,
         },
         style,
       ]}
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   layers: {},
   scrim: {
     ...{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(23, 25, 28, 0.2)',
   },
   content: {},
 });

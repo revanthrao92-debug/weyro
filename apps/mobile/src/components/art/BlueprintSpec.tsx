@@ -1,5 +1,6 @@
 import { Svg, Path, Line, Text as SvgText, Circle, G } from 'react-native-svg';
 import { View, StyleSheet } from 'react-native';
+import { palette } from '@/theme';
 
 /**
  * Porsche 911 GT3 RS technical blueprint (scalable SVG).
@@ -11,7 +12,7 @@ import { View, StyleSheet } from 'react-native';
  * zero network dependency. Used on Home hero + empty states.
  */
 
-const ORANGE = '#FF5A1F';
+const ORANGE = palette.accent;
 
 interface BlueprintProps {
   color?: string;
@@ -23,7 +24,7 @@ interface BlueprintProps {
 }
 
 export function BlueprintSpec({
-  color = '#F5F6F7',
+  color = palette.textPrimary,
   opacity = 0.3,
   grid = true,
   dimensions = true,

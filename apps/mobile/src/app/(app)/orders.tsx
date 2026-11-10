@@ -199,7 +199,7 @@ const cardStyles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(4, 21, 30, 0.66)',
+    backgroundColor: palette.scrimStrong,
   },
   photoInner: {
     flexDirection: 'row',

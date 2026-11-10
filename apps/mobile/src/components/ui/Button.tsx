@@ -27,7 +27,7 @@ const VARIANTS = {
   },
   destructive: {
     backgroundColor: palette.danger,
-    pressedColor: '#C95547',
+    pressedColor: palette.dangerPressed,
     textColor: palette.onDanger,
     borderColor: palette.danger,
   },

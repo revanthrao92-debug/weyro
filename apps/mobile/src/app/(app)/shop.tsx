@@ -71,7 +71,7 @@ export default function ShopScreen() {
             style={styles.catTile}
           >
             <View style={styles.catIconWrap}>
-              <c.Icon size={22} color={palette.teal} strokeWidth={1.75} />
+              <c.Icon size={22} color={palette.accent} strokeWidth={1.75} />
             </View>
             <Text style={styles.catLabel} maxFontSizeMultiplier={2}>
               {c.label}

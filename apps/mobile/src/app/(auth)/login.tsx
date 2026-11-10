@@ -108,7 +108,7 @@ export default function LoginScreen() {
           right: 0,
           bottom: 0,
           left: 0,
-          backgroundColor: 'rgba(3, 4, 5, 0.42)',
+          backgroundColor: palette.scrim,
         }}
       />
 
@@ -303,7 +303,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#08090B',
+    backgroundColor: palette.canvas,
   },
 
   blueprint: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: glass.border,
-    backgroundColor: 'rgba(25, 28, 32, 0.85)',
+    backgroundColor: palette.surface,
   },
   roleChipSelected: {
     borderColor: palette.accent,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: 'rgba(20, 22, 24, 0.7)',
+    backgroundColor: palette.surfaceAlt,
     borderWidth: 1,
     borderColor: glass.border,
     borderRadius: radii.md,
@@ -422,9 +422,9 @@ const styles = StyleSheet.create({
   loginGlow: {
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 90, 31, 0.5)',
+    borderColor: palette.accentSoftBg,
     padding: 2,
-    backgroundColor: 'rgba(255, 90, 31, 0.12)',
+    backgroundColor: palette.accentSoftBg,
   },
   loginBtn: {
     alignItems: 'center',

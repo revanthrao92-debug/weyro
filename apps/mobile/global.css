@@ -4,49 +4,49 @@
 
 @layer base {
   /*
-   * Weyro — Carbon identity (dark-only). NativeWind mirror of src/theme/colors.ts.
+   * Weyro — THREE-COLOUR SYSTEM (graphite / titanium / orange). NativeWind mirror of src/theme/colors.ts.
    *
    * Space-separated HSL triples consumed by `tailwind.config.js` as
    * `hsl(var(--token))`. Values are mirrored from `src/theme/colors.ts`
    * (the single source of truth for the StyleSheet layer) — keep in sync.
    */
   :root {
-    /* Carbon identity — mirrors src/theme/colors.ts. Dark-only app. */
-    --background: 225 21% 5%; /* #0B0C0E canvas */
-    --foreground: 210 8% 96%; /* #F4F5F6 titanium */
-    --card: 218 12% 11%; /* #191C20 surface */
-    --card-foreground: 210 8% 96%;
-    --popover: 218 12% 11%;
-    --popover-foreground: 210 8% 96%;
+    /* THREE-COLOUR SYSTEM — mirrors src/theme/colors.ts. Dark-only. */
+    --background: 216 10% 10%; /* #17191C graphite */
+    --foreground: 212 8% 68%; /* #A7ADB4 titanium */
+    --card: 214 11% 12%; /* #1C1F23 raised graphite */
+    --card-foreground: 212 8% 68%;
+    --popover: 214 11% 12%;
+    --popover-foreground: 212 8% 68%;
 
-    /* CTA — racing orange, near-black label */
+    /* Performance orange — actions only */
     --primary: 17 100% 56%; /* #FF5A1F */
-    --primary-foreground: 210 27% 4%; /* #080B0E */
-    --primary-pressed: 17 81% 49%; /* #E14E17 */
+    --primary-foreground: 216 10% 10%; /* graphite label */
+    --primary-pressed: 16 81% 49%; /* #E24E18 */
 
-    /* Secondary / muted */
-    --secondary: 213 11% 16%; /* #24282D */
-    --secondary-foreground: 210 8% 96%;
-    --muted: 213 11% 16%;
-    --muted-foreground: 210 6% 66%; /* #A5A9AD */
+    /* Inset / muted — graphite shade + titanium 80% */
+    --secondary: 216 12% 8%; /* #121417 */
+    --secondary-foreground: 212 8% 68%;
+    --muted: 216 12% 8%;
+    --muted-foreground: 212 5% 52%; /* #7E838A titanium ~72% (AA) */
 
-    --accent: 213 11% 16%;
-    --accent-foreground: 210 8% 96%;
+    --accent: 216 12% 8%;
+    --accent-foreground: 212 8% 68%;
 
-    /* Destructive */
-    --destructive: 6 68% 61%; /* #E06455 */
-    --destructive-foreground: 210 27% 4%;
+    /* Functional red — destructive/error only */
+    --destructive: 7 68% 61%; /* #E06455 */
+    --destructive-foreground: 216 10% 10%;
 
-    /* Lines & focus */
-    --border: 213 9% 25%; /* #3A3F45 */
-    --border-strong: 214 9% 32%; /* #4A5058 */
-    --input: 213 9% 25%;
+    /* Lines — titanium 18% / 30% */
+    --border: 214 6% 20%; /* #313437 */
+    --border-strong: 214 5% 27%; /* #424549 */
+    --input: 214 6% 20%;
     --ring: 17 100% 56%;
 
-    /* Dark chrome */
-    --header: 225 21% 5%;
-    --on-header: 210 8% 96%;
-    --on-header-muted: 210 6% 69%;
+    /* Chrome — graphite */
+    --header: 216 10% 10%;
+    --on-header: 212 8% 68%;
+    --on-header-muted: 212 5% 52%;
 
     /* Geometry — rounded-md = 12px */
     --radius: 0.875rem;

@@ -1,87 +1,79 @@
 /**
- * Weyro theme — colors. PREMIUM AUTOMOTIVE / MOTORSPORT LUXURY ("Carbon").
- * Single source of truth for every color used in the app.
- * Do NOT hardcode hex values in screens; import from here.
+ * Weyro theme — colours.
  *
- * Identity: carbon-black canvas, graphite chrome, elevated surfaces,
- * metallic hairline borders, restrained racing-orange accent.
- * Titanium type. Semantic colors are dark-mode-adjusted.
+ * THREE-COLOUR SYSTEM (single source of truth):
+ *   Graphite Black    #17191C  — backgrounds, surfaces, navigation
+ *   Titanium Silver   #A7ADB4  — text, borders, dividers, icons
+ *   Performance Orange #FF5A1F — actions, selection, active nav, highlights
  *
- * Every token name is kept stable (API-compatible with the teal-era screens);
- * the VALUES changed with the identity cutover (tag `pre-carbon`).
+ * Everything else is a tint/shade of those three (graphite raised/inset,
+ * titanium opacity steps, orange pressed/tint). One functional red exists
+ * only for destructive/error states — never decoratively.
+ *
+ * Legacy token names are kept where screens still reference them, so the
+ * palette can change without touching component APIs.
  */
 
 export const palette = {
-  // Content surfaces — dark by default now
-  canvas: '#0B0C0E', // near-black page background
-  surface: '#191C20', // Graphite — cards
-  surfaceAlt: '#24282D', // Dark surface — elevated cards, inputs
+  // Graphite Black — primary background / surfaces / navigation
+  canvas: '#17191C',
+  surface: '#1C1F23', // raised (cards)
+  surfaceAlt: '#121417', // inset (inputs, well behind imagery)
 
-  // Dark chrome (headers, hero, tab bar)
-  header: '#0B0C0E', // same as canvas — header chrome
-  headerAlt: '#191C20', // hero blocks match card tone
-  onHeader: '#F5F6F7', // Titanium White
-  onHeaderMuted: '#A3ADB6', // Secondary Text
+  // Chrome — same graphite
+  header: '#17191C',
+  headerAlt: '#17191C',
+  onHeader: '#A7ADB4', // titanium
+  onHeaderMuted: '#8A8F96', // titanium 80%
+  scrim: 'rgba(23, 25, 28, 0.55)',
+  scrimStrong: 'rgba(23, 25, 28, 0.78)', // over photography where text must stay readable
 
-  // Lines
-  border: '#3A3F45', // hairline borders
-  borderStrong: '#4A5058', // stronger hairline
+  // Titanium Silver — hierarchy, lines, icons
+  border: '#313437', // titanium 18% over graphite
+  borderStrong: '#424549', // titanium 30% over graphite
+  textPrimary: '#A7ADB4',
+  textSecondary: '#8A8F96', // titanium 80%
+  textMuted: '#7E838A', // titanium ~72% (4.61:1 — AA)
 
-  // Text (three roles)
-  textPrimary: '#F4F5F6', // Titanium
-  textSecondary: '#A5A9AD', // Metallic grey
-  textMuted: '#8A8F94', // muted role
+  // Performance Orange — meaningful interactions only
+  accent: '#FF5A1F',
+  accentPressed: '#E24E18',
+  accentSoftBg: 'rgba(255, 90, 31, 0.12)',
+  onAccent: '#17191C',
 
-  // CTA — Racing Orange (primary buttons only)
-  accent: '#FF5A1F', // Racing Orange — primary actions
-  accentPressed: '#E14E17', // darker orange on press
-  accentSoftBg: '#FF5A1F22', // orange tint
-  onAccent: '#080B0E', // Carbon ink on orange (≈9:1 contrast)
+  // Legacy aliases — resolve to the orange accent
+  teal: '#FF5A1F',
+  tealPressed: '#E24E18',
+  tealSoftBg: 'rgba(255, 90, 31, 0.12)',
 
-  // Legacy alias — link/active color. In Carbon identity, links use the accent.
-  teal: '#FF5A1F', // === accent (orange identity)
-  tealPressed: '#E14E17',
-  tealSoftBg: '#FF5A1F22',
-
-  // New-world additions
-  chrome: '#10151A', // synonym of header
-  elevated: '#171D23', // synonym of surface
-  inset: '#1B222A', // synonym of surfaceAlt
-  metallic: '#303941', // synonym of border
-  highlight: '#FF8A32', // Orange highlight (logo gradient end)
-  scrim: 'rgba(3, 4, 5, 0.72)', // carbon scrim
-  scrimSoft: 'rgba(3, 4, 5, 0.52)',
-  panel: '#141618', // deep panel behind imagery
-  glass: 'rgba(244, 245, 246, 0.08)', // titanium glass
-  glassBorder: 'rgba(244, 245, 246, 0.14)',
-
-  // Semantic — dark-mode-adjusted pairs
-  success: '#4CBB87',
-  successSoftBg: '#12271C',
-  warning: '#E0A32E',
-  warningSoftBg: '#2B230F',
+  // Functional only — destructive / error
   danger: '#E06455',
-  dangerSoftBg: '#2B1414',
+  dangerPressed: '#C95547',
+  dangerSoftBg: 'rgba(224, 100, 85, 0.12)',
+  onDanger: '#17191C',
 
-  // On-color text
-  onSuccess: '#080B0E',
-  onWarning: '#080B0E',
-  onDanger: '#080B0E',
+  // Status tokens (no green/amber — status is carried by label + orange/titanium)
+  success: '#A7ADB4',
+  successSoftBg: '#1C1F23',
+  warning: '#FF5A1F',
+  warningSoftBg: 'rgba(255, 90, 31, 0.12)',
+  onSuccess: '#17191C',
+  onWarning: '#17191C',
 
   // Utility
-  overlay: 'rgba(0, 0, 0, 0.65)',
+  overlay: 'rgba(23, 25, 28, 0.72)',
   transparent: 'transparent',
-  white: '#FFFFFF',
+  white: '#A7ADB4', // titanium — do not introduce a fourth text colour
 } as const;
 
 export type ColorToken = keyof typeof palette;
 
-/** Map a high-level semantic role to a concrete color for status pills, etc. */
+/** Map a high-level semantic role to a concrete colour for status pills. */
 export const statusColors = {
   neutral: { fg: palette.textSecondary, bg: palette.surfaceAlt },
   info: { fg: palette.accent, bg: palette.accentSoftBg },
-  success: { fg: palette.success, bg: palette.successSoftBg },
-  warning: { fg: palette.warning, bg: palette.warningSoftBg },
+  success: { fg: palette.textPrimary, bg: palette.surfaceAlt },
+  warning: { fg: palette.accent, bg: palette.accentSoftBg },
   danger: { fg: palette.danger, bg: palette.dangerSoftBg },
 } as const;
 
