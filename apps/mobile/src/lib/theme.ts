@@ -18,15 +18,15 @@ import {
  */
 const COLORS = {
   /** graphite — #17191C */
-  background: 'hsl(216 10% 10%)',
+  background: 'hsl(210 11% 7%)',
   /** raised graphite — #1C1F23 */
-  card: 'hsl(214 11% 12%)',
+  card: 'hsl(214 11% 13%)',
   /** titanium 18% — #313437 */
-  border: 'hsl(214 6% 20%)',
+  border: 'hsl(210 7% 18%)',
   /** performance orange — #FF5A1F */
   primary: 'hsl(17 100% 56%)',
   /** titanium — #A7ADB4 */
-  text: 'hsl(212 8% 68%)',
+  text: 'hsl(60 8% 96%)',
   /** functional error — #E06455 */
   notification: 'hsl(7 68% 61%)',
 } as const;
@@ -40,15 +40,15 @@ const LIGHT_TOKENS = {
   popover: COLORS.card,
   popoverForeground: COLORS.text,
   primary: COLORS.primary,
-  primaryForeground: 'hsl(216 10% 10%)',
-  secondary: 'hsl(216 12% 8%)',
+  primaryForeground: 'hsl(210 11% 7%)',
+  secondary: 'hsl(216 10% 10%)',
   secondaryForeground: COLORS.text,
-  muted: 'hsl(216 12% 8%)',
+  muted: 'hsl(216 10% 10%)',
   mutedForeground: 'hsl(212 5% 52%)',
-  accent: 'hsl(216 12% 8%)',
+  accent: 'hsl(216 10% 10%)',
   accentForeground: COLORS.text,
   destructive: COLORS.notification,
-  destructiveForeground: 'hsl(216 10% 10%)',
+  destructiveForeground: 'hsl(210 11% 7%)',
   border: COLORS.border,
   input: COLORS.border,
   ring: COLORS.primary,

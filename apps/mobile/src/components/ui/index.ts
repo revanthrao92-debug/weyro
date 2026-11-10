@@ -59,4 +59,8 @@ export { AdBanner } from './AdBanner';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
 
 export { FadeSlideIn, PressableScale } from './Motion';
+export { BottomFade, MetallicEdge, RadialGlow, Surface } from './Metallic';
+export type { BottomFadeProps, MetallicEdgeProps, RadialGlowProps, SurfaceProps } from './Metallic';
+export { Section } from './Section';
+export type { SectionProps } from './Section';
 export type { FadeSlideInProps, PressableScaleProps } from './Motion';

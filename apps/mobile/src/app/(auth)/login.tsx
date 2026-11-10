@@ -10,6 +10,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
 import {
   Mail,
   Lock,
@@ -25,7 +26,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
 import { palette, spacing, radii, typography, displayFamily, stagger } from '@/theme';
-import { FadeSlideIn, PressableScale } from '@/components/ui';
+import { FadeSlideIn, PressableScale, RadialGlow } from '@/components/ui';
 import { glass } from '@/theme/glass';
 import { PorscheSketch911 } from '@/components/art/PorscheSketch911';
 
@@ -251,6 +252,7 @@ export default function LoginScreen() {
 
           {/* 7. orange login pill */}
           <FadeSlideIn delay={stagger(6)}>
+          <RadialGlow size={340} opacity={0.13} style={styles.ctaGlow} />
           <View style={styles.loginGlow}>
             <PressableScale
               accessibilityRole="button"
@@ -281,6 +283,7 @@ export default function LoginScreen() {
               onPress={() => router.push('/(auth)/register')}
               scaleTo={0.98}
             >
+              <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
               <Text style={styles.createBtnText}>Create account</Text>
             </PressableScale>
           </FadeSlideIn>
@@ -419,6 +422,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
+  ctaGlow: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: -90,
+  },
   loginGlow: {
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
@@ -457,6 +465,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 54,
     marginTop: spacing.sm,
+    overflow: 'hidden',
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: glass.border,

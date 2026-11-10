@@ -24,6 +24,9 @@ import {
   StatusPill,
   AdBanner,
   PressableScale,
+  BottomFade,
+  MetallicEdge,
+  RadialGlow,
 } from '@/components/ui';
 import { StatusTone, palette, spacing, radii, typography, elevation } from '@/theme';
 import { glass } from '@/theme/glass';
@@ -152,6 +155,7 @@ export default function HomeScreen() {
           <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} />
         </Animated.View>
         <View style={styles.heroShade} />
+        <RadialGlow size={340} opacity={0.12} style={styles.heroGlow} />
         <View style={styles.heroSketch} pointerEvents="none">
           <PorscheSketch911 opacity={0.14} strokeWidth={2.5} />
         </View>
@@ -176,10 +180,12 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
+          <Text style={styles.heroEyebrow}>Weyro · Premium care</Text>
           <Text style={styles.greeting}>Your garage,</Text>
           <Text style={styles.greetingName}>{firstName}</Text>
           <Text style={styles.heroTagline}>Your vehicle, our priority.</Text>
         </View>
+        <BottomFade height={120} />
       </View>
 
       <Animated.ScrollView
@@ -202,6 +208,7 @@ export default function HomeScreen() {
           scaleTo={0.98}
           style={styles.requestCard}
         >
+          <MetallicEdge style={styles.cardEdge} opacity={0.18} />
           <View style={{ flex: 1 }}>
             <Text style={styles.requestCardTitle}>Request a Service</Text>
             <Text style={styles.requestCardSubtitle}>
@@ -224,6 +231,7 @@ export default function HomeScreen() {
               scaleTo={0.96}
               style={[styles.quickItem, elevation.card]}
             >
+              <MetallicEdge style={styles.cardEdge} opacity={0.14} />
               <View style={styles.quickCircle}>
                 <Icon size={22} color={palette.accent} strokeWidth={1.75} />
               </View>
@@ -358,6 +366,20 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: palette.header,
     paddingTop: 24,
+    minHeight: 340,
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -90,
+  },
+  heroEyebrow: {
+    ...typography.label,
+    color: palette.textSecondary,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
   },
   heroImageWrap: {
     position: 'absolute',
@@ -407,6 +429,9 @@ const styles = StyleSheet.create({
     ...typography.display,
     color: palette.onHeader,
     fontWeight: '600',
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -0.6,
     marginTop: 2,
   },
   heroTagline: {
@@ -436,11 +461,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: glass.bg,
+    backgroundColor: palette.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: glass.border,
+    borderColor: palette.border,
     padding: spacing.lg,
+    overflow: 'hidden',
+  },
+  cardEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   requestCardTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   requestCardSubtitle: {

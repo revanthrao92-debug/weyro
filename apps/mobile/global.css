@@ -12,41 +12,41 @@
    */
   :root {
     /* THREE-COLOUR SYSTEM — mirrors src/theme/colors.ts. Dark-only. */
-    --background: 216 10% 10%; /* #17191C graphite */
-    --foreground: 212 8% 68%; /* #A7ADB4 titanium */
-    --card: 214 11% 12%; /* #1C1F23 raised graphite */
-    --card-foreground: 212 8% 68%;
+    --background: 210 11% 7%; /* #101214 deep */
+    --foreground: 60 8% 96%; /* #F5F5F3 text */
+    --card: 214 11% 13%; /* #1D2024 elevated */
+    --card-foreground: 60 8% 96%;
     --popover: 214 11% 12%;
-    --popover-foreground: 212 8% 68%;
+    --popover-foreground: 60 8% 96%;
 
     /* Performance orange — actions only */
     --primary: 17 100% 56%; /* #FF5A1F */
-    --primary-foreground: 216 10% 10%; /* graphite label */
+    --primary-foreground: 210 11% 7%; /* deep label */
     --primary-pressed: 16 81% 49%; /* #E24E18 */
 
     /* Inset / muted — graphite shade + titanium 80% */
-    --secondary: 216 12% 8%; /* #121417 */
-    --secondary-foreground: 212 8% 68%;
-    --muted: 216 12% 8%;
+    --secondary: 216 10% 10%; /* #17191C graphite inset */
+    --secondary-foreground: 60 8% 96%;
+    --muted: 216 10% 10%;
     --muted-foreground: 212 5% 52%; /* #7E838A titanium ~72% (AA) */
 
-    --accent: 216 12% 8%;
-    --accent-foreground: 212 8% 68%;
+    --accent: 216 10% 10%;
+    --accent-foreground: 60 8% 96%;
 
     /* Functional red — destructive/error only */
     --destructive: 7 68% 61%; /* #E06455 */
-    --destructive-foreground: 216 10% 10%;
+    --destructive-foreground: 210 11% 7%;
 
     /* Lines — titanium 18% / 30% */
-    --border: 214 6% 20%; /* #313437 */
-    --border-strong: 214 5% 27%; /* #424549 */
-    --input: 214 6% 20%;
+    --border: 210 7% 18%; /* #2B2E31 */
+    --border-strong: 206 5% 25%; /* #3D4144 */
+    --input: 210 7% 18%;
     --ring: 17 100% 56%;
 
     /* Chrome — graphite */
-    --header: 216 10% 10%;
-    --on-header: 212 8% 68%;
-    --on-header-muted: 212 5% 52%;
+    --header: 210 11% 7%;
+    --on-header: 60 8% 96%;
+    --on-header-muted: 212 8% 68%;
 
     /* Geometry — rounded-md = 12px */
     --radius: 0.875rem;

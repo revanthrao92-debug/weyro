@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { WeyroTabBar } from '@/components/navigation/WeyroTabBar';
 import { palette, fontFamilyMedium } from '@/theme';
 
 /**
@@ -91,6 +92,11 @@ export default function AppLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => (
+        <WeyroTabBar
+          {...(props as unknown as React.ComponentProps<typeof WeyroTabBar>)}
+        />
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: palette.accent,
