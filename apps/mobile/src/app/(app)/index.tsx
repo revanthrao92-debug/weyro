@@ -22,6 +22,7 @@ import {
   StatusPill,
   PressableScale,
   SideFade,
+  AdSlot,
 } from '@/components/ui';
 import {
   StatusTone,
@@ -85,6 +86,16 @@ const SERVICES = [
 ];
 
 const ROADSIDE_KINDS = ['Battery', 'Tyre', 'Fuel', 'Tow'];
+
+/** Shop navigation categories — used when the catalogue has no listings yet. */
+const PART_CATEGORIES = [
+  { label: 'Brakes', detail: 'Pads, discs, fluid' },
+  { label: 'Filters', detail: 'Oil, air, cabin' },
+  { label: 'Batteries', detail: 'Start-stop, EFB, AGM' },
+  { label: 'Suspension', detail: 'Shocks, bushes, links' },
+  { label: 'Engine', detail: 'Belts, sensors, gaskets' },
+  { label: 'Electrical', detail: 'Bulbs, relays, wiring' },
+];
 
 const PACKAGES = [
   { title: 'Standard service', detail: 'Oil, filters, 30-point check', category: 'MAINTENANCE' },
@@ -157,6 +168,9 @@ export default function HomeScreen() {
   const nextBooking = (bookingsQuery.data?.items ?? []).find(
     (b) => b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
   );
+  const historyBookings = (bookingsQuery.data?.items ?? [])
+    .filter((b) => b.status === 'COMPLETED' || b.status === 'CANCELLED')
+    .slice(0, 6);
   const loading = requestsQuery.isLoading || bookingsQuery.isLoading;
 
   if (role === 'ADMIN') {
@@ -446,6 +460,9 @@ export default function HomeScreen() {
             )}
           </View>
 
+          {/* Dedicated ad space — one per screen, labelled, never in the hero */}
+          <AdSlot placement="home-sponsored" />
+
           {/* Parts — always visible so the section rhythm never skips */}
           <Head
             index="04"
@@ -453,46 +470,49 @@ export default function HomeScreen() {
             action="Shop"
             onAction={() => router.push('/shop')}
           />
-          <View style={styles.index}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            contentContainerStyle={styles.rail}
+          >
             {parts.length === 0 ? (
-              <PressableScale
-                onPress={() => router.push('/shop')}
-                accessibilityRole="button"
-                accessibilityLabel="Browse the parts catalogue"
-                scaleTo={0.99}
-                style={styles.indexRow}
-              >
-                <View style={styles.indexText}>
-                  <Text style={styles.indexLabel}>Parts catalogue</Text>
-                  <Text style={styles.indexDetail}>Genuine and aftermarket parts</Text>
-                </View>
-                <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
-              </PressableScale>
+              PART_CATEGORIES.map((category) => (
+                <PressableScale
+                  key={category.label}
+                  onPress={() => router.push('/shop')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${category.label} parts`}
+                  scaleTo={0.98}
+                  style={styles.railCard}
+                >
+                  <Text style={styles.railKicker}>Catalogue</Text>
+                  <Text style={styles.railTitle}>{category.label}</Text>
+                  <Text style={styles.railMeta}>{category.detail}</Text>
+                </PressableScale>
+              ))
             ) : (
-              parts.map((part, i) => (
+              parts.map((part) => (
                 <PressableScale
                   key={part.id}
                   onPress={() => router.push(`/shop/${part.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`Part ${part.name}`}
-                  scaleTo={0.99}
-                  style={[styles.indexRow, i > 0 && styles.rowDivider]}
+                  scaleTo={0.98}
+                  style={styles.railCard}
                 >
-                  <View style={styles.indexText}>
-                    <Text style={styles.indexLabel} numberOfLines={1}>
-                      {part.name}
-                    </Text>
-                    <Text style={styles.indexDetail}>
-                      {part.partNumber} · {labelize(part.condition)}
-                    </Text>
-                  </View>
-                  <Text style={styles.partPrice}>
+                  <Text style={styles.railKicker}>{labelize(part.condition)}</Text>
+                  <Text style={styles.railTitle} numberOfLines={2}>
+                    {part.name}
+                  </Text>
+                  <Text style={styles.railMeta}>{part.partNumber}</Text>
+                  <Text style={styles.railPrice}>
                     ₹{Number(part.price).toLocaleString('en-IN')}
                   </Text>
                 </PressableScale>
               ))
             )}
-          </View>
+          </ScrollView>
 
           {/* Packages */}
           <Head index="05" title="Packages" />
@@ -517,6 +537,61 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.packageCta}>Get quotes</Text>
               </PressableScale>
+            ))}
+          </View>
+
+          {/* History — second horizontal rail */}
+          <Head
+            index="06"
+            title="History"
+            action="Bookings"
+            onAction={() => router.push('/bookings')}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            contentContainerStyle={styles.rail}
+          >
+            {historyBookings.length === 0 ? (
+              <View style={styles.railCard}>
+                <Text style={styles.railKicker}>No history</Text>
+                <Text style={styles.railTitle}>Completed services appear here</Text>
+              </View>
+            ) : (
+              historyBookings.map((booking) => (
+                <PressableScale
+                  key={booking.id}
+                  onPress={() => router.push(`/booking/${booking.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Past booking"
+                  scaleTo={0.98}
+                  style={styles.railCard}
+                >
+                  <Text style={styles.railKicker}>{labelize(booking.status)}</Text>
+                  <Text style={styles.railTitle} numberOfLines={2}>
+                    {booking.provider?.businessName ?? 'Booking'}
+                  </Text>
+                  <Text style={styles.railMeta}>
+                    {formatDate(booking.scheduledAt ?? booking.createdAt)}
+                  </Text>
+                </PressableScale>
+              ))
+            )}
+          </ScrollView>
+
+          {/* Assurance */}
+          <Head index="07" title="Assurance" />
+          <View style={styles.assurance}>
+            {[
+              ['Verified garages', 'Every partner is reviewed before quoting'],
+              ['Photo-based quotes', 'Prices come from the photos you upload'],
+              ['Escrow payments', 'Funds release after the work is complete'],
+            ].map(([label, detail], i) => (
+              <View key={label} style={[styles.assuranceRow, i > 0 && styles.rowDivider]}>
+                <Text style={styles.assuranceLabel}>{label}</Text>
+                <Text style={styles.assuranceDetail}>{detail}</Text>
+              </View>
             ))}
           </View>
 
@@ -796,6 +871,42 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],
   },
+  rail: { gap: spacing.sm, paddingRight: spacing.lg },
+  railCard: {
+    width: 172,
+    minHeight: 128,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    justifyContent: 'space-between',
+  },
+  railKicker: {
+    fontFamily: fontFamilyMono,
+    fontSize: 10,
+    color: palette.textMuted,
+  },
+  railTitle: { ...typography.captionMedium, color: palette.textPrimary, marginTop: 6 },
+  railMeta: {
+    fontFamily: fontFamilyMono,
+    fontSize: 10,
+    color: palette.textMuted,
+    marginTop: 4,
+  },
+  railPrice: {
+    fontFamily: fontFamilyMono,
+    fontSize: 13,
+    color: palette.textPrimary,
+    marginTop: 8,
+    fontVariant: ['tabular-nums'],
+  },
+  assurance: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  assuranceRow: { paddingVertical: spacing.md },
+  assuranceLabel: { ...typography.captionMedium, color: palette.textPrimary },
+  assuranceDetail: { ...typography.label, color: palette.textMuted, marginTop: 2 },
   packageCta: { ...typography.label, color: palette.textSecondary },
 
   footerRow: {
