@@ -107,7 +107,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.topBar}>
           <BackButton />
-          <Text style={styles.eyebrow}>New account · v3</Text>
+          <Text style={styles.eyebrow}>New account</Text>
           <View style={styles.topBarSpacer} />
         </View>
 
