@@ -14,6 +14,8 @@ export interface PhotoPickerProps {
   folder?: UploadFolder;
   /** Notifies the parent while uploads are in flight (e.g. to disable submit). */
   onUploadingChange?: (busy: boolean) => void;
+  /** Replaces the default helper line. */
+  helper?: string;
 }
 
 const TILE = 92;
@@ -29,6 +31,7 @@ export function PhotoPicker({
   max = 4,
   folder = 'damage-requests',
   onUploadingChange,
+  helper,
 }: PhotoPickerProps) {
   const [busy, setBusy] = useState(false);
   const remaining = Math.max(0, max - images.length);
@@ -134,7 +137,7 @@ export function PhotoPicker({
         <View style={styles.hint}>
           <Camera size={16} color={palette.textMuted} strokeWidth={2} />
           <Text style={styles.hintText} maxFontSizeMultiplier={2}>
-            Up to {max} photos help providers quote accurately.
+            {helper ?? `Up to ${max} photos help providers quote accurately.`}
           </Text>
         </View>
       ) : null}
