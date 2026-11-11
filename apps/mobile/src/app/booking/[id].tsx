@@ -5,30 +5,27 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { humanizeKey as labelize, bookingStatusTone as statusTone } from '@/utils/format';
-import { palette, spacing, typography, radii } from '@/theme';
+import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
+import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
 import { useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
-import { CostBreakdown } from '@/components/booking/CostBreakdown';
-import { TrackingMap } from '@/components/booking/TrackingMap';
 import {
   ScreenContainer,
-  AppHeader,
   Button,
-  Card,
   StatusPill,
   Skeleton,
   EmptyState,
   BackButton,
   FadeSlideIn,
+  SectionHead,
 } from '@/components/ui';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
 const TIMELINE: { key: string; label: string }[] = [
-  { key: 'CONFIRMED', label: 'Order Confirmed' },
-  { key: 'IN_PROGRESS', label: 'Processing & Packaging' },
-  { key: 'PROVIDER_EN_ROUTE', label: 'Out for Delivery' },
-  { key: 'COMPLETED', label: 'Delivered' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'PROVIDER_EN_ROUTE', label: 'Provider en route' },
+  { key: 'IN_PROGRESS', label: 'In progress' },
+  { key: 'COMPLETED', label: 'Completed' },
 ];
 
 type BookingDetailParams = { id: string };
@@ -44,22 +41,20 @@ export default function BookingDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <AppHeader left={<BackButton />} title="Booking" />
-        <Card style={styles.skeletonCard}>
-          <Skeleton width="60%" height={18} />
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} width="100%" height={12} style={{ marginTop: spacing.sm }} />
-          ))}
-        </Card>
+      <ScreenContainer chrome="dark" safeBottom>
+        <BackButton />
+        <Skeleton width="55%" height={26} style={{ marginTop: spacing.md }} />
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} width="100%" height={12} style={{ marginTop: spacing.md }} />
+        ))}
       </ScreenContainer>
     );
   }
 
   if (isError || !booking) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <AppHeader left={<BackButton />} title="Booking" />
+      <ScreenContainer chrome="dark" safeBottom>
+        <BackButton />
         <EmptyState
           title="Booking not found"
           message="This booking may have been removed."
@@ -96,103 +91,100 @@ export default function BookingDetailScreen() {
     }
   };
 
-  const handleTrackLocation = () => {
-    Alert.alert(
-      'Live Tracking',
-      'Provider location tracking will appear here once the job is en route.'
-    );
-  };
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader left={<BackButton />} title={`Booking #${booking.id.slice(0, 8)}`} />
-      <ScrollView contentContainerStyle={styles.body}>
-        <Card>
-          <Text style={styles.sectionTitle}>Status</Text>
-          <BookingTimelineBlock booking={booking} />
-        <RouteMapCard />
-        <View style={styles.statusRow}>
-            <StatusPill
-              label={labelize(booking.status)}
-              tone={statusTone(booking.status)}
-            />
-          </View>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.topLabel}>Booking</Text>
+          <View style={styles.spacer} />
+        </View>
 
-          {booking.provider && (
-            <View style={styles.providerRow}>
-              <Text style={styles.sectionTitle}>Provider</Text>
-              <View style={styles.providerInfo}>
-                <Text style={styles.providerName}>{booking.provider.businessName}</Text>
-                <Text style={styles.providerMeta}>
-                  {booking.provider.totalReviews} reviews • {booking.provider.completedJobs} jobs
+        <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
+        <View style={styles.metaRow}>
+          <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
+          <Text style={styles.date}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
+        </View>
+
+        <SectionHead title="Progress" />
+        <BookingTimeline booking={booking} />
+        {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
+          <>
+            <RouteMapCard />
+            <Text style={styles.note}>
+              Live provider location is not available yet. The timeline updates as the
+              status changes.
+            </Text>
+          </>
+        ) : null}
+
+        {booking.provider ? (
+          <>
+            <SectionHead title="Provider" />
+            <View style={styles.spec}>
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Garage</Text>
+                <Text style={styles.specValue}>{booking.provider.businessName}</Text>
+              </View>
+              <View style={[styles.specRow, styles.divider]}>
+                <Text style={styles.specLabel}>Rating</Text>
+                <Text style={styles.specValue}>
+                  {Number(booking.provider.avgRating ?? 0).toFixed(1)} ·{' '}
+                  {booking.provider.totalReviews} reviews
                 </Text>
               </View>
+              <View style={[styles.specRow, styles.divider]}>
+                <Text style={styles.specLabel}>Completed jobs</Text>
+                <Text style={styles.specValue}>{booking.provider.completedJobs}</Text>
+              </View>
             </View>
-          )}
+          </>
+        ) : null}
 
-          {booking.customer && (
-            <View style={styles.customerRow}>
-              <Text style={styles.sectionTitle}>Customer</Text>
-              <Text style={styles.customerName}>
+        <SectionHead title="Details" />
+        <View style={styles.spec}>
+          {booking.customer ? (
+            <View style={styles.specRow}>
+              <Text style={styles.specLabel}>Customer</Text>
+              <Text style={styles.specValue}>
                 {booking.customer.firstName} {booking.customer.lastName}
               </Text>
             </View>
-          )}
-
-          {booking.scheduledAt && (
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Scheduled</Text>
-              <Text style={styles.metaValue}>
-                {new Date(booking.scheduledAt).toLocaleString()}
+          ) : null}
+          <View style={[styles.specRow, booking.customer ? styles.divider : undefined]}>
+            <Text style={styles.specLabel}>Scheduled</Text>
+            <Text style={styles.specValue}>
+              {booking.scheduledAt
+                ? new Date(booking.scheduledAt).toLocaleString()
+                : 'Not scheduled'}
+            </Text>
+          </View>
+          {booking.payment ? (
+            <View style={[styles.specRow, styles.divider]}>
+              <Text style={styles.specLabel}>Payment</Text>
+              <Text style={styles.specValue}>
+                ₹{Number(booking.payment.amount).toLocaleString('en-IN')} ·{' '}
+                {labelize(booking.payment.status)}
               </Text>
             </View>
-          )}
-        </Card>
+          ) : null}
+        </View>
 
-        {booking.payment && (
-          <Card>
-            <CostBreakdown
-              parts={booking.payment.amount}
-              labour={0}
-              total={booking.payment.amount}
-            />
-            <View style={styles.paymentStatusRow}>
-              <Text style={styles.paymentStatusLabel}>Payment</Text>
-              <Text style={styles.paymentStatusValue}>
-                {booking.payment.status.charAt(0).toUpperCase() + booking.payment.status.slice(1)}
-              </Text>
-            </View>
-          </Card>
-        )}
-
-        {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
-          <Card>
-            <Text style={styles.sectionTitle}>Live Tracking</Text>
-            <TrackingMap />
-            <View style={styles.trackerActions}>
-              <Button
-                title="Refresh Provider Location"
-                onPress={handleTrackLocation}
-                variant="secondary"
-              />
-            </View>
-          </Card>
-        )}
-
-        {canUpdate && nextStatus && (
+        {canUpdate && nextStatus ? (
           <View style={styles.actions}>
             <Button
               title={
                 booking.status === 'CONFIRMED'
-                  ? 'Mark En Route'
+                  ? 'Mark en route'
                   : booking.status === 'PROVIDER_EN_ROUTE'
-                    ? 'Mark In Progress'
-                    : 'Mark Completed'
+                    ? 'Mark in progress'
+                    : 'Mark completed'
               }
               onPress={handleUpdateStatus}
               variant="primary"
             />
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </ScreenContainer>
   );
@@ -202,7 +194,7 @@ export default function BookingDetailScreen() {
 const BookingTimeline = ({ booking }: { booking: any }) => {
   const steps = TIMELINE.map((t) => ({ ...t, active: booking.status === t.key }));
   // "done" = everything before the current status index in the flow order
-  const flowOrder = ['CONFIRMED', 'IN_PROGRESS', 'PROVIDER_EN_ROUTE', 'COMPLETED'];
+  const flowOrder = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
   const currentIndex = flowOrder.indexOf(booking.status as string);
   const doneMap = flowOrder.reduce<Record<string, boolean>>((acc, key, i) => {
     acc[key] = currentIndex >= i && currentIndex >= 0;
@@ -244,11 +236,6 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
                   <Text style={tlm.expected}>{'Expected: Today, 6 PM'}</Text>
                 ) : null}
               </View>
-              {active && step.key === 'PROVIDER_EN_ROUTE' ? (
-                <Text style={{ fontSize: 18 }} accessibilityLabel="Out for delivery">
-                  🚚
-                </Text>
-              ) : null}
             </View>
           </FadeSlideIn>
         );
@@ -283,13 +270,6 @@ const tlm = StyleSheet.create({
   time: { ...typography.label, color: palette.textSecondary },
   expected: { ...typography.label, color: palette.accent, marginTop: 2 },
 });
-
-const BookingTimelineBlock = ({ booking }: { booking: any }) => (
-  <View style={tlmBlock.block}>
-    <Text style={tlmBlock.title}>{'Track order timeline'}</Text>
-    <BookingTimeline booking={booking} />
-  </View>
-);
 
 
 const RouteMapCard = () => (
@@ -351,62 +331,56 @@ const mapCard = StyleSheet.create({
   },
 });
 
-const tlmBlock = StyleSheet.create({
-  block: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  title: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.sm },
-});
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  skeletonCard: { marginBottom: spacing.md },
-  sectionTitle: {
-    ...typography.label,
-    color: palette.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  statusRow: {
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  statusPill: {},
-  providerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  providerInfo: { flex: 1 },
-  providerName: { ...typography.bodyMedium, color: palette.textPrimary },
-  providerMeta: { ...typography.caption, color: palette.textSecondary },
-  customerRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  customerName: { ...typography.bodyMedium, color: palette.textPrimary },
+  topLabel: { ...typography.label, color: palette.textMuted },
+  spacer: { width: 44 },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+    color: palette.textPrimary,
+  },
   metaRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
-  metaLabel: { ...typography.caption, color: palette.textSecondary },
-  metaValue: { ...typography.captionMedium, color: palette.textPrimary },
-  paymentStatusRow: {
+  date: { fontFamily: fontFamilyMono, fontSize: 11, color: palette.textMuted },
+  note: {
+    ...typography.label,
+    color: palette.textMuted,
+    marginTop: spacing.sm,
+  },
+  spec: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  specRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
   },
-  paymentStatusLabel: { ...typography.caption, color: palette.textSecondary },
-  paymentStatusValue: { ...typography.captionMedium, color: palette.success },
-  trackerActions: { marginTop: spacing.md },
-  actions: { marginTop: spacing.lg },
+  divider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  specLabel: { ...typography.caption, color: palette.textSecondary },
+  specValue: {
+    ...typography.captionMedium,
+    color: palette.textPrimary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  actions: { marginTop: spacing.xl },
 });
