@@ -1,176 +1,226 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMyRequests } from '@/hooks/useRequests';
+import { useMyRequests, type ServiceRequest } from '@/hooks/useRequests';
 import {
   ScreenContainer,
-  Card,
+  PressableScale,
   Chip,
   StatusPill,
   EmptyState,
   Skeleton,
   Button,
-  FilterBar,
 } from '@/components/ui';
-import { StatusTone, palette, spacing, typography } from '@/theme';
-import { titleize as labelize } from '@/utils/format';
+import {
+  StatusTone,
+  palette,
+  spacing,
+  typography,
+  displayFamily,
+  fontFamilyMono,
+} from '@/theme';
+import { formatDate, labelize } from '@/utils/format';
 
 const FILTERS = ['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'];
 
-
 function statusTone(status: string): StatusTone {
   switch (status) {
-    case 'OPEN':
     case 'QUOTES_RECEIVED':
       return 'info';
+    case 'OPEN':
     case 'ACCEPTED':
+      return 'neutral';
     case 'COMPLETED':
       return 'success';
     case 'CANCELLED':
+    case 'EXPIRED':
       return 'danger';
     default:
       return 'neutral';
   }
 }
 
+function RequestRow({
+  item,
+  divider,
+  onPress,
+}: {
+  item: ServiceRequest;
+  divider: boolean;
+  onPress: () => void;
+}) {
+  const quotes = item.quotationsCount ?? 0;
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.title}, ${labelize(item.status)}, ${quotes} quotes`}
+      scaleTo={0.99}
+      style={[styles.row, divider && styles.rowDivider]}
+    >
+      <View style={styles.rowText}>
+        <Text style={styles.rowKicker}>
+          {formatDate(item.createdAt)} · {quotes} {quotes === 1 ? 'quote' : 'quotes'}
+        </Text>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {labelize(item.category)} · {labelize(item.urgency)}
+        </Text>
+      </View>
+      <StatusPill label={labelize(item.status)} tone={statusTone(item.status)} />
+    </PressableScale>
+  );
+}
+
 export default function MyRequestsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading } = useMyRequests(
-    statusFilter ? { status: statusFilter } : undefined
-  );
+  const { data, isLoading } = useMyRequests();
 
-  const requests = data?.items ?? [];
-
-  if (isLoading) {
-    return (
-      <ScreenContainer chrome="dark">
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Requests</Text>
-          <Text style={styles.title}>Your requests</Text>
-        </View>
-        {[0, 1, 2].map((i) => (
-          <Card key={i} style={styles.skeletonCard}>
-            <Skeleton width="60%" height={18} />
-            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
-            <Skeleton width="70%" height={12} style={{ marginTop: spacing.xs }} />
-          </Card>
-        ))}
-      </ScreenContainer>
-    );
-  }
-
-  // Filters only make sense when there is something to filter — hide the row
-  // on a genuinely empty account (keep it when a filter hides the results).
-  const showFilters = requests.length > 0 || !!statusFilter;
+  const all = data?.items ?? [];
+  const requests = statusFilter
+    ? all.filter((r) => r.status === statusFilter)
+    : all;
+  const openCount = all.filter((r) =>
+    ['OPEN', 'QUOTES_RECEIVED'].includes(r.status)
+  ).length;
 
   return (
-    <ScreenContainer chrome="dark">
-      <View style={styles.header}>
+    <ScreenContainer chrome="dark" safeBottom>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Requests</Text>
         <Text style={styles.title}>Your requests</Text>
-        <Text style={styles.subtitle}>
-          {requests.length === 0 ? 'No active requests yet.' : `${requests.length} total`}
+        <Text style={styles.summary}>
+          {all.length === 0
+            ? 'No requests yet'
+            : `${openCount} open · ${all.length} total`}
         </Text>
-      </View>
 
-      {showFilters ? (
-        <FilterBar>
-          <View style={styles.filterRow}>
-          {FILTERS.map((s) => (
-            <Chip
-              key={s}
-              label={labelize(s)}
-              selected={statusFilter === s}
-              onPress={() =>
-                setStatusFilter((prev) => (prev === s ? undefined : s))
+        {isLoading ? (
+          <View style={styles.loading}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={[styles.row, i > 0 && styles.rowDivider]}>
+                <View style={styles.rowText}>
+                  <Skeleton width={110} height={10} />
+                  <Skeleton width="65%" height={16} style={{ marginTop: 8 }} />
+                  <Skeleton width="45%" height={10} style={{ marginTop: 6 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : all.length === 0 ? (
+          <View style={styles.empty}>
+            <EmptyState
+              title="No requests yet"
+              message="Post a request with photos and verified garages will send you quotes."
+              action={
+                <Button
+                  title="Post a request"
+                  onPress={() => router.push('/requests/create')}
+                />
               }
             />
-          ))}
           </View>
-        </FilterBar>
-      ) : null}
+        ) : (
+          <>
+            <View style={styles.filterRow}>
+              {FILTERS.map((s) => (
+                <Chip
+                  key={s}
+                  label={labelize(s)}
+                  selected={statusFilter === s}
+                  onPress={() =>
+                    setStatusFilter((prev) => (prev === s ? undefined : s))
+                  }
+                />
+              ))}
+            </View>
 
-      {requests.length === 0 ? (
-        <EmptyState
-          title={statusFilter ? 'No requests match this filter' : 'No requests yet'}
-          message={
-            statusFilter
-              ? `You have no ${labelize(statusFilter).toLowerCase()} requests.`
-              : 'Create a request to get quotes from nearby mechanics.'
-          }
-          action={
-            statusFilter ? undefined : (
-              <Button title="Post a request" onPress={() => router.push('/requests/create')} />
-            )
-          }
-        />
-      ) : (
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <RequestCard item={item} onPress={() => router.push(`/requests/${item.id}`)} />
-          )}
-        />
-      )}
+            {requests.length === 0 ? (
+              <View style={styles.empty}>
+                <EmptyState
+                  title={`No ${labelize(statusFilter ?? '').toLowerCase()} requests`}
+                  message="Clear the filter to see your other requests."
+                  action={
+                    <Button
+                      title="Clear filter"
+                      variant="secondary"
+                      onPress={() => setStatusFilter(undefined)}
+                    />
+                  }
+                />
+              </View>
+            ) : (
+              <View style={styles.list}>
+                {requests.map((item, index) => (
+                  <RequestRow
+                    key={item.id}
+                    item={item}
+                    divider={index > 0}
+                    onPress={() => router.push(`/requests/${item.id}`)}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
-function RequestCard({ item, onPress }: { item: any; onPress: () => void }) {
-  const tone = statusTone(item.status);
-  return (
-    <TouchableOpacity
-      style={styles.cardTouch}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Request ${item.title}`}
-    >
-      <Card>
-        <View style={styles.cardTop}>
-          <Text style={styles.requestTitle} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <StatusPill label={labelize(item.status)} tone={tone} />
-        </View>
-        <Text style={styles.requestCategory}>{labelize(item.category)}</Text>
-        <Text style={styles.requestAddress} numberOfLines={1}>
-          {item.address}
-        </Text>
-      </Card>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.lg },
-  eyebrow: {
-    ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
+  eyebrow: { ...typography.label, color: palette.textMuted },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    color: palette.textPrimary,
+    marginTop: spacing.xs,
   },
-  title: { ...typography.display, color: palette.textPrimary, marginTop: spacing.xs },
-  subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.xs },
+  summary: {
+    fontFamily: fontFamilyMono,
+    fontSize: 11,
+    color: palette.textMuted,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  list: { paddingBottom: spacing.xl },
-  skeletonCard: { marginBottom: spacing.md },
-  cardTouch: { marginBottom: spacing.md },
-  card: { marginBottom: spacing.md },
-  cardTop: {
+  loading: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  list: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    minHeight: 72,
   },
-  requestTitle: { ...typography.bodyMedium, color: palette.textPrimary, flex: 1 },
-  requestCategory: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },
-  requestAddress: { ...typography.caption, color: palette.textSecondary },
+  rowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  rowText: { flex: 1 },
+  rowKicker: {
+    fontFamily: fontFamilyMono,
+    fontSize: 10,
+    color: palette.textMuted,
+  },
+  rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },
+  rowMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
+  empty: { marginTop: spacing.lg },
 });

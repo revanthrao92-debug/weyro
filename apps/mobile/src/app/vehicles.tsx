@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,21 +21,31 @@ import {
   Input,
   Button,
   ScreenContainer,
-  AppHeader,
   Card,
   EmptyState,
   Skeleton,
   ButtonRow,
   Chip,
   BackButton,
+  PressableScale,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import {
+  palette,
+  spacing,
+  radii,
+  typography,
+  displayFamily,
+  fontFamilyMono,
+} from '@/theme';
+import { carPhotoFor } from '@/lib/photos';
+import { ChevronRight, Trash2 } from 'lucide-react-native';
 import { titleize as labelize } from '@/utils/format';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'];
 
 
 export default function VehiclesScreen() {
+  const router = useRouter();
   const { data, isLoading, refetch } = useVehicles();
   const createVehicle = useCreateVehicle();
   const deleteVehicle = useDeleteVehicle();
@@ -106,7 +117,8 @@ export default function VehiclesScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
+        <BackButton />
+        <Skeleton width="55%" height={30} style={{ marginTop: spacing.md }} />
         {[0, 1, 2].map((i) => (
           <VehicleSkeleton key={i} />
         ))}
@@ -120,7 +132,22 @@ export default function VehiclesScreen() {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="My Vehicles" subtitle="Manage your garage" />
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.eyebrow}>Garage</Text>
+          <PressableScale
+            onPress={() => setShowAdd(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add vehicle"
+            scaleTo={0.95}
+          >
+            <Text style={styles.addLink}>Add</Text>
+          </PressableScale>
+        </View>
+        <Text style={styles.title}>Vehicles</Text>
+        <Text style={styles.summary}>
+          {vehicles.length === 0 ? 'No vehicles saved' : `${vehicles.length} saved`}
+        </Text>
 
         {vehicles.length === 0 ? (
           <EmptyState
@@ -135,17 +162,16 @@ export default function VehiclesScreen() {
             data={vehicles}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            renderItem={({ item }) => (
-              <VehicleItem item={item} onDelete={handleDeleteVehicle} />
+            renderItem={({ item, index }) => (
+              <VehicleItem
+                item={item}
+                divider={index > 0}
+                onOpen={() => router.push(`/vehicles/${item.id}`)}
+                onDelete={handleDeleteVehicle}
+              />
             )}
           />
         )}
-
-        <Button
-          title="Add vehicle"
-          onPress={() => setShowAdd(true)}
-          style={styles.fabBtn}
-        />
 
         {showAdd && (
           <KeyboardAvoidingView
@@ -242,27 +268,54 @@ function VehicleSkeleton() {
   );
 }
 
-function VehicleItem({ item, onDelete }: { item: Vehicle; onDelete: (id: string) => void }) {
+function VehicleItem({
+  item,
+  divider,
+  onOpen,
+  onDelete,
+}: {
+  item: Vehicle;
+  divider: boolean;
+  onOpen: () => void;
+  onDelete: (id: string) => void;
+}) {
   return (
-    <TouchableOpacity
-      style={styles.itemTouch}
-      onPress={() => {}}
-      accessibilityRole="button"
-      accessibilityLabel={`Vehicle ${item.make} ${item.model} ${item.year}`}
-    >
-      <Card style={styles.item}>
+    <View style={[styles.item, divider && styles.itemDivider]}>
+      <PressableScale
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.make} ${item.model}, ${item.registrationNumber}`}
+        scaleTo={0.99}
+        style={styles.itemMain}
+      >
+        <Image
+          source={{ uri: carPhotoFor(item.make, item.model) }}
+          style={styles.thumb}
+          contentFit="cover"
+          transition={150}
+        />
         <View style={styles.itemContent}>
-          <Text style={styles.itemTitle}>{item.make} {item.model} ({item.year})</Text>
+          <Text style={styles.itemTitle} numberOfLines={1}>
+            {item.make} {item.model}
+          </Text>
           <Text style={styles.itemReg}>{item.registrationNumber}</Text>
           <Text style={styles.itemMeta}>
-            {labelize(item.fuelType)} • {item.color || 'N/A'}
+            {item.year} · {labelize(item.fuelType)}
+            {item.color ? ` · ${item.color}` : ''}
           </Text>
         </View>
-        <TouchableOpacity style={styles.removeButton} onPress={() => onDelete(item.id)} accessibilityLabel={`Remove ${item.make} ${item.model}`}>
-          <Text style={styles.removeText}>Remove</Text>
-        </TouchableOpacity>
-      </Card>
-    </TouchableOpacity>
+        <ChevronRight size={16} color={palette.textMuted} strokeWidth={2} />
+      </PressableScale>
+      <PressableScale
+        onPress={() => onDelete(item.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${item.make} ${item.model}`}
+        scaleTo={0.9}
+        style={styles.removeButton}
+      >
+        <Trash2 size={16} color={palette.textMuted} strokeWidth={1.7} />
+      </PressableScale>
+    </View>
   );
 }
 
@@ -270,33 +323,62 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.canvas },
   list: { paddingBottom: spacing.xxl },
   skeletonItem: { marginBottom: spacing.md },
-  itemTouch: { marginBottom: spacing.md },
-  item: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  eyebrow: { ...typography.label, color: palette.textMuted },
+  addLink: { ...typography.captionMedium, color: palette.accent },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    color: palette.textPrimary,
+  },
+  summary: {
+    fontFamily: fontFamilyMono,
+    fontSize: 11,
+    color: palette.textMuted,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  itemMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  itemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  thumb: {
+    width: 72,
+    height: 48,
+    borderRadius: radii.sm,
+    backgroundColor: palette.surfaceAlt,
   },
   itemContent: { flex: 1 },
   itemTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  itemReg: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
-  itemMeta: { ...typography.label, color: palette.textMuted, marginTop: spacing.xs },
-  removeButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: palette.dangerSoftBg,
-    backgroundColor: palette.dangerSoftBg,
+  itemReg: {
+    fontFamily: fontFamilyMono,
+    fontSize: 11,
+    color: palette.textSecondary,
+    marginTop: 3,
   },
-  removeText: {
-    ...typography.label,
-    color: palette.danger,
+  itemMeta: { ...typography.label, color: palette.textMuted, marginTop: 2 },
+  removeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fabBtn: {
     alignSelf: 'flex-start',
