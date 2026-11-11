@@ -47,7 +47,7 @@ export function formatDate(iso?: string): string {
   });
 }
 
-/** Booking-card status tones (booking/[id], BookingCard). */
+/** Booking status tones (booking/[id], bookings list). */
 export function bookingStatusTone(status: string): StatusTone {
   switch (status) {
     case 'CONFIRMED':
