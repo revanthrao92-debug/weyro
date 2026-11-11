@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
 
 export type ChatThread = {
@@ -35,6 +35,59 @@ export function useChatThreads() {
         '/chat/threads',
       );
       return res;
+    },
+  });
+}
+
+export type ChatMessage = {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
+  content: string;
+  mediaUrls: string[];
+  readAt: string | null;
+  createdAt: string;
+};
+
+export function useChatMessages(threadId: string) {
+  return useQuery({
+    queryKey: ['chatMessages', threadId],
+    enabled: Boolean(threadId),
+    queryFn: async () => {
+      const res = await apiClient<{ items: ChatMessage[]; nextCursor?: string | null }>(
+        `/chat/threads/${threadId}/messages`,
+      );
+      return res;
+    },
+  });
+}
+
+export function useSendChatMessage(threadId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) =>
+      apiClient<ChatMessage>(`/chat/threads/${threadId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chatMessages', threadId] });
+      queryClient.invalidateQueries({ queryKey: ['chatThreads'] });
+    },
+  });
+}
+
+export function useMarkThreadRead(threadId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiClient(`/chat/threads/${threadId}/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chatThreads'] });
     },
   });
 }

@@ -1,236 +1,276 @@
-import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
-import { useDealerOrders } from '@/hooks/useParts';
-import type { SparePartOrder } from '@/hooks/useParts';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  useDealerOrders,
+  useMyOrders,
+  type SparePartOrder,
+} from '@/hooks/useParts';
 import {
   ScreenContainer,
-  AppHeader,
+  PressableScale,
   StatusPill,
   EmptyState,
   Skeleton,
-  FilterChips,
-  AdBanner,
+  Button,
 } from '@/components/ui';
-import { photo, photoForCategory } from '@/lib/photos';
-import { formatDate } from '@/utils/format';
-import { palette, spacing, radii, typography } from '@/theme';
+import {
+  palette,
+  spacing,
+  typography,
+  displayFamily,
+  fontFamilyMono,
+  type StatusTone,
+} from '@/theme';
+import { formatDate, titleize } from '@/utils/format';
 
-/**
- * Dealer orders — Checkpoint 3. Photo strip per order (part photo with
- * fallback), rigid labeled rows, filter chips. Cards are informational:
- * lifecycle actions are customer/admin side, so no fake buttons here.
- */
-
-function orderTone(status: string) {
+function orderTone(status: string): StatusTone {
   switch (status) {
     case 'PENDING':
       return 'warning';
     case 'PAID':
       return 'success';
     case 'CANCELLED':
+    case 'FAILED':
       return 'danger';
     default:
       return 'neutral';
   }
 }
 
-export default function DealerOrdersScreen() {
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
-  const { data, isLoading } = useDealerOrders({ status: statusFilter });
-
-  const orders = data?.items ?? [];
-
-  const revenue = orders
-    .filter((o) => o.status === 'PAID')
-    .reduce((sum, o) => sum + Number(o.totalAmount), 0);
-
-  const header =
-    revenue > 0 ? (
-      <View style={styles.revenueRow}>
-        <Text style={styles.revenueLabel}>PAID REVENUE (THIS PAGE)</Text>
-        <Text style={styles.revenueValue}>₹{revenue.toLocaleString()}</Text>
+function OrderRow({
+  item,
+  dealer,
+  onPress,
+}: {
+  item: SparePartOrder;
+  dealer: boolean;
+  onPress?: () => void;
+}) {
+  const part = item.sparePart?.name ?? 'Spare part';
+  const who = item.customer
+    ? `${item.customer.firstName} ${item.customer.lastName ?? ''}`.trim()
+    : 'Customer';
+  const content = (
+    <>
+      <View style={styles.rowText}>
+        <Text style={styles.rowKicker}>
+          {formatDate(item.createdAt)} · qty {item.quantity}
+        </Text>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {part}
+        </Text>
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {dealer ? who : item.sparePart?.partNumber ?? 'Order'}
+        </Text>
       </View>
-    ) : undefined;
+      <View style={styles.rowRight}>
+        <Text style={styles.rowPrice}>
+          ₹{Number(item.totalAmount).toLocaleString('en-IN')}
+        </Text>
+        <StatusPill label={titleize(item.status)} tone={orderTone(item.status)} />
+      </View>
+    </>
+  );
 
-  if (isLoading) {
-    return (
-      <ScreenContainer chrome="dark">
-        <AppHeader title="Orders" subtitle="Orders for your spare parts" />
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} width="100%" height={88} />
-        ))}
-      </ScreenContainer>
-    );
+  if (!onPress) {
+    return <View style={styles.row}>{content}</View>;
   }
-
   return (
-    <ScreenContainer chrome="dark">
-      <AppHeader title="Orders" subtitle="Orders for your spare parts" />
-
-      <FilterChips
-        options={[
-          { label: 'All', value: 'ALL' },
-          { label: 'Pending', value: 'PENDING' },
-          { label: 'Paid', value: 'PAID' },
-          { label: 'Cancelled', value: 'CANCELLED' },
-        ]}
-        value={statusFilter ?? 'ALL'}
-        onChange={(value) => setStatusFilter(value === 'ALL' ? undefined : value)}
-      />
-
-      {orders.length === 0 ? (
-        <EmptyState
-          icon={<Package size={28} color={palette.textMuted} />}
-          title={statusFilter ? 'No orders in this state' : 'No orders yet'}
-          message="Orders placed for your listings will appear here."
-        />
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={header}
-          ListFooterComponent={
-            <View style={{ marginTop: spacing.md }}>
-              <AdBanner placement="shop-section" />
-            </View>
-          }
-          renderItem={({ item }) => <OrderCard item={item} />}
-        />
-      )}
-    </ScreenContainer>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${part}, ${titleize(item.status)}`}
+      scaleTo={0.99}
+      style={styles.row}
+    >
+      {content}
+    </PressableScale>
   );
 }
 
-function OrderCard({ item }: { item: SparePartOrder }) {
-  const partName = item.sparePart?.name ?? 'Spare part';
-  const buyer = item.customer?.firstName
-    ? `${item.customer.firstName} ${item.customer.lastName ?? ''}`.trim()
-    : 'Customer';
-  const photoUri = item.sparePart?.imageUrl || photo(photoForCategory(null));
-
+function OrdersHeader({
+  eyebrow,
+  title,
+  summary,
+}: {
+  eyebrow: string;
+  title: string;
+  summary: string;
+}) {
   return (
-    <View style={cardStyles.card}>
-      <View style={cardStyles.photoHeader}>
-        <Image source={{ uri: photoUri }} style={cardStyles.photo} contentFit="cover" />
-        <View style={cardStyles.photoShade} />
-        <View style={cardStyles.photoInner}>
-          <View style={{ flexShrink: 1 }}>
-            <Text style={cardStyles.partName} numberOfLines={1} maxFontSizeMultiplier={2}>
-              {partName}
-            </Text>
-            <Text style={cardStyles.buyer} numberOfLines={1}>
-              {buyer} · x{item.quantity}
-            </Text>
-          </View>
-          <StatusPill
-            label={item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()}
-            tone={orderTone(item.status)}
-          />
-        </View>
-      </View>
-
-      <View style={cardStyles.body}>
-        <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>ORDER ID</Text>
-          <Text style={cardStyles.value}>#{item.id.slice(0, 8)}</Text>
-        </View>
-        <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>UNIT PRICE</Text>
-          <Text style={cardStyles.value}>₹{Number(item.unitPrice).toLocaleString()}</Text>
-        </View>
-        <View style={[cardStyles.row, cardStyles.rowDivider]}>
-          <Text style={cardStyles.label}>TOTAL</Text>
-          <Text style={cardStyles.amount}>₹{Number(item.totalAmount).toLocaleString()}</Text>
-        </View>
-        <View style={cardStyles.row}>
-          <Text style={cardStyles.label}>PLACED</Text>
-          <Text style={cardStyles.value}>{formatDate(item.createdAt)}</Text>
-        </View>
-      </View>
+    <View>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.summary}>{summary}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingBottom: spacing.xxl },
-  revenueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  revenueLabel: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.5,
-  },
-  revenueValue: {
-    ...typography.heading,
-    color: palette.textPrimary,
-  },
-});
+function CustomerOrders() {
+  const router = useRouter();
+  const { data, isLoading } = useMyOrders();
+  const orders = data ?? [];
+  const open = orders.filter((o) => o.status === 'PENDING').length;
 
-const cardStyles = StyleSheet.create({
-  card: {
-    borderRadius: radii.md,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
+  return (
+    <ScreenContainer chrome="dark" safeBottom>
+      <FlatList
+        data={isLoading ? [] : orders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.body}
+        ListHeaderComponent={
+          <View>
+            <OrdersHeader
+              eyebrow="Purchases"
+              title="Part orders"
+              summary={
+                orders.length === 0
+                  ? 'No orders yet'
+                  : `${open} awaiting payment · ${orders.length} total`
+              }
+            />
+            {isLoading
+              ? [0, 1, 2].map((i) => (
+                  <View key={i} style={[styles.row, i > 0 && styles.divider]}>
+                    <View style={styles.rowText}>
+                      <Skeleton width={110} height={10} />
+                      <Skeleton width="60%" height={16} style={{ marginTop: 8 }} />
+                    </View>
+                  </View>
+                ))
+              : null}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? undefined : (
+            <EmptyState
+              icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
+              title="No part orders yet"
+              message="Parts you order from the shop appear here with their payment state."
+              action={
+                <Button title="Browse parts" onPress={() => router.push('/shop')} />
+              }
+            />
+          )
+        }
+        renderItem={({ item, index }) => (
+          <View style={index > 0 ? styles.divider : undefined}>
+            <OrderRow
+              item={item}
+              dealer={false}
+              onPress={
+                item.sparePart?.id
+                  ? () => router.push(`/shop/${item.sparePart!.id}`)
+                  : undefined
+              }
+            />
+          </View>
+        )}
+      />
+    </ScreenContainer>
+  );
+}
+
+function DealerOrders() {
+  const { data, isLoading } = useDealerOrders();
+  const orders = data?.items ?? [];
+  const revenue = orders
+    .filter((o) => o.status === 'PAID')
+    .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
+  return (
+    <ScreenContainer chrome="dark" safeBottom>
+      <FlatList
+        data={isLoading ? [] : orders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.body}
+        ListHeaderComponent={
+          <View>
+            <OrdersHeader
+              eyebrow="Sales"
+              title="Orders"
+              summary={
+                orders.length === 0
+                  ? 'No orders yet'
+                  : `₹${revenue.toLocaleString('en-IN')} paid · ${orders.length} orders`
+              }
+            />
+            {isLoading
+              ? [0, 1, 2].map((i) => (
+                  <View key={i} style={[styles.row, i > 0 && styles.divider]}>
+                    <View style={styles.rowText}>
+                      <Skeleton width={110} height={10} />
+                      <Skeleton width="60%" height={16} style={{ marginTop: 8 }} />
+                    </View>
+                  </View>
+                ))
+              : null}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? undefined : (
+            <EmptyState
+              icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
+              title="No orders yet"
+              message="Orders placed for your listings will appear here."
+            />
+          )
+        }
+        renderItem={({ item, index }) => (
+          <View style={index > 0 ? styles.divider : undefined}>
+            <OrderRow item={item} dealer />
+          </View>
+        )}
+      />
+    </ScreenContainer>
+  );
+}
+
+export default function OrdersScreen() {
+  const { role } = useAuth();
+  return role === 'PROVIDER' || role === 'BOTH' ? <DealerOrders /> : <CustomerOrders />;
+}
+
+const styles = StyleSheet.create({
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
+  eyebrow: { ...typography.label, color: palette.textMuted },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    color: palette.textPrimary,
+    marginTop: spacing.xs,
   },
-  photoHeader: {
-    height: 76,
-    justifyContent: 'flex-end',
+  summary: {
+    fontFamily: fontFamilyMono,
+    fontSize: 11,
+    color: palette.textMuted,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
   },
-  photo: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  photoShade: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: palette.scrimStrong,
-  },
-  photoInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  partName: {
-    ...typography.heading,
-    color: palette.onHeader,
-  },
-  buyer: {
-    ...typography.caption,
-    color: palette.onHeaderMuted,
-    marginTop: 2,
-  },
-  body: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    minHeight: 68,
   },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: palette.border },
-  label: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.5,
+  divider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
-  value: { ...typography.captionMedium, color: palette.textPrimary },
-  amount: { ...typography.bodyMedium, color: palette.textPrimary },
+  rowText: { flex: 1 },
+  rowKicker: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },
+  rowMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
+  rowRight: { alignItems: 'flex-end', gap: 4 },
+  rowPrice: {
+    fontFamily: fontFamilyMono,
+    fontSize: 13,
+    color: palette.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
 });

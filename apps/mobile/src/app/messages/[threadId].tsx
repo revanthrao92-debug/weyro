@@ -1,128 +1,242 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlatList, KeyboardAvoidingView, Platform, Text, View, StyleSheet } from 'react-native';
-import { Input, Button, ScreenContainer, AppHeader, BackButton } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import {
+  ScreenContainer,
+  BackButton,
+  PressableScale,
+  Skeleton,
+  EmptyState,
+} from '@/components/ui';
+import {
+  palette,
+  spacing,
+  radii,
+  typography,
+  fontFamilyMono,
+} from '@/theme';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  useChatMessages,
+  useChatThreads,
+  useMarkThreadRead,
+  useSendChatMessage,
+  type ChatMessage,
+} from '@/hooks/useChatThreads';
+
+const time = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function MessagesThreadScreen() {
-  const [messageText, setMessageText] = useState('');
+  const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const insets = useSafeAreaInsets();
+  const { role } = useAuth();
+  const id = threadId ?? '';
 
-  const messages = [
-    { id: 'm1', sender: 'provider', text: 'Hi, I received your request. Can you share more photos?', createdAt: '2026-10-20T09:00:00Z', read: true },
-    { id: 'm2', sender: 'customer', text: 'Sure, here are the additional photos.', createdAt: '2026-10-20T09:15:00Z', read: true },
-    { id: 'm3', sender: 'provider', text: 'Great, I can do the repair for ₹2500.', createdAt: '2026-10-20T10:00:00Z', read: false },
-  ];
+  const { data: threadsData } = useChatThreads();
+  const { data, isLoading } = useChatMessages(id);
+  const sendMessage = useSendChatMessage(id);
+  const markRead = useMarkThreadRead(id);
+
+  const [text, setText] = useState('');
+  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const marked = useRef(false);
+
+  const thread = (threadsData?.items ?? []).find((t) => t.id === id);
+  const title =
+    role === 'PROVIDER'
+      ? thread?.customer?.firstName ?? 'Customer'
+      : thread?.provider?.businessName ?? 'Conversation';
+
+  const messages = data?.items ?? [];
+
+  useEffect(() => {
+    if (!id || marked.current || messages.length === 0) return;
+    marked.current = true;
+    if (messages.some((m) => !m.readAt)) {
+      markRead.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, messages.length]);
+
+  const submit = async () => {
+    const content = text.trim();
+    if (!content || sendMessage.isPending) return;
+    setText('');
+    try {
+      await sendMessage.mutateAsync(content);
+    } catch (e: any) {
+      setText(content);
+      Alert.alert('Message not sent', e?.message ?? 'Try again');
+    }
+  };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={styles.root}
     >
-      <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader left={<BackButton />} title="Conversation" />
+      <ScreenContainer chrome="dark" padded={false} safeBottom>
+        <View style={styles.topBar}>
+          <BackButton />
+          <View style={styles.topText}>
+            <Text style={styles.topLabel}>Conversation</Text>
+            <Text style={styles.topTitle} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+          <View style={styles.spacer} />
+        </View>
 
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => {
-            const isMine = item.sender === 'customer';
-            return (
-              <View style={[styles.messageRow, isMine ? styles.rowMine : styles.rowTheirs]}>
-                <View style={[styles.bubbleColumn, isMine ? styles.columnMine : styles.columnTheirs]}>
-                  <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                    <Text
-                      style={[styles.messageText, isMine ? styles.messageTextMine : styles.messageTextTheirs]}
-                      maxFontSizeMultiplier={2}
-                    >
-                      {item.text}
-                    </Text>
+        {isLoading ? (
+          <View style={styles.body}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} width={i % 2 ? '55%' : '70%'} height={40} style={{ marginTop: 12 }} />
+            ))}
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            ListEmptyComponent={
+              <EmptyState
+                title="No messages yet"
+                message="Send the first message to start the conversation."
+              />
+            }
+            renderItem={({ item }) => {
+              const mine =
+                (role === 'PROVIDER' && item.senderRole === 'PROVIDER') ||
+                (role !== 'PROVIDER' && item.senderRole === 'CUSTOMER');
+              return (
+                <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
+                  <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                    <Text style={styles.messageText}>{item.content}</Text>
+                    <Text style={styles.time}>{time(item.createdAt)}</Text>
                   </View>
-                  <Text style={styles.messageTime}>
-                    {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
                 </View>
-              </View>
-            );
-          }}
-        />
+              );
+            }}
+          />
+        )}
       </ScreenContainer>
 
       <View
-        style={[styles.inputContainer, { paddingBottom: Math.max(spacing.md, insets.bottom) }]}
+        style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}
       >
-        <Input
-          placeholder="Type a message..."
-          value={messageText}
-          onChangeText={setMessageText}
-          accessibilityLabel="Message input"
-          containerStyle={styles.inputWrapper}
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="Message"
+          placeholderTextColor={palette.textMuted}
           style={styles.input}
-          maxFontSizeMultiplier={2}
+          multiline
+          accessibilityLabel="Message"
         />
-        <Button title="Send" onPress={() => {}} style={styles.sendBtn} />
+        <PressableScale
+          onPress={() => void submit()}
+          disabled={!text.trim() || sendMessage.isPending}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          scaleTo={0.92}
+          style={[styles.send, (!text.trim() || sendMessage.isPending) && styles.sendDisabled]}
+        >
+          <Send size={18} color={palette.onAccent} strokeWidth={2} />
+        </PressableScale>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.canvas },
-  list: { padding: spacing.lg, paddingBottom: spacing.xl },
-
-  // Each message is a column (bubble + timestamp) on its own side.
-  messageRow: { flexDirection: 'row', marginBottom: spacing.lg },
-  rowTheirs: { justifyContent: 'flex-start' },
-  rowMine: { justifyContent: 'flex-end' },
-  bubbleColumn: { maxWidth: '78%' },
-  columnTheirs: { alignItems: 'flex-start' },
-  columnMine: { alignItems: 'flex-end' },
-
-  bubble: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.lg,
-  },
-  // Incoming: white bubble + hairline so it separates from the canvas
-  // (surfaceAlt was nearly identical to the canvas and vanished).
-  bubbleTheirs: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderBottomLeftRadius: radii.sm,
-  },
-  // Outgoing: accent fill, tail on the other corner.
-  bubbleMine: {
-    backgroundColor: palette.accent,
-    borderBottomRightRadius: radii.sm,
-  },
-
-  messageText: { ...typography.body },
-  messageTextTheirs: { color: palette.textPrimary },
-  messageTextMine: { color: palette.onAccent },
-
-  messageTime: {
-    ...typography.label,
-    color: palette.textMuted,
-    marginTop: spacing.xs,
-  },
-
-  inputContainer: {
+  root: { flex: 1, backgroundColor: palette.canvas },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: palette.borderStrong,
-    backgroundColor: palette.surface,
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
   },
-  inputWrapper: { flex: 1, marginBottom: 0 },
-  input: {
-    minHeight: 44,
+  topText: { flex: 1 },
+  topLabel: { ...typography.label, color: palette.textMuted },
+  topTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 1 },
+  spacer: { width: 0 },
+  body: { paddingHorizontal: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg },
+  row: { flexDirection: 'row', marginBottom: spacing.sm },
+  rowMine: { justifyContent: 'flex-end' },
+  rowTheirs: { justifyContent: 'flex-start' },
+  bubble: {
+    maxWidth: '80%',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  bubbleMine: {
     backgroundColor: palette.surfaceAlt,
+    borderColor: palette.borderStrong,
   },
-  sendBtn: { minWidth: 88 },
+  bubbleTheirs: {
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+  },
+  messageText: { ...typography.body, color: palette.textPrimary },
+  time: {
+    fontFamily: fontFamilyMono,
+    fontSize: 9,
+    color: palette.textMuted,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    backgroundColor: palette.canvas,
+  },
+  input: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 120,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    ...typography.body,
+    color: palette.textPrimary,
+  },
+  send: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: palette.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendDisabled: { opacity: 0.4 },
 });
