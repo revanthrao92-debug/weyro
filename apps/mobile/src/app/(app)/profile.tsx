@@ -10,7 +10,6 @@ import {
   MapPin,
   Settings2,
   ShoppingBag,
-  Star,
   UserRoundPen,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -137,14 +136,6 @@ export default function ProfileScreen() {
             left={<IconRow Icon={ShoppingBag} />}
             onPress={() => router.push('/orders')}
             accessibilityLabel="Part orders"
-          />
-          <ListItem
-            bare
-            divider
-            title="My quotes"
-            left={<IconRow Icon={Star} />}
-            onPress={() => router.push('/my-quotes')}
-            accessibilityLabel="My quotes"
           />
           <ListItem
             bare

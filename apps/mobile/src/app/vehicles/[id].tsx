@@ -1,136 +1,24 @@
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Car } from 'lucide-react-native';
-import { BackButton ,
+  BackButton,
   ScreenContainer,
-  AppHeader,
-  SectionCard,
-  ListItem,
-  Skeleton,
   Button,
-  ButtonRow,
+  Skeleton,
   EmptyState,
+  SectionHead,
 } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
-import { palette, spacing, radii } from '@/theme';
-import { Image as ChemImage } from 'expo-image';
-import { photo } from '@/lib/photos';
-
-/** Catalogue photo for a garage vehicle (reversible: swap for your CDN mapping). */
-function vehiclePhoto(_make: string, _model: string): string {
-  return photo('garage-default');
-}
-
-export default function VehicleDetailScreen() {
-  const { vehicleId } = useLocalSearchParams();
-  const router = useRouter();
-  const { data: vehicles, isLoading } = useVehicles();
-
-  const vehicle = (vehicles?.items ?? []).find((v) => v.id === vehicleId);
-
-  if (isLoading) {
-    return (
-      <ScreenContainer chrome="dark">
-        <AppHeader
-          variant="dark"
-          title="Vehicle Details"
-          left={<BackButton />}
-        />
-        <Skeleton width="100%" height={56} />
-        <View style={styles.rowGap} />
-        <Skeleton width="100%" height={100} />
-      </ScreenContainer>
-    );
-  }
-
-  if (!vehicle) {
-    return (
-      <ScreenContainer chrome="dark">
-        <AppHeader
-          variant="dark"
-          title="Vehicle Details"
-          left={<BackButton />}
-        />
-        <EmptyState title="Vehicle not found" />
-      </ScreenContainer>
-    );
-  }
-
-  return (
-    <ScreenContainer chrome="dark">
-      <AppHeader
-        variant="dark"
-        title="Vehicle Details"
-        subtitle={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-        left={<BackButton />}
-      />
-
-      <ScrollView contentContainerStyle={styles.body}>
-        <SectionCard title="Vehicle" icon={Car} style={styles.section}>
-          <View style={styles.vehicleImage}>
-            <ChemImage
-              source={{ uri: vehiclePhoto(vehicle.make, vehicle.model) }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              accessibilityLabel={`${vehicle.make} ${vehicle.model}`}
-            />
-          </View>
-        </SectionCard>
-
-        <SectionCard title="Vehicle Information">
-          <ListItem
-            bare
-            divider
-            title="Make & Model"
-            subtitle={`${vehicle.make} ${vehicle.model}`}
-          />
-          <ListItem
-            bare
-            divider
-            title="Year"
-            subtitle={String(vehicle.year)}
-          />
-          <ListItem
-            bare
-            divider
-            title="Registration"
-            subtitle={vehicle.registrationNumber}
-          />
-          <ListItem
-            bare
-            divider
-            title="Fuel Type"
-            subtitle={labelize(vehicle.fuelType)}
-          />
-          {vehicle.vinNumber && (
-            <ListItem bare title="VIN" subtitle={vehicle.vinNumber} />
-          )}
-          <ListItem bare title="Added" subtitle={formatDate(vehicle.createdAt)} />
-        </SectionCard>
-
-        <SectionCard title="Actions">
-          <ButtonRow>
-            <Button
-              title="Request Service"
-              onPress={() => router.push('/requests/create')}
-              style={styles.flex}
-            />
-            <Button
-              title="Service History"
-              variant="secondary"
-              onPress={() => router.push('/bookings')}
-              style={styles.flex}
-            />
-          </ButtonRow>
-        </SectionCard>
-      </ScrollView>
-    </ScreenContainer>
-  );
-}
+import {
+  palette,
+  spacing,
+  radii,
+  typography,
+  displayFamily,
+  fontFamilyMono,
+} from '@/theme';
+import { carPhotoFor } from '@/lib/photos';
 
 function labelize(value: string) {
   return value
@@ -148,17 +36,141 @@ function formatDate(iso?: string) {
   });
 }
 
+export default function VehicleDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { data: vehicles, isLoading } = useVehicles();
+
+  const vehicle = (vehicles?.items ?? []).find((v) => v.id === id);
+
+  if (isLoading) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <BackButton />
+        <Skeleton width="55%" height={28} style={{ marginTop: spacing.md }} />
+        <Skeleton width="100%" height={200} style={{ marginTop: spacing.lg }} />
+      </ScreenContainer>
+    );
+  }
+
+  if (!vehicle) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <BackButton />
+        <EmptyState title="Vehicle not found" message="This vehicle may have been removed." />
+      </ScreenContainer>
+    );
+  }
+
+  const serviceTitle = `Service for ${vehicle.make} ${vehicle.model}`;
+
+  return (
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.topLabel}>Garage</Text>
+          <View style={styles.spacer} />
+        </View>
+
+        <Image
+          source={{ uri: carPhotoFor(vehicle.make, vehicle.model) }}
+          style={styles.hero}
+          contentFit="cover"
+          transition={150}
+        />
+        <Text style={styles.title}>
+          {vehicle.make} {vehicle.model}
+        </Text>
+        <Text style={styles.plate}>{vehicle.registrationNumber}</Text>
+
+        <SectionHead title="Vehicle" />
+        <View style={styles.spec}>
+          {[
+            ['Year', String(vehicle.year)],
+            ['Registration', vehicle.registrationNumber],
+            ['Fuel', labelize(vehicle.fuelType)],
+            ...(vehicle.vinNumber ? [['VIN', vehicle.vinNumber] as [string, string]] : []),
+            ['Added', formatDate(vehicle.createdAt)],
+          ].map(([label, value], i) => (
+            <View key={label} style={[styles.specRow, i > 0 && styles.divider]}>
+              <Text style={styles.specLabel}>{label}</Text>
+              <Text style={styles.specValue}>{value}</Text>
+            </View>
+          ))}
+        </View>
+
+        <SectionHead title="Actions" />
+        <View style={styles.actions}>
+          <Button
+            title="Request service"
+            onPress={() =>
+              router.push(
+                `/requests/create?category=MAINTENANCE&title=${encodeURIComponent(serviceTitle)}`
+              )
+            }
+          />
+          <Button
+            title="Service history"
+            variant="secondary"
+            onPress={() => router.push('/bookings')}
+          />
+        </View>
+      </ScrollView>
+    </ScreenContainer>
+  );
+}
+
 const styles = StyleSheet.create({
-  body: { paddingBottom: spacing.xxl },
-  section: { marginBottom: spacing.lg },
-  rowGap: { height: spacing.sm },
-  vehicleImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: radii.lg,
-    backgroundColor: palette.surfaceAlt,
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
   },
-  flex: { flex: 1 },
+  topLabel: { ...typography.label, color: palette.textMuted },
+  spacer: { width: 44 },
+  hero: {
+    width: '100%',
+    height: 210,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceAlt,
+  },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.4,
+    color: palette.textPrimary,
+    marginTop: spacing.lg,
+  },
+  plate: {
+    fontFamily: fontFamilyMono,
+    fontSize: 12,
+    color: palette.textMuted,
+    marginTop: 4,
+  },
+  spec: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  divider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  specLabel: { ...typography.caption, color: palette.textSecondary },
+  specValue: {
+    ...typography.captionMedium,
+    color: palette.textPrimary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  actions: { gap: spacing.sm },
 });
