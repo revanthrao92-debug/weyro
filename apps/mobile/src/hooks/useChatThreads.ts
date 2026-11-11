@@ -21,6 +21,7 @@ export type ChatThread = {
     totalReviews: number;
     completedJobs: number;
   } | null;
+  request?: { id: string; title: string; status: string } | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
   unreadCount: number;

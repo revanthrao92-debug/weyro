@@ -232,9 +232,6 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
                     {new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 ) : null}
-                {active && step.key === 'PROVIDER_EN_ROUTE' ? (
-                  <Text style={tlm.expected}>{'Expected: Today, 6 PM'}</Text>
-                ) : null}
               </View>
             </View>
           </FadeSlideIn>

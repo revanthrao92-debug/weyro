@@ -177,7 +177,7 @@ export default function PartDetailScreen() {
             loading={ordering}
           />
           <Text style={styles.orderNote}>
-            The order is created immediately; payment is confirmed on the Orders screen.
+            Payment collection is not available in the app yet. The order is recorded and its payment state appears in Orders.
           </Text>
         </View>
       </ScrollView>

@@ -58,6 +58,7 @@ export default function MessagesThreadScreen() {
     role === 'PROVIDER'
       ? thread?.customer?.firstName ?? 'Customer'
       : thread?.provider?.businessName ?? 'Conversation';
+  const context = thread?.request?.title ?? 'Conversation';
 
   const messages = data?.items ?? [];
 
@@ -91,7 +92,7 @@ export default function MessagesThreadScreen() {
         <View style={styles.topBar}>
           <BackButton />
           <View style={styles.topText}>
-            <Text style={styles.topLabel}>Conversation</Text>
+            <Text style={styles.topLabel}>{context}</Text>
             <Text style={styles.topTitle} numberOfLines={1}>
               {title}
             </Text>

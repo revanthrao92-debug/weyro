@@ -33,6 +33,7 @@ export class DamageRequestsService {
     return {
       ...req,
       damagePhotos,
+      quotationsCount: Array.isArray(req.quotations) ? req.quotations.length : 0,
     };
   }
 

@@ -18,6 +18,7 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { useChatThreads } from '@/hooks/useChatThreads';
+import { useAuth } from '@/hooks/useAuth';
 
 const timeLabel = (iso?: string) =>
   iso
@@ -26,6 +27,7 @@ const timeLabel = (iso?: string) =>
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const { role } = useAuth();
   const [query, setQuery] = useState('');
   const { data, isLoading } = useChatThreads();
 
@@ -107,18 +109,28 @@ export default function MessagesScreen() {
             </View>
           )
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index }) => {
+          const name =
+            role === 'PROVIDER'
+              ? item.customer?.firstName ?? 'Customer'
+              : item.provider?.businessName ?? 'Conversation';
+          return (
           <PressableScale
             onPress={() => router.push(`/messages/${item.id}`)}
             accessibilityRole="button"
-            accessibilityLabel={`Open conversation with ${item.customer?.firstName ?? 'customer'}`}
+            accessibilityLabel={`Open conversation with ${name}`}
             scaleTo={0.99}
             style={[styles.row, index > 0 && styles.divider]}
           >
-            <Avatar name={item.customer?.firstName ?? 'W'} size={40} />
+            <Avatar name={name} size={40} />
             <View style={styles.rowText}>
+              {item.request?.title ? (
+                <Text style={styles.context} numberOfLines={1}>
+                  {item.request.title}
+                </Text>
+              ) : null}
               <Text style={styles.name} numberOfLines={1}>
-                {item.customer?.firstName || 'Conversation'}
+                {name}
               </Text>
               <Text style={styles.preview} numberOfLines={1}>
                 {item.lastMessage ?? 'No messages yet'}
@@ -131,7 +143,8 @@ export default function MessagesScreen() {
               ) : null}
             </View>
           </PressableScale>
-        )}
+          );
+        }}
       />
     </ScreenContainer>
   );
@@ -182,6 +195,12 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   rowText: { flex: 1 },
+  context: {
+    fontFamily: fontFamilyMono,
+    fontSize: 9,
+    color: palette.textMuted,
+    marginBottom: 2,
+  },
   name: { ...typography.bodyMedium, color: palette.textPrimary },
   preview: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
   meta: { alignItems: 'flex-end', gap: 4 },
