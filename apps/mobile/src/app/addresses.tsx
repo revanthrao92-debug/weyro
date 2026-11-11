@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useAddresses, useReplaceAddresses } from '@/hooks/useProfile';
+import { useAddresses, useReplaceAddresses, type SavedAddress } from '@/hooks/useProfile';
 import {
   Input,
   Button,
@@ -20,41 +20,33 @@ import {
   Skeleton,
   BackButton,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
-
-type Address = {
-  id?: string;
-  title: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-};
+import { LocationField, LocationPicker, type PickedLocation } from '@/maps';
+import { palette, spacing, radii, typography, fontFamilyMono } from '@/theme';
 
 export default function AddressesScreen() {
   const { data, isLoading, refetch } = useAddresses();
   const replaceAddresses = useReplaceAddresses();
   const [saving, setSaving] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newLat, setNewLat] = useState('');
-  const [newLng, setNewLng] = useState('');
+  const [draft, setDraft] = useState<PickedLocation | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const addresses = data?.addresses ?? [];
 
   const handleAddAddress = async () => {
-    if (!newTitle || !newAddress || !newLat || !newLng) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!newTitle.trim() || !draft) {
+      Alert.alert('Missing details', 'Add a label and choose the address on the map.');
       return;
     }
 
-    const updated = [
+    const updated: SavedAddress[] = [
       ...addresses,
       {
         id: `addr-${Date.now()}`,
-        title: newTitle,
-        address: newAddress,
-        latitude: parseFloat(newLat),
-        longitude: parseFloat(newLng),
+        title: newTitle.trim(),
+        address: draft.address,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
       },
     ];
 
@@ -62,11 +54,8 @@ export default function AddressesScreen() {
     try {
       await replaceAddresses.mutateAsync(updated);
       setNewTitle('');
-      setNewAddress('');
-      setNewLat('');
-      setNewLng('');
+      setDraft(null);
       await refetch();
-      Alert.alert('Success', 'Address added');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to add address');
     } finally {
@@ -90,7 +79,7 @@ export default function AddressesScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="Saved Addresses" />
+        <AppHeader left={<BackButton />} title="Saved addresses" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
             <Skeleton width="40%" height={14} />
@@ -108,51 +97,45 @@ export default function AddressesScreen() {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="Saved Addresses" subtitle="Manage your delivery and service addresses" />
+        <AppHeader
+          left={<BackButton />}
+          title="Saved addresses"
+          subtitle="Reused across service requests"
+        />
 
         <Card style={styles.addCard}>
-          <Text style={styles.addTitle}>Add New Address</Text>
+          <Text style={styles.addTitle}>Add address</Text>
           <Input
-            label="Title"
-            placeholder="Title (e.g. Home)"
+            label="Label"
+            placeholder="e.g. Home, Office"
             value={newTitle}
             onChangeText={setNewTitle}
           />
-          <Input
-            label="Street address"
-            placeholder="Street address"
-            value={newAddress}
-            onChangeText={setNewAddress}
+          <LocationField
+            label="Address"
+            value={draft}
+            placeholder="Choose on the map"
+            onPress={() => setPickerOpen(true)}
           />
-          <View style={styles.coordsRow}>
-            <View style={styles.coord}>
-              <Input
-                label="Latitude"
-                placeholder="Latitude"
-                value={newLat}
-                onChangeText={setNewLat}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.coord}>
-              <Input
-                label="Longitude"
-                placeholder="Longitude"
-                value={newLng}
-                onChangeText={setNewLng}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-          <Button title="Add Address" onPress={handleAddAddress} disabled={saving} loading={saving} />
+          <Button
+            title="Save address"
+            onPress={handleAddAddress}
+            disabled={saving || !draft || !newTitle.trim()}
+            loading={saving}
+            style={styles.saveButton}
+          />
         </Card>
 
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Your Addresses</Text>
+          <Text style={styles.listTitle}>Your addresses</Text>
+          <Text style={styles.listCount}>{addresses.length}</Text>
         </View>
 
         {addresses.length === 0 ? (
-          <EmptyState title="No saved addresses" message="Your saved addresses will appear here." />
+          <EmptyState
+            title="No saved addresses"
+            message="Save a home or office address so requests take two taps."
+          />
         ) : (
           <FlatList
             data={addresses}
@@ -164,31 +147,49 @@ export default function AddressesScreen() {
           />
         )}
       </ScreenContainer>
+
+      <LocationPicker
+        visible={pickerOpen}
+        title="Add saved address"
+        hint="Search or drag the pin"
+        initial={draft}
+        useSavedFallback={false}
+        confirmLabel="Use this address"
+        onClose={() => setPickerOpen(false)}
+        onConfirm={(next) => {
+          setDraft(next);
+          setPickerOpen(false);
+          if (!newTitle.trim() && next.label) setNewTitle(next.label);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function AddressItem({ item, onRemove }: { item: Address; onRemove: (id: string) => void }) {
+function AddressItem({
+  item,
+  onRemove,
+}: {
+  item: SavedAddress;
+  onRemove: (id: string) => void;
+}) {
   return (
-    <TouchableOpacity
-      style={styles.itemTouch}
-      onPress={() => {}}
-      accessibilityRole="button"
-      accessibilityLabel={`Address ${item.title}`}
-    >
-      <Card style={styles.item}>
-        <View style={styles.itemContent}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.itemAddress}>{item.address}</Text>
-          <Text style={styles.itemCoords}>
-            {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
-          </Text>
-        </View>
-        <TouchableOpacity style={styles.removeButton} onPress={() => onRemove(item.id!)}>
-          <Text style={styles.removeText}>Remove</Text>
-        </TouchableOpacity>
-      </Card>
-    </TouchableOpacity>
+    <View style={styles.item}>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.itemAddress} numberOfLines={2}>
+          {item.address}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => item.id && onRemove(item.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${item.title}`}
+      >
+        <Text style={styles.removeText}>Remove</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -198,51 +199,47 @@ const styles = StyleSheet.create({
   addCard: {
     backgroundColor: palette.surface,
     borderRadius: radii.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
     padding: spacing.lg,
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
   addTitle: {
-    ...typography.captionMedium,
-    color: palette.textSecondary,
-    marginBottom: spacing.sm,
+    ...typography.label,
+    color: palette.textMuted,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  coordsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  coord: { flex: 1 },
+  saveButton: { marginTop: spacing.xs },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xs,
   },
   listTitle: { ...typography.heading, color: palette.textPrimary },
+  listCount: {
+    fontFamily: fontFamilyMono,
+    fontSize: 11,
+    color: palette.textMuted,
+  },
   list: { paddingBottom: spacing.xxl },
-  itemTouch: { marginBottom: spacing.md },
   item: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
   itemContent: { flex: 1 },
   itemTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  itemAddress: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.xs },
-  itemCoords: { ...typography.label, color: palette.textMuted, marginTop: spacing.xs },
-  removeButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: palette.dangerSoftBg,
-    backgroundColor: palette.dangerSoftBg,
+  itemAddress: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: 3,
   },
+  removeButton: { paddingVertical: 8, paddingHorizontal: 4 },
   removeText: { ...typography.label, color: palette.danger },
 });

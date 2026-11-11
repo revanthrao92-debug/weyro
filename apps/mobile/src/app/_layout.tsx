@@ -1,5 +1,6 @@
 import '../../global.css';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,13 +18,15 @@ export default function RootLayout() {
   useFonts({ Sora_600SemiBold });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {/* Light is the app's active theme (see global.css). */}
-        <StatusBar style="light" />
-        <AuthRouter />
-      </AuthProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          {/* Light is the app's active theme (see global.css). */}
+          <StatusBar style="light" />
+          <AuthRouter />
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -70,6 +70,7 @@ export type CreateServiceRequest = {
   dropoffLongitude?: number;
   towingVehicleType?: string;
   vehicleWeightKg?: number;
+  roadsideKind?: string;
   expiresInDays?: number;
 };
 

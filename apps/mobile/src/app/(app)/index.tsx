@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
-import { useAddresses, useVehicles } from '@/hooks/useProfile';
+import { useAddresses, useReplaceAddresses, useVehicles } from '@/hooks/useProfile';
 import { useParts } from '@/hooks/useParts';
 import { useNotifications } from '@/hooks/useNotifications';
 import {
@@ -41,6 +41,7 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
+import { LocationPicker, type PickedLocation } from '@/maps';
 import { carPhotoFor } from '@/lib/photos';
 import { labelize, formatDate } from '@/utils/format';
 
@@ -133,6 +134,8 @@ export default function HomeScreen() {
   const bookingsQuery = useBookings();
   const vehiclesQuery = useVehicles();
   const addressesQuery = useAddresses();
+  const replaceAddresses = useReplaceAddresses();
+  const [locationOpen, setLocationOpen] = useState(false);
   const partsQuery = useParts({ limit: 8 });
   const { unreadCount, refetch: refetchNotifications } = useNotifications();
 
@@ -156,6 +159,37 @@ export default function HomeScreen() {
   const vehicles = vehiclesQuery.data?.items ?? [];
   const parts = (partsQuery.data?.items ?? []).slice(0, 4);
   const address = addressesQuery.data?.addresses?.[0];
+  const homeLocation: PickedLocation | null = address
+    ? {
+        address: address.address,
+        latitude: address.latitude,
+        longitude: address.longitude,
+        label: address.title,
+      }
+    : null;
+
+  const saveHomeLocation = async (next: PickedLocation) => {
+    const rest = (addressesQuery.data?.addresses ?? []).filter(
+      (item) => item.title !== 'Home',
+    );
+    try {
+      await replaceAddresses.mutateAsync([
+        {
+          id: 'home',
+          title: 'Home',
+          address: next.address,
+          latitude: next.latitude,
+          longitude: next.longitude,
+        },
+        ...rest,
+      ]);
+    } catch (error: any) {
+      Alert.alert(
+        'Location not saved',
+        error?.message ?? 'Could not save this location. Try again.',
+      );
+    }
+  };
   const vehicle = vehicles[0];
   const nextBooking = (bookingsQuery.data?.items ?? []).find(
     (b) => b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
@@ -271,7 +305,7 @@ export default function HomeScreen() {
           {/* Location + search */}
           <View style={styles.locationRow}>
             <PressableScale
-              onPress={() => router.push('/addresses')}
+              onPress={() => setLocationOpen(true)}
               accessibilityRole="button"
               accessibilityLabel="Change location"
               scaleTo={0.98}
@@ -678,6 +712,19 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <LocationPicker
+        visible={locationOpen}
+        title="Set your location"
+        hint="Used to find providers near you"
+        initial={homeLocation}
+        confirmLabel="Save location"
+        onClose={() => setLocationOpen(false)}
+        onConfirm={(next) => {
+          setLocationOpen(false);
+          void saveHomeLocation(next);
+        }}
+      />
     </ScreenContainer>
   );
 }
