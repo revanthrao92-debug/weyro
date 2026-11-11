@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PressableScale } from '@/components/ui/Motion';
+import { router } from 'expo-router';
 import { palette, spacing } from '@/theme';
 
 /**
@@ -28,17 +28,18 @@ type TabBarProps = {
       };
     }
   >;
-  navigation: {
+  /** expo-router bottom tabs: switches by route key. */
+  navigateToTab?: (routeKey: string) => void;
+  emitter?: {
     emit: (event: {
       type: 'tabPress';
       target: string;
       canPreventDefault: true;
     }) => { defaultPrevented?: boolean };
-    navigate: (name: string, params?: object) => void;
   };
 };
 
-export function WeyroTabBar({ state, descriptors, navigation }: TabBarProps) {
+export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -52,21 +53,26 @@ export function WeyroTabBar({ state, descriptors, navigation }: TabBarProps) {
             const label = options.title ?? route.name;
 
             return (
-              <PressableScale
+              <Pressable
                 key={route.key}
                 accessibilityRole="button"
                 accessibilityState={focused ? { selected: true } : {}}
                 accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-                scaleTo={0.92}
-                style={styles.item}
+                style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
                 onPress={() => {
-                  const event = navigation.emit({
+                  const event = emitter?.emit({
                     type: 'tabPress',
                     target: route.key,
                     canPreventDefault: true,
                   });
-                  if (!focused && !event.defaultPrevented) {
-                    navigation.navigate(route.name, route.params);
+
+                  if (!focused && !event?.defaultPrevented) {
+                    if (navigateToTab) {
+                      navigateToTab(route.key);
+                    } else {
+                      // Safety net if a future navigator drops navigateToTab.
+                      router.navigate(route.name === 'index' ? '/' : `/${route.name}`);
+                    }
                   }
                 }}
               >
@@ -85,7 +91,7 @@ export function WeyroTabBar({ state, descriptors, navigation }: TabBarProps) {
                 <View
                   style={[styles.indicator, focused && styles.indicatorActive]}
                 />
-              </PressableScale>
+              </Pressable>
             );
           })}
         </View>
@@ -109,6 +115,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     height: 58,
   },
+  itemPressed: { opacity: 0.65 },
   item: {
     flex: 1,
     alignItems: 'center',

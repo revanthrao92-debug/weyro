@@ -30,6 +30,7 @@ import {
   PressableScale,
   SideFade,
   AdSlot,
+  SectionHead as Head,
 } from '@/components/ui';
 import {
   StatusTone,
@@ -123,35 +124,6 @@ const PACKAGES = [
   { title: 'Pre-purchase check', detail: '200-point inspection', category: 'INSPECTION' },
 ];
 
-function Head({
-  index,
-  title,
-  action,
-  onAction,
-}: {
-  index: string;
-  title: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View style={styles.head}>
-      <Text style={styles.headIndex}>{index}</Text>
-      <Text style={styles.headTitle}>{title}</Text>
-      <View style={styles.headSpacer} />
-      {action ? (
-        <PressableScale
-          onPress={onAction}
-          accessibilityRole="link"
-          accessibilityLabel={action}
-          scaleTo={0.95}
-        >
-          <Text style={styles.headAction}>{action}</Text>
-        </PressableScale>
-      ) : null}
-    </View>
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -849,21 +821,6 @@ const styles = StyleSheet.create({
   locationText: { ...typography.caption, color: palette.textSecondary, flexShrink: 1 },
   sos: { fontFamily: fontFamilyMono, fontSize: 11, color: palette.accent, letterSpacing: 0.4 },
 
-  head: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  headIndex: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
-    color: palette.textMuted,
-  },
-  headTitle: { ...typography.captionMedium, color: palette.textPrimary },
-  headSpacer: { flex: 1 },
-  headAction: { ...typography.label, color: palette.textSecondary },
   index: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,

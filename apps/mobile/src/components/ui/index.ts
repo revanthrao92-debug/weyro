@@ -64,5 +64,7 @@ export { FadeSlideIn, PressableScale } from './Motion';
 export { BottomFade, MetallicEdge, RadialGlow, SideFade, Surface } from './Metallic';
 export type { BottomFadeProps, MetallicEdgeProps, RadialGlowProps, SideFadeProps, SurfaceProps } from './Metallic';
 export { Section } from './Section';
+export { SectionHead } from './SectionHead';
+export type { SectionHeadProps } from './SectionHead';
 export type { SectionProps } from './Section';
 export type { FadeSlideInProps, PressableScaleProps } from './Motion';
