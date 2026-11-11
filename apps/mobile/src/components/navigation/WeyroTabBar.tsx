@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { palette, spacing } from '@/theme';
+import { palette } from '@/theme';
 import { tabItemWidth } from './tabItemWidth';
 
 /**
@@ -54,7 +54,7 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
           {state.routes.map((route, index) => {
             const focused = state.index === index;
             const options = descriptors[route.key]?.options ?? {};
-            const color = focused ? palette.accent : palette.textMuted;
+            const color = focused ? palette.textPrimary : palette.textMuted;
             const label = options.title ?? route.name;
 
             return (
@@ -86,6 +86,10 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
                   }
                 }}
               >
+                <View
+                  style={[styles.activeBar, focused && styles.activeBarOn]}
+                  pointerEvents="none"
+                />
                 {options.tabBarIcon?.({
                   focused,
                   color,
@@ -117,36 +121,40 @@ const styles = StyleSheet.create({
     borderTopColor: palette.borderStrong,
   },
   blur: {
-    // Layered translucency (no native blur module in the current build).
-    backgroundColor: palette.canvas,
+    width: '100%',
+    backgroundColor: palette.surface,
   },
   row: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'stretch',
-    height: 58,
+    height: 54,
   },
   itemPressed: { opacity: 0.65 },
   item: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    paddingTop: spacing.xs,
+    paddingTop: 6,
+    paddingHorizontal: 2,
+  },
+  activeBar: {
+    position: 'absolute',
+    top: 0,
+    width: 18,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'transparent',
+  },
+  activeBarOn: {
+    backgroundColor: palette.accent,
   },
   label: {
+    flexShrink: 1,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-  indicator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 2,
-    backgroundColor: 'transparent',
-  },
-  indicatorActive: {
-    backgroundColor: palette.accent,
+    letterSpacing: 0,
+    textAlign: 'center',
   },
 });
