@@ -39,12 +39,16 @@ type TabBarProps = {
   };
 };
 
+export function tabItemWidth(windowWidth: number, tabCount: number): number {
+  return Math.floor(windowWidth / Math.max(tabCount, 1));
+}
+
 export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // Explicit widths: relying on flex alone let the labels collapse into one
   // string on device when the parent shrink-wrapped the row.
-  const itemWidth = Math.floor(width / Math.max(state.routes.length, 1));
+  const itemWidth = tabItemWidth(width, state.routes.length);
 
   return (
     <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 10) }]}>
