@@ -17,8 +17,8 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
-import { WeyroTabBar } from '@/components/navigation/WeyroTabBar';
 import { palette, fontFamilyMedium } from '@/theme';
 
 /**
@@ -46,6 +46,7 @@ const tabIcon = (IconCmp: LucideIcon) => {
  */
 export default function AppLayout() {
   const { role } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const screens: ReactElement[] =
     role === 'ADMIN'
@@ -98,20 +99,23 @@ export default function AppLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => (
-        <WeyroTabBar
-          {...(props as unknown as React.ComponentProps<typeof WeyroTabBar>)}
-        />
-      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: palette.accent,
         tabBarInactiveTintColor: palette.textMuted,
         tabBarStyle: {
           backgroundColor: palette.surface,
-          borderTopColor: palette.border,
+          borderTopColor: palette.borderStrong,
+          borderTopWidth: 1,
+          height: 58 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
         },
-        tabBarLabelStyle: { fontFamily: fontFamilyMedium, fontSize: 11 },
+        tabBarLabelStyle: {
+          fontFamily: fontFamilyMedium,
+          fontSize: 10,
+          lineHeight: 12,
+        },
       }}
     >
       {screens}
