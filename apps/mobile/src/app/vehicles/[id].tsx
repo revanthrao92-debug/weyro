@@ -19,22 +19,7 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { carPhotoFor } from '@/lib/photos';
-
-function labelize(value: string) {
-  return value
-    .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function formatDate(iso?: string) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+import { formatDate, labelize } from '@/utils/format';
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
