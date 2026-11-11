@@ -96,14 +96,16 @@ order, one screen per checkpoint:
 Only owned or clearly relevant photography is used. Random luxury-car stock was
 removed after it showed a Ferrari for "Spare parts" and a Bugatti for "Towing".
 
-Currently used: `hero-primary.jpg` (hero), `hero-secondary.jpg` (editorial
-band), `carPhotoFor()` for the user's vehicle, and real `part.imageUrl` only.
+Currently used: `hero-primary.jpg` (hero), `hero-secondary.jpg` (detail band),
+`workshop-1.jpg` (mechanic band, Unsplash photo-1615906655593-ad0386982a0f,
+cropped + graded locally), `carPhotoFor()` for the user's vehicle, and real
+`part.imageUrl` only.
 
 To add more real pictures, drop these into `apps/mobile/assets/images/`:
 
 | File | Size | Use |
 |---|---|---|
-| `workshop-1.jpg` | 1200×800, ≤300 KB | service band / roadside |
+| ~~`workshop-1.jpg`~~ | done | workshop band (sourced + verified) |
 | `tow-1.jpg` | 1200×800 | towing service |
 | `parts-1.jpg` | 1000×700 | parts rail header |
 | `inspection-1.jpg` | 1000×700 | inspection service |

@@ -81,6 +81,8 @@ function bookingTone(status: string): StatusTone {
 }
 
 const HERO_IMAGE = require('../../../assets/images/hero-primary.jpg');
+// Workshop band: Unsplash (photo-1615906655593-ad0386982a0f), cropped + graded
+// locally; Unsplash license allows commercial use without attribution.
 
 const SERVICES = [
   { key: 'REPAIR', label: 'Repair', detail: 'Bodywork, dents, paint' },
@@ -345,6 +347,22 @@ export default function HomeScreen() {
             ))}
           </View>
 
+          {/* Workshop band — real garages, real people */}
+          <View style={styles.bandFull}>
+            <Image
+              source={require('../../../assets/images/workshop-1.jpg')}
+              style={styles.bandImage}
+              contentFit="cover"
+              contentPosition="center"
+              transition={200}
+            />
+            <View style={styles.bandScrim} />
+            <View style={styles.bandContent}>
+              <Text style={styles.bandTitle}>Real garages.{`\n`}Real mechanics.</Text>
+              <Text style={styles.bandMeta}>Every partner verified before quoting</Text>
+            </View>
+          </View>
+
           {/* Vehicle */}
           <Head
             index="02"
@@ -560,7 +578,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Editorial image band — one owned photo, one line */}
-          <View style={styles.band}>
+          <View style={styles.bandFull}>
             <Image
               source={require('../../../assets/images/hero-secondary.jpg')}
               style={styles.bandImage}
@@ -935,10 +953,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontVariant: ['tabular-nums'],
   },
-  band: {
-    height: 184,
+  bandFull: {
+    height: 220,
     marginTop: spacing.xl,
-    borderRadius: radii.md,
+    marginHorizontal: -spacing.lg,
     overflow: 'hidden',
     backgroundColor: palette.surfaceAlt,
   },
