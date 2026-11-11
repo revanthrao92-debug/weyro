@@ -18,6 +18,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
+import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useAddresses, useReplaceAddresses, useVehicles } from '@/hooks/useProfile';
@@ -87,16 +88,6 @@ const HERO_IMAGE = require('../../../assets/images/hero-primary.jpg');
 // Workshop band: Unsplash (photo-1615906655593-ad0386982a0f), cropped + graded
 // locally; Unsplash license allows commercial use without attribution.
 
-const SERVICES = [
-  { key: 'REPAIR', label: 'Repair', detail: 'Bodywork, dents, paint' },
-  { key: 'MAINTENANCE', label: 'Maintenance', detail: 'Oil, filters, scheduled service' },
-  { key: 'SPARE_PART', label: 'Spare parts', detail: 'Genuine and aftermarket' },
-  { key: 'TOWING', label: 'Towing', detail: 'Flatbed, wheel-lift' },
-  { key: 'ROADSIDE', label: 'Roadside', detail: 'Battery, tyre, fuel' },
-  { key: 'INSPECTION', label: 'Inspection', detail: 'Pre-purchase, 200-point' },
-];
-
-const ROADSIDE_KINDS = ['Battery', 'Tyre', 'Fuel', 'Tow'];
 
 /** Shop navigation categories — used when the catalogue has no listings yet. */
 const PART_CATEGORIES = [
@@ -327,43 +318,7 @@ export default function HomeScreen() {
             </PressableScale>
           </View>
 
-          {/* Service index */}
-          <Head index="01" title="Services" />
-          <View style={styles.index}>
-            {SERVICES.map((service, i) => (
-              <PressableScale
-                key={service.key}
-                onPress={() => router.push(`/requests/create?category=${service.key}`)}
-                accessibilityRole="button"
-                accessibilityLabel={service.label}
-                scaleTo={0.99}
-                style={[styles.indexRow, i > 0 && styles.rowDivider]}
-              >
-                <View style={styles.indexText}>
-                  <Text style={styles.indexLabel}>{service.label}</Text>
-                  <Text style={styles.indexDetail}>{service.detail}</Text>
-                </View>
-                <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
-              </PressableScale>
-            ))}
-          </View>
-
-          <View style={styles.sosLine}>
-            <Text style={styles.sosLabel}>Roadside now</Text>
-            {ROADSIDE_KINDS.map((kind) => (
-              <PressableScale
-                key={kind}
-                onPress={() =>
-                  router.push(`/sos?kind=${kind === 'Tow' ? 'TOW' : kind.toUpperCase()}`)
-                }
-                accessibilityRole="button"
-                accessibilityLabel={`${kind} assistance`}
-                scaleTo={0.95}
-              >
-                <Text style={styles.sosKind}>{kind}</Text>
-              </PressableScale>
-            ))}
-          </View>
+          <HomeServiceSections />
 
           {/* Workshop band — real garages, real people */}
           <View style={styles.bandFull}>
@@ -892,16 +847,6 @@ const styles = StyleSheet.create({
   indexText: { flex: 1 },
   indexLabel: { ...typography.bodyMedium, color: palette.textPrimary },
   indexDetail: { ...typography.label, color: palette.textMuted, marginTop: 2 },
-  sosLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-  },
-  sosLabel: { ...typography.label, color: palette.textMuted, flex: 1 },
-  sosKind: { ...typography.captionMedium, color: palette.textSecondary },
 
   vehicleRow: {
     flexDirection: 'row',
