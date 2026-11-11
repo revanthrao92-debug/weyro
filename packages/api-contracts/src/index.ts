@@ -74,7 +74,8 @@ export type ProviderType =
   | 'AUTHORIZED_CENTER'
   | 'PARTS_DEALER'
   | 'TOWING'
-  | 'ROADSIDE';
+  | 'ROADSIDE'
+  | 'DRIVER';
 
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
@@ -134,6 +135,7 @@ export const PROVIDER_TYPE_CATEGORIES: Record<ProviderType, ServiceCategory[]> =
   PARTS_DEALER: ['SPARE_PART'],
   TOWING: ['TOWING'],
   ROADSIDE: ['ROADSIDE'],
+  DRIVER: [],
 };
 
 /**

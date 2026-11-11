@@ -24,7 +24,8 @@ export class RegisterDto implements RegisterInput {
     | 'AUTHORIZED_CENTER'
     | 'PARTS_DEALER'
     | 'TOWING'
-    | 'ROADSIDE';
+    | 'ROADSIDE'
+    | 'DRIVER';
   description?: string;
   address?: string;
   latitude?: number;

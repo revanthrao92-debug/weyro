@@ -30,6 +30,7 @@ enum ProviderType {
   PARTS_DEALER
   TOWING
   ROADSIDE
+  DRIVER
 }
 
 enum VerificationStatus {
@@ -136,6 +137,33 @@ enum RoadsideKind {
   FUEL
 }
 
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+}
+
+enum DriverEngagement {
+  HOURLY
+  DAILY
+}
+
+enum DriverScheduleMode {
+  ON_DEMAND
+  SCHEDULED
+}
+
+enum DriverBookingStatus {
+  REQUESTED
+  CONFIRMED
+  DRIVER_EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  DISPUTED
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -158,22 +186,23 @@ model User {
 }
 
 model CustomerProfile {
-  id             String           @id @default(uuid())
-  userId         String           @unique
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName      String
-  lastName       String
-  avatarUrl      String?
-  savedAddresses Json?
-  vehicles       Vehicle[]
-  requests       ServiceRequest[]
-  bookings       Booking[]
-  reviews        Review[]
+  id              String           @id @default(uuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  savedAddresses  Json?
+  vehicles        Vehicle[]
+  requests        ServiceRequest[]
+  bookings        Booking[]
+  driverBookings  DriverBooking[]
+  reviews         Review[]
   sparePartOrders SparePartOrder[]
-  threads        Thread[]
-  deletedAt      DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  threads         Thread[]
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@map("customer_profiles")
 }
@@ -189,8 +218,10 @@ model Vehicle {
   vinNumber          String?
   fuelType           FuelType         @default(PETROL)
   color              String?
+  transmission       Transmission?
   deletedAt          DateTime?
   requests           ServiceRequest[]
+  driverBookings     DriverBooking[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -228,6 +259,8 @@ model ProviderProfile {
   deletedAt             DateTime?
   quotations            Quotation[]
   bookings              Booking[]
+  driverProfile         DriverProfile?
+  driverBookings        DriverBooking[]
   reviews               Review[]
   spareParts            SparePart[]
   sparePartOrders       SparePartOrder[]
@@ -239,6 +272,89 @@ model ProviderProfile {
   @@index([providerType])
   @@index([avgRating])
   @@map("provider_profiles")
+}
+
+model DriverProfile {
+  id              String               @id @default(uuid())
+  providerId      String               @unique
+  provider        ProviderProfile      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  licenceNumber   String?
+  licenceExpiry   DateTime?
+  experienceYears Int                  @default(0)
+  languages       String[]             @default([])
+  transmissions   Transmission[]       @default([])
+  hourlyRate      Decimal              @default(0) @db.Decimal(10, 2)
+  dailyRate       Decimal              @default(0) @db.Decimal(10, 2)
+  isOnline        Boolean              @default(false)
+  maxHoursPerDay  Int                  @default(10)
+  availability    DriverAvailability[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@map("driver_profiles")
+}
+
+model DriverAvailability {
+  id          String        @id @default(uuid())
+  driverId    String
+  driver      DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  createdAt   DateTime      @default(now())
+
+  @@index([driverId, weekday])
+  @@map("driver_availability")
+}
+
+model DriverBooking {
+  id                      String              @id @default(uuid())
+  customerId              String
+  customer                CustomerProfile     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  driverId                String
+  driver                  ProviderProfile     @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicleId               String
+  vehicle                 Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  status                  DriverBookingStatus @default(REQUESTED)
+  engagement              DriverEngagement
+  scheduleMode            DriverScheduleMode
+  pickupAddress           String
+  pickupLatitude          Float
+  pickupLongitude         Float
+  destinationAddress      String?
+  destinationLatitude     Float?
+  destinationLongitude    Float?
+  startAt                 DateTime
+  endAt                   DateTime
+  durationHours           Int?
+  durationDays            Int?
+  notes                   String?
+  transmission            Transmission?
+  baseAmount              Decimal             @db.Decimal(10, 2)
+  platformFee             Decimal             @db.Decimal(10, 2)
+  totalAmount             Decimal             @db.Decimal(10, 2)
+  driverEarning           Decimal             @db.Decimal(10, 2)
+  startOtpHash            String?
+  startOtpAttempts        Int                 @default(0)
+  acceptedAt              DateTime?
+  enRouteAt               DateTime?
+  arrivedAt               DateTime?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  cancelledAt             DateTime?
+  cancellationReason      String?
+  driverLatitude          Float?
+  driverLongitude         Float?
+  driverLocationUpdatedAt DateTime?
+  etaMinutes              Int?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  deletedAt               DateTime?
+
+  @@index([driverId, status])
+  @@index([customerId, createdAt])
+  @@index([status, startAt])
+  @@map("driver_bookings")
 }
 
 model ServiceRequest {
@@ -411,25 +527,25 @@ model Review {
 }
 
 model SparePart {
-  id               String          @id @default(uuid())
+  id               String           @id @default(uuid())
   providerId       String
-  provider         ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider         ProviderProfile  @relation(fields: [providerId], references: [id], onDelete: Cascade)
   name             String
   partNumber       String
   compatibleMakes  String[]
   compatibleModels String[]
-  condition        PartCondition   @default(AFTERMARKET)
-  price            Decimal         @db.Decimal(10, 2)
-  stockQuantity    Int             @default(1)
-  kind             ShopListingKind @default(PART)
+  condition        PartCondition    @default(AFTERMARKET)
+  price            Decimal          @db.Decimal(10, 2)
+  stockQuantity    Int              @default(1)
+  kind             ShopListingKind  @default(PART)
   description      String?
   estimatedMinutes Int?
   imageUrl         String?
-  isActive         Boolean         @default(true)
+  isActive         Boolean          @default(true)
   deletedAt        DateTime?
   orders           SparePartOrder[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([providerId])
   @@index([providerId, isActive])
@@ -632,17 +748,17 @@ model IdempotencyKey {
 /// STEP 5 — Transactional outbox: rows written in the same tx as the business
 /// change; a worker delivers them (Expo push / webhook so on) and marks them.
 model OutboxEvent {
-  id         String   @id @default(uuid())
-  type       String   // e.g. "push.user", "chat.thread", "webhook.delivered"
-  payload    Json
-  channel    String   @default("expo-push")
-  attempts   Int      @default(0)
-  maxAttempts Int     @default(5)
-  nextAttemptAt DateTime @default(now())
-  sentAt     DateTime?
-  failedAt   DateTime?
-  lastError  String?
-  createdAt  DateTime @default(now())
+  id            String    @id @default(uuid())
+  type          String // e.g. "push.user", "chat.thread", "webhook.delivered"
+  payload       Json
+  channel       String    @default("expo-push")
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(5)
+  nextAttemptAt DateTime  @default(now())
+  sentAt        DateTime?
+  failedAt      DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
 
   @@index([channel, sentAt, nextAttemptAt])
   @@index([type])

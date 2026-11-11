@@ -13,6 +13,7 @@ import {
   UserRoundPen,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { DriverProfileScreen } from '@/components/driver/DriverProfileScreen';
 import {
   ScreenContainer,
   ListItem,
@@ -30,12 +31,16 @@ import {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, providerProfile } = useAuth();
 
   const name = user?.customerProfile?.firstName
     ? `${user.customerProfile.firstName} ${user.customerProfile.lastName ?? ''}`.trim()
     : user?.email?.split('@')[0] ?? 'Owner';
   const email = user?.email ?? '';
+
+  if (providerProfile?.providerType === 'DRIVER') {
+    return <DriverProfileScreen />;
+  }
 
   return (
     <ScreenContainer chrome="dark" safeBottom>

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
+import { DriverDashboard } from '@/components/driver/DriverDashboard';
 import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
@@ -119,7 +120,7 @@ const PACKAGES = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, role } = useAuth();
+  const { user, role, providerProfile } = useAuth();
 
   const requestsQuery = useMyRequests();
   const bookingsQuery = useBookings();
@@ -199,6 +200,10 @@ export default function HomeScreen() {
         />
       </ScreenContainer>
     );
+  }
+
+  if (providerProfile?.providerType === 'DRIVER') {
+    return <DriverDashboard />;
   }
 
   if (role === 'PROVIDER' || role === 'BOTH') {

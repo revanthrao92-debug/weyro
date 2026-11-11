@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import {
   Activity,
   Bell,
+  Briefcase,
   CalendarDays,
   Gauge,
   House,
@@ -14,6 +15,7 @@ import {
   Radar,
   ShoppingBag,
   User,
+  Wallet,
   Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -45,11 +47,32 @@ const tabIcon = (IconCmp: LucideIcon) => {
  * href hiding entirely).
  */
 export default function AppLayout() {
-  const { role } = useAuth();
+  const { role, providerProfile } = useAuth();
+  const isDriver = providerProfile?.providerType === 'DRIVER';
   const insets = useSafeAreaInsets();
 
-  const screens: ReactElement[] =
-    role === 'ADMIN'
+  const hiddenDriverScreens = [
+    <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ href: null }} />,
+    <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ href: null }} />,
+  ];
+
+  const screens: ReactElement[] = isDriver
+    ? [
+        <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
+        <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ title: 'Jobs', tabBarIcon: tabIcon(Briefcase) }} />,
+        <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ title: 'Earnings', tabBarIcon: tabIcon(Wallet) }} />,
+        <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
+        <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
+            <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
+        <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
+        <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
+        <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
+        <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
+        <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
+        <Tabs.Screen key="opportunities" name="opportunities" options={{ href: null }} />,
+        <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
+      ]
+    : role === 'ADMIN'
       ? [
           <Tabs.Screen key="index" name="index" options={{ title: 'Overview', tabBarIcon: tabIcon(Gauge) }} />,
           <Tabs.Screen key="providers" name="providers" options={{ title: 'Providers', tabBarIcon: tabIcon(Wrench) }} />,
@@ -62,6 +85,7 @@ export default function AppLayout() {
           <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
           <Tabs.Screen key="opportunities" name="opportunities" options={{ href: null }} />,
           <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
+          ...hiddenDriverScreens,
         ]
       : role === 'PROVIDER' || role === 'BOTH'
         ? [
@@ -76,6 +100,7 @@ export default function AppLayout() {
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
             <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
+            ...hiddenDriverScreens,
           ]
         : [
             <Tabs.Screen key="index" name="index" options={{ title: 'Home', tabBarIcon: tabIcon(House) }} />,
@@ -89,6 +114,7 @@ export default function AppLayout() {
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="opportunities" name="opportunities" options={{ href: null }} />,
             <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
+            ...hiddenDriverScreens,
           ];
 
   // Non-tab screens available to every role (pushed, not shown in the bar).

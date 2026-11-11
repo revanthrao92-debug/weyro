@@ -17,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ChatModule } from './modules/chat/chat.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { DriverGoModule } from './modules/driver-go/driver-go.module';
 import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -53,6 +54,7 @@ const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
     ChatModule,
     CustomersModule,
     ProvidersModule,
+    DriverGoModule,
     AdminModule,
     TasksModule,
     HealthModule,

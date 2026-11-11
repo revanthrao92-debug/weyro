@@ -21,7 +21,8 @@
     "db:seed": "prisma db seed",
     "build": "prisma generate && tsc",
     "typecheck": "tsc --noEmit",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed:driver": "ts-node prisma/seed-driver-go.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

@@ -18,6 +18,7 @@ export const RegisterSchema = z
         'PARTS_DEALER',
         'TOWING',
         'ROADSIDE',
+        'DRIVER',
       ])
       .optional(),
     description: z.string().optional(),
