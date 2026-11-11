@@ -79,7 +79,7 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
                 {options.tabBarIcon?.({
                   focused,
                   color,
-                  size: 22,
+                  size: 20,
                 })}
                 <Text
                   style={[styles.label, { color }]}
@@ -88,9 +88,6 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
                 >
                   {label}
                 </Text>
-                <View
-                  style={[styles.indicator, focused && styles.indicatorActive]}
-                />
               </Pressable>
             );
           })}
@@ -102,13 +99,13 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: 'rgba(16, 18, 20, 0.6)',
+    backgroundColor: palette.canvas,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
   blur: {
     // Layered translucency (no native blur module in the current build).
-    backgroundColor: 'rgba(16, 18, 20, 0.92)',
+    backgroundColor: palette.canvas,
   },
   row: {
     flexDirection: 'row',
