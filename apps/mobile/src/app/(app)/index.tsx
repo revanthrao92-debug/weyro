@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowRight,
@@ -103,6 +104,17 @@ const PART_CATEGORIES = [
   { label: 'Suspension', detail: 'Shocks, bushes, links', Icon: Settings2 },
   { label: 'Engine', detail: 'Belts, sensors, gaskets', Icon: Cog },
   { label: 'Electrical', detail: 'Bulbs, relays, wiring', Icon: Zap },
+];
+
+const FOOTER_LINKS = [
+  { label: 'Post request', route: '/requests/create' },
+  { label: 'Shop', route: '/shop' },
+  { label: 'Bookings', route: '/bookings' },
+  { label: 'Vehicles', route: '/vehicles' },
+  { label: 'Messages', route: '/messages' },
+  { label: 'Roadside', route: '/sos' },
+  { label: 'Help', route: '/help' },
+  { label: 'Profile', route: '/profile' },
 ];
 
 const PACKAGES = [
@@ -648,16 +660,49 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          <View style={styles.footerRow}>
-            <PressableScale
-              onPress={() => router.push('/help')}
-              accessibilityRole="link"
-              accessibilityLabel="Help and support"
-              scaleTo={0.96}
-            >
-              <Text style={styles.footerLink}>Help &amp; support</Text>
-            </PressableScale>
-            <Text style={styles.footerMeta}>weyro · 2026</Text>
+          {/* Footer — brand, real links, support, version */}
+          <View style={styles.footer}>
+            <View style={styles.footerBrandRow}>
+              <Text style={styles.footerWordmark}>weyro</Text>
+              <View style={styles.footerMark} />
+            </View>
+            <Text style={styles.footerTagline}>
+              Vehicle service and parts, from verified garages.
+            </Text>
+
+            <View style={styles.footerLinks}>
+              {FOOTER_LINKS.map((link) => (
+                <PressableScale
+                  key={link.label}
+                  onPress={() => router.push(link.route)}
+                  accessibilityRole="link"
+                  accessibilityLabel={link.label}
+                  scaleTo={0.96}
+                  style={styles.footerLinkCell}
+                >
+                  <Text style={styles.footerLink}>{link.label}</Text>
+                </PressableScale>
+              ))}
+            </View>
+
+            <View style={styles.footerSupport}>
+              <Text style={styles.footerSupportLabel}>Support</Text>
+              <PressableScale
+                onPress={() => Linking.openURL('mailto:support@weyro.app')}
+                accessibilityRole="link"
+                accessibilityLabel="Email Weyro support"
+                scaleTo={0.98}
+              >
+                <Text style={styles.footerSupportLink}>support@weyro.app</Text>
+              </PressableScale>
+            </View>
+
+            <View style={styles.footerBottom}>
+              <Text style={styles.footerMeta}>© 2026 Weyro</Text>
+              <Text style={styles.footerMeta}>
+                v{Constants.expoConfig?.version ?? '1.0.0'}
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -666,7 +711,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingBottom: spacing.xxl },
+  page: { paddingBottom: 104 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -995,15 +1040,56 @@ const styles = StyleSheet.create({
   assuranceDetail: { ...typography.label, color: palette.textMuted, marginTop: 2 },
   packageCta: { ...typography.label, color: palette.textSecondary },
 
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  footer: {
     marginTop: spacing.xl,
     paddingTop: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  footerLink: { ...typography.caption, color: palette.textSecondary },
+  footerBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  footerWordmark: {
+    fontFamily: displayFamily,
+    fontSize: 18,
+    lineHeight: 20,
+    letterSpacing: -0.3,
+    color: palette.textPrimary,
+  },
+  footerMark: { width: 4, height: 4, backgroundColor: palette.accent, marginTop: 8 },
+  footerTagline: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: spacing.xs,
+    maxWidth: 280,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.lg,
+    rowGap: spacing.sm,
+  },
+  footerLinkCell: { width: '50%', paddingVertical: 2 },
+  footerLink: { ...typography.caption, color: palette.textPrimary },
+  footerSupport: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+  },
+  footerSupportLabel: { ...typography.label, color: palette.textMuted },
+  footerSupportLink: {
+    fontFamily: fontFamilyMono,
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  footerBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
   footerMeta: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
 });
