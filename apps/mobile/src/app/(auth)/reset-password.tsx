@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ResetPasswordScreen() {
   const { phone: phoneParam } = useLocalSearchParams<{ phone?: string }>();
@@ -21,6 +22,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const { resetPassword } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   async function handleReset() {
     if (!phone || !code || !newPassword) {
@@ -51,6 +53,9 @@ export default function ResetPasswordScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={[styles.backRow, { paddingTop: insets.top }]}>
+          <BackButton />
+        </View>
         <View style={styles.header}>
           <Text style={styles.title}>Reset password</Text>
           <Text style={styles.subtitle}>
@@ -91,6 +96,7 @@ export default function ResetPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.canvas },
+  backRow: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
   scrollContent: { flexGrow: 1, padding: spacing.xl, justifyContent: 'center' },
   header: { marginBottom: spacing.xl },
   title: { ...typography.display, color: palette.textPrimary, marginBottom: spacing.xs },
