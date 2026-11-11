@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { palette, spacing } from '@/theme';
@@ -41,6 +41,10 @@ type TabBarProps = {
 
 export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Explicit widths: relying on flex alone let the labels collapse into one
+  // string on device when the parent shrink-wrapped the row.
+  const itemWidth = Math.floor(width / Math.max(state.routes.length, 1));
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
@@ -58,7 +62,12 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
                 accessibilityRole="button"
                 accessibilityState={focused ? { selected: true } : {}}
                 accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-                style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                testID={`tab-${route.name}`}
+                style={({ pressed }) => [
+                  styles.item,
+                  { width: itemWidth },
+                  pressed && styles.itemPressed,
+                ]}
                 onPress={() => {
                   const event = emitter?.emit({
                     type: 'tabPress',
@@ -84,7 +93,9 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
                 <Text
                   style={[styles.label, { color }]}
                   numberOfLines={1}
-                  maxFontSizeMultiplier={1.6}
+                  maxFontSizeMultiplier={1.2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
                 >
                   {label}
                 </Text>
@@ -99,6 +110,7 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
 
 const styles = StyleSheet.create({
   root: {
+    width: '100%',
     backgroundColor: palette.canvas,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
