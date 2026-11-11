@@ -1,182 +1,189 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
+  Bell,
+  CalendarDays,
   Car,
-  MapPin,
-  CreditCard,
   Clock3,
+  LifeBuoy,
+  LogOut,
+  MapPin,
+  Settings2,
+  ShoppingBag,
   Star,
   UserRoundPen,
-  LifeBuoy,
-  Settings2,
-  LogOut,
-  ShoppingBag,
-  LayoutDashboard,
-  Heart,
-  Bell,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { ScreenContainer, AppHeader, ListItem, StatusPill } from '@/components/ui';
-import { palette, spacing, radii, typography, elevation } from '@/theme';
+import {
+  ScreenContainer,
+  ListItem,
+  PressableScale,
+  SectionHead,
+  StatusPill,
+} from '@/components/ui';
+import {
+  palette,
+  spacing,
+  radii,
+  typography,
+  displayFamily,
+} from '@/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  const name =
-    user?.customerProfile?.firstName
-      ? `${user.customerProfile.firstName} ${user.customerProfile.lastName ?? ''}`.trim()
-      : user?.email?.split('@')[0] ?? 'Owner';
+  const name = user?.customerProfile?.firstName
+    ? `${user.customerProfile.firstName} ${user.customerProfile.lastName ?? ''}`.trim()
+    : user?.email?.split('@')[0] ?? 'Owner';
   const email = user?.email ?? '';
 
   return (
-    <ScreenContainer chrome="dark">
-      <AppHeader variant="dark" title="Profile" />
+    <ScreenContainer chrome="dark" safeBottom>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <Text style={styles.eyebrow}>Account</Text>
+        <Text style={styles.title}>Profile</Text>
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {/* Account header */}
-        <View style={styles.accountCard}>
+        <View style={styles.accountRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{(name?.[0] || 'W').toUpperCase()}</Text>
           </View>
-          <View style={{ flexShrink: 1 }}>
-            <Text style={styles.name} maxFontSizeMultiplier={2}>
+          <View style={styles.accountText}>
+            <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
-            <Text style={styles.email} maxFontSizeMultiplier={2}>
+            <Text style={styles.email} numberOfLines={1}>
               {email}
             </Text>
-            <View style={{ marginTop: 6 }}>
-              <StatusPill label="Customer" tone="info" />
-            </View>
           </View>
+          <StatusPill label="Customer" tone="neutral" />
         </View>
 
-        
-        <View style={styles.headRow}>
-          <View style={styles.avatarBig}>
-            <Text style={styles.avatarLetter}>{(name?.[0] || 'W').toUpperCase()}</Text>
-          </View>
-          <Text style={styles.profileName} maxFontSizeMultiplier={2}>{name}</Text>
-          <Text style={styles.profileEmail} maxFontSizeMultiplier={2}>{email}</Text>
-          <View style={styles.roleChip}><Text style={styles.roleChipText}>Customer</Text></View>
+        <View style={styles.tiles}>
+          <PressableScale
+            onPress={() => router.push('/bookings')}
+            accessibilityRole="button"
+            accessibilityLabel="Bookings"
+            scaleTo={0.97}
+            style={styles.tile}
+          >
+            <CalendarDays size={19} color={palette.textSecondary} strokeWidth={1.7} />
+            <Text style={styles.tileLabel}>Bookings</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => router.push('/orders')}
+            accessibilityRole="button"
+            accessibilityLabel="Orders"
+            scaleTo={0.97}
+            style={styles.tile}
+          >
+            <ShoppingBag size={19} color={palette.textSecondary} strokeWidth={1.7} />
+            <Text style={styles.tileLabel}>Orders</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => router.push('/vehicles')}
+            accessibilityRole="button"
+            accessibilityLabel="Garage"
+            scaleTo={0.97}
+            style={styles.tile}
+          >
+            <Car size={19} color={palette.textSecondary} strokeWidth={1.7} />
+            <Text style={styles.tileLabel}>Garage</Text>
+          </PressableScale>
         </View>
 
-<Text style={styles.sectionTitle}>Account</Text>
-        <ListItem
-          bare
-          divider
-          title="Edit Profile"
-          left={<IconRow Icon={UserRoundPen} />}
-          onPress={() => router.push('/profile-edit')}
-          accessibilityLabel="Edit profile"
-        />
-        <ListItem
-          bare
-          divider
-          title="My Vehicles"
-          left={<IconRow Icon={Car} />}
-          onPress={() => router.push('/vehicles')}
-          accessibilityLabel="My vehicles"
-        />
-        <ListItem
-          bare
-          divider
-          title="My Orders"
-          left={<IconRow Icon={ShoppingBag} />}
-          onPress={() => router.push('/(app)/bookings')}
-          accessibilityLabel="My orders"
-        />
-        <ListItem
-          bare
-          divider
-          title="My Requirements"
-          left={<IconRow Icon={LayoutDashboard} />}
-          onPress={() => router.push('/requests/my')}
-          accessibilityLabel="My requirements"
-        />
-        <ListItem
-          bare
-          divider
-          title="Wishlist"
-          left={<IconRow Icon={Heart} />}
-          onPress={() =>
-            Alert.alert('Wishlist', 'Coming soon — saved parts are on their way')
-          }
-          accessibilityLabel="Wishlist"
-        />
-        <ListItem
-          bare
-          divider
-          title="Addresses"
-          left={<IconRow Icon={MapPin} />}
-          onPress={() => router.push('/addresses')}
-          accessibilityLabel="Addresses"
-        />
-        <ListItem
-          bare
-          divider
-          title="Notifications"
-          left={<IconRow Icon={Bell} />}
-          onPress={() => router.push('/(app)/notifications')}
-          accessibilityLabel="Notifications"
-        />
+        <SectionHead title="Account" />
+        <View style={styles.list}>
+          <ListItem
+            bare
+            divider
+            title="Edit profile"
+            left={<IconRow Icon={UserRoundPen} />}
+            onPress={() => router.push('/profile-edit')}
+            accessibilityLabel="Edit profile"
+          />
+          <ListItem
+            bare
+            divider
+            title="Addresses"
+            left={<IconRow Icon={MapPin} />}
+            onPress={() => router.push('/addresses')}
+            accessibilityLabel="Addresses"
+          />
+          <ListItem
+            bare
+            title="Notifications"
+            left={<IconRow Icon={Bell} />}
+            onPress={() => router.push('/notifications')}
+            accessibilityLabel="Notifications"
+          />
+        </View>
 
+        <SectionHead title="Activity" />
+        <View style={styles.list}>
+          <ListItem
+            bare
+            divider
+            title="Bookings"
+            subtitle="Service progress and history"
+            left={<IconRow Icon={Clock3} />}
+            onPress={() => router.push('/bookings')}
+            accessibilityLabel="Bookings"
+          />
+          <ListItem
+            bare
+            divider
+            title="Part orders"
+            left={<IconRow Icon={ShoppingBag} />}
+            onPress={() => router.push('/orders')}
+            accessibilityLabel="Part orders"
+          />
+          <ListItem
+            bare
+            divider
+            title="My quotes"
+            left={<IconRow Icon={Star} />}
+            onPress={() => router.push('/my-quotes')}
+            accessibilityLabel="My quotes"
+          />
+          <ListItem
+            bare
+            title="My requests"
+            left={<IconRow Icon={Clock3} />}
+            onPress={() => router.push('/requests/my')}
+            accessibilityLabel="My requests"
+          />
+        </View>
 
-        <ListItem
-          bare
-          divider
-          title="Payment Methods"
-          subtitle="Coming soon"
-          left={<IconRow Icon={CreditCard} />}
-          accessibilityLabel="Payment methods"
-        />
-
-        <Text style={styles.sectionTitle}>Services</Text>
-        <ListItem
-          bare
-          divider
-          title="Service History"
-          left={<IconRow Icon={Clock3} />}
-          onPress={() => router.push('/bookings')}
-          accessibilityLabel="Service history"
-        />
-        <ListItem
-          bare
-          divider
-          title="My Quotes"
-          left={<IconRow Icon={Star} />}
-          onPress={() => router.push('/my-quotes')}
-          accessibilityLabel="My quotes"
-        />
-        <ListItem
-          bare
-          divider
-          title="Notification Settings"
-          left={<IconRow Icon={Settings2} />}
-          onPress={() => router.push('/notifications/push-token')}
-          accessibilityLabel="Notification settings"
-        />
-        <ListItem
-          bare
-          title="Help & Support"
-          subtitle="FAQs and shortcuts"
-          left={<IconRow Icon={LifeBuoy} />}
-          onPress={() => router.push('/help')}
-          accessibilityLabel="Help and support"
-        />
+        <SectionHead title="Settings" />
+        <View style={styles.list}>
+          <ListItem
+            bare
+            divider
+            title="Notification settings"
+            left={<IconRow Icon={Settings2} />}
+            onPress={() => router.push('/notifications/push-token')}
+            accessibilityLabel="Notification settings"
+          />
+          <ListItem
+            bare
+            title="Help & support"
+            left={<IconRow Icon={LifeBuoy} />}
+            onPress={() => router.push('/help')}
+            accessibilityLabel="Help and support"
+          />
+        </View>
 
         <Pressable
           onPress={() => {
-            void logout().then(() => router.replace('/(auth)/login'));
+            void logout();
           }}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
-          className="active:opacity-70"
-          style={styles.signOutButton}
+          style={styles.signOut}
         >
-          <LogOut size={20} color={palette.danger} strokeWidth={2} />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <LogOut size={18} color={palette.danger} strokeWidth={1.8} />
+          <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
       </ScrollView>
     </ScreenContainer>
@@ -186,87 +193,70 @@ export default function ProfileScreen() {
 function IconRow({ Icon }: { Icon: any }) {
   return (
     <View style={styles.iconPad}>
-      <Icon size={20} color={palette.textSecondary} strokeWidth={1.75} />
+      <Icon size={18} color={palette.textSecondary} strokeWidth={1.7} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingBottom: spacing.xxl },
-  headRow: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  avatarBig: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.lg,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  avatarLetter: { ...typography.display, color: palette.onAccent },
-  profileName: {
-    ...typography.title,
-    fontFamily: undefined,
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
+  eyebrow: { ...typography.label, color: palette.textMuted },
+  title: {
+    fontFamily: displayFamily,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.6,
     color: palette.textPrimary,
+    marginTop: spacing.xs,
   },
-  profileEmail: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginTop: 2,
-  },
-  roleChip: {
-    backgroundColor: palette.accent,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
-    marginTop: spacing.sm,
-  },
-  roleChipText: {
-    ...typography.label,
-    color: palette.onAccent,
-  },
-  accountCard: {
+  accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: palette.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.lg,
-    ...elevation.card,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: palette.accent,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    ...typography.heading,
-    color: palette.onAccent,
-  },
-  name: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
+  avatarText: { ...typography.heading, color: palette.textPrimary },
+  accountText: { flex: 1 },
+  name: { ...typography.bodyMedium, color: palette.textPrimary },
   email: {
     ...typography.caption,
     color: palette.textMuted,
+    marginTop: 2,
   },
-  iconPad: { width: 32 },
-  sectionTitle: {
-    ...typography.label,
-    color: palette.textMuted,
-    marginTop: spacing.xl,
-    marginBottom: spacing.xs,
+  tiles: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
-  signOutButton: {
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+  },
+  tileLabel: { ...typography.label, color: palette.textSecondary },
+  list: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  iconPad: { width: 28 },
+  signOut: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,12 +264,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radii.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.dangerSoftBg,
     backgroundColor: palette.dangerSoftBg,
   },
-  signOutText: {
-    ...typography.bodyMedium,
-    color: palette.danger,
-  },
+  signOutText: { ...typography.captionMedium, color: palette.danger },
 });
