@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { palette, spacing } from '@/theme';
+import { tabItemWidth } from './tabItemWidth';
 
 /**
  * Custom tab bar — translucent graphite, titanium separators, orange active
@@ -38,10 +39,6 @@ type TabBarProps = {
     }) => { defaultPrevented?: boolean };
   };
 };
-
-export function tabItemWidth(windowWidth: number, tabCount: number): number {
-  return Math.floor(windowWidth / Math.max(tabCount, 1));
-}
 
 export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabBarProps) {
   const insets = useSafeAreaInsets();
