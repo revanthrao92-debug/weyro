@@ -16,7 +16,6 @@
     "@tanstack/react-query": "^5.0.0",
     "@weyro/api-contracts": "*",
     "expo": "~58.0.19",
-    "expo-blur": "~58.0.5",
     "expo-constants": "~58.0.13",
     "expo-dev-client": "~58.0.15",
     "expo-font": "~58.0.11",
