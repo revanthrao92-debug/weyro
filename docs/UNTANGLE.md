@@ -3,6 +3,23 @@
 First pass against `feat/premium-ui`, baseline `fbed50c`.
 Skill: `~/.agents/skills/untangle/SKILL.md`.
 
+## Checkpoint — resume here
+
+`.untangle/checkpoint.json` is committed: 423 settled files (content hashes),
+8 recorded deletions, 9 deferred hotspots, the next moves and the gate results.
+Future passes are scoped to changed/new files only.
+
+```bash
+python3 "$HOME/.agents/skills/untangle/scripts/checkpoint.py" status --root .
+```
+
+- settled + unchanged → skip entirely
+- changed / new → the only files to scan
+- deleted → final; do not reconsider
+- `leftAlone` → only when its hash changed or the user asks
+
+After a green pass: `checkpoint.py save --root . --reason "..." --gates "..."`.
+
 ## Result
 
 ```

@@ -51,3 +51,13 @@ Docs: https://docs.expo.dev/eas/index.md
 - **Active for codebase understanding & architecture**: Maintain and consult knowledge graphs at `graphify-out/`.
 - After modifying code files, keep the graph current (`graphify update .`).
 - Use `graphify query` / wiki for exploring architectural dependencies and relationships across the app.
+
+### 3. Untangle (stateful cleanup)
+- Cleanup and refactors resume from `.untangle/checkpoint.json`; never rescan the
+  whole repo or revisit files already audited and unchanged.
+- Before scanning: `python3 "$HOME/.agents/skills/untangle/scripts/checkpoint.py" status --root .`
+- Only the reported **changed / new** files are in scope. Recorded deletions and
+  deferred (`leftAlone`) files stay untouched unless their hash changed or the
+  user explicitly asks.
+- After a green pass: `checkpoint.py save --root . --reason ... --gates ...` and
+  commit the checkpoint with the cleanup.
