@@ -160,8 +160,9 @@ export default function ProfileScreen() {
         <ListItem
           bare
           title="Help & Support"
-          subtitle="Coming soon"
+          subtitle="FAQs and shortcuts"
           left={<IconRow Icon={LifeBuoy} />}
+          onPress={() => router.push('/help')}
           accessibilityLabel="Help and support"
         />
 
