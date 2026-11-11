@@ -47,7 +47,7 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
   const itemWidth = Math.floor(width / Math.max(state.routes.length, 1));
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.blur}>
         <View style={styles.row}>
           {state.routes.map((route, index) => {
@@ -111,9 +111,9 @@ export function WeyroTabBar({ state, descriptors, navigateToTab, emitter }: TabB
 const styles = StyleSheet.create({
   root: {
     width: '100%',
-    backgroundColor: palette.canvas,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
+    backgroundColor: palette.surface,
+    borderTopWidth: 1,
+    borderTopColor: palette.borderStrong,
   },
   blur: {
     // Layered translucency (no native blur module in the current build).
