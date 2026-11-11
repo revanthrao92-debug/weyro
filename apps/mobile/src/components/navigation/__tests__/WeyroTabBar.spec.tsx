@@ -1,4 +1,5 @@
-import { tabItemWidth } from './WeyroTabBar';
+/// <reference types="jest" />
+import { tabItemWidth } from '../WeyroTabBar';
 
 describe('tabItemWidth', () => {
   it('splits the screen evenly across tabs', () => {
