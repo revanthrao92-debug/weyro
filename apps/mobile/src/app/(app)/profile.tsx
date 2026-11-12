@@ -128,6 +128,15 @@ export default function ProfileScreen() {
           <ListItem
             bare
             divider
+            title="Driver Go"
+            subtitle="Driver bookings and history"
+            left={<IconRow Icon={Car} />}
+            onPress={() => router.push('/driver-go/bookings')}
+            accessibilityLabel="Driver Go bookings"
+          />
+          <ListItem
+            bare
+            divider
             title="Bookings"
             subtitle="Service progress and history"
             left={<IconRow Icon={Clock3} />}

@@ -1,9 +1,9 @@
 # Driver Go — driver interface (phase 1)
 
 Driver Go is a driver-booking marketplace inside the existing Weyro app. This
-phase implements the **driver experience** and its API against admin-seeded
-drivers and sample jobs. The customer booking flow, payments and live tracking
-come next.
+phase implements the **driver experience** and the **customer scheduled
+booking flow** against admin-seeded drivers. Payments, reviews, chat and live
+tracking come next.
 
 ## Architecture decisions
 
@@ -36,7 +36,7 @@ The migration is `20261111000000_driver_go`.
 
 ## API
 
-All driver endpoints require `PROVIDER`/`BOTH` and check
+Driver endpoints require `PROVIDER`/`BOTH` and check
 `providerType === DRIVER`.
 
 ```
@@ -53,6 +53,26 @@ POST   /api/v1/driver-go/jobs/:id/verify-start-otp
 GET    /api/v1/driver-go/earnings
 ```
 
+Customer endpoints require `CUSTOMER`/`BOTH`:
+
+```
+GET    /api/v1/driver-go/drivers?startAt&engagement&duration...
+POST   /api/v1/driver-go/bookings
+GET    /api/v1/driver-go/bookings
+GET    /api/v1/driver-go/bookings/:id
+POST   /api/v1/driver-go/bookings/:id/cancel
+GET    /api/v1/driver-go/bookings/:id/start-code
+```
+
+The customer driver list performs server-side eligibility: verified driver,
+weekly-availability coverage, no overlapping active booking, transmission
+match and pickup distance within the driver's service radius. Each result
+includes a server-calculated quote for the selected duration.
+
+The customer creates a `REQUESTED` booking; the driver accepts it. The start
+code is generated only when the customer requests it after the booking is
+`ARRIVED`, stored as an HMAC hash and verified by the driver.
+
 State machine:
 
 ```
@@ -63,6 +83,19 @@ REQUESTED → CONFIRMED → DRIVER_EN_ROUTE → ARRIVED → IN_PROGRESS → COMP
 Start OTP is a 4-digit code generated when the customer booking is created
 (next phase). It is HMAC-hashed with `OTP_HASH_SECRET`; the driver enters it
 after arriving, which moves the job to `IN_PROGRESS`.
+
+## Customer app
+
+- Home “Driver Go” feature card (after the three main services)
+- `/driver-go` landing: book a driver, my bookings, pilot payment note
+- `/driver-go/book`: pickup, saved vehicle, hourly/daily, date/time/duration,
+  notes, available drivers with quotes, confirmation
+- `/driver-go/bookings`: active and past bookings with customer-facing status
+- `/driver-go/bookings/[id]`: driver, trip, fare, cancel, start code, support
+- Customer Profile → Driver Go bookings shortcut
+
+Payment is intentionally not collected in this slice; the UI states that it is
+arranged separately during the pilot.
 
 ## Driver app
 
@@ -85,7 +118,7 @@ Root stack screens:
 driver account. Customer and dealer layouts are unchanged; driver routes are
 hidden from them.
 
-## Seeded pilot driver
+## Seeded pilot data
 
 ```
 email:    driver1@weyro.dev
@@ -101,9 +134,10 @@ cd packages/database
 npx ts-node prisma/seed-driver-go.ts
 ```
 
-The seed upserts a verified driver, weekly availability and three jobs against
-the existing test customer: one `REQUESTED`, one `CONFIRMED`, one `COMPLETED`.
-It is safe to rerun.
+The seed upserts a verified driver, weekly availability and three demo jobs
+against a dedicated `drivergo.customer@weyro.dev` account (one `REQUESTED`, one
+`CONFIRMED`, one `COMPLETED`). This keeps the real customer’s Driver Go list
+clean. It is safe to rerun; it resets that driver’s bookings.
 
 ## Verification done
 
@@ -113,12 +147,13 @@ It is safe to rerun.
 - Earnings reflect the completed trip and 18% platform fee.
 - Availability loads seeded windows and saves.
 - Driver profile shows rates, licence, experience, stats.
-- API unit tests: state machine + OTP (181 total API tests).
+- API unit tests: state machine + OTP + pricing + availability (189 total).
+- Customer booking: create → driver accept → en route → arrived → start code
+  → in progress → completed; cancellation from the customer UI.
 - Mobile tsc/eslint/Jest green.
 
 ## Not in this phase
 
-- Customer Driver Go booking flow and driver selection/pricing quote
 - Razorpay order/refund/release for driver bookings
 - Reviews and driver ratings updates
 - Customer ↔ driver chat thread linked to a driver booking
@@ -127,7 +162,7 @@ It is safe to rerun.
 - On-demand matching/dispatch engine
 - Admin UI for creating drivers (seed script only)
 - KYC/licence API verification (manual pilot verification)
-- Cancellation/refund policy UI and driver cancellation
+- Driver-initiated cancellation UI (customer cancellation exists)
 - Payout ledger/Razorpay Route
 
 These are the next slices; the schema and interfaces are shaped so they can be

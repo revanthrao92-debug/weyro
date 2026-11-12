@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Car, ChevronRight } from 'lucide-react-native';
 import { PressableScale, SectionHead } from '@/components/ui';
 import { ServiceCard } from './ServiceCard';
 import {
@@ -48,6 +49,28 @@ export function HomeServiceSections() {
           />
         ))}
       </View>
+
+      <PressableScale
+        onPress={() => router.push('/driver-go')}
+        accessibilityRole="button"
+        accessibilityLabel="Driver Go. Hire a professional driver for your own car."
+        scaleTo={0.985}
+        style={styles.driverGo}
+      >
+        <View style={styles.driverGoIcon}>
+          <Car size={20} color={palette.accent} strokeWidth={1.8} />
+        </View>
+        <View style={styles.driverGoText}>
+          <View style={styles.driverGoTitleRow}>
+            <Text style={styles.driverGoTitle}>Driver Go</Text>
+            <Text style={styles.driverGoTag}>HOURLY · DAILY</Text>
+          </View>
+          <Text style={styles.driverGoDetail}>
+            Your car. A professional driver.
+          </Text>
+        </View>
+        <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />
+      </PressableScale>
 
       <View style={styles.urgentPanel}>
         <View style={styles.urgentRule} />
@@ -122,6 +145,43 @@ export function HomeServiceSections() {
 const styles = StyleSheet.create({
   primaryList: {
     gap: spacing.sm,
+  },
+  driverGo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
+  },
+  driverGoIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.accentSoftBg,
+  },
+  driverGoText: { flex: 1 },
+  driverGoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+  driverGoTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  driverGoTag: {
+    fontFamily: fontFamilyMono,
+    fontSize: 8,
+    color: palette.accent,
+    letterSpacing: 0.8,
+  },
+  driverGoDetail: {
+    ...typography.label,
+    color: palette.textMuted,
+    marginTop: 2,
   },
 
   urgentPanel: {

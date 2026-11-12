@@ -32,14 +32,25 @@ function atTime(hour: number, dayOffset = 0) {
 }
 
 async function main() {
-  const customerUser = await prisma.user.findFirst({
-    where: { email: 'prodtest3@weyro.dev' },
+  const demoPasswordHash = await bcrypt.hash('DriverGo123', 12);
+  const customerUser = await prisma.user.upsert({
+    where: { email: 'drivergo.customer@weyro.dev' },
+    update: {},
+    create: {
+      email: 'drivergo.customer@weyro.dev',
+      phone: '+919876500102',
+      passwordHash: demoPasswordHash,
+      role: 'CUSTOMER',
+      emailVerified: true,
+      phoneVerified: true,
+      customerProfile: {
+        create: { firstName: 'Driver Go', lastName: 'Customer' },
+      },
+    },
     include: { customerProfile: { include: { vehicles: true } } },
   });
-  if (!customerUser?.customerProfile) {
-    throw new Error(
-      'Seed customer prodtest3@weyro.dev not found. Run the main seed first.',
-    );
+  if (!customerUser.customerProfile) {
+    throw new Error('Could not create the Driver Go demo customer.');
   }
   const customer = customerUser.customerProfile;
   let vehicle =
@@ -49,10 +60,10 @@ async function main() {
     vehicle = await prisma.vehicle.create({
       data: {
         customerId: customer.id,
-        make: 'Maruti',
-        model: 'Swift',
+        make: 'Hyundai',
+        model: 'Creta',
         year: 2022,
-        registrationNumber: 'TS09DG0001',
+        registrationNumber: 'TS09DG0002',
         fuelType: 'PETROL',
         transmission: 'MANUAL',
       },
@@ -152,6 +163,8 @@ async function main() {
     })),
   });
 
+  // Reset the seeded demo jobs; real customer bookings for this driver are
+  // removed too, so run this only against a pilot/dev database.
   await prisma.driverBooking.deleteMany({ where: { driverId: provider.id } });
 
   const hourlyBase = 299 * 4;
@@ -237,7 +250,7 @@ async function main() {
 
   console.log('Driver Go seed complete');
   console.log('  email:    driver1@weyro.dev');
-  console.log('  password: TestPass123!');
+  console.log('  password: DriverGo123');
   console.log('  provider:', provider.id);
   console.log('  driver:  ', driver.id);
   console.log('  start code for seeded jobs: 1234');

@@ -28,6 +28,7 @@ export type Vehicle = {
   vinNumber?: string | null;
   fuelType: string;
   color?: string | null;
+  transmission?: string | null;
   createdAt: string;
 };
 
