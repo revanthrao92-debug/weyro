@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Wrench } from 'lucide-react-native';
 import { useBookings, type Booking } from '@/hooks/useBookings';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AppHeader,
   Card,
@@ -41,7 +42,11 @@ const STATUS_LABEL: Record<string, string> = {
   DISPUTED: 'Disputed',
 };
 
-function statusLabel(status: string) {
+function statusLabel(status: string, category?: string) {
+  if (status === 'IN_PROGRESS') {
+    if (category === 'TOWING') return 'Towing';
+    if (category === 'ROADSIDE') return 'On site';
+  }
   return STATUS_LABEL[status] ?? titleize(status);
 }
 
@@ -58,6 +63,15 @@ function isToday(value?: string | null) {
 
 export default function MechanicJobsScreen() {
   const router = useRouter();
+  const { providerProfile } = useAuth();
+  const providerType = providerProfile?.providerType ?? '';
+  const isTowing = providerType === 'TOWING';
+  const isRoadside = providerType === 'ROADSIDE';
+  const subtitle = isTowing
+    ? 'Assigned tows and deliveries'
+    : isRoadside
+      ? 'Assigned roadside calls'
+      : 'Assigned workshop work';
   const [filter, setFilter] = useState<Filter>('ACTIVE');
   const { data, isLoading } = useBookings();
   const bookings = useMemo(() => data?.items ?? [], [data?.items]);
@@ -101,7 +115,7 @@ export default function MechanicJobsScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Jobs" subtitle="Assigned workshop work" />
+      <AppHeader title="Jobs" subtitle={subtitle} />
       <FlatList
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.id}
@@ -178,12 +192,16 @@ function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void })
   const who = booking.customer
     ? `${booking.customer.firstName} ${booking.customer.lastName ?? ''}`.trim()
     : 'Customer';
+  const route =
+    request?.category === 'TOWING' && request.dropoffAddress
+      ? `${request.address} → ${request.dropoffAddress}`
+      : request?.address ?? 'Workshop';
 
   return (
     <PressableScale
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${request?.title ?? 'Job'}, ${statusLabel(booking.status)}`}
+      accessibilityLabel={`${request?.title ?? 'Job'}, ${statusLabel(booking.status, request?.category)}`}
       scaleTo={0.99}
       style={styles.row}
     >
@@ -191,7 +209,10 @@ function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void })
         <Text style={styles.when}>
           {booking.scheduledAt ? formatDate(booking.scheduledAt) : formatDate(booking.createdAt)}
         </Text>
-        <StatusPill label={statusLabel(booking.status)} tone={statusTone(booking.status)} />
+        <StatusPill
+          label={statusLabel(booking.status, request?.category)}
+          tone={statusTone(booking.status)}
+        />
       </View>
       <Text style={styles.title} numberOfLines={1}>
         {request?.title ?? 'Service job'}
@@ -200,8 +221,8 @@ function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void })
         {who} · {vehicle}
       </Text>
       <View style={styles.rowBottom}>
-        <Text style={styles.address} numberOfLines={1}>
-          {request?.address ?? 'Workshop'}
+        <Text style={styles.address} numberOfLines={2}>
+          {route}
         </Text>
         <Text style={styles.amount}>
           ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}

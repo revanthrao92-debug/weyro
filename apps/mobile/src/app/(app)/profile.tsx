@@ -49,7 +49,7 @@ export default function ProfileScreen() {
   }
 
   if (
-    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER', 'TOWING', 'ROADSIDE'].includes(
       providerProfile?.providerType ?? '',
     )
   ) {

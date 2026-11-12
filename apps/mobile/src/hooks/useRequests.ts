@@ -25,6 +25,7 @@ export type ServiceRequest = {
   vehicleWeightKg?: number;
   towingDistanceKm?: number;
   towingEstimatedFare?: number;
+  roadsideKind?: string | null;
   expiresAt: string;
   createdAt: string;
   quotationsCount?: number;

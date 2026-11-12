@@ -27,7 +27,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useProviderDashboard } from '@/hooks/useProviderDashboard';
 import { useBroadcastFeed } from '@/hooks/useRequests';
-import { useUpdateProviderProfile } from '@/hooks/useProfile';
+import { useProviderProfile, useUpdateProviderProfile } from '@/hooks/useProfile';
 import { formatDate, titleize } from '@/utils/format';
 import {
   displayFamily,
@@ -99,12 +99,22 @@ const TYPE_LABEL: Record<string, string> = {
   MECHANIC: 'Mechanic',
   GARAGE: 'Garage',
   AUTHORIZED_CENTER: 'Authorised centre',
+  TOWING: 'Towing',
+  ROADSIDE: 'Roadside assistance',
+};
+
+const TOWING_TYPE_LABEL: Record<string, string> = {
+  FLATBED: 'Flatbed',
+  HOOK_AND_CHAIN: 'Hook & chain',
+  MOTORCYCLE: 'Motorcycle',
+  ANY: 'Any vehicle',
 };
 
 export function MechanicDashboard() {
   const router = useRouter();
   const { user, providerProfile } = useAuth();
   const query = useProviderDashboard();
+  const profileQuery = useProviderProfile();
   const feedQuery = useBroadcastFeed();
   const updateProfile = useUpdateProviderProfile();
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -153,6 +163,20 @@ export function MechanicDashboard() {
     user?.email?.split('@')[0] ||
     'Workshop';
   const typeLabel = TYPE_LABEL[data.provider.providerType] ?? 'Mechanic';
+  const isTowing = data.provider.providerType === 'TOWING';
+  const isRoadside = data.provider.providerType === 'ROADSIDE';
+  const isAssist = isTowing || isRoadside;
+  const profile = profileQuery.data;
+  const equipment = isTowing
+    ? [
+        (profile?.towingVehicleTypes ?? [])
+          .map((type) => TOWING_TYPE_LABEL[type] ?? titleize(type))
+          .join(' · ') || 'Towing equipment not set',
+        profile?.maxVehicleWeightKg
+          ? `Up to ${Number(profile.maxVehicleWeightKg).toLocaleString('en-IN')} kg`
+          : 'Weight limit not set',
+      ]
+    : ['Battery · Tyre · Fuel', 'On-site assistance'];
   const verificationTone =
     data.provider.verificationStatus === 'VERIFIED'
       ? 'success'
@@ -215,7 +239,7 @@ export function MechanicDashboard() {
         <View style={styles.topRow}>
           <View style={styles.nameBlock}>
             <Text style={styles.eyebrow}>{typeLabel}</Text>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={styles.name} numberOfLines={2}>
               {name}
             </Text>
           </View>
@@ -261,11 +285,19 @@ export function MechanicDashboard() {
         >
           <View style={styles.availabilityText}>
             <Text style={styles.availabilityTitle}>
-              {data.provider.isAvailable ? 'Accepting jobs' : 'Workshop closed'}
+              {data.provider.isAvailable
+                ? 'Accepting jobs'
+                : isAssist
+                  ? 'Off duty'
+                  : 'Workshop closed'}
             </Text>
             <Text style={styles.availabilityDetail}>
               {data.provider.isAvailable
-                ? 'Customers can send you new repair work.'
+                ? isTowing
+                  ? 'Towing calls in your radius can reach you.'
+                  : isRoadside
+                    ? 'Roadside calls in your radius can reach you.'
+                    : 'Customers can send you new repair work.'
                 : 'You stay visible but no new jobs are assigned.'}
             </Text>
           </View>
@@ -291,6 +323,19 @@ export function MechanicDashboard() {
           </Text>
         ) : null}
         {toggleError ? <Text style={styles.error}>{toggleError}</Text> : null}
+
+        {isAssist ? (
+          <View style={styles.equipment}>
+            <Text style={styles.equipmentLabel}>
+              {isTowing ? 'Towing equipment' : 'Roadside services'}
+            </Text>
+            {equipment.map((line) => (
+              <Text key={line} style={styles.equipmentLine}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.stats}>
           <StatBlock
@@ -338,7 +383,9 @@ export function MechanicDashboard() {
         )}
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Assigned jobs</Text>
+          <Text style={styles.sectionTitle}>
+            {isTowing ? 'Towing jobs' : isRoadside ? 'Roadside calls' : 'Assigned jobs'}
+          </Text>
           {activeJobs.length > 0 ? (
             <PressableScale
               onPress={() => router.push('/jobs')}
@@ -351,7 +398,11 @@ export function MechanicDashboard() {
           ) : null}
         </View>
         {activeJobs.length === 0 ? (
-          <Text style={styles.emptyLine}>No active jobs. Accepted quotes appear here.</Text>
+          <Text style={styles.emptyLine}>
+            {isAssist
+              ? 'No active calls. Accepted work appears here.'
+              : 'No active jobs. Accepted quotes appear here.'}
+          </Text>
         ) : (
           activeJobs.slice(0, 3).map((job, index) => {
             const vehicle = job.request?.vehicle
@@ -389,7 +440,9 @@ export function MechanicDashboard() {
         )}
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Latest requests</Text>
+          <Text style={styles.sectionTitle}>
+            {isAssist ? 'Nearby requests' : 'Latest requests'}
+          </Text>
           <PressableScale
             onPress={() => router.push('/opportunities')}
             accessibilityRole="link"
@@ -416,7 +469,12 @@ export function MechanicDashboard() {
                   {request.title}
                 </Text>
                 <Text style={styles.dataMeta} numberOfLines={1}>
-                  {titleize(request.category)} · {request.address}
+                  {isTowing && request.towingDistanceKm
+                    ? `${request.towingDistanceKm} km · `
+                    : isRoadside && request.roadsideKind
+                      ? `${titleize(request.roadsideKind)} · `
+                      : `${titleize(request.category)} · `}
+                  {request.address}
                 </Text>
               </View>
               <View style={styles.dataRight}>
@@ -433,13 +491,21 @@ export function MechanicDashboard() {
         <ActionRow
           icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"
-          detail="Repair and maintenance work nearby"
+          detail={
+            isTowing
+              ? 'Towing jobs nearby'
+              : isRoadside
+                ? 'Roadside calls nearby'
+                : 'Repair and maintenance work nearby'
+          }
           onPress={() => router.push('/opportunities')}
         />
         <ActionRow
           icon={<CalendarDays size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Jobs"
-          detail="Assigned work and schedule"
+          detail={
+            isTowing ? 'Assigned tows and deliveries' : 'Assigned work and schedule'
+          }
           onPress={() => router.push('/jobs')}
         />
         <ActionRow
@@ -457,7 +523,11 @@ export function MechanicDashboard() {
         <ActionRow
           icon={<Wrench size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Profile"
-          detail="Workshop details and service radius"
+          detail={
+            isAssist
+              ? 'Business, equipment and service radius'
+              : 'Workshop details and service radius'
+          }
           onPress={() => router.push('/profile')}
         />
 
@@ -485,8 +555,8 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.label, color: palette.textMuted, letterSpacing: 0.3 },
   name: {
     fontFamily: displayFamily,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 33,
     color: palette.textPrimary,
     marginTop: spacing.xs,
   },
@@ -559,6 +629,18 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   statLabel: { ...typography.label, color: palette.textMuted },
+  equipment: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    backgroundColor: palette.surfaceAlt,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.borderStrong,
+    gap: 2,
+  },
+  equipmentLabel: { ...typography.label, color: palette.textMuted },
+  equipmentLine: { ...typography.caption, color: palette.textPrimary },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'baseline',

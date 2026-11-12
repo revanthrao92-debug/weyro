@@ -54,6 +54,9 @@ export default function AppLayout() {
   const isMechanic = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
     providerProfile?.providerType ?? '',
   );
+  const isAssist = ['TOWING', 'ROADSIDE'].includes(
+    providerProfile?.providerType ?? '',
+  );
   const insets = useSafeAreaInsets();
 
   const hiddenDriverScreens = [
@@ -80,7 +83,7 @@ export default function AppLayout() {
         <Tabs.Screen key="jobs" name="jobs" options={{ href: null }} />,
         <Tabs.Screen key="quotes" name="quotes" options={{ href: null }} />,
       ]
-    : isMechanic
+    : isMechanic || isAssist
     ? [
         <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
         <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Requests', tabBarIcon: tabIcon(Radar) }} />,

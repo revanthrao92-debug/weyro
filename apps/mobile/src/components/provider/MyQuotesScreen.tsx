@@ -28,11 +28,15 @@ const FILTERS = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN
 export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
   const { providerProfile } = useAuth();
-  const quoteMode = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
-    providerProfile?.providerType ?? '',
-  )
-    ? 'service'
-    : 'parts';
+  const providerType = providerProfile?.providerType ?? '';
+  const quoteMode =
+    providerType === 'TOWING'
+      ? 'towing'
+      : providerType === 'ROADSIDE'
+        ? 'roadside'
+        : ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(providerType)
+          ? 'service'
+          : 'parts';
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [editingId, setEditingId] = useState<string | null>(null);
   const { data, isLoading, refetch } = useMyQuotations({
@@ -150,6 +154,11 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
                   <View style={styles.editor}>
                     <QuoteComposer
                       mode={quoteMode}
+                      estimate={
+                        quoteMode === 'towing'
+                          ? Number(item.totalCost)
+                          : undefined
+                      }
                       initial={item}
                       submitLabel="Save changes"
                       submitting={updateQuotation.isPending}

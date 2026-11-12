@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -8,7 +8,12 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
+import * as Location from 'expo-location';
+import {
+  useBooking,
+  useUpdateBookingLocation,
+  useUpdateBookingStatus,
+} from '@/hooks/useBookings';
 import {
   AppHeader,
   BackButton,
@@ -56,7 +61,18 @@ export default function MechanicJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: booking, isLoading, isError } = useBooking(id ?? '');
   const updateStatus = useUpdateBookingStatus();
+  const updateLocation = useUpdateBookingLocation();
   const [notes, setNotes] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const watcher = useRef<Location.LocationSubscription | null>(null);
+
+  const stopSharing = () => {
+    watcher.current?.remove();
+    watcher.current = null;
+    setSharing(false);
+  };
+
+  useEffect(() => () => watcher.current?.remove(), []);
 
   if (isLoading) {
     return (
@@ -95,6 +111,17 @@ export default function MechanicJobDetailScreen() {
     : 'Vehicle';
   const stepIndex = STEPS.indexOf(booking.status);
   const payment = booking.payment ?? booking.payments?.[0];
+  const category = request?.category ?? '';
+  const isTowing = category === 'TOWING';
+  const isRoadside = category === 'ROADSIDE';
+  const STEP_LABEL = isTowing
+    ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
+    : isRoadside
+      ? ['Confirmed', 'On the way', 'On site', 'Completed']
+      : STEPS.map(statusLabel);
+  const canShareLocation =
+    ['PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(booking.status) &&
+    (isTowing || isRoadside);
 
   const advance = async (status: string, withNotes = false) => {
     try {
@@ -103,8 +130,50 @@ export default function MechanicJobDetailScreen() {
         status,
         ...(withNotes && notes.trim() ? { completionNotes: notes.trim() } : {}),
       });
+      if (['COMPLETED', 'CANCELLED'].includes(status)) stopSharing();
     } catch (e: any) {
       Alert.alert('Failed', e?.message || 'Could not update the job.');
+    }
+  };
+
+  const toggleLiveLocation = async () => {
+    if (sharing) {
+      stopSharing();
+      return;
+    }
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Location permission needed',
+          'Allow location access to share your live position with the customer.',
+        );
+        return;
+      }
+      const send = (coords: Location.LocationObjectCoords) => {
+        updateLocation
+          .mutateAsync({
+            id: booking.id,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          })
+          .catch(() => {});
+      };
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      send(current.coords);
+      watcher.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 45000,
+          distanceInterval: 100,
+        },
+        (position) => send(position.coords),
+      );
+      setSharing(true);
+    } catch {
+      Alert.alert('Could not start location', 'Location sharing is unavailable on this device.');
     }
   };
 
@@ -130,9 +199,15 @@ export default function MechanicJobDetailScreen() {
     booking.status === 'CONFIRMED'
       ? 'On my way'
       : booking.status === 'PROVIDER_EN_ROUTE'
-        ? 'Start job'
+        ? isTowing
+          ? 'Start tow'
+          : isRoadside
+            ? 'Arrived on site'
+            : 'Start job'
         : booking.status === 'IN_PROGRESS'
-          ? 'Complete job'
+          ? isTowing
+            ? 'Delivered'
+            : 'Complete job'
           : null;
 
   return (
@@ -148,7 +223,18 @@ export default function MechanicJobDetailScreen() {
           {request?.title ?? 'Service job'}
         </Text>
         <View style={styles.metaRow}>
-          <StatusPill label={statusLabel(booking.status)} tone={tone(booking.status)} />
+          <StatusPill
+            label={
+              booking.status === 'IN_PROGRESS'
+                ? isTowing
+                  ? 'Towing'
+                  : isRoadside
+                    ? 'On site'
+                    : 'In progress'
+                : statusLabel(booking.status)
+            }
+            tone={tone(booking.status)}
+          />
           <Text style={styles.meta}>
             #{booking.id.slice(0, 8).toUpperCase()} · {titleize(request?.category ?? 'SERVICE')}
           </Text>
@@ -173,7 +259,7 @@ export default function MechanicJobDetailScreen() {
                 <View key={step} style={styles.step}>
                   <View style={[styles.dot, done && styles.dotDone]} />
                   <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
-                    {statusLabel(step)}
+                    {STEP_LABEL[index]}
                   </Text>
                 </View>
               );
@@ -190,12 +276,34 @@ export default function MechanicJobDetailScreen() {
           ) : null}
         </Card>
 
+        {canShareLocation ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Live location</Text>
+            <Text style={styles.meta}>
+              {sharing
+                ? 'Sharing your position with the customer. Updates every 45 seconds.'
+                : 'Share your position while travelling to the customer.'}
+            </Text>
+            <Button
+              title={sharing ? 'Stop sharing' : 'Share live location'}
+              variant={sharing ? 'destructive' : 'secondary'}
+              onPress={() => void toggleLiveLocation()}
+            />
+          </Card>
+        ) : null}
+
         {primaryLabel ? (
           <Card style={styles.card}>
             {booking.status === 'IN_PROGRESS' ? (
               <Input
                 label="Completion notes (optional)"
-                placeholder="Work done, parts replaced, next service"
+                placeholder={
+                  isTowing
+                    ? 'Vehicle delivered, condition, handover'
+                    : isRoadside
+                      ? 'What was fixed on site'
+                      : 'Work done, parts replaced, next service'
+                }
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -235,14 +343,48 @@ export default function MechanicJobDetailScreen() {
           <Row label="Name" value={who} />
           <Row label="Vehicle" value={vehicle} />
           <Row label="Service" value={booking.quotation?.etaDescription ?? '—'} />
+          {isRoadside && request?.roadsideKind ? (
+            <Row label="Assistance" value={titleize(request.roadsideKind)} />
+          ) : null}
+          {isTowing && request?.towingVehicleType ? (
+            <Row label="Towing type" value={titleize(request.towingVehicleType)} />
+          ) : null}
+          {isTowing && request?.vehicleWeightKg ? (
+            <Row
+              label="Vehicle weight"
+              value={`${Number(request.vehicleWeightKg).toLocaleString('en-IN')} kg`}
+            />
+          ) : null}
+          {isTowing && request?.towingDistanceKm ? (
+            <Row label="Distance" value={`${request.towingDistanceKm} km`} />
+          ) : null}
+          {request?.address ? (
+            <Row label="Pickup" value={request.address} />
+          ) : null}
+          {isTowing && request?.dropoffAddress ? (
+            <Row label="Dropoff" value={request.dropoffAddress} />
+          ) : null}
           {request?.address ? (
             <Button
-              title="Open in maps"
+              title="Pickup in maps"
               variant="secondary"
               onPress={() =>
                 void Linking.openURL(
                   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                     request.address,
+                  )}`,
+                )
+              }
+            />
+          ) : null}
+          {isTowing && request?.dropoffAddress ? (
+            <Button
+              title="Dropoff in maps"
+              variant="secondary"
+              onPress={() =>
+                void Linking.openURL(
+                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    request.dropoffAddress!,
                   )}`,
                 )
               }

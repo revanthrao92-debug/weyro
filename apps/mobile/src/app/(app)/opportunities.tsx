@@ -13,18 +13,25 @@ import {
   Skeleton,
   FadeSlideIn,
 } from '@/components/ui';
-import { palette, spacing, typography } from '@/theme';
+import { fontFamilyMono, palette, spacing, typography } from '@/theme';
 import { titleize as labelize, formatDate } from '@/utils/format';
 
 export default function ProviderRequestsScreen() {
   const router = useRouter();
   const { providerProfile } = useAuth();
+  const providerType = providerProfile?.providerType ?? '';
   const isMechanic = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
-    providerProfile?.providerType ?? '',
+    providerType,
   );
-  const subtitle = isMechanic
-    ? 'Repair and maintenance work nearby'
-    : 'Spare-part requests nearby';
+  const isTowing = providerType === 'TOWING';
+  const isRoadside = providerType === 'ROADSIDE';
+  const subtitle = isTowing
+    ? 'Towing jobs nearby'
+    : isRoadside
+      ? 'Roadside calls nearby'
+      : isMechanic
+        ? 'Repair and maintenance work nearby'
+        : 'Spare-part requests nearby';
   const { data, isLoading, refetch } = useBroadcastFeed();
   const { data: myQuotes } = useMyQuotations({ limit: 50 });
 
@@ -62,9 +69,13 @@ export default function ProviderRequestsScreen() {
         <EmptyState
           title="No open requests"
           message={
-            isMechanic
-              ? 'New repair requests in your service radius will appear here.'
-              : 'New spare-part requests in your service radius will appear here.'
+            isTowing
+              ? 'New towing requests in your service radius will appear here.'
+              : isRoadside
+                ? 'New roadside calls in your service radius will appear here.'
+                : isMechanic
+                  ? 'New repair requests in your service radius will appear here.'
+                  : 'New spare-part requests in your service radius will appear here.'
           }
           action={
             <Button title="Refresh" variant="secondary" onPress={() => void refetch()} />
@@ -80,6 +91,7 @@ export default function ProviderRequestsScreen() {
             <FadeSlideIn delay={Math.min(index, 6) * 50}>
               <RequestCard
                 item={item}
+                providerType={providerType}
                 myQuote={quoteByRequest.get(item.id)}
                 onPress={() => router.push(`/requests/${item.id}`)}
               />
@@ -93,13 +105,18 @@ export default function ProviderRequestsScreen() {
 
 function RequestCard({
   item,
+  providerType,
   myQuote,
   onPress,
 }: {
   item: any;
+  providerType: string;
   myQuote?: { id: string; status: string };
   onPress: () => void;
 }) {
+  const isTowing = providerType === 'TOWING';
+  const isRoadside = providerType === 'ROADSIDE';
+  const ctaLabel = isTowing ? 'Send fare' : isRoadside ? 'Send quote' : 'Respond';
   const vehicle = item.vehicle
     ? `${item.vehicle.make} ${item.vehicle.model} ${item.vehicle.year ?? ''}`.trim()
     : null;
@@ -136,11 +153,31 @@ function RequestCard({
         {detail}
       </Text>
 
+      {isTowing ? (
+        <View style={styles.assistMeta}>
+          <Text style={styles.assistLine} numberOfLines={2}>
+            {item.address} → {item.dropoffAddress ?? 'Dropoff not set'}
+          </Text>
+          <Text style={styles.assistSub}>
+            {item.towingDistanceKm ? `${item.towingDistanceKm} km` : 'Distance pending'}
+            {item.vehicleWeightKg ? ` · ${item.vehicleWeightKg} kg` : ''}
+            {item.towingVehicleType ? ` · ${labelize(item.towingVehicleType)}` : ''}
+          </Text>
+          {item.towingEstimatedFare ? (
+            <Text style={styles.assistFare}>
+              Est. ₹{Number(item.towingEstimatedFare).toLocaleString('en-IN')}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+
       <View style={styles.footer}>
         <View style={styles.footerMeta}>
           <Text style={styles.metaText}>
             {labelize(item.category)}
-            {item.fulfillmentType
+            {item.roadsideKind ? ` · ${labelize(item.roadsideKind)}` : ''}
+            {!isTowing && !isRoadside && item.fulfillmentType
               ? ` · ${labelize(item.fulfillmentType)}`
               : ''}
           </Text>
@@ -156,7 +193,7 @@ function RequestCard({
             <Button title="View quote" variant="secondary" onPress={onPress} />
           </View>
         ) : (
-          <Button title="Respond" onPress={onPress} />
+          <Button title={ctaLabel} onPress={onPress} />
         )}
       </View>
     </Card>
@@ -180,6 +217,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   description: { ...typography.caption, color: palette.textSecondary },
+  assistMeta: {
+    gap: 2,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  assistLine: { ...typography.caption, color: palette.textPrimary },
+  assistSub: { ...typography.label, color: palette.textMuted },
+  assistFare: {
+    fontFamily: fontFamilyMono,
+    fontSize: 13,
+    color: palette.accent,
+    marginTop: 2,
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

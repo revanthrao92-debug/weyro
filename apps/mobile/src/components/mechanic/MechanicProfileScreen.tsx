@@ -41,12 +41,23 @@ const TYPE_LABEL: Record<string, string> = {
   MECHANIC: 'Mechanic',
   GARAGE: 'Garage',
   AUTHORIZED_CENTER: 'Authorised centre',
+  TOWING: 'Towing',
+  ROADSIDE: 'Roadside assistance',
+};
+
+const TOWING_TYPE_LABEL: Record<string, string> = {
+  FLATBED: 'Flatbed',
+  HOOK_AND_CHAIN: 'Hook & chain',
+  MOTORCYCLE: 'Motorcycle',
+  ANY: 'Any vehicle',
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
   MECHANIC: 'Repair · Maintenance · Inspection',
   GARAGE: 'Repair · Maintenance · Inspection',
   AUTHORIZED_CENTER: 'Repair · Maintenance · Inspection',
+  TOWING: 'Towing · Recovery',
+  ROADSIDE: 'Battery · Tyre · Fuel',
 };
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -105,7 +116,7 @@ export function MechanicProfileScreen() {
   if (profileQuery.isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader title="Profile" subtitle="Workshop account" />
+        <AppHeader title="Profile" subtitle="Account" />
         <View style={styles.body}>
           <Skeleton width="100%" height={80} />
           <Skeleton width="100%" height={140} style={{ marginTop: spacing.md }} />
@@ -117,7 +128,7 @@ export function MechanicProfileScreen() {
   if (profileQuery.isError || !profile) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader title="Profile" subtitle="Workshop account" />
+        <AppHeader title="Profile" subtitle="Account" />
         <EmptyState
           title="Profile unavailable"
           message="Check your connection and try again."
@@ -139,6 +150,24 @@ export function MechanicProfileScreen() {
 
   const verified = profile.verificationStatus === 'VERIFIED';
   const name = profile.businessName || user?.email?.split('@')[0] || 'Workshop';
+  const isTowing = profile.providerType === 'TOWING';
+  const isRoadside = profile.providerType === 'ROADSIDE';
+  const accountLabel = isTowing
+    ? 'Towing account'
+    : isRoadside
+      ? 'Roadside account'
+      : 'Workshop account';
+  const isAssist = isTowing || isRoadside;
+  const equipment = isTowing
+    ? [
+        (profile.towingVehicleTypes ?? [])
+          .map((type) => TOWING_TYPE_LABEL[type] ?? type)
+          .join(' · ') || 'Not set',
+        profile.maxVehicleWeightKg
+          ? `Up to ${Number(profile.maxVehicleWeightKg).toLocaleString('en-IN')} kg`
+          : 'Weight limit not set',
+      ]
+    : null;
 
   const toggleAvailability = async () => {
     if (!verified) {
@@ -156,7 +185,7 @@ export function MechanicProfileScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader title="Profile" subtitle="Workshop account" />
+      <AppHeader title="Profile" subtitle={accountLabel} />
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
@@ -183,11 +212,19 @@ export function MechanicProfileScreen() {
         >
           <View style={styles.availabilityText}>
             <Text style={styles.availabilityTitle}>
-              {profile.isAvailable ? 'Accepting jobs' : 'Workshop closed'}
+              {profile.isAvailable
+                ? 'Accepting jobs'
+                : isAssist
+                  ? 'Off duty'
+                  : 'Workshop closed'}
             </Text>
             <Text style={styles.availabilityDetail}>
               {profile.isAvailable
-                ? 'Customers can send you new repair work.'
+                ? isTowing
+                  ? 'Towing calls can reach you.'
+                  : isRoadside
+                    ? 'Roadside calls can reach you.'
+                    : 'Customers can send you new repair work.'
                 : 'No new jobs are assigned while closed.'}
             </Text>
           </View>
@@ -225,7 +262,7 @@ export function MechanicProfileScreen() {
           </View>
         </View>
 
-        <SectionHead index="01" title="Workshop" />
+        <SectionHead index="01" title={isTowing || isRoadside ? 'Business' : 'Workshop'} />
         <Row label="Phone" value={profile.phone} />
         <Row label="Address" value={profile.address} />
         <Row label="Service radius" value={`${profile.serviceRadiusKm} km`} />
@@ -233,6 +270,12 @@ export function MechanicProfileScreen() {
           label="Work"
           value={CATEGORY_LABEL[profile.providerType] ?? 'Repair and maintenance'}
         />
+        {equipment ? (
+          <>
+            <Row label="Equipment" value={equipment[0]} />
+            <Row label="Capacity" value={equipment[1]} />
+          </>
+        ) : null}
         <Row label="Email" value={profile.email ?? user?.email ?? '—'} />
         <Row
           label="Verification"
@@ -249,13 +292,21 @@ export function MechanicProfileScreen() {
         <Action
           icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"
-          detail="Repair and maintenance work nearby"
+          detail={
+            isTowing
+              ? 'Towing jobs nearby'
+              : isRoadside
+                ? 'Roadside calls nearby'
+                : 'Repair and maintenance work nearby'
+          }
           onPress={() => router.push('/opportunities')}
         />
         <Action
           icon={<CalendarDays size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Jobs"
-          detail="Assigned work and schedule"
+          detail={
+            isTowing ? 'Assigned tows and deliveries' : 'Assigned work and schedule'
+          }
           onPress={() => router.push('/jobs')}
         />
         <Action

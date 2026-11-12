@@ -53,11 +53,16 @@ export default function RequestDetailScreen() {
   const isProvider = role === 'PROVIDER' || role === 'BOTH';
   const canQuote =
     isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
-  const quoteMode = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
-    providerProfile?.providerType ?? '',
-  )
-    ? 'service'
-    : 'parts';
+  const providerType = providerProfile?.providerType ?? '';
+  const quoteMode =
+    request?.category === 'TOWING'
+      ? 'towing'
+      : request?.category === 'ROADSIDE'
+        ? 'roadside'
+        : ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(providerType)
+          ? 'service'
+          : 'parts';
+  const fareEstimate = Number(request?.towingEstimatedFare ?? 0);
 
   const quotes = quotesData?.items ?? [];
   const myQuote = (myQuotesData?.items ?? []).find(
@@ -232,6 +237,7 @@ export default function RequestDetailScreen() {
             ) : null}
             <QuoteComposer
               mode={quoteMode}
+              estimate={quoteMode === 'towing' ? fareEstimate : undefined}
               initial={editingQuote ? myQuote : undefined}
               submitLabel={editingQuote ? 'Save quote' : 'Send quote'}
               submitting={createQuotation.isPending || updateQuotation.isPending}

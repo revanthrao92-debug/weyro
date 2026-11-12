@@ -41,6 +41,11 @@ export type Booking = {
       address: string;
       latitude: number;
       longitude: number;
+      dropoffAddress?: string | null;
+      towingVehicleType?: string | null;
+      towingDistanceKm?: number | null;
+      vehicleWeightKg?: number | null;
+      roadsideKind?: string | null;
       vehicle?: {
         make: string;
         model: string;
@@ -85,6 +90,27 @@ export function useBooking(id: string) {
     queryKey: ['booking', id],
     queryFn: async () => apiClient<Booking>(`/bookings/${id}`),
     enabled: !!id,
+  });
+}
+
+export function useUpdateBookingLocation() {
+  return useMutation({
+    mutationFn: async ({
+      id,
+      latitude,
+      longitude,
+      etaMinutes,
+    }: {
+      id: string;
+      latitude: number;
+      longitude: number;
+      etaMinutes?: number;
+    }) => {
+      return apiClient(`/bookings/${id}/location`, {
+        method: 'PATCH',
+        body: JSON.stringify({ latitude, longitude, etaMinutes }),
+      });
+    },
   });
 }
 

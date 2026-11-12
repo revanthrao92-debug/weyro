@@ -213,7 +213,7 @@ export default function HomeScreen() {
   }
 
   if (
-    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER', 'TOWING', 'ROADSIDE'].includes(
       providerProfile?.providerType ?? '',
     )
   ) {

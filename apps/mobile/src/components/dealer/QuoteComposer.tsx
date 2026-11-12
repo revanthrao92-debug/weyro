@@ -5,7 +5,9 @@ import { palette, spacing, typography } from '@/theme';
 import type { CreateQuotation } from '@/hooks/useRequests';
 
 type Props = {
-  mode?: 'parts' | 'service';
+  mode?: 'parts' | 'service' | 'towing' | 'roadside';
+  /** Platform fare estimate shown for towing (server still computes the final value). */
+  estimate?: number;
   initial?: Partial<CreateQuotation>;
   submitting?: boolean;
   submitLabel?: string;
@@ -27,6 +29,7 @@ const SERVICE_MODE = [
 
 export function QuoteComposer({
   mode = 'parts',
+  estimate,
   initial,
   submitting,
   submitLabel = 'Send quote',
@@ -53,45 +56,70 @@ export function QuoteComposer({
   );
   const [delivery, setDelivery] = useState(
     (initial?.deliveryMethod as string) ??
-      (mode === 'parts' ? 'PARTS_COURIER' : 'PICKUP'),
+      (mode === 'parts'
+        ? 'PARTS_COURIER'
+        : mode === 'roadside'
+          ? 'ON_SITE_FITMENT'
+          : 'PICKUP'),
   );
 
+  const isTowing = mode === 'towing';
+  const isRoadside = mode === 'roadside';
   const parts = Number(partsCost) || 0;
   const labour = Number(labourCost) || 0;
   const shipping = Number(shippingCost) || 0;
-  const total = parts + labour + shipping;
-  const valid = total > 0 && etaDescription.trim().length >= 2;
+  const total = isTowing
+    ? Number(estimate ?? 0)
+    : parts + labour + shipping;
+  const valid =
+    etaDescription.trim().length >= 2 && (isTowing || total > 0);
 
   return (
     <View style={styles.form}>
       <View style={styles.head}>
         <Text style={styles.title}>
-          {mode === 'parts' ? 'Price this request' : 'Price this job'}
+          {mode === 'parts'
+            ? 'Price this request'
+            : mode === 'towing'
+              ? 'Send towing fare'
+              : isRoadside
+                ? 'Price this call'
+                : 'Price this job'}
         </Text>
         {mode === 'parts' ? <StatusPill label={condition} tone="info" /> : null}
       </View>
 
-      <Input
-        label={mode === 'parts' ? 'Parts cost (₹)' : 'Parts (₹, optional)'}
-        placeholder="5000"
-        value={partsCost}
-        onChangeText={setPartsCost}
-        keyboardType="number-pad"
-      />
-      <Input
-        label="Labour (₹)"
-        placeholder="0"
-        value={labourCost}
-        onChangeText={setLabourCost}
-        keyboardType="number-pad"
-      />
-      <Input
-        label={mode === 'parts' ? 'Shipping (₹)' : 'Callout / travel (₹, optional)'}
-        placeholder="0"
-        value={shippingCost}
-        onChangeText={setShippingCost}
-        keyboardType="number-pad"
-      />
+      {!isTowing ? (
+        <>
+          <Input
+            label={mode === 'parts' ? 'Parts cost (₹)' : 'Parts (₹, optional)'}
+            placeholder="5000"
+            value={partsCost}
+            onChangeText={setPartsCost}
+            keyboardType="number-pad"
+          />
+          <Input
+            label={isRoadside ? 'Labour (₹)' : 'Labour (₹)'}
+            placeholder="0"
+            value={labourCost}
+            onChangeText={setLabourCost}
+            keyboardType="number-pad"
+          />
+          <Input
+            label={
+              mode === 'parts'
+                ? 'Shipping (₹)'
+                : isRoadside
+                  ? 'Callout (₹)'
+                  : 'Callout / travel (₹, optional)'
+            }
+            placeholder="0"
+            value={shippingCost}
+            onChangeText={setShippingCost}
+            keyboardType="number-pad"
+          />
+        </>
+      ) : null}
 
       {mode === 'parts' ? (
         <>
@@ -109,30 +137,38 @@ export function QuoteComposer({
         </>
       ) : null}
 
-      <Text style={styles.fieldLabel}>
-        {mode === 'parts' ? 'Delivery' : 'Service mode'}
-      </Text>
-      <View style={styles.chipRow}>
-        {(mode === 'parts' ? PART_DELIVERY : SERVICE_MODE).map((d) => (
-          <Chip
-            key={d.value}
-            label={d.label}
-            selected={delivery === d.value}
-            onPress={() => setDelivery(d.value)}
-          />
-        ))}
-      </View>
+      {mode === 'parts' || mode === 'service' ? (
+        <>
+          <Text style={styles.fieldLabel}>
+            {mode === 'parts' ? 'Delivery' : 'Service mode'}
+          </Text>
+          <View style={styles.chipRow}>
+            {(mode === 'parts' ? PART_DELIVERY : SERVICE_MODE).map((d) => (
+              <Chip
+                key={d.value}
+                label={d.label}
+                selected={delivery === d.value}
+                onPress={() => setDelivery(d.value)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
 
+      {!isTowing ? (
+        <Input
+          label="Warranty (days)"
+          placeholder="30"
+          value={warrantyDays}
+          onChangeText={setWarrantyDays}
+          keyboardType="number-pad"
+        />
+      ) : null}
       <Input
-        label="Warranty (days)"
-        placeholder="30"
-        value={warrantyDays}
-        onChangeText={setWarrantyDays}
-        keyboardType="number-pad"
-      />
-      <Input
-        label="Availability / ETA"
-        placeholder='e.g. "Ready for pickup today"'
+        label={isTowing ? 'Pickup ETA' : 'Availability / ETA'}
+        placeholder={
+          isTowing ? 'e.g. 25 minutes to pickup' : 'e.g. "Ready for pickup today"'
+        }
         value={etaDescription}
         onChangeText={setEtaDescription}
       />
@@ -145,9 +181,17 @@ export function QuoteComposer({
       />
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Quote total</Text>
+        <Text style={styles.totalLabel}>
+          {isTowing ? 'Fare (platform estimate)' : 'Quote total'}
+        </Text>
         <Text style={styles.totalValue}>₹{total.toLocaleString('en-IN')}</Text>
       </View>
+      {isTowing ? (
+        <Text style={styles.hint}>
+          Final fare is calculated by Weyro from the towing distance and your
+          tariff. Confirm the estimate to send it to the customer.
+        </Text>
+      ) : null}
 
       <Button
         title={submitLabel}
@@ -155,13 +199,15 @@ export function QuoteComposer({
         disabled={!valid || submitting}
         onPress={() =>
           void onSubmit({
-            partsCost: parts,
-            labourCost: labour,
-            shippingCost: shipping,
+            partsCost: isTowing ? 0 : parts,
+            labourCost: isTowing ? 0 : labour,
+            ...(isTowing ? {} : { shippingCost: shipping }),
             ...(mode === 'parts' ? { partCondition: condition } : {}),
-            warrantyDays: Math.max(0, Number(warrantyDays) || 0),
+            warrantyDays: isTowing
+              ? 0
+              : Math.max(0, Number(warrantyDays) || 0),
             etaDescription: etaDescription.trim(),
-            deliveryMethod: delivery,
+            ...(isTowing || isRoadside ? { deliveryMethod: isRoadside ? 'ON_SITE_FITMENT' : undefined } : { deliveryMethod: delivery }),
             notes: notes.trim() || undefined,
           })
         }
@@ -190,4 +236,5 @@ const styles = StyleSheet.create({
   },
   totalLabel: { ...typography.label, color: palette.textMuted },
   totalValue: { ...typography.title, color: palette.textPrimary },
+  hint: { ...typography.caption, color: palette.textMuted, lineHeight: 18 },
 });
