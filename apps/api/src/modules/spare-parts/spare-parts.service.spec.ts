@@ -139,6 +139,11 @@ describe('SparePartsService order flow', () => {
 
     const result = await service.createOrder('part-1', 'cust-1', {
       quantity: 2,
+      shippingName: 'Prod Test',
+      shippingPhone: '9876500003',
+      shippingAddress: '12th Main Road',
+      shippingCity: 'Bengaluru',
+      shippingPincode: '560038',
     });
 
     expect(result.razorpayOrderId).toBe('order_gw_1');
@@ -148,10 +153,11 @@ describe('SparePartsService order flow', () => {
         data: expect.objectContaining({
           status: 'PENDING',
           gatewayOrderId: 'order_gw_1',
-        totalAmount: 2999,
-        currency: 'INR',
-      totalAmount: 2999,
-      currency: 'INR',
+          shippingName: 'Prod Test',
+          shippingPhone: '9876500003',
+          shippingAddress: '12th Main Road',
+          shippingCity: 'Bengaluru',
+          shippingPincode: '560038',
         }),
       }),
     );

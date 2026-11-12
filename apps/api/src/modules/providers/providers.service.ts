@@ -5,6 +5,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PROVIDER_TYPE_CATEGORIES } from '@weyro/api-contracts';
+import {
+  addDays,
+  buildDailyBuckets,
+  forecastNetSales,
+  startOfDayUTC,
+  summariseAnalytics,
+} from './analytics';
 import { CacheService } from '../../common/redis/cache.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
@@ -62,6 +69,93 @@ export class ProvidersService {
         reviews: _count.reviews,
         listings: _count.spareParts,
       },
+    };
+  }
+
+  async getAnalytics(user: AuthUserPayload, days = 30) {
+    const id = this.providerId(user);
+    const periodDays = Math.min(90, Math.max(7, Math.round(days)));
+    const now = new Date();
+    const start = addDays(startOfDayUTC(now), -(periodDays - 1));
+
+    const [orders, pendingAggregate, listings, quotesSent, quotesAccepted] =
+      await Promise.all([
+        this.prisma.sparePartOrder.findMany({
+          where: {
+            providerId: id,
+            deletedAt: null,
+            paidAt: { gte: start },
+          },
+          select: {
+            totalAmount: true,
+            paidAt: true,
+            refundedAt: true,
+            status: true,
+          },
+          take: 2000,
+        }),
+        this.prisma.sparePartOrder.aggregate({
+          where: {
+            providerId: id,
+            status: 'PENDING',
+            deletedAt: null,
+          },
+          _sum: { totalAmount: true },
+        }),
+        this.prisma.sparePart.findMany({
+          where: { providerId: id, deletedAt: null },
+          select: { price: true, stockQuantity: true, isActive: true },
+        }),
+        this.prisma.quotation.count({
+          where: {
+            providerId: id,
+            deletedAt: null,
+            createdAt: { gte: start },
+          },
+        }),
+        this.prisma.quotation.count({
+          where: {
+            providerId: id,
+            deletedAt: null,
+            status: 'ACCEPTED',
+            createdAt: { gte: start },
+          },
+        }),
+      ]);
+
+    const analyticsOrders = orders.map((order) => ({
+      ...order,
+      totalAmount: Number(order.totalAmount),
+    }));
+    const buckets = buildDailyBuckets(analyticsOrders, periodDays, now);
+    const summary = summariseAnalytics(buckets, analyticsOrders);
+    const activeListings = listings.filter((item) => item.isActive);
+
+    return {
+      periodDays,
+      currency: 'INR',
+      summary: {
+        ...summary,
+        pendingValue: Number(pendingAggregate._sum.totalAmount ?? 0),
+        inventoryValue: Math.round(
+          activeListings.reduce(
+            (sum, item) => sum + Number(item.price) * item.stockQuantity,
+            0,
+          ) * 100,
+        ) / 100,
+        activeListings: activeListings.length,
+        lowStockListings: activeListings.filter(
+          (item) => item.stockQuantity <= 3,
+        ).length,
+        quotesSent,
+        quotesAccepted,
+        quoteConversionRate:
+          quotesSent === 0
+            ? 0
+            : Math.round((quotesAccepted / quotesSent) * 1000) / 10,
+      },
+      buckets,
+      forecast: forecastNetSales(buckets),
     };
   }
 
@@ -128,7 +222,7 @@ export class ProvidersService {
         select: { price: true, stockQuantity: true, isActive: true },
       }),
       this.prisma.sparePartOrder.findMany({
-        where: { providerId: id, deletedAt: null },
+        where: { providerId: id, status: 'PAID', deletedAt: null },
         orderBy: { createdAt: 'desc' },
         take: 4,
         select: {

@@ -35,6 +35,15 @@ export class ProvidersController {
     return this.providers.getDashboard(user);
   }
 
+  @Get('me/analytics')
+  @Roles('PROVIDER', 'BOTH')
+  async getAnalytics(
+    @CurrentUser() user: AuthUserPayload,
+    @Query('days') days?: string,
+  ) {
+    return this.providers.getAnalytics(user, Number(days) || 30);
+  }
+
   @Patch('me')
   @Roles('PROVIDER', 'BOTH')
   async updateMyProfile(

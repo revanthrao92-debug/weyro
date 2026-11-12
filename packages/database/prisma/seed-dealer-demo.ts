@@ -206,11 +206,43 @@ async function main() {
     },
   });
 
+  // 30 days of sales history so the financial graph and forecast have data.
+  const history: Array<{ days: number; amount: number; refunded?: boolean }> = [];
+  for (let index = 0; index < 24; index += 1) {
+    const days = 1 + Math.floor((index * 29) / 24);
+    const amount = 1200 + ((index * 370) % 9000);
+    history.push({ days, amount, refunded: index === 7 });
+  }
+
+  for (const [index, item] of history.entries()) {
+    const part = parts[index % parts.length];
+    const paidAt = new Date(Date.now() - item.days * 24 * 60 * 60 * 1000);
+    await prisma.sparePartOrder.create({
+      data: {
+        sparePartId: part.id,
+        providerId: provider.id,
+        customerId,
+        quantity: 1,
+        unitPrice: item.amount,
+        totalAmount: item.amount,
+        currency: 'INR',
+        status: item.refunded ? 'REFUNDED' : 'PAID',
+        fulfillmentStatus: item.refunded ? 'CANCELLED' : 'DELIVERED',
+        gatewayOrderId: `apex_demo_history_${index}`,
+        gatewayPaymentId: `pay_apex_history_${index}`,
+        paidAt,
+        deliveredAt: item.refunded ? null : new Date(paidAt.getTime() + 2 * 24 * 60 * 60 * 1000),
+        refundedAt: item.refunded ? new Date(paidAt.getTime() + 24 * 60 * 60 * 1000) : null,
+        ...shipping,
+      },
+    });
+  }
+
   console.log('Dealer demo data ready');
   console.log('  email:    contact@apexautobangalore.in');
   console.log('  password: WeyroDev@2026');
   console.log('  listings:', parts.length);
-  console.log('  orders:   3 paid (pending, processing, shipped) + 1 unpaid');
+  console.log('  orders:   3 live paid + 1 unpaid + 24 historical (1 refunded)');
 }
 
 main()

@@ -137,18 +137,22 @@ export class SparePartsService {
       },
     });
 
-    const itemsWithBadge = items.map((item: any) => ({
-      ...item,
-      provider: {
+    const itemsWithBadge = items.map((item: any) => {
+      const { stockQuantity, ...rest } = item;
+      return {
+        ...rest,
+        inStock: stockQuantity > 0,
+        provider: {
         ...item.provider,
-        badge: computeProviderBadge({
-          verificationStatus: item.provider.verificationStatus,
-          avgRating: item.provider.avgRating,
-          completedJobs: item.provider.completedJobs,
-          isAvailable: item.provider.isAvailable,
-        }),
-      },
-    }));
+          badge: computeProviderBadge({
+            verificationStatus: item.provider.verificationStatus,
+            avgRating: item.provider.avgRating,
+            completedJobs: item.provider.completedJobs,
+            isAvailable: item.provider.isAvailable,
+          }),
+        },
+      };
+    });
 
     return {
       items: itemsWithBadge,
@@ -183,8 +187,10 @@ export class SparePartsService {
       throw new NotFoundException(`Spare part with ID ${id} not found`);
     }
 
+    const { stockQuantity, ...rest } = part;
     return {
-      ...part,
+      ...rest,
+      inStock: stockQuantity > 0,
       provider: {
         ...part.provider,
         badge: computeProviderBadge({
