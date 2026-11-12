@@ -10,7 +10,9 @@ export type SparePart = {
   compatibleModels: string[];
   condition: string;
   price: number;
-  stockQuantity: number;
+  /** Dealer views only — public catalogue responses expose `inStock` instead. */
+  stockQuantity?: number;
+  inStock?: boolean;
   imageUrl?: string | null;
   description?: string | null;
   isActive: boolean;
@@ -46,6 +48,18 @@ export type SparePartOrder = {
   totalAmount: number;
   currency: string;
   status: string;
+  fulfillmentStatus?: string;
+  shippingName?: string | null;
+  shippingPhone?: string | null;
+  shippingAddress?: string | null;
+  shippingCity?: string | null;
+  shippingPincode?: string | null;
+  carrierName?: string | null;
+  trackingNumber?: string | null;
+  dealerNotes?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  refundedAt?: string | null;
   gatewayOrderId?: string | null;
   gatewayPaymentId?: string | null;
   paidAt?: string | null;
@@ -62,7 +76,19 @@ export type SparePartOrder = {
 
 export type CreateSparePartOrder = {
   quantity: number;
+  shippingName?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingPincode?: string;
 };
+
+export type FulfillmentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'READY'
+  | 'SHIPPED'
+  | 'DELIVERED';
 
 export type VerifySparePartOrder = {
   razorpayOrderId: string;
@@ -185,12 +211,19 @@ export function useMyOrders() {
 }
 
 /** Dealer orders */
-export function useDealerOrders(params?: { status?: string; cursor?: string; limit?: number }) {
+export function useDealerOrders(params?: {
+  status?: string;
+  fulfillmentStatus?: string;
+  cursor?: string;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: ['dealerOrders', params],
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.status) qs.set('status', params.status);
+      if (params?.fulfillmentStatus)
+        qs.set('fulfillmentStatus', params.fulfillmentStatus);
       if (params?.cursor) qs.set('cursor', params.cursor);
       if (params?.limit) qs.set('limit', String(params.limit));
       return apiClient<{ items: SparePartOrder[]; nextCursor?: string | null }>(
@@ -200,17 +233,79 @@ export function useDealerOrders(params?: { status?: string; cursor?: string; lim
   });
 }
 
+export function useDealerOrder(id: string) {
+  return useQuery({
+    queryKey: ['dealerOrder', id],
+    queryFn: async () => apiClient<SparePartOrder>(`/spare-parts/orders/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateFulfillment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      status,
+      carrierName,
+      trackingNumber,
+      dealerNotes,
+    }: {
+      orderId: string;
+      status: FulfillmentStatus;
+      carrierName?: string;
+      trackingNumber?: string;
+      dealerNotes?: string;
+    }) => {
+      return apiClient<{
+        orderId: string;
+        status: string;
+        fulfillmentStatus: string;
+      }>(`/spare-parts/orders/${orderId}/fulfillment`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          ...(carrierName ? { carrierName } : {}),
+          ...(trackingNumber ? { trackingNumber } : {}),
+          ...(dealerNotes ? { dealerNotes } : {}),
+        }),
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['dealerOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['dealerOrder', variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
+    },
+  });
+}
+
 /** Create order */
 export function useCreateSparePartOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ partId, quantity }: { partId: string; quantity: number }) => {
+    mutationFn: async ({
+      partId,
+      quantity,
+      shippingName,
+      shippingPhone,
+      shippingAddress,
+      shippingCity,
+      shippingPincode,
+    }: { partId: string } & CreateSparePartOrder) => {
       return apiClient<{ orderId: string; gatewayOrderId: string; amount: number }>(
         `/spare-parts/${partId}/orders`,
         {
           method: 'POST',
-          body: JSON.stringify({ quantity }),
+          body: JSON.stringify({
+            quantity,
+            ...(shippingName ? { shippingName } : {}),
+            ...(shippingPhone ? { shippingPhone } : {}),
+            ...(shippingAddress ? { shippingAddress } : {}),
+            ...(shippingCity ? { shippingCity } : {}),
+            ...(shippingPincode ? { shippingPincode } : {}),
+          }),
         }
       );
     },

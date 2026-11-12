@@ -1,122 +1,187 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View, Alert } from 'react-native';
-import { useMyQuotations, useWithdrawQuotation } from '@/hooks/useRequests';
+import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  useMyQuotations,
+  useUpdateQuotation,
+  useWithdrawQuotation,
+} from '@/hooks/useRequests';
 import {
   ScreenContainer,
   AppHeader,
+  BackButton,
   Card,
   Chip,
   Button,
   StatusPill,
   EmptyState,
   Skeleton,
-  BackButton,
   FilterBar,
 } from '@/components/ui';
+import { QuoteComposer } from '@/components/dealer/QuoteComposer';
 import { palette, spacing, typography } from '@/theme';
-import { titleize as labelize, quotationStatusTone as statusTone } from '@/utils/format';
+import { formatDate, titleize as labelize, quotationStatusTone as statusTone } from '@/utils/format';
 
-const FILTERS = ['PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'];
-
-
-
-
+const FILTERS = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'];
 
 export default function MyQuotesScreen() {
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
-  const { data, isLoading, refetch } = useMyQuotations({ status: statusFilter });
+  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const { data, isLoading, refetch } = useMyQuotations({
+    status: statusFilter === 'ALL' ? undefined : statusFilter,
+  });
   const withdrawQuotation = useWithdrawQuotation();
+  const updateQuotation = useUpdateQuotation();
 
   const quotes = data?.items ?? [];
-  const showFilters = quotes.length > 0 || !!statusFilter;
-
-  if (isLoading) {
-    return (
-      <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
-        {[0, 1, 2].map((i) => (
-          <Card key={i} style={styles.skeletonCard}>
-            <Skeleton width="40%" height={14} />
-            <Skeleton width="30%" height={22} style={{ marginTop: spacing.sm }} />
-            <Skeleton width="50%" height={12} style={{ marginTop: spacing.sm }} />
-          </Card>
-        ))}
-      </ScreenContainer>
-    );
-  }
+  const showFilters = quotes.length > 0 || statusFilter !== 'ALL';
 
   const handleWithdraw = async (id: string) => {
     try {
       await withdrawQuotation.mutateAsync(id);
-      Alert.alert('Success', 'Quotation withdrawn');
       await refetch();
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to withdraw quotation');
     }
   };
 
+  if (isLoading) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <AppHeader left={<BackButton />} title="Quotes" subtitle="Your sent quotations" />
+        <View style={styles.list}>
+          {[0, 1, 2].map((i) => (
+            <Card key={i} style={styles.skeletonCard}>
+              <Skeleton width="40%" height={14} />
+              <Skeleton width="30%" height={22} style={{ marginTop: spacing.sm }} />
+              <Skeleton width="50%" height={12} style={{ marginTop: spacing.sm }} />
+            </Card>
+          ))}
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   return (
     <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader left={<BackButton />} title="My Quotes" subtitle="Your sent quotations" />
+      <AppHeader left={<BackButton />} title="Quotes" subtitle="Your sent quotations" />
 
       {showFilters ? (
         <FilterBar>
           <View style={styles.filterRow}>
-        {FILTERS.map((s) => (
-          <Chip
-            key={s}
-            label={labelize(s)}
-            selected={statusFilter === s}
-            onPress={() => setStatusFilter((prev) => (prev === s ? undefined : s))}
-          />
-        ))}
+            {FILTERS.map((s) => (
+              <Chip
+                key={s}
+                label={labelize(s)}
+                selected={statusFilter === s}
+                onPress={() => {
+                  setStatusFilter(s);
+                  setEditingId(null);
+                }}
+              />
+            ))}
           </View>
         </FilterBar>
       ) : null}
 
       {quotes.length === 0 ? (
         <EmptyState
-          title={statusFilter ? 'No quotes match this filter' : 'No quotes yet'}
-          message={statusFilter ? 'Try a different status.' : 'Quotations you send will appear here.'}
+          title={statusFilter === 'ALL' ? 'No quotes yet' : 'No quotes match this filter'}
+          message={
+            statusFilter === 'ALL'
+              ? 'Quotations you send will appear here.'
+              : 'Try a different status.'
+          }
+          action={
+            statusFilter === 'ALL' ? (
+              <Button title="Browse requests" onPress={() => router.push('/opportunities')} />
+            ) : undefined
+          }
         />
       ) : (
         <FlatList
           data={quotes}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <QuoteItem item={item} onWithdraw={handleWithdraw} />
-          )}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const request = item.request;
+            const isEditing = editingId === item.id;
+            return (
+              <Card style={styles.card}>
+                <View style={styles.info}>
+                  <Text style={styles.quoteTitle} numberOfLines={1}>
+                    {request?.title ?? 'Service request'}
+                  </Text>
+                  <Text style={styles.quoteMeta} numberOfLines={1}>
+                    {request?.vehicle
+                      ? `${request.vehicle.make} ${request.vehicle.model} · `
+                      : ''}
+                    {formatDate(item.createdAt)}
+                  </Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.quoteAmount}>
+                      ₹{Number(item.totalCost).toLocaleString('en-IN')}
+                    </Text>
+                    <StatusPill label={labelize(item.status)} tone={statusTone(item.status)} />
+                  </View>
+                  {item.etaDescription ? (
+                    <Text style={styles.quoteETA}>{item.etaDescription}</Text>
+                  ) : null}
+                </View>
+
+                {isEditing ? (
+                  <View style={styles.editor}>
+                    <QuoteComposer
+                      initial={item}
+                      submitLabel="Save changes"
+                      submitting={updateQuotation.isPending}
+                      onSubmit={async (data) => {
+                        try {
+                          await updateQuotation.mutateAsync({ id: item.id, data });
+                          setEditingId(null);
+                          await refetch();
+                        } catch (e: any) {
+                          Alert.alert('Failed', e.message || 'Unable to update quote');
+                        }
+                      }}
+                    />
+                    <Button
+                      title="Cancel edit"
+                      variant="secondary"
+                      onPress={() => setEditingId(null)}
+                    />
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.actions}>
+                      {request ? (
+                        <Button
+                          title="Open request"
+                          variant="secondary"
+                          onPress={() => router.push(`/requests/${request.id}`)}
+                        />
+                      ) : null}
+                      {item.status === 'PENDING' ? (
+                        <>
+                          <Button title="Edit" onPress={() => setEditingId(item.id)} />
+                          <Button
+                            title="Withdraw"
+                            variant="destructive"
+                            onPress={() => void handleWithdraw(item.id)}
+                          />
+                        </>
+                      ) : null}
+                    </View>
+                  </ScrollView>
+                )}
+              </Card>
+            );
+          }}
         />
       )}
     </ScreenContainer>
-  );
-}
-
-function QuoteItem({ item, onWithdraw }: { item: any; onWithdraw: (id: string) => void }) {
-  const canWithdraw = item.status === 'PENDING';
-
-  return (
-    <Card style={styles.card}>
-      <View style={styles.info}>
-        <Text style={styles.quoteTitle}>Quotation</Text>
-        <Text style={styles.quoteAmount}>₹{item.totalCost.toLocaleString()}</Text>
-        <View style={styles.metaRow}>
-          <StatusPill label={labelize(item.status)} tone={statusTone(item.status)} />
-        </View>
-        {item.etaDescription ? (
-          <Text style={styles.quoteETA}>{item.etaDescription}</Text>
-        ) : null}
-      </View>
-      {canWithdraw && (
-        <Button
-          title="Withdraw"
-          variant="destructive"
-          onPress={() => onWithdraw(item.id)}
-          style={styles.withdrawBtn}
-        />
-      )}
-    </Card>
   );
 }
 
@@ -126,13 +191,21 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  list: { paddingBottom: spacing.xl },
+  list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
-  card: { marginBottom: spacing.md },
+  card: { marginBottom: spacing.md, gap: spacing.sm },
   info: { flex: 1 },
-  quoteTitle: { ...typography.label, color: palette.textSecondary },
-  quoteAmount: { ...typography.title, color: palette.textPrimary, marginTop: spacing.xs },
-  metaRow: { flexDirection: 'row', marginTop: spacing.sm },
+  quoteTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  quoteMeta: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  quoteAmount: { ...typography.title, color: palette.textPrimary },
   quoteETA: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.sm },
-  withdrawBtn: { minWidth: 104 },
+  actions: { flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.xs },
+  editor: { gap: spacing.md },
 });

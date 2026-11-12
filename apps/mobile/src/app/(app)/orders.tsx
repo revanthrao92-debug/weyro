@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
@@ -9,6 +10,7 @@ import {
 } from '@/hooks/useParts';
 import {
   ScreenContainer,
+  Chip,
   PressableScale,
   StatusPill,
   EmptyState,
@@ -69,7 +71,14 @@ function OrderRow({
         <Text style={styles.rowPrice}>
           ₹{Number(item.totalAmount).toLocaleString('en-IN')}
         </Text>
-        <StatusPill label={titleize(item.status)} tone={orderTone(item.status)} />
+        {dealer && item.status === 'PAID' ? (
+          <StatusPill
+            label={titleize(item.fulfillmentStatus ?? 'PENDING')}
+            tone={fulfillmentTone(item.fulfillmentStatus)}
+          />
+        ) : (
+          <StatusPill label={titleize(item.status)} tone={orderTone(item.status)} />
+        )}
       </View>
     </>
   );
@@ -88,6 +97,21 @@ function OrderRow({
       {content}
     </PressableScale>
   );
+}
+
+function fulfillmentTone(status?: string): StatusTone {
+  switch (status) {
+    case 'DELIVERED':
+      return 'success';
+    case 'SHIPPED':
+      return 'info';
+    case 'READY':
+      return 'info';
+    case 'PROCESSING':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
 }
 
 function OrdersHeader({
@@ -173,17 +197,49 @@ function CustomerOrders() {
   );
 }
 
+const DEALER_FILTERS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'TO_FULFILL', label: 'To fulfill' },
+  { key: 'SHIPPED', label: 'Shipped' },
+  { key: 'DELIVERED', label: 'Delivered' },
+  { key: 'UNPAID', label: 'Unpaid' },
+] as const;
+
 function DealerOrders() {
-  const { data, isLoading } = useDealerOrders();
+  const router = useRouter();
+  const [filter, setFilter] = useState<(typeof DEALER_FILTERS)[number]['key']>('ALL');
+  const { data, isLoading } = useDealerOrders({ limit: 50 });
   const orders = data?.items ?? [];
+
+  const visible = orders.filter((order) => {
+    switch (filter) {
+      case 'TO_FULFILL':
+        return (
+          order.status === 'PAID' &&
+          !['DELIVERED', 'CANCELLED'].includes(order.fulfillmentStatus ?? 'PENDING')
+        );
+      case 'SHIPPED':
+        return order.fulfillmentStatus === 'SHIPPED';
+      case 'DELIVERED':
+        return order.fulfillmentStatus === 'DELIVERED';
+      case 'UNPAID':
+        return order.status === 'PENDING';
+      default:
+        return true;
+    }
+  });
+
+  const toFulfill = orders.filter(
+    (o) => o.status === 'PAID' && o.fulfillmentStatus !== 'DELIVERED',
+  ).length;
   const revenue = orders
     .filter((o) => o.status === 'PAID')
     .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <FlatList
-        data={isLoading ? [] : orders}
+        data={isLoading ? [] : visible}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
         ListHeaderComponent={
@@ -194,9 +250,19 @@ function DealerOrders() {
               summary={
                 orders.length === 0
                   ? 'No orders yet'
-                  : `₹${revenue.toLocaleString('en-IN')} paid · ${orders.length} orders`
+                  : `${toFulfill} to fulfill · ₹${revenue.toLocaleString('en-IN')} paid`
               }
             />
+            <View style={styles.filters}>
+              {DEALER_FILTERS.map((item) => (
+                <Chip
+                  key={item.key}
+                  label={item.label}
+                  selected={filter === item.key}
+                  onPress={() => setFilter(item.key)}
+                />
+              ))}
+            </View>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={[styles.row, i > 0 && styles.divider]}>
@@ -213,14 +279,22 @@ function DealerOrders() {
           isLoading ? undefined : (
             <EmptyState
               icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
-              title="No orders yet"
-              message="Orders placed for your listings will appear here."
+              title={filter === 'ALL' ? 'No orders yet' : 'Nothing here'}
+              message={
+                filter === 'ALL'
+                  ? 'Paid orders for your listings appear here.'
+                  : 'No orders match this filter.'
+              }
             />
           )
         }
         renderItem={({ item, index }) => (
           <View style={index > 0 ? styles.divider : undefined}>
-            <OrderRow item={item} dealer />
+            <OrderRow
+              item={item}
+              dealer
+              onPress={() => router.push(`/order/${item.id}`)}
+            />
           </View>
         )}
       />
@@ -235,6 +309,12 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   eyebrow: { ...typography.label, color: palette.textMuted },
   title: {
     fontFamily: displayFamily,

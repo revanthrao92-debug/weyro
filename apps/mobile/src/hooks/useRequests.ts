@@ -47,6 +47,7 @@ export type Quotation = {
   notes?: string;
   status: string;
   createdAt: string;
+  request?: ServiceRequest;
 };
 
 export type CreateServiceRequest = {
@@ -249,6 +250,29 @@ export function useMyQuotations(params?: { cursor?: string; limit?: number; stat
       return apiClient<{ items: Quotation[]; nextCursor?: string | null }>(
         `/quotations/my?${qs.toString()}`
       );
+    },
+  });
+}
+
+export function useUpdateQuotation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<CreateQuotation>;
+    }) => {
+      return apiClient<Quotation>(`/quotations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myQuotations'] });
+      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
     },
   });
 }

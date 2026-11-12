@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
+  BarChart3,
   Bell,
   ChevronRight,
   MessageCircle,
@@ -420,6 +421,12 @@ export function DealerDashboard() {
           label="Listings"
           detail="Manage parts, price and stock"
           onPress={() => router.push('/my-listings')}
+        />
+        <ActionRow
+          icon={<BarChart3 size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          label="Financials"
+          detail="Sales trend, refunds and forecast"
+          onPress={() => router.push('/financials')}
         />
         <ActionRow
           icon={<Wallet size={17} color={palette.textPrimary} strokeWidth={1.8} />}

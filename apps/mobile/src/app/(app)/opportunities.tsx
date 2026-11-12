@@ -1,98 +1,76 @@
-import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View, Alert } from 'react-native';
+import { useMemo } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useBroadcastFeed, useCreateQuotation } from '@/hooks/useRequests';
+import { useBroadcastFeed, useMyQuotations } from '@/hooks/useRequests';
 import {
   ScreenContainer,
   AppHeader,
   Card,
-  Chip,
   Button,
   StatusPill,
   EmptyState,
   Skeleton,
   FadeSlideIn,
-  FilterBar,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
-import { titleize as labelize } from '@/utils/format';
+import { titleize as labelize, formatDate } from '@/utils/format';
 
-const CATEGORIES = ['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'];
-
-
-export default function BroadcastFeedScreen() {
-  const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
+export default function DealerRequestsScreen() {
   const router = useRouter();
-  const { data, isLoading } = useBroadcastFeed({ category: categoryFilter });
-  const createQuotation = useCreateQuotation();
+  const { data, isLoading, refetch } = useBroadcastFeed();
+  const { data: myQuotes } = useMyQuotations({ limit: 50 });
 
   const requests = data?.items ?? [];
-  const showFilters = requests.length > 0 || !!categoryFilter;
+
+  const quoteByRequest = useMemo(() => {
+    const map = new Map<string, { id: string; status: string }>();
+    for (const quote of myQuotes?.items ?? []) {
+      map.set(quote.requestId, { id: quote.id, status: quote.status });
+    }
+    return map;
+  }, [myQuotes]);
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark">
-        <AppHeader title="Opportunities" subtitle="Nearby service requests" />
-        {[0, 1, 2].map((i) => (
-          <Card key={i} style={styles.skeletonCard}>
-            <Skeleton width="60%" height={18} />
-            <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
-          </Card>
-        ))}
+      <ScreenContainer chrome="dark" safeBottom>
+        <AppHeader title="Requests" subtitle="Spare-part requests nearby" />
+        <View style={styles.body}>
+          {[0, 1, 2].map((i) => (
+            <Card key={i} style={styles.skeletonCard}>
+              <Skeleton width="60%" height={18} />
+              <Skeleton width="90%" height={12} style={{ marginTop: spacing.sm }} />
+              <Skeleton width="40%" height={12} style={{ marginTop: spacing.sm }} />
+            </Card>
+          ))}
+        </View>
       </ScreenContainer>
     );
   }
 
-  const handleQuote = async (requestId: string) => {
-    try {
-      await createQuotation.mutateAsync({
-        requestId,
-        data: {
-          partsCost: 0,
-          labourCost: 0,
-          warrantyDays: 30,
-          etaDescription: 'Same day',
-        },
-      });
-      Alert.alert('Success', 'Quotation sent');
-      router.push(`/requests/${requestId}`);
-    } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to send quotation');
-    }
-  };
-
   return (
-    <ScreenContainer chrome="dark">
-      <AppHeader title="Opportunities" subtitle="Nearby service requests" />
-
-      {showFilters ? (
-        <FilterBar>
-          <View style={styles.filterRow}>
-        {CATEGORIES.map((c) => (
-          <Chip
-            key={c}
-            label={labelize(c)}
-            selected={categoryFilter === c}
-            onPress={() => setCategoryFilter((prev) => (prev === c ? undefined : c))}
-          />
-        ))}
-          </View>
-        </FilterBar>
-      ) : null}
-
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <AppHeader title="Requests" subtitle="Spare-part requests nearby" />
       {requests.length === 0 ? (
         <EmptyState
-          title={categoryFilter ? 'No requests match this filter' : 'No requests found'}
-          message={categoryFilter ? 'Try a different category.' : 'Nearby requests will appear here.'}
+          title="No open requests"
+          message="New spare-part requests in your service radius will appear here."
+          action={
+            <Button title="Refresh" variant="secondary" onPress={() => void refetch()} />
+          }
         />
       ) : (
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => (
             <FadeSlideIn delay={Math.min(index, 6) * 50}>
-              <FeedRequestCard item={item} onQuote={handleQuote} />
+              <RequestCard
+                item={item}
+                myQuote={quoteByRequest.get(item.id)}
+                onPress={() => router.push(`/requests/${item.id}`)}
+              />
             </FadeSlideIn>
           )}
         />
@@ -101,42 +79,102 @@ export default function BroadcastFeedScreen() {
   );
 }
 
-function FeedRequestCard({ item, onQuote }: { item: any; onQuote: (id: string) => void }) {
+function RequestCard({
+  item,
+  myQuote,
+  onPress,
+}: {
+  item: any;
+  myQuote?: { id: string; status: string };
+  onPress: () => void;
+}) {
+  const vehicle = item.vehicle
+    ? `${item.vehicle.make} ${item.vehicle.model} ${item.vehicle.year ?? ''}`.trim()
+    : null;
+  const detail = String(item.description ?? '')
+    .split('\n')
+    .slice(0, 2)
+    .join(' · ');
+
   return (
     <Card style={styles.card}>
-      <View style={styles.info}>
-        <Text style={styles.requestTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.requestCategory}>{labelize(item.category)}</Text>
-        <Text style={styles.requestAddress} numberOfLines={1}>
-          {item.address}
-        </Text>
-        <View style={styles.urgencyRow}>
-          <StatusPill
-            label={item.urgency}
-            tone={item.urgency === 'EMERGENCY' ? 'danger' : 'neutral'}
-          />
+      <View style={styles.cardTop}>
+        <View style={styles.info}>
+          <Text style={styles.requestTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.requestMeta} numberOfLines={1}>
+            {vehicle ? `${vehicle} · ` : ''}
+            {item.address}
+          </Text>
         </View>
+        <StatusPill
+          label={labelize(item.urgency)}
+          tone={
+            item.urgency === 'EMERGENCY'
+              ? 'danger'
+              : item.urgency === 'URGENT'
+                ? 'warning'
+                : 'neutral'
+          }
+        />
       </View>
-      <Button title="Quote" onPress={() => onQuote(item.id)} style={styles.quoteBtn} />
+
+      <Text style={styles.description} numberOfLines={2}>
+        {detail}
+      </Text>
+
+      <View style={styles.footer}>
+        <View style={styles.footerMeta}>
+          <Text style={styles.metaText}>
+            {labelize(item.fulfillmentType ?? 'PARTS_SHIPPING')}
+          </Text>
+          <Text style={styles.metaText}>
+            {item.quotationsCount ?? 0} quote
+            {(item.quotationsCount ?? 0) === 1 ? '' : 's'} · closes{' '}
+            {formatDate(item.expiresAt)}
+          </Text>
+        </View>
+        {myQuote ? (
+          <View style={styles.quotedRow}>
+            <StatusPill label={labelize(myQuote.status)} tone="info" />
+            <Button title="View quote" variant="secondary" onPress={onPress} />
+          </View>
+        ) : (
+          <Button title="Respond" onPress={onPress} />
+        )}
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  filterRow: {
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  skeletonCard: { marginBottom: spacing.md },
+  card: { marginBottom: spacing.md, gap: spacing.sm },
+  cardTop: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  list: { paddingBottom: spacing.xl },
-  skeletonCard: { marginBottom: spacing.md },
-  card: { marginBottom: spacing.md },
   info: { flex: 1 },
   requestTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  requestCategory: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
-  requestAddress: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
-  urgencyRow: { flexDirection: 'row', marginTop: spacing.sm },
-  quoteBtn: { minWidth: 88 },
+  requestMeta: {
+    ...typography.caption,
+    color: palette.textSecondary,
+    marginTop: 2,
+  },
+  description: { ...typography.caption, color: palette.textSecondary },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  footerMeta: { flex: 1, gap: 2 },
+  metaText: { ...typography.label, color: palette.textMuted },
+  quotedRow: { alignItems: 'flex-end', gap: spacing.xs },
 });

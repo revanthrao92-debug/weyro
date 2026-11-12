@@ -10,7 +10,16 @@ import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
-import { useRequest, useRequestQuotations, useCancelRequest, useAcceptQuotation, useCreateQuotation } from '@/hooks/useRequests';
+import {
+  useRequest,
+  useRequestQuotations,
+  useCancelRequest,
+  useAcceptQuotation,
+  useCreateQuotation,
+  useMyQuotations,
+  useUpdateQuotation,
+} from '@/hooks/useRequests';
+import { QuoteComposer } from '@/components/dealer/QuoteComposer';
 import {
   ScreenContainer,
   Card,
@@ -20,8 +29,6 @@ import {
   ErrorState,
   EmptyState,
   BackButton,
-  Input,
-  Chip,
   FadeSlideIn,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
@@ -38,6 +45,9 @@ export default function RequestDetailScreen() {
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
   const createQuotation = useCreateQuotation();
+  const updateQuotation = useUpdateQuotation();
+  const { data: myQuotesData } = useMyQuotations({ limit: 50 });
+  const [editingQuote, setEditingQuote] = useState(false);
 
   // Checkpoint 3: providers get the quote form; customers keep Accept.
   const isProvider = role === 'PROVIDER' || role === 'BOTH';
@@ -45,6 +55,9 @@ export default function RequestDetailScreen() {
     isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
 
   const quotes = quotesData?.items ?? [];
+  const myQuote = (myQuotesData?.items ?? []).find(
+    (quote) => quote.requestId === id,
+  );
 
   if (isLoading) {
     return (
@@ -156,7 +169,7 @@ export default function RequestDetailScreen() {
           </Card>
         ) : quotes.length === 0 ? (
           <Card>
-            <EmptyState title="No quotes yet" message="Verified garages nearby will respond here." />
+            <EmptyState title="No quotes yet" message="Dealers nearby will respond here." />
           </Card>
         ) : (
           <FlatList
@@ -180,18 +193,58 @@ export default function RequestDetailScreen() {
           <DetailRow label="Address" value={request.address} last />
         </Card>
 
-        {canQuote && (
-          <QuoteForm
-            onSubmit={async (data) => {
-              try {
-                await createQuotation.mutateAsync({ requestId: request.id, data });
-                Alert.alert('Success', 'Quotation submitted to the customer.');
-              } catch (e: any) {
-                Alert.alert('Failed', e.message || 'Unable to submit quotation');
-              }
-            }}
-            submitting={createQuotation.isPending}
-          />
+        {canQuote && myQuote && !editingQuote ? (
+          <View style={styles.quoteForm}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Your quote</Text>
+              <StatusPill label={labelize(myQuote.status)} tone={statusTone(myQuote.status)} />
+            </View>
+            <Card>
+              <DetailRow label="Parts" value={`₹${Number(myQuote.partsCost).toLocaleString('en-IN')}`} />
+              <DetailRow label="Labour" value={`₹${Number(myQuote.labourCost).toLocaleString('en-IN')}`} />
+              <DetailRow label="Shipping" value={`₹${Number(myQuote.shippingCost ?? 0).toLocaleString('en-IN')}`} />
+              <DetailRow label="Warranty" value={`${myQuote.warrantyDays} days`} />
+              <DetailRow label="ETA" value={myQuote.etaDescription} last />
+            </Card>
+            {myQuote.status === 'PENDING' ? (
+              <Button
+                title="Edit quote"
+                variant="secondary"
+                onPress={() => setEditingQuote(true)}
+                style={styles.editQuoteBtn}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {canQuote && (!myQuote || editingQuote) && (
+          <View style={styles.quoteForm}>
+            {editingQuote ? (
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>Update quotation</Text>
+                <Button title="Cancel" variant="secondary" onPress={() => setEditingQuote(false)} />
+              </View>
+            ) : null}
+            <QuoteComposer
+              initial={editingQuote ? myQuote : undefined}
+              submitLabel={editingQuote ? 'Save quote' : 'Send quote'}
+              submitting={createQuotation.isPending || updateQuotation.isPending}
+              onSubmit={async (data) => {
+                try {
+                  if (editingQuote && myQuote) {
+                    await updateQuotation.mutateAsync({ id: myQuote.id, data });
+                    setEditingQuote(false);
+                    Alert.alert('Saved', 'Your quotation has been updated.');
+                  } else {
+                    await createQuotation.mutateAsync({ requestId: request.id, data });
+                    Alert.alert('Sent', 'Quotation submitted to the customer.');
+                  }
+                } catch (e: any) {
+                  Alert.alert('Failed', e.message || 'Unable to submit quotation');
+                }
+              }}
+            />
+          </View>
         )}
 
         {canCancel && (
@@ -204,118 +257,6 @@ export default function RequestDetailScreen() {
         )}
       </ScrollView>
     </ScreenContainer>
-  );
-}
-
-/**
- * Provider-facing quote form (Checkpoint 3). Photo-7 style cost breakdown:
- * rigid labeled rows, single primary CTA, status chip feedback.
- */
-function QuoteForm({
-  onSubmit,
-  submitting,
-}: {
-  onSubmit: (data: {
-    partsCost: number;
-    labourCost: number;
-    shippingCost?: number;
-    partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
-    warrantyDays: number;
-    etaDescription: string;
-    deliveryMethod?: 'PICKUP' | 'DOORSTEP_DELIVERY' | 'PARTS_COURIER' | 'ON_SITE_FITMENT';
-    notes?: string;
-  }) => Promise<void>;
-  submitting: boolean;
-}) {
-  const [partsCost, setPartsCost] = useState('');
-  const [labourCost, setLabourCost] = useState('');
-  const [warrantyDays, setWarrantyDays] = useState('30');
-  const [etaDescription, setEtaDescription] = useState('');
-  const [notes, setNotes] = useState('');
-  const [condition, setCondition] = useState<'OEM' | 'AFTERMARKET' | 'USED'>('OEM');
-
-  const parts = Number(partsCost) || 0;
-  const labour = Number(labourCost) || 0;
-  const total = parts + labour;
-
-  const valid = parts > 0;
-
-  return (
-    <View style={styles.quoteForm}>
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Submit quotation</Text>
-        <StatusPill label={condition} tone="info" />
-      </View>
-
-      <Input
-        label="Parts cost (₹)"
-        placeholder="5000"
-        value={partsCost}
-        onChangeText={setPartsCost}
-        keyboardType="number-pad"
-      />
-      <Input
-        label="Labour cost (₹)"
-        placeholder="1500"
-        value={labourCost}
-        onChangeText={setLabourCost}
-        keyboardType="number-pad"
-      />
-      <Input
-        label="Warranty (days)"
-        placeholder="30"
-        value={warrantyDays}
-        onChangeText={setWarrantyDays}
-        keyboardType="number-pad"
-      />
-
-      <Text style={styles.fieldLabel}>Part condition</Text>
-      <View style={styles.conditionRow}>
-        {(['OEM', 'AFTERMARKET', 'USED'] as const).map((c) => (
-          <Chip
-            key={c}
-            label={c}
-            selected={condition === c}
-            onPress={() => setCondition(c)}
-          />
-        ))}
-      </View>
-
-      <Input
-        label="Estimated time to complete"
-        placeholder='e.g. "Same day if part in stock"'
-        value={etaDescription}
-        onChangeText={setEtaDescription}
-      />
-      <Input
-        label="Notes (optional)"
-        placeholder="Anything the customer should know"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-      />
-
-      <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Total</Text>
-        <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
-      </View>
-
-      <Button
-        title="Submit quotation"
-        loading={submitting}
-        disabled={!valid || submitting || etaDescription.trim().length < 2}
-        onPress={() =>
-          void onSubmit({
-            partsCost: parts,
-            labourCost: labour,
-            partCondition: condition,
-            warrantyDays: Math.max(0, Number(warrantyDays) || 0),
-            etaDescription: etaDescription.trim(),
-            notes: notes.trim() || undefined,
-          })
-        }
-      />
-    </View>
   );
 }
 
@@ -489,6 +430,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   acceptBtn: { marginTop: spacing.lg },
+  editQuoteBtn: { marginTop: spacing.md },
   quoteForm: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,

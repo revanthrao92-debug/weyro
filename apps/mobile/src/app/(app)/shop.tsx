@@ -173,16 +173,16 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
         </View>
         <View style={styles.priceStock}>
           <Text style={styles.price}>₹{part.price.toLocaleString()}</Text>
-          <StockBadge stock={part.stockQuantity} />
+          <StockBadge inStock={part.inStock ?? (part.stockQuantity ?? 0) > 0} />
         </View>
       </View>
     </PressableScale>
   );
 }
 
-function StockBadge({ stock }: { stock: number }) {
-  const tone = stock > 0 ? 'success' : 'danger';
-  const label = stock > 0 ? `In Stock (${stock})` : 'Out of Stock';
+function StockBadge({ inStock }: { inStock: boolean }) {
+  const tone = inStock ? 'success' : 'danger';
+  const label = inStock ? 'Available' : 'Out of stock';
   return <StatusPill label={label} tone={tone} />;
 }
 

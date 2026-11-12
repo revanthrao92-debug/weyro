@@ -7,6 +7,7 @@ import {
   ScreenContainer,
   BackButton,
   Button,
+  Input,
   PressableScale,
   SectionHead,
   StatusPill,
@@ -30,6 +31,11 @@ export default function PartDetailScreen() {
   const { data: part, isLoading } = useSparePart(id || '');
   const createOrder = useCreateSparePartOrder();
   const [ordering, setOrdering] = useState(false);
+  const [shippingName, setShippingName] = useState('');
+  const [shippingPhone, setShippingPhone] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [shippingCity, setShippingCity] = useState('');
+  const [shippingPincode, setShippingPincode] = useState('');
   const [quantity, setQuantity] = useState(1);
 
   if (isLoading) {
@@ -52,18 +58,37 @@ export default function PartDetailScreen() {
     );
   }
 
-  const inStock = part.stockQuantity > 0;
-  const maxQty = Math.min(part.stockQuantity, 10);
+  const available = part.inStock ?? (part.stockQuantity ?? 0) > 0;
+  const inStock = available;
+  const maxQty = 10;
   const total = Number(part.price) * quantity;
+  const validShipping =
+    shippingName.trim().length > 1 &&
+    shippingPhone.trim().length >= 8 &&
+    shippingAddress.trim().length >= 5 &&
+    shippingCity.trim().length >= 2 &&
+    /^\d{4,6}$/.test(shippingPincode.trim());
 
   const handleOrder = async () => {
     if (!inStock || quantity < 1 || quantity > maxQty) {
       Alert.alert('Error', 'Invalid quantity');
       return;
     }
+    if (!validShipping) {
+      Alert.alert('Delivery details needed', 'Add a name, phone and delivery address first.');
+      return;
+    }
     setOrdering(true);
     try {
-      await createOrder.mutateAsync({ partId: part.id, quantity });
+      await createOrder.mutateAsync({
+        partId: part.id,
+        quantity,
+        shippingName: shippingName.trim(),
+        shippingPhone: shippingPhone.trim(),
+        shippingAddress: shippingAddress.trim(),
+        shippingCity: shippingCity.trim(),
+        shippingPincode: shippingPincode.trim(),
+      });
       // The order exists now; it appears in Orders with its payment state.
       router.replace('/orders');
     } catch (e: any) {
@@ -107,7 +132,7 @@ export default function PartDetailScreen() {
         <View style={styles.pills}>
           <StatusPill label={part.condition} tone="neutral" />
           <StatusPill
-            label={inStock ? `In stock · ${part.stockQuantity}` : 'Out of stock'}
+            label={inStock ? 'Available' : 'Out of stock'}
             tone={inStock ? 'success' : 'danger'}
           />
         </View>
@@ -170,10 +195,46 @@ export default function PartDetailScreen() {
             <Text style={styles.total}>₹{total.toLocaleString('en-IN')}</Text>
           </View>
 
+          <SectionHead title="Delivery details" />
+          <Input
+            label="Full name"
+            placeholder="Who receives the part"
+            value={shippingName}
+            onChangeText={setShippingName}
+          />
+          <Input
+            label="Phone"
+            placeholder="+91…"
+            value={shippingPhone}
+            onChangeText={setShippingPhone}
+            keyboardType="phone-pad"
+          />
+          <Input
+            label="Address"
+            placeholder="Street, area, landmark"
+            value={shippingAddress}
+            onChangeText={setShippingAddress}
+            multiline
+            style={styles.addressInput}
+          />
+          <Input
+            label="City"
+            placeholder="City"
+            value={shippingCity}
+            onChangeText={setShippingCity}
+          />
+          <Input
+            label="Pincode"
+            placeholder="560001"
+            value={shippingPincode}
+            onChangeText={setShippingPincode}
+            keyboardType="number-pad"
+          />
+
           <Button
             title={inStock ? 'Create order' : 'Out of stock'}
             onPress={handleOrder}
-            disabled={!inStock || ordering}
+            disabled={!inStock || ordering || !validShipping}
             loading={ordering}
           />
           <Text style={styles.orderNote}>
@@ -187,6 +248,7 @@ export default function PartDetailScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  addressInput: { minHeight: 72, textAlignVertical: 'top' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -10,7 +10,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSparePart, useUpdateSparePart, useDeleteSparePart } from '@/hooks/useParts';
+import { useSparePart, useUpdateSparePart, useDeleteSparePart, type SparePart } from '@/hooks/useParts';
+import type { UploadedImage } from '@/services/uploads';
+import { PhotoPicker } from '@/components/requests/PhotoPicker';
 import {
   Input,
   Button,
@@ -29,32 +31,9 @@ type ListingParams = { id: string };
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
-
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams<ListingParams>();
   const { data: part, isLoading } = useSparePart(id || '');
-  const updatePart = useUpdateSparePart();
-  const deletePart = useDeleteSparePart();
-  const router = useRouter();
-
-  const [form, setForm] = useState<{
-    name: string;
-    partNumber: string;
-    condition: string;
-    price: string;
-    stockQuantity: string;
-    description: string;
-    isActive: boolean;
-  }>({
-    name: '',
-    partNumber: '',
-    condition: 'AFTERMARKET',
-    price: '',
-    stockQuantity: '',
-    description: '',
-    isActive: true,
-  });
-  const [submitting, setSubmitting] = useState(false);
 
   if (isLoading) {
     return (
@@ -78,21 +57,46 @@ export default function EditListingScreen() {
     );
   }
 
+  return <ListingForm part={part} />;
+}
+
+function ListingForm({ part }: { part: SparePart }) {
+  const router = useRouter();
+  const updatePart = useUpdateSparePart();
+  const deletePart = useDeleteSparePart();
+  const [form, setForm] = useState({
+    name: part.name,
+    partNumber: part.partNumber,
+    condition: part.condition,
+    price: String(part.price),
+    stockQuantity: String(part.stockQuantity ?? 0),
+    description: part.description ?? '',
+    imageUrl: part.imageUrl ?? '',
+    isActive: part.isActive,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [images, setImages] = useState<UploadedImage[]>(
+    part.imageUrl ? [{ url: part.imageUrl, key: 'existing' }] : [],
+  );
+  const [uploading, setUploading] = useState(false);
+
   const handleSave = async () => {
+    if (uploading) return;
     setSubmitting(true);
     try {
       await updatePart.mutateAsync({
         id: part.id,
-        name: form.name || undefined,
-        partNumber: form.partNumber || undefined,
-        condition: form.condition as any,
+        name: form.name.trim() || undefined,
+        partNumber: form.partNumber.trim() || undefined,
+        condition: form.condition,
         price: form.price ? parseFloat(form.price) : undefined,
         stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity, 10) : undefined,
         description: form.description || undefined,
+        imageUrl: images[0]?.url || form.imageUrl || undefined,
         isActive: form.isActive,
       });
-      Alert.alert('Success', 'Listing updated');
-      router.replace('/my-listings');
+      Alert.alert('Saved', 'Listing updated');
+      router.back();
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to update listing');
     } finally {
@@ -114,8 +118,7 @@ export default function EditListingScreen() {
     if (!confirmed) return;
     try {
       await deletePart.mutateAsync(part.id);
-      Alert.alert('Success', 'Listing deleted');
-      router.replace('/my-listings');
+      router.back();
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to delete listing');
     }
@@ -128,18 +131,18 @@ export default function EditListingScreen() {
     >
       <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" subtitle="Update part details" />
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View>
             <Input
               label="Part name"
               placeholder="Part name"
-              value={form.name || part.name}
+              value={form.name}
               onChangeText={(t) => setForm({ ...form, name: t })}
             />
             <Input
               label="Part number"
               placeholder="Part number"
-              value={form.partNumber || part.partNumber}
+              value={form.partNumber}
               onChangeText={(t) => setForm({ ...form, partNumber: t })}
               autoCapitalize="characters"
             />
@@ -159,44 +162,52 @@ export default function EditListingScreen() {
             <Input
               label="Price (₹)"
               placeholder="Price"
-              value={form.price || part.price.toString()}
+              value={form.price}
               onChangeText={(t) => setForm({ ...form, price: t })}
               keyboardType="numeric"
             />
             <Input
               label="Stock quantity"
               placeholder="Quantity"
-              value={form.stockQuantity || part.stockQuantity.toString()}
+              value={form.stockQuantity}
               onChangeText={(t) => setForm({ ...form, stockQuantity: t })}
               keyboardType="numeric"
+            />
+            <Text style={styles.label}>Part photo</Text>
+            <PhotoPicker
+              images={images}
+              onChange={setImages}
+              max={1}
+              folder="spare-parts"
+              onUploadingChange={setUploading}
             />
             <Input
               label="Description"
               placeholder="Description"
-              value={form.description || part.description || ''}
+              value={form.description}
               onChangeText={(t) => setForm({ ...form, description: t })}
               multiline
               style={styles.textarea}
             />
 
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Active</Text>
+              <Text style={styles.toggleLabel}>Visible to customers</Text>
               <TouchableOpacity
                 style={[styles.toggle, form.isActive && styles.toggleActive]}
                 onPress={() => setForm({ ...form, isActive: !form.isActive })}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: form.isActive }}
-                accessibilityLabel="Active"
+                accessibilityLabel="Visible to customers"
               >
                 <Text style={[styles.toggleText, form.isActive && styles.toggleTextActive]}>
-                  {form.isActive ? 'Active' : 'Inactive'}
+                  {form.isActive ? 'Live' : 'Hidden'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <Button title="Save Changes" onPress={handleSave} disabled={submitting} loading={submitting} />
-          <Button title="Delete Listing" variant="destructive" onPress={handleDelete} style={styles.deleteBtn} />
+          <Button title="Save changes" onPress={handleSave} disabled={submitting} loading={submitting} />
+          <Button title="Delete listing" variant="destructive" onPress={handleDelete} style={styles.deleteBtn} />
         </ScrollView>
       </ScreenContainer>
     </KeyboardAvoidingView>

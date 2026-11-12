@@ -11,6 +11,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCreateSparePart } from '@/hooks/useParts';
+import { PhotoPicker } from '@/components/requests/PhotoPicker';
+import type { UploadedImage } from '@/services/uploads';
 import {
   Input,
   Button,
@@ -47,6 +49,8 @@ export default function CreateListingScreen() {
     description: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
   const createPart = useCreateSparePart();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -67,7 +71,7 @@ export default function CreateListingScreen() {
         condition: condition as any,
         price: parseFloat(price),
         stockQuantity: parseInt(stockQuantity, 10),
-        imageUrl: imageUrl || undefined,
+        imageUrl: images[0]?.url || imageUrl || undefined,
         description: description || undefined,
       });
       Alert.alert('Success', 'Part listed successfully');
@@ -143,11 +147,14 @@ export default function CreateListingScreen() {
             onChangeText={(t) => setForm({ ...form, stockQuantity: t })}
             keyboardType="numeric"
           />
-          <Input
-            label="Image URL (optional)"
-            placeholder="https://example.com/image.jpg"
-            value={form.imageUrl}
-            onChangeText={(t) => setForm({ ...form, imageUrl: t })}
+          <Text style={styles.label}>Part photo (optional)</Text>
+          <PhotoPicker
+            images={images}
+            onChange={setImages}
+            max={1}
+            folder="spare-parts"
+            onUploadingChange={setUploading}
+            helper="A clear photo helps customers buy the right part."
           />
           <Input
             label="Description (optional)"
@@ -159,7 +166,12 @@ export default function CreateListingScreen() {
           />
         </View>
 
-        <Button title="List Part" onPress={handleSubmit} disabled={submitting} loading={submitting} />
+        <Button
+          title="List part"
+          onPress={handleSubmit}
+          disabled={submitting || uploading}
+          loading={submitting}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
