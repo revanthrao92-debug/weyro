@@ -1,5 +1,5 @@
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing } from '@/theme';
 
@@ -57,6 +57,27 @@ export function ScreenContainer({
 }
 
 const styles = StyleSheet.create({
+  cardBase: { width: '100%' },
+  rule: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingVertical: spacing.lg,
+  },
+  panel: {
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    borderRadius: 8,
+    padding: spacing.lg,
+  },
+  rail: {
+    backgroundColor: palette.surfaceAlt,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.accent,
+    borderRadius: 6,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
   root: {
     flex: 1,
   },
@@ -71,21 +92,27 @@ const styles = StyleSheet.create({
 
 export default ScreenContainer;
 
+export type CardVariant = 'rule' | 'panel' | 'rail';
+
 export interface CardProps {
   children: ReactNode;
-  /** Make the whole card pressable-styled (visual only; wire onPress at call site). */
   style?: ViewStyle | ViewStyle[];
+  /**
+   * `rule` (default) — quiet work-order section separated by a hairline.
+   * `panel` — a contained surface for an object that needs its own field
+   * (chart, toggle, media).
+   * `rail` — a surface with an accent edge, for the one live/primary block.
+   */
+  variant?: CardVariant;
 }
 
 /**
- * The single surface container: consistent radius, border, and depth.
+ * Work-order sheet surface. Most content is separated by rules, not boxed;
+ * panels are reserved for objects that genuinely sit above the page.
  */
-export function Card({ children, style }: CardProps) {
+export function Card({ children, style, variant = 'rule' }: CardProps) {
   return (
-    <View
-      className="rounded-md border border-border bg-card p-4 shadow-sm shadow-black/5"
-      style={style}
-    >
+    <View style={[styles.cardBase, styles[variant], style]}>
       {children}
     </View>
   );

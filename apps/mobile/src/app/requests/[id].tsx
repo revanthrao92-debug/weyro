@@ -331,9 +331,8 @@ const styles = StyleSheet.create({
   topBarSpacer: { width: 44 },
   eyebrow: {
     ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    color: palette.textMuted,
+    letterSpacing: 0.3,
   },
   title: { ...typography.display, color: palette.textPrimary },
   metaRow: {

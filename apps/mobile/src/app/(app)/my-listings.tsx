@@ -128,6 +128,7 @@ export default function MyListingsScreen() {
               title="Add listing"
               variant="secondary"
               onPress={() => router.push('/listings/create')}
+              style={styles.addButton}
             />
             <View style={styles.listSpacer} />
 
@@ -313,7 +314,8 @@ const styles = StyleSheet.create({
   stockLow: { color: palette.warning },
   stockOut: { color: palette.danger },
   stepper: { flexDirection: 'row', gap: spacing.sm },
-  stepButton: { minWidth: 44, paddingHorizontal: 0 },
+  stepButton: { minWidth: 36, minHeight: 36, paddingHorizontal: 0 },
+  addButton: { alignSelf: 'flex-start', paddingHorizontal: spacing.lg },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   updated: { ...typography.label, color: palette.textMuted },
 });

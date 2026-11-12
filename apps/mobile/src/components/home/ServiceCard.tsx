@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui';
 import type { HomeService } from './serviceCatalog';
-import { palette, radii, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export type ServiceCardVariant = 'primary' | 'urgent' | 'compact';
 
@@ -112,21 +112,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 72,
-    paddingHorizontal: spacing.md,
+    minHeight: 64,
     paddingVertical: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
   primaryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.sm,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
   },
   primaryText: { flex: 1 },
   primaryTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -146,12 +140,9 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   urgentIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoftBg,
   },
   urgentText: { flex: 1, minWidth: 0 },
   urgentTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -161,18 +152,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionPill: {
-    minHeight: 40,
-    minWidth: 76,
-    paddingHorizontal: spacing.md,
+    minHeight: 28,
+    minWidth: 64,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
-    backgroundColor: palette.accent,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.accent,
   },
   actionText: {
     ...typography.label,
-    color: palette.onAccent,
-    fontWeight: '600',
+    color: palette.accent,
   },
 
   compactRow: {
@@ -187,12 +178,9 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   compactIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
   },
   compactText: { flex: 1 },
   compactTitle: { ...typography.bodyMedium, color: palette.textPrimary },

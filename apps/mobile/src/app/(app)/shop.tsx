@@ -12,7 +12,7 @@ import {
   Filter,
 } from 'lucide-react-native';
 import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 import { Image } from 'expo-image';
 import { photo, photoForCategory } from '@/lib/photos';
 
@@ -71,7 +71,7 @@ export default function ShopScreen() {
             style={styles.catTile}
           >
             <View style={styles.catIconWrap}>
-              <c.Icon size={22} color={palette.accent} strokeWidth={1.75} />
+              <c.Icon size={20} color={palette.textSecondary} strokeWidth={1.7} />
             </View>
             <Text style={styles.catLabel} maxFontSizeMultiplier={2}>
               {c.label}
@@ -94,7 +94,7 @@ export default function ShopScreen() {
             Upload a photo and let dealers find it for you.
           </Text>
           <View style={styles.rareCta}>
-            <Text style={styles.rareCtaText}>Upload Photo</Text>
+            <Text style={styles.rareCtaText}>Upload photo</Text>
           </View>
         </View>
       </Pressable>
@@ -153,7 +153,7 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
       style={styles.card}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Part ${part.name}, ₹${part.price.toLocaleString()}`}
+      accessibilityLabel={`Part ${part.name}, ₹${Number(part.price).toLocaleString("en-IN")}`}
       scaleTo={0.98}
     >
       <View style={styles.cardContent}>
@@ -172,7 +172,7 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
           />
         </View>
         <View style={styles.priceStock}>
-          <Text style={styles.price}>₹{part.price.toLocaleString()}</Text>
+          <Text style={styles.price}>₹{Number(part.price).toLocaleString('en-IN')}</Text>
           <StockBadge inStock={part.inStock ?? (part.stockQuantity ?? 0) > 0} />
         </View>
       </View>
@@ -190,9 +190,8 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
   eyebrow: {
     ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    color: palette.textMuted,
+    letterSpacing: 0.3,
   },
   title: { ...typography.display, color: palette.textPrimary, marginTop: spacing.xs },
   subtitle: { ...typography.body, color: palette.textSecondary, marginTop: spacing.xs },
@@ -213,21 +212,17 @@ const styles = StyleSheet.create({
   catTile: {
     flexBasis: '31%',
     flexGrow: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: spacing.md,
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
   catIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: palette.surfaceAlt,
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   catLabel: {
     ...typography.label,
@@ -236,10 +231,10 @@ const styles = StyleSheet.create({
   rareBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: palette.accentSoftBg,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: palette.accent,
+    backgroundColor: palette.surfaceAlt,
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.accent,
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
@@ -255,25 +250,22 @@ const styles = StyleSheet.create({
   },
   rareCta: {
     alignSelf: 'flex-start',
-    backgroundColor: palette.accent,
-    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.accent,
+    borderRadius: 4,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
   },
   rareCtaText: {
     ...typography.label,
-    color: palette.onAccent,
-    fontWeight: '600',
+    color: palette.accent,
   },
   list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
   card: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -282,7 +274,7 @@ const styles = StyleSheet.create({
   partPhoto: {
     width: 64,
     height: 64,
-    borderRadius: radii.md,
+    borderRadius: 6,
     backgroundColor: palette.surfaceAlt,
   },
   info: { flex: 1 },

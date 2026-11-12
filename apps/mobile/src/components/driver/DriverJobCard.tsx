@@ -11,7 +11,7 @@ import {
   money,
   vehicleLabel,
 } from './driverFormat';
-import { fontFamilyMono, palette, radii, spacing, typography } from '@/theme';
+import { fontFamilyMono, palette, spacing, typography } from '@/theme';
 
 export function DriverJobCard({
   job,
@@ -67,12 +67,9 @@ export function DriverJobCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingVertical: spacing.md,
   },
   top: {
     flexDirection: 'row',

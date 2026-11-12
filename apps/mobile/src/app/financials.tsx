@@ -196,13 +196,7 @@ export default function FinancialsScreen() {
                   width={chart.barWidth}
                   height={bar.height}
                   rx={Math.min(2, chart.barWidth / 2)}
-                  fill={
-                    isSelected
-                      ? palette.accent
-                      : metric === 'net'
-                        ? 'rgba(255, 90, 31, 0.32)'
-                        : palette.borderStrong
-                  }
+                  fill={isSelected ? palette.accent : palette.borderStrong}
                   stroke={isSelected ? palette.accent : undefined}
                 />
               );
@@ -367,7 +361,7 @@ const styles = StyleSheet.create({
   chartCard: {
     marginTop: spacing.md,
     padding: spacing.sm,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
     backgroundColor: palette.surface,
@@ -398,11 +392,12 @@ const styles = StyleSheet.create({
   },
   forecastCard: {
     marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.warningSoftBg ?? palette.border,
-    backgroundColor: palette.surface,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.accent,
+    backgroundColor: palette.surfaceAlt,
     gap: spacing.xs,
   },
   forecastTop: {

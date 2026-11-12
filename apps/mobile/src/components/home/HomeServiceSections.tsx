@@ -151,11 +151,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.borderStrong,
-    backgroundColor: palette.surfaceAlt,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
   driverGoIcon: {
     width: 42,
@@ -186,11 +184,8 @@ const styles = StyleSheet.create({
 
   urgentPanel: {
     marginTop: spacing.xl,
-    borderRadius: radii.md,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.borderStrong,
-    backgroundColor: palette.surfaceAlt,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
   urgentRule: {
     height: 2,

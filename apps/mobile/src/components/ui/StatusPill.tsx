@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { statusColors, StatusTone, spacing, radii, typography } from '@/theme';
+import { statusColors, StatusTone, spacing, typography } from '@/theme';
 
 export interface StatusPillProps {
   /** Human-readable status text — never rely on color alone. */
@@ -32,15 +32,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderRadius: radii.pill,
+    borderRadius: 4,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 2,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: spacing.xs,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginRight: 6,
   },
   text: {
     ...typography.label,

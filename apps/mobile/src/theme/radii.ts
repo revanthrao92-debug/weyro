@@ -4,10 +4,10 @@
  */
 
 export const radii = {
-  sm: 8, // small controls, chips, inline tags
-  md: 12, // inputs, buttons, standard cards
-  lg: 20, // sheets, modals, feature/hero cards
-  pill: 999, // fully rounded (status pills, avatars-as-pills)
+  sm: 4, // inline tags
+  md: 8, // inputs, buttons, standard cards
+  lg: 12, // sheets, modals
+  pill: 999, // avatars and circular controls only
 } as const;
 
 export type RadiusToken = keyof typeof radii;

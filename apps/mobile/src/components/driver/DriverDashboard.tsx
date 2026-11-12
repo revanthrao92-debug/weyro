@@ -31,18 +31,10 @@ import { money } from './driverFormat';
 import {
   fontFamilyMono,
   palette,
-  radii,
   spacing,
   typography,
 } from '@/theme';
 import { useCallback, useState } from 'react';
-
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -142,7 +134,6 @@ export function DriverDashboard() {
         job.status,
       ),
     ) ?? jobs.find((job) => job.status === 'REQUESTED');
-  const firstName = me.businessName.split(' ')[0] || 'Driver';
   const verified = me.verificationStatus === 'VERIFIED';
   const verificationTone =
     me.verificationStatus === 'VERIFIED'
@@ -172,10 +163,8 @@ export function DriverDashboard() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>DRIVER</Text>
-          <Text style={styles.title}>
-            {greeting()}, {firstName}
-          </Text>
+          <Text style={styles.eyebrow}>Driver</Text>
+          <Text style={styles.title}>Today</Text>
           <View style={styles.heroMeta}>
             <StatusPill
               label={me.verificationStatus}
@@ -328,16 +317,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     marginTop: spacing.xl,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
   },
   onlineCardActive: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
+    borderLeftColor: palette.accent,
   },
   onlineText: { flex: 1 },
   onlineTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -347,13 +336,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   toggle: {
-    minWidth: 54,
-    minHeight: 36,
-    paddingHorizontal: spacing.md,
+    minWidth: 44,
+    minHeight: 28,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
-    borderWidth: 1,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.borderStrong,
   },
   toggleActive: {
@@ -395,12 +384,9 @@ const styles = StyleSheet.create({
     borderBottomColor: palette.border,
   },
   manageIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.sm,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
   },
   manageText: { flex: 1 },
   manageLabel: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -415,8 +401,9 @@ const styles = StyleSheet.create({
   retry: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: palette.accent,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.borderStrong,
   },
-  retryText: { ...typography.label, color: palette.onAccent },
+  retryText: { ...typography.label, color: palette.textPrimary },
 });

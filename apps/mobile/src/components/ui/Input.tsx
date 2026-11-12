@@ -65,11 +65,15 @@ export function Input({
           props.onBlur?.(e);
         }}
         className={cn(
-          'flex-row items-center rounded-md border bg-card px-3 py-2 text-base text-foreground min-h-[48px]',
+          'flex-row items-center border px-3 py-2 text-base text-foreground min-h-[48px]',
           props.editable === false && 'opacity-50'
         )}
         style={[
-          { borderColor, backgroundColor: hasError ? palette.dangerSoftBg : palette.surface },
+          {
+            borderColor,
+            borderRadius: 6,
+            backgroundColor: hasError ? palette.dangerSoftBg : palette.surfaceAlt,
+          },
           style,
         ]}
         placeholderTextColor={palette.textMuted}

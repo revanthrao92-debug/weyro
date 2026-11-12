@@ -74,9 +74,11 @@ function OrderRow({
         </Text>
         {item.status === 'PAID' && item.fulfillmentStatus ? (
           <StatusPill
-            label={titleize(item.fulfillmentStatus)}
+            label={fulfillmentLabel(item.fulfillmentStatus)}
             tone={fulfillmentTone(item.fulfillmentStatus)}
           />
+        ) : item.status === 'PENDING' ? (
+          <StatusPill label="Unpaid" tone="warning" />
         ) : (
           <StatusPill label={titleize(item.status)} tone={orderTone(item.status)} />
         )}
@@ -98,6 +100,10 @@ function OrderRow({
       {content}
     </PressableScale>
   );
+}
+
+function fulfillmentLabel(status: string) {
+  return status === 'PENDING' ? 'To pack' : titleize(status);
 }
 
 function fulfillmentTone(status?: string): StatusTone {

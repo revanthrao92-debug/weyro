@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from './Motion';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export interface ChipProps {
   label: string;
@@ -59,22 +59,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    minHeight: 40,
+    minHeight: 36,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    // borderStrong: plain `border` was invisible (white chips on off-white canvas)
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.borderStrong,
-    backgroundColor: palette.surface,
+    backgroundColor: palette.transparent,
   },
   selected: {
     backgroundColor: palette.accentSoftBg,
     borderColor: palette.accent,
-  },
-  pressed: {
-    backgroundColor: palette.surfaceAlt,
   },
   label: {
     ...typography.captionMedium,

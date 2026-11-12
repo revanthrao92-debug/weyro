@@ -206,7 +206,7 @@ export function DealerDashboard() {
       >
         <View style={styles.topRow}>
           <View>
-            <Text style={styles.eyebrow}>DEALER</Text>
+            <Text style={styles.eyebrow}>Dealer</Text>
             <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
@@ -330,7 +330,7 @@ export function DealerDashboard() {
               style={styles.attentionRow}
               scaleTo={0.99}
             >
-              <TriangleAlert size={15} color={palette.accent} strokeWidth={1.8} />
+              <TriangleAlert size={15} color={palette.textMuted} strokeWidth={1.8} />
               <Text style={styles.attentionText}>{item.label}</Text>
               <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
             </PressableScale>
@@ -405,37 +405,37 @@ export function DealerDashboard() {
 
         <SectionHead index="04" title="Manage" />
         <ActionRow
-          icon={<Radar size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"
           detail="Open spare-part requests near you"
           onPress={() => router.push('/opportunities')}
         />
         <ActionRow
-          icon={<Package size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Package size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Orders"
           detail="Fulfill paid customer orders"
           onPress={() => router.push('/orders')}
         />
         <ActionRow
-          icon={<Tag size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Tag size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Listings"
           detail="Manage parts, price and stock"
           onPress={() => router.push('/my-listings')}
         />
         <ActionRow
-          icon={<BarChart3 size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<BarChart3 size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Financials"
           detail="Sales trend, refunds and forecast"
           onPress={() => router.push('/financials')}
         />
         <ActionRow
-          icon={<Wallet size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Wallet size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Quotes"
           detail="Sent quotes and their status"
           onPress={() => router.push('/my-quotes')}
         />
         <ActionRow
-          icon={<MessageCircle size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Messages"
           detail="Customer conversations"
           onPress={() => router.push('/messages')}
@@ -463,9 +463,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    color: palette.textMuted,
+    letterSpacing: 0.3,
   },
   name: {
     fontFamily: displayFamily,
@@ -476,9 +475,9 @@ const styles = StyleSheet.create({
   },
   headerActions: { flexDirection: 'row', gap: spacing.sm },
   headerButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
@@ -502,15 +501,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
   },
   availabilityOn: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
+    borderLeftColor: palette.accent,
   },
   availabilityText: { flex: 1 },
   availabilityTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -520,12 +519,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   toggle: {
-    minWidth: 54,
-    minHeight: 36,
+    minWidth: 44,
+    minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.borderStrong,
   },
   toggleOn: {
@@ -623,12 +622,9 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   actionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
   },
   actionText: { flex: 1 },
   actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },

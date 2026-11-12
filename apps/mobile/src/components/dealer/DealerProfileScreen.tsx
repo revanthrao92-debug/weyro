@@ -149,10 +149,13 @@ export function DealerProfileScreen() {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.eyebrow}>DEALER</Text>
+        <Text style={styles.eyebrow}>Dealer</Text>
         <Text style={styles.name}>{name}</Text>
         <Text style={styles.meta}>
-          {profile.providerType} · {profile.verificationStatus}
+          {profile.providerType === 'PARTS_DEALER'
+            ? 'Parts dealer'
+            : profile.providerType}{' '}
+          · {profile.verificationStatus.toLowerCase()}
         </Text>
 
         <PressableScale
@@ -226,35 +229,35 @@ export function DealerProfileScreen() {
 
         <SectionHead index="02" title="Manage" />
         <Action
-          icon={<Radar size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"
           detail="Open spare-part requests"
           onPress={() => router.push('/opportunities')}
         />
         <Action
-          icon={<Package size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Package size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Orders"
           detail="Fulfill paid orders"
           onPress={() => router.push('/orders')}
         />
         <Action
-          icon={<Tag size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Tag size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Listings"
           detail="Price, stock and visibility"
           onPress={() => router.push('/my-listings')}
         />
         <Action
-          icon={<MessageCircle size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Messages"
           onPress={() => router.push('/messages')}
         />
         <Action
-          icon={<Bell size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Alerts"
           onPress={() => router.push('/notifications')}
         />
         <Action
-          icon={<LifeBuoy size={17} color={palette.textPrimary} strokeWidth={1.8} />}
+          icon={<LifeBuoy size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Contact support"
           onPress={() => void Linking.openURL('mailto:support@weyro.app')}
         />
@@ -277,8 +280,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...typography.label,
-    color: palette.accent,
-    letterSpacing: 1.8,
+    color: palette.textMuted,
+    letterSpacing: 0.3,
   },
   name: {
     fontFamily: displayFamily,
@@ -297,15 +300,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
   },
   availabilityOn: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
+    borderLeftColor: palette.accent,
   },
   availabilityText: { flex: 1 },
   availabilityTitle: { ...typography.bodyMedium, color: palette.textPrimary },
@@ -315,12 +318,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   toggle: {
-    minWidth: 54,
-    minHeight: 36,
+    minWidth: 44,
+    minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.borderStrong,
   },
   toggleOn: { backgroundColor: palette.accent, borderColor: palette.accent },
@@ -367,12 +370,9 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   actionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
   },
   actionText: { flex: 1 },
   actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },

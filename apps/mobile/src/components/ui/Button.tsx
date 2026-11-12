@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, ViewStyle } from 'react-native';
 import { PressableScale } from './Motion';
-import { palette, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export interface ButtonProps {
   title: string;
@@ -15,9 +15,9 @@ export interface ButtonProps {
 
 const VARIANTS = {
   primary: {
-    backgroundColor: palette.accent,
-    textColor: palette.onAccent,
-    borderColor: palette.accent,
+    backgroundColor: palette.textPrimary,
+    textColor: palette.canvas,
+    borderColor: palette.textPrimary,
   },
   secondary: {
     backgroundColor: palette.transparent,
@@ -25,9 +25,9 @@ const VARIANTS = {
     borderColor: palette.borderStrong,
   },
   destructive: {
-    backgroundColor: palette.danger,
-    textColor: palette.onDanger,
-    borderColor: palette.danger,
+    backgroundColor: palette.transparent,
+    textColor: palette.danger,
+    borderColor: palette.dangerSoftBg,
   },
 } as const;
 
@@ -62,7 +62,7 @@ export function Button({
           backgroundColor: v.backgroundColor,
           borderColor: v.borderColor,
         },
-        variant === 'secondary' && styles.outlined,
+        (variant === 'secondary' || variant === 'destructive') && styles.outlined,
         isDisabled && styles.disabled,
         style,
       ]}
@@ -86,9 +86,9 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 48,
     minWidth: 44,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 8,
     borderWidth: 0,
   },
   outlined: {

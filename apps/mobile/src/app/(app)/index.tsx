@@ -931,9 +931,8 @@ const styles = StyleSheet.create({
   rail: { gap: spacing.sm, paddingRight: spacing.lg },
   railCard: {
     width: 172,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
+    borderLeftWidth: 2,
+    borderLeftColor: palette.borderStrong,
     overflow: 'hidden',
   },
   railImage: { width: '100%', height: 72, backgroundColor: palette.surfaceAlt },

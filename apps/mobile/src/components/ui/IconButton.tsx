@@ -22,8 +22,8 @@ export function IconButton({ icon, onPress, accessibilityLabel, disabled }: Icon
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled }}
-      className="items-center justify-center rounded-md border border-strong bg-card active:bg-accent"
-      style={{ width: 48, height: 48 }}
+      className="items-center justify-center border border-strong bg-card active:bg-accent"
+      style={{ width: 44, height: 44, borderRadius: 6 }}
     >
       {icon}
     </Pressable>
