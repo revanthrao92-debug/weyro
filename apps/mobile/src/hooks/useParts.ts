@@ -72,6 +72,11 @@ export type SparePartOrder = {
     imageUrl?: string | null;
   } | null;
   customer?: { firstName: string; lastName: string } | null;
+  provider?: {
+    businessName: string;
+    verificationStatus?: string;
+    avgRating?: number;
+  } | null;
 };
 
 export type CreateSparePartOrder = {
@@ -233,9 +238,9 @@ export function useDealerOrders(params?: {
   });
 }
 
-export function useDealerOrder(id: string) {
+export function useSparePartOrder(id: string) {
   return useQuery({
-    queryKey: ['dealerOrder', id],
+    queryKey: ['sparePartOrder', id],
     queryFn: async () => apiClient<SparePartOrder>(`/spare-parts/orders/${id}`),
     enabled: !!id,
   });
@@ -274,7 +279,7 @@ export function useUpdateFulfillment() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['dealerOrders'] });
-      queryClient.invalidateQueries({ queryKey: ['dealerOrder', variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ['sparePartOrder', variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
     },
   });

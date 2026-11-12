@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useParts';
 import {
   ScreenContainer,
+  BackButton,
   Chip,
   PressableScale,
   StatusPill,
@@ -71,9 +72,9 @@ function OrderRow({
         <Text style={styles.rowPrice}>
           ₹{Number(item.totalAmount).toLocaleString('en-IN')}
         </Text>
-        {dealer && item.status === 'PAID' ? (
+        {item.status === 'PAID' && item.fulfillmentStatus ? (
           <StatusPill
-            label={titleize(item.fulfillmentStatus ?? 'PENDING')}
+            label={titleize(item.fulfillmentStatus)}
             tone={fulfillmentTone(item.fulfillmentStatus)}
           />
         ) : (
@@ -132,7 +133,7 @@ function OrdersHeader({
   );
 }
 
-function CustomerOrders() {
+export function CustomerOrders({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
   const { data, isLoading } = useMyOrders();
   const orders = data ?? [];
@@ -146,6 +147,11 @@ function CustomerOrders() {
         contentContainerStyle={styles.body}
         ListHeaderComponent={
           <View>
+            {pushed ? (
+              <View style={styles.backRow}>
+                <BackButton />
+              </View>
+            ) : null}
             <OrdersHeader
               eyebrow="Purchases"
               title="Part orders"
@@ -184,11 +190,7 @@ function CustomerOrders() {
             <OrderRow
               item={item}
               dealer={false}
-              onPress={
-                item.sparePart?.id
-                  ? () => router.push(`/shop/${item.sparePart!.id}`)
-                  : undefined
-              }
+              onPress={() => router.push(`/order/${item.id}`)}
             />
           </View>
         )}
@@ -309,6 +311,7 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
+  backRow: { marginBottom: spacing.sm },
   filters: {
     flexDirection: 'row',
     flexWrap: 'wrap',

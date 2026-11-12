@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  useDealerOrder,
+  useSparePartOrder,
   useUpdateFulfillment,
   type FulfillmentStatus,
+  type SparePartOrder,
 } from '@/hooks/useParts';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AppHeader,
   BackButton,
@@ -47,10 +49,12 @@ function tone(status: string): StatusTone {
   return 'neutral';
 }
 
-export default function DealerOrderDetailScreen() {
+export default function OrderDetailScreen() {
   const router = useRouter();
+  const { role } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: order, isLoading, isError } = useDealerOrder(id ?? '');
+  const { data: order, isLoading, isError } = useSparePartOrder(id ?? '');
+  const isDealer = role === 'PROVIDER' || role === 'BOTH';
   const updateFulfillment = useUpdateFulfillment();
   const [carrierName, setCarrierName] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -76,14 +80,17 @@ export default function DealerOrderDetailScreen() {
         <EmptyState
           title="Order unavailable"
           message="This order may have been removed or belongs to another dealer."
-          action={<Button title="Back to orders" onPress={() => router.replace('/orders')} />}
+          action={<Button title="Go back" onPress={() => router.back()} />}
         />
       </ScreenContainer>
     );
   }
 
+  if (!isDealer) {
+    return <CustomerOrderView order={order} />;
+  }
+
   const current = (order.fulfillmentStatus ?? 'PENDING') as FulfillmentStatus;
-  const stepIndex = STEPS.indexOf(current);
   const canFulfill = order.status === 'PAID' && current !== 'DELIVERED';
 
   const nextStep = (): FulfillmentStatus | null => {
@@ -167,19 +174,7 @@ export default function DealerOrderDetailScreen() {
         {order.status === 'PAID' ? (
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Fulfillment</Text>
-            <View style={styles.steps}>
-              {STEPS.map((step, index) => {
-                const done = stepIndex >= index;
-                return (
-                  <View key={step} style={styles.step}>
-                    <View style={[styles.dot, done && styles.dotDone]} />
-                    <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
-                      {titleize(step)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
+            <FulfillmentSteps current={current} />
 
             {order.carrierName || order.trackingNumber ? (
               <View style={styles.tracking}>
@@ -291,6 +286,145 @@ export default function DealerOrderDetailScreen() {
             />
           ) : null}
         </Card>
+      </ScrollView>
+    </ScreenContainer>
+  );
+}
+
+function FulfillmentSteps({ current }: { current: FulfillmentStatus }) {
+  const stepIndex = STEPS.indexOf(current);
+  return (
+    <View style={styles.steps}>
+      {STEPS.map((step, index) => {
+        const done = stepIndex >= index;
+        return (
+          <View key={step} style={styles.step}>
+            <View style={[styles.dot, done && styles.dotDone]} />
+            <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
+              {titleize(step)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function CustomerOrderView({ order }: { order: SparePartOrder }) {
+  const current = (order.fulfillmentStatus ?? 'PENDING') as FulfillmentStatus;
+  const address = [
+    order.shippingAddress,
+    order.shippingCity,
+    order.shippingPincode,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return (
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <BackButton />
+          <Text style={styles.eyebrow}>Order</Text>
+          <View style={styles.topBarSpacer} />
+        </View>
+
+        <Text style={styles.title} numberOfLines={2}>
+          {order.sparePart?.name ?? 'Spare part'}
+        </Text>
+        <View style={styles.metaRow}>
+          <StatusPill
+            label={titleize(order.status)}
+            tone={order.status === 'PAID' ? 'success' : order.status === 'PENDING' ? 'warning' : 'danger'}
+          />
+          {order.status === 'PAID' ? (
+            <StatusPill label={titleize(current)} tone={tone(current)} />
+          ) : null}
+          <Text style={styles.meta}>
+            #{order.id.slice(0, 8).toUpperCase()} · qty {order.quantity}
+          </Text>
+        </View>
+
+        <Card style={styles.card}>
+          <Text style={styles.amount}>
+            ₹{Number(order.totalAmount).toLocaleString('en-IN')}
+          </Text>
+          <Text style={styles.meta}>
+            {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Payment not completed'}
+          </Text>
+        </Card>
+
+        {order.status === 'PAID' ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Delivery status</Text>
+            <FulfillmentSteps current={current} />
+            {order.shippedAt ? (
+              <Text style={styles.meta}>Shipped {formatDate(order.shippedAt)}</Text>
+            ) : null}
+            {order.deliveredAt ? (
+              <Text style={styles.meta}>Delivered {formatDate(order.deliveredAt)}</Text>
+            ) : null}
+
+            {order.carrierName || order.trackingNumber ? (
+              <View style={styles.tracking}>
+                <Text style={styles.meta}>
+                  {order.carrierName ?? 'Carrier'} · {order.trackingNumber ?? 'No tracking yet'}
+                </Text>
+                {order.trackingNumber ? (
+                  <Button
+                    title="Track shipment"
+                    variant="secondary"
+                    onPress={() =>
+                      void Linking.openURL(
+                        `https://www.google.com/search?q=${encodeURIComponent(
+                          `${order.carrierName ?? ''} ${order.trackingNumber}`,
+                        )}`,
+                      )
+                    }
+                  />
+                ) : null}
+              </View>
+            ) : null}
+
+            {order.dealerNotes ? (
+              <Text style={styles.notes}>Note from dealer: {order.dealerNotes}</Text>
+            ) : null}
+          </Card>
+        ) : (
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Awaiting payment</Text>
+            <Text style={styles.meta}>
+              This order is recorded but not paid yet. The dealer can ship it once
+              payment is confirmed.
+            </Text>
+          </Card>
+        )}
+
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Delivering to</Text>
+          <Row label="Name" value={order.shippingName ?? '—'} />
+          <Row label="Phone" value={order.shippingPhone ?? '—'} />
+          <Row label="Address" value={address || 'Not provided'} />
+        </Card>
+
+        {order.provider?.businessName ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Sold by</Text>
+            <Text style={styles.meta}>{order.provider.businessName}</Text>
+            {order.provider.avgRating ? (
+              <Text style={styles.meta}>
+                ★ {Number(order.provider.avgRating).toFixed(1)} ·{' '}
+                {order.provider.verificationStatus?.toLowerCase()}
+              </Text>
+            ) : null}
+          </Card>
+        ) : null}
+
+        <Button
+          title="Contact support"
+          variant="secondary"
+          onPress={() => void Linking.openURL('mailto:support@weyro.app')}
+        />
       </ScrollView>
     </ScreenContainer>
   );

@@ -80,7 +80,7 @@ export default function ProfileScreen() {
             <Text style={styles.tileLabel}>Bookings</Text>
           </PressableScale>
           <PressableScale
-            onPress={() => router.push('/orders')}
+            onPress={() => router.push('/my-orders')}
             accessibilityRole="button"
             accessibilityLabel="Orders"
             scaleTo={0.97}
@@ -153,7 +153,7 @@ export default function ProfileScreen() {
             divider
             title="Part orders"
             left={<IconRow Icon={ShoppingBag} />}
-            onPress={() => router.push('/orders')}
+            onPress={() => router.push('/my-orders')}
             accessibilityLabel="Part orders"
           />
           <ListItem

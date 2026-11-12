@@ -189,7 +189,7 @@ async function main() {
     fulfillmentStatus: 'SHIPPED',
     carrierName: 'Delhivery',
     trackingNumber: 'DLV-DEMO-88421',
-    shippedAt: new Date(Date.now() - 10 * 60 * 60 * 1000),
+    shippedAt: new Date(Date.now() - 30 * 60 * 1000),
   });
 
   await prisma.sparePartOrder.create({

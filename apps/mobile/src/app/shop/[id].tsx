@@ -90,7 +90,7 @@ export default function PartDetailScreen() {
         shippingPincode: shippingPincode.trim(),
       });
       // The order exists now; it appears in Orders with its payment state.
-      router.replace('/orders');
+      router.replace('/my-orders');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to create order');
     } finally {

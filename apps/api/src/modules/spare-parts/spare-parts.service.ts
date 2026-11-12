@@ -699,6 +699,11 @@ export class SparePartsService {
         totalAmount: true,
         currency: true,
         status: true,
+        fulfillmentStatus: true,
+        carrierName: true,
+        trackingNumber: true,
+        shippedAt: true,
+        deliveredAt: true,
         paidAt: true,
         createdAt: true,
         sparePart: {
