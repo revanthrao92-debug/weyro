@@ -59,7 +59,7 @@ async function main() {
     });
   }
 
-  const passwordHash = await bcrypt.hash('TestPass123!', 12);
+  const passwordHash = await bcrypt.hash('DriverGo123', 12);
   const driverUser = await prisma.user.upsert({
     where: { email: 'driver1@weyro.dev' },
     update: {

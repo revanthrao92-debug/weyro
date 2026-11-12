@@ -89,7 +89,7 @@ hidden from them.
 
 ```
 email:    driver1@weyro.dev
-password: TestPass123!
+password: DriverGo123
 code:     1234   (for the seeded requested/confirmed jobs)
 ```
 
