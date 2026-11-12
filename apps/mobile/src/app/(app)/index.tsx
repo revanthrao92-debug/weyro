@@ -238,7 +238,7 @@ export default function HomeScreen() {
               <Search size={17} color={palette.textSecondary} strokeWidth={1.8} />
             </PressableScale>
             <PressableScale
-              onPress={() => router.push('/notifications')}
+              onPress={() => router.push('/alerts')}
               accessibilityRole="button"
               accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
               scaleTo={0.9}

@@ -123,7 +123,7 @@ export default function ProfileScreen() {
             bare
             title="Notifications"
             left={<IconRow Icon={Bell} />}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/alerts')}
             accessibilityLabel="Notifications"
           />
         </View>

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import {
   ScreenContainer,
+  BackButton,
   PressableScale,
   EmptyState,
   Skeleton,
@@ -15,12 +16,42 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useAuth } from '@/hooks/useAuth';
 
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-export default function NotificationsScreen() {
+function notificationHref(
+  data: Record<string, unknown> | null,
+  role?: string | null,
+): string | null {
+  if (!data) return null;
+  if (typeof data.route === 'string') return data.route;
+
+  if (typeof data.orderId === 'string') return `/order/${data.orderId}`;
+  if (typeof data.requestId === 'string') {
+    return role === 'CUSTOMER' ? `/requests/${data.requestId}` : '/my-quotes';
+  }
+  if (typeof data.driverBookingId === 'string') {
+    return role === 'CUSTOMER'
+      ? `/driver-go/bookings/${data.driverBookingId}`
+      : `/driver-booking/${data.driverBookingId}`;
+  }
+  if (typeof data.bookingId === 'string') {
+    if (data.type === 'QUOTATION_ACCEPTED' && role !== 'CUSTOMER') {
+      return '/my-quotes';
+    }
+    return `/booking/${data.bookingId}`;
+  }
+  if (data.type === 'QUOTATION_ACCEPTED') {
+    return role === 'CUSTOMER' ? '/bookings' : '/my-quotes';
+  }
+  return null;
+}
+
+export default function NotificationsScreen({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
+  const { role } = useAuth();
   const {
     notifications,
     unreadCount,
@@ -40,6 +71,7 @@ export default function NotificationsScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.topBar}>
+              {pushed ? <BackButton /> : null}
               <Text style={styles.eyebrow}>Updates</Text>
               {unreadCount > 0 ? (
                 <PressableScale
@@ -93,8 +125,11 @@ export default function NotificationsScreen() {
             <PressableScale
               onPress={() => {
                 if (unread) void markAsRead(item.id);
-                const href = (item.data as { route?: string } | null)?.route;
-                if (typeof href === 'string') router.push(href as never);
+                const href = notificationHref(
+                  item.data as Record<string, unknown> | null,
+                  role,
+                );
+                if (href) router.push(href as never);
               }}
               accessibilityRole="button"
               accessibilityLabel={`${item.title}${unread ? ', unread' : ''}`}

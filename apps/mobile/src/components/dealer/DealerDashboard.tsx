@@ -213,7 +213,7 @@ export function DealerDashboard() {
           </View>
           <View style={styles.headerActions}>
             <PressableScale
-              onPress={() => router.push('/notifications')}
+              onPress={() => router.push('/alerts')}
               accessibilityRole="button"
               accessibilityLabel="Alerts"
               style={styles.headerButton}
@@ -222,7 +222,7 @@ export function DealerDashboard() {
               <Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />
             </PressableScale>
             <PressableScale
-              onPress={() => router.push('/messages')}
+              onPress={() => router.push('/inbox')}
               accessibilityRole="button"
               accessibilityLabel="Messages"
               style={styles.headerButton}
@@ -438,7 +438,7 @@ export function DealerDashboard() {
           icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Messages"
           detail="Customer conversations"
-          onPress={() => router.push('/messages')}
+          onPress={() => router.push('/inbox')}
         />
 
         <Text style={styles.footer}>

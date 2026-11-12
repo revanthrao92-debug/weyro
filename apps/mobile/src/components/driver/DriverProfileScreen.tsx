@@ -172,7 +172,7 @@ export function DriverProfileScreen() {
             <Action
               icon={<MessageCircle size={17} color={palette.textPrimary} strokeWidth={1.8} />}
               label="Messages"
-              onPress={() => router.push('/messages')}
+              onPress={() => router.push('/inbox')}
             />
             <Action
               icon={<LifeBuoy size={17} color={palette.textPrimary} strokeWidth={1.8} />}

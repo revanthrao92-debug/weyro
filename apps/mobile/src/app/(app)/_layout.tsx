@@ -139,12 +139,6 @@ export default function AppLayout() {
             ...hiddenDriverScreens,
           ];
 
-  // Non-tab screens available to every role (pushed, not shown in the bar).
-  screens.push(
-    <Tabs.Screen key="sos" name="sos" options={{ href: null }} />,
-    <Tabs.Screen key="help" name="help" options={{ href: null }} />
-  );
-
   return (
     <Tabs
       screenOptions={{

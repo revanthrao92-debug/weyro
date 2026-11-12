@@ -270,7 +270,7 @@ export function DriverDashboard() {
             icon={<MessageCircle size={17} color={palette.textPrimary} strokeWidth={1.8} />}
             label="Messages"
             detail="Customer conversations"
-            onPress={() => router.push('/messages')}
+            onPress={() => router.push('/inbox')}
           />
         </View>
 

@@ -249,12 +249,12 @@ export function DealerProfileScreen() {
         <Action
           icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Messages"
-          onPress={() => router.push('/messages')}
+          onPress={() => router.push('/inbox')}
         />
         <Action
           icon={<Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Alerts"
-          onPress={() => router.push('/notifications')}
+          onPress={() => router.push('/alerts')}
         />
         <Action
           icon={<LifeBuoy size={17} color={palette.textSecondary} strokeWidth={1.8} />}

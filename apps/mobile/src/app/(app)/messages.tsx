@@ -5,6 +5,7 @@ import { MessageCircle, Search } from 'lucide-react-native';
 import {
   ScreenContainer,
   Avatar,
+  BackButton,
   PressableScale,
   EmptyState,
   Skeleton,
@@ -25,7 +26,7 @@ const timeLabel = (iso?: string) =>
     ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
     : '—';
 
-export default function MessagesScreen() {
+export default function MessagesScreen({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
   const { role } = useAuth();
   const [query, setQuery] = useState('');
@@ -51,6 +52,11 @@ export default function MessagesScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View>
+            {pushed ? (
+              <View style={styles.backRow}>
+                <BackButton />
+              </View>
+            ) : null}
             <Text style={styles.eyebrow}>Inbox</Text>
             <Text style={styles.title}>Messages</Text>
             <Text style={styles.summary}>
@@ -95,10 +101,17 @@ export default function MessagesScreen() {
                 message={
                   query
                     ? 'Try a different name or message.'
-                    : 'Chats open automatically when you accept a quote.'
+                    : role === 'PROVIDER' || role === 'BOTH'
+                      ? 'Chats open automatically when a customer accepts your quote.'
+                      : 'Chats open automatically when you accept a quote.'
                 }
                 action={
-                  query ? undefined : (
+                  query ? undefined : role === 'PROVIDER' || role === 'BOTH' ? (
+                    <Button
+                      title="Browse requests"
+                      onPress={() => router.push('/opportunities')}
+                    />
+                  ) : (
                     <Button
                       title="Post a request"
                       onPress={() => router.push('/requests/create')}
@@ -151,6 +164,7 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
+  backRow: { marginBottom: spacing.sm },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
   eyebrow: { ...typography.label, color: palette.textMuted },
   title: {
