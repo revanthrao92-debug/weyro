@@ -1,0 +1,271 @@
+import { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Wrench } from 'lucide-react-native';
+import { useBookings, type Booking } from '@/hooks/useBookings';
+import {
+  AppHeader,
+  Card,
+  Chip,
+  EmptyState,
+  PressableScale,
+  ScreenContainer,
+  Skeleton,
+  StatusPill,
+} from '@/components/ui';
+import {
+  fontFamilyMono,
+  palette,
+  spacing,
+  typography,
+  type StatusTone,
+} from '@/theme';
+import { formatDate, titleize } from '@/utils/format';
+
+const FILTERS = ['ACTIVE', 'TODAY', 'COMPLETED', 'CANCELLED', 'ALL'] as const;
+type Filter = (typeof FILTERS)[number];
+
+function statusTone(status: string): StatusTone {
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
+  if (status === 'CANCELLED' || status === 'DISPUTED') return 'danger';
+  return 'neutral';
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  CONFIRMED: 'Confirmed',
+  PROVIDER_EN_ROUTE: 'On the way',
+  IN_PROGRESS: 'In progress',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  DISPUTED: 'Disputed',
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABEL[status] ?? titleize(status);
+}
+
+function isToday(value?: string | null) {
+  if (!value) return false;
+  const date = new Date(value);
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
+export default function MechanicJobsScreen() {
+  const router = useRouter();
+  const [filter, setFilter] = useState<Filter>('ACTIVE');
+  const { data, isLoading } = useBookings();
+  const bookings = useMemo(() => data?.items ?? [], [data?.items]);
+
+  const visible = useMemo(() => {
+    const matches = bookings.filter((booking) => {
+      switch (filter) {
+        case 'ACTIVE':
+          return ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(
+            booking.status,
+          );
+        case 'TODAY':
+          return (
+            isToday(booking.scheduledAt) &&
+            !['CANCELLED', 'COMPLETED'].includes(booking.status)
+          );
+        case 'COMPLETED':
+          return booking.status === 'COMPLETED';
+        case 'CANCELLED':
+          return booking.status === 'CANCELLED';
+        default:
+          return true;
+      }
+    });
+    return [...matches].sort((a, b) => {
+      const aTime = new Date(a.scheduledAt ?? a.createdAt).getTime();
+      const bTime = new Date(b.scheduledAt ?? b.createdAt).getTime();
+      return filter === 'COMPLETED' || filter === 'CANCELLED'
+        ? bTime - aTime
+        : aTime - bTime;
+    });
+  }, [bookings, filter]);
+
+  const active = bookings.filter((b) =>
+    ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(b.status),
+  ).length;
+  const today = bookings.filter(
+    (b) => isToday(b.scheduledAt) && !['CANCELLED', 'COMPLETED'].includes(b.status),
+  ).length;
+  const completed = bookings.filter((b) => b.status === 'COMPLETED').length;
+
+  return (
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <AppHeader title="Jobs" subtitle="Assigned workshop work" />
+      <FlatList
+        data={isLoading ? [] : visible}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.stats}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{active}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{today}</Text>
+                <Text style={styles.statLabel}>Today</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{completed}</Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </View>
+            </View>
+            <View style={styles.filters}>
+              {FILTERS.map((item) => (
+                <Chip
+                  key={item}
+                  label={
+                    item === 'ACTIVE'
+                      ? 'Active'
+                      : item.charAt(0) + item.slice(1).toLowerCase()
+                  }
+                  selected={filter === item}
+                  onPress={() => setFilter(item)}
+                />
+              ))}
+            </View>
+            {isLoading
+              ? [0, 1, 2].map((i) => (
+                  <Card key={i} style={styles.skeletonCard}>
+                    <Skeleton width="55%" height={16} />
+                    <Skeleton width="35%" height={12} style={{ marginTop: spacing.sm }} />
+                  </Card>
+                ))
+              : null}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? undefined : (
+            <EmptyState
+              icon={<Wrench size={26} color={palette.textMuted} strokeWidth={1.7} />}
+              title={filter === 'ALL' ? 'No jobs yet' : 'Nothing here'}
+              message={
+                filter === 'ALL'
+                  ? 'Accepted quotes become jobs and appear here.'
+                  : 'No jobs match this filter.'
+              }
+            />
+          )
+        }
+        renderItem={({ item }) => (
+          <JobRow booking={item} onPress={() => router.push(`/job/${item.id}`)} />
+        )}
+      />
+    </ScreenContainer>
+  );
+}
+
+function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void }) {
+  const request = booking.quotation?.request;
+  const vehicle = request?.vehicle
+    ? `${request.vehicle.make} ${request.vehicle.model}${
+        request.vehicle.year ? ` ${request.vehicle.year}` : ''
+      }`
+    : 'Vehicle';
+  const who = booking.customer
+    ? `${booking.customer.firstName} ${booking.customer.lastName ?? ''}`.trim()
+    : 'Customer';
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${request?.title ?? 'Job'}, ${statusLabel(booking.status)}`}
+      scaleTo={0.99}
+      style={styles.row}
+    >
+      <View style={styles.rowTop}>
+        <Text style={styles.when}>
+          {booking.scheduledAt ? formatDate(booking.scheduledAt) : formatDate(booking.createdAt)}
+        </Text>
+        <StatusPill label={statusLabel(booking.status)} tone={statusTone(booking.status)} />
+      </View>
+      <Text style={styles.title} numberOfLines={1}>
+        {request?.title ?? 'Service job'}
+      </Text>
+      <Text style={styles.meta} numberOfLines={1}>
+        {who} · {vehicle}
+      </Text>
+      <View style={styles.rowBottom}>
+        <Text style={styles.address} numberOfLines={1}>
+          {request?.address ?? 'Workshop'}
+        </Text>
+        <Text style={styles.amount}>
+          ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}
+        </Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+const styles = StyleSheet.create({
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  stats: {
+    flexDirection: 'row',
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+  },
+  stat: { flex: 1, gap: 2 },
+  statValue: {
+    fontFamily: fontFamilyMono,
+    fontSize: 18,
+    color: palette.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  statLabel: { ...typography.label, color: palette.textMuted },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  skeletonCard: { marginBottom: spacing.md },
+  row: {
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    gap: 2,
+  },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  when: {
+    fontFamily: fontFamilyMono,
+    fontSize: 10,
+    color: palette.textMuted,
+  },
+  title: { ...typography.bodyMedium, color: palette.textPrimary },
+  meta: { ...typography.caption, color: palette.textSecondary },
+  rowBottom: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  address: { ...typography.label, color: palette.textMuted, flex: 1 },
+  amount: {
+    fontFamily: fontFamilyMono,
+    fontSize: 13,
+    color: palette.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+});

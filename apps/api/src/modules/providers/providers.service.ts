@@ -186,6 +186,8 @@ export class ProvidersService {
 
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
 
     const [
       openRequests,
@@ -196,6 +198,10 @@ export class ProvidersService {
       recentQuotes,
       paidAggregate,
       todayPaidAggregate,
+      activeJobs,
+      completedJobs,
+      todayJobs,
+      recentBookings,
     ] = await Promise.all([
       categories.length
         ? this.prisma.serviceRequest.count({
@@ -260,6 +266,39 @@ export class ProvidersService {
         },
         _sum: { totalAmount: true },
       }),
+      this.prisma.booking.count({
+        where: {
+          providerId: id,
+          deletedAt: null,
+          status: { in: ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'] },
+        },
+      }),
+      this.prisma.booking.count({
+        where: { providerId: id, deletedAt: null, status: 'COMPLETED' },
+      }),
+      this.prisma.booking.count({
+        where: {
+          providerId: id,
+          deletedAt: null,
+          status: { in: ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'] },
+          scheduledAt: { gte: dayStart, lt: dayEnd },
+        },
+      }),
+      this.prisma.booking.findMany({
+        where: { providerId: id, deletedAt: null },
+        orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
+        take: 4,
+        include: {
+          customer: { select: { firstName: true, lastName: true } },
+          quotation: {
+            include: {
+              request: {
+                include: { vehicle: { select: { make: true, model: true, year: true } } },
+              },
+            },
+          },
+        },
+      }),
     ]);
 
     const activeListings = listings.filter((item) => item.isActive).length;
@@ -295,6 +334,29 @@ export class ProvidersService {
         ...quote,
         totalCost: Number(quote.totalCost),
       })),
+      jobs: {
+        active: activeJobs,
+        completed: completedJobs,
+        today: todayJobs,
+        recent: recentBookings.map((booking) => ({
+          id: booking.id,
+          status: booking.status,
+          scheduledAt: booking.scheduledAt,
+          createdAt: booking.createdAt,
+          completedAt: booking.completedAt,
+          customer: booking.customer,
+          request: booking.quotation?.request
+            ? {
+                id: booking.quotation.request.id,
+                title: booking.quotation.request.title,
+                category: booking.quotation.request.category,
+                address: booking.quotation.request.address,
+                vehicle: booking.quotation.request.vehicle,
+              }
+            : null,
+          totalCost: Number(booking.quotation?.totalCost ?? 0),
+        })),
+      },
     };
   }
 

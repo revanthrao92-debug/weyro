@@ -5,6 +5,7 @@ import { palette, spacing, typography } from '@/theme';
 import type { CreateQuotation } from '@/hooks/useRequests';
 
 type Props = {
+  mode?: 'parts' | 'service';
   initial?: Partial<CreateQuotation>;
   submitting?: boolean;
   submitLabel?: string;
@@ -12,13 +13,20 @@ type Props = {
 };
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'] as const;
-const DELIVERY = [
+const PART_DELIVERY = [
   { value: 'PICKUP', label: 'Pickup' },
   { value: 'DOORSTEP_DELIVERY', label: 'Doorstep' },
   { value: 'PARTS_COURIER', label: 'Courier' },
 ] as const;
 
+const SERVICE_MODE = [
+  { value: 'PICKUP', label: 'Drop-off' },
+  { value: 'ON_SITE_FITMENT', label: 'On-site' },
+  { value: 'DOORSTEP_DELIVERY', label: 'Pickup & return' },
+] as const;
+
 export function QuoteComposer({
+  mode = 'parts',
   initial,
   submitting,
   submitLabel = 'Send quote',
@@ -44,8 +52,8 @@ export function QuoteComposer({
     (initial?.partCondition as (typeof CONDITIONS)[number]) ?? 'OEM',
   );
   const [delivery, setDelivery] = useState(
-    (initial?.deliveryMethod as (typeof DELIVERY)[number]['value']) ??
-      'PARTS_COURIER',
+    (initial?.deliveryMethod as string) ??
+      (mode === 'parts' ? 'PARTS_COURIER' : 'PICKUP'),
   );
 
   const parts = Number(partsCost) || 0;
@@ -57,47 +65,55 @@ export function QuoteComposer({
   return (
     <View style={styles.form}>
       <View style={styles.head}>
-        <Text style={styles.title}>Price this request</Text>
-        <StatusPill label={condition} tone="info" />
+        <Text style={styles.title}>
+          {mode === 'parts' ? 'Price this request' : 'Price this job'}
+        </Text>
+        {mode === 'parts' ? <StatusPill label={condition} tone="info" /> : null}
       </View>
 
       <Input
-        label="Parts cost (₹)"
+        label={mode === 'parts' ? 'Parts cost (₹)' : 'Parts (₹, optional)'}
         placeholder="5000"
         value={partsCost}
         onChangeText={setPartsCost}
         keyboardType="number-pad"
       />
       <Input
-        label="Labour / fitting (₹)"
+        label="Labour (₹)"
         placeholder="0"
         value={labourCost}
         onChangeText={setLabourCost}
         keyboardType="number-pad"
       />
       <Input
-        label="Shipping (₹)"
+        label={mode === 'parts' ? 'Shipping (₹)' : 'Callout / travel (₹, optional)'}
         placeholder="0"
         value={shippingCost}
         onChangeText={setShippingCost}
         keyboardType="number-pad"
       />
 
-      <Text style={styles.fieldLabel}>Part condition</Text>
-      <View style={styles.chipRow}>
-        {CONDITIONS.map((c) => (
-          <Chip
-            key={c}
-            label={c}
-            selected={condition === c}
-            onPress={() => setCondition(c)}
-          />
-        ))}
-      </View>
+      {mode === 'parts' ? (
+        <>
+          <Text style={styles.fieldLabel}>Part condition</Text>
+          <View style={styles.chipRow}>
+            {CONDITIONS.map((c) => (
+              <Chip
+                key={c}
+                label={c}
+                selected={condition === c}
+                onPress={() => setCondition(c)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
 
-      <Text style={styles.fieldLabel}>Delivery</Text>
+      <Text style={styles.fieldLabel}>
+        {mode === 'parts' ? 'Delivery' : 'Service mode'}
+      </Text>
       <View style={styles.chipRow}>
-        {DELIVERY.map((d) => (
+        {(mode === 'parts' ? PART_DELIVERY : SERVICE_MODE).map((d) => (
           <Chip
             key={d.value}
             label={d.label}
@@ -142,7 +158,7 @@ export function QuoteComposer({
             partsCost: parts,
             labourCost: labour,
             shippingCost: shipping,
-            partCondition: condition,
+            ...(mode === 'parts' ? { partCondition: condition } : {}),
             warrantyDays: Math.max(0, Number(warrantyDays) || 0),
             etaDescription: etaDescription.trim(),
             deliveryMethod: delivery,

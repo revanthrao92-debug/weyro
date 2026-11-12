@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { DriverDashboard } from '@/components/driver/DriverDashboard';
 import { DealerDashboard } from '@/components/dealer/DealerDashboard';
+import { MechanicDashboard } from '@/components/mechanic/MechanicDashboard';
 import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
@@ -209,6 +210,14 @@ export default function HomeScreen() {
 
   if (providerProfile?.providerType === 'PARTS_DEALER') {
     return <DealerDashboard />;
+  }
+
+  if (
+    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+      providerProfile?.providerType ?? '',
+    )
+  ) {
+    return <MechanicDashboard />;
   }
 
   if (role === 'PROVIDER' || role === 'BOTH') {

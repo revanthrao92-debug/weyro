@@ -22,11 +22,39 @@ export type Booking = {
     paidAt: string | null;
     releasedAt: string | null;
   };
+  payments?: {
+    id: string;
+    status: string;
+    amount: number;
+    currency: string;
+  }[];
+  quotation?: {
+    id: string;
+    totalCost: number;
+    etaDescription: string;
+    warrantyDays: number;
+    notes: string | null;
+    request?: {
+      id: string;
+      title: string;
+      category: string;
+      address: string;
+      latitude: number;
+      longitude: number;
+      vehicle?: {
+        make: string;
+        model: string;
+        year: number | null;
+        registrationNumber?: string | null;
+      } | null;
+    } | null;
+  } | null;
   customer?: {
     id: string;
     firstName: string;
     lastName: string;
     avatarUrl: string | null;
+    phone?: string | null;
   };
   provider?: {
     id: string;
@@ -69,15 +97,22 @@ export function useUpdateBookingStatus() {
       status,
       trackingNumber,
       carrierName,
+      completionNotes,
     }: {
       id: string;
       status: string;
       trackingNumber?: string;
       carrierName?: string;
+      completionNotes?: string;
     }) => {
       return apiClient(`/bookings/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, trackingNumber, carrierName }),
+        body: JSON.stringify({
+          status,
+          trackingNumber,
+          carrierName,
+          completionNotes,
+        }),
       });
     },
     onMutate: async ({ id, status }) => {

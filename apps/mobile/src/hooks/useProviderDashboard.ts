@@ -34,6 +34,27 @@ export type ProviderDashboardData = {
     sparePart: { name: string; partNumber: string } | null;
     customer: { firstName: string; lastName: string } | null;
   }[];
+  jobs: {
+    active: number;
+    completed: number;
+    today: number;
+    recent: {
+      id: string;
+      status: string;
+      scheduledAt: string | null;
+      createdAt: string;
+      completedAt: string | null;
+      customer: { firstName: string; lastName: string } | null;
+      request: {
+        id: string;
+        title: string;
+        category: string;
+        address: string;
+        vehicle: { make: string; model: string; year: number | null } | null;
+      } | null;
+      totalCost: number;
+    }[];
+  };
   recentQuotes: {
     id: string;
     totalCost: number;

@@ -39,7 +39,7 @@ type RequestParams = { id: string };
 export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
-  const { role } = useAuth();
+  const { role, providerProfile } = useAuth();
   const { data: request, isLoading } = useRequest(id || '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
   const cancelRequest = useCancelRequest();
@@ -53,6 +53,11 @@ export default function RequestDetailScreen() {
   const isProvider = role === 'PROVIDER' || role === 'BOTH';
   const canQuote =
     isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+  const quoteMode = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+    providerProfile?.providerType ?? '',
+  )
+    ? 'service'
+    : 'parts';
 
   const quotes = quotesData?.items ?? [];
   const myQuote = (myQuotesData?.items ?? []).find(
@@ -226,6 +231,7 @@ export default function RequestDetailScreen() {
               </View>
             ) : null}
             <QuoteComposer
+              mode={quoteMode}
               initial={editingQuote ? myQuote : undefined}
               submitLabel={editingQuote ? 'Save quote' : 'Send quote'}
               submitting={createQuotation.isPending || updateQuotation.isPending}

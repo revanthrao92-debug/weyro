@@ -727,7 +727,7 @@ export class QuotationsService {
     id: string,
     user: AuthUserPayload,
     newStatus: string,
-    metadata?: { trackingNumber?: string; carrierName?: string },
+    metadata?: { trackingNumber?: string; carrierName?: string; completionNotes?: string },
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
@@ -763,6 +763,9 @@ export class QuotationsService {
     if (metadata?.carrierName !== undefined) {
       data.carrierName = metadata.carrierName;
     }
+    if (metadata?.completionNotes !== undefined) {
+      data.completionNotes = metadata.completionNotes;
+    }
     if (newStatus === 'IN_PROGRESS' && !booking.startedAt) {
       data.startedAt = new Date();
     }
@@ -782,15 +785,36 @@ export class QuotationsService {
         },
       });
 
+      // Starting and completing a job must move the request through its own
+      // state machine (ACCEPTED -> IN_PROGRESS -> COMPLETED).
+      if (newStatus === 'IN_PROGRESS' && booking.quotation?.request) {
+        const request = booking.quotation.request;
+        if (request.status === 'ACCEPTED') {
+          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', user.role);
+          await tx.serviceRequest.update({
+            where: { id: request.id },
+            data: { status: 'IN_PROGRESS' },
+          });
+        }
+      }
+
       // If work is completed, transition ServiceRequest to COMPLETED as well
       if (newStatus === 'COMPLETED' && booking.quotation?.request) {
+        const request = booking.quotation.request;
+        if (request.status === 'ACCEPTED') {
+          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', user.role);
+          await tx.serviceRequest.update({
+            where: { id: request.id },
+            data: { status: 'IN_PROGRESS' },
+          });
+        }
         validateServiceRequestTransition(
-          booking.quotation.request.status,
+          request.status === 'ACCEPTED' ? 'IN_PROGRESS' : request.status,
           'COMPLETED',
           user.role,
         );
         await tx.serviceRequest.update({
-          where: { id: booking.quotation.request.id },
+          where: { id: request.id },
           data: { status: 'COMPLETED' },
         });
 

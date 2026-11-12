@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { DriverProfileScreen } from '@/components/driver/DriverProfileScreen';
 import { DealerProfileScreen } from '@/components/dealer/DealerProfileScreen';
+import { MechanicProfileScreen } from '@/components/mechanic/MechanicProfileScreen';
 import {
   ScreenContainer,
   ListItem,
@@ -45,6 +46,14 @@ export default function ProfileScreen() {
 
   if (providerProfile?.providerType === 'PARTS_DEALER') {
     return <DealerProfileScreen />;
+  }
+
+  if (
+    ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+      providerProfile?.providerType ?? '',
+    )
+  ) {
+    return <MechanicProfileScreen />;
   }
 
   return (

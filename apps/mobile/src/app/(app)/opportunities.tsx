@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useBroadcastFeed, useMyQuotations } from '@/hooks/useRequests';
@@ -15,8 +16,15 @@ import {
 import { palette, spacing, typography } from '@/theme';
 import { titleize as labelize, formatDate } from '@/utils/format';
 
-export default function DealerRequestsScreen() {
+export default function ProviderRequestsScreen() {
   const router = useRouter();
+  const { providerProfile } = useAuth();
+  const isMechanic = ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'].includes(
+    providerProfile?.providerType ?? '',
+  );
+  const subtitle = isMechanic
+    ? 'Repair and maintenance work nearby'
+    : 'Spare-part requests nearby';
   const { data, isLoading, refetch } = useBroadcastFeed();
   const { data: myQuotes } = useMyQuotations({ limit: 50 });
 
@@ -33,7 +41,7 @@ export default function DealerRequestsScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader title="Requests" subtitle="Spare-part requests nearby" />
+        <AppHeader title="Requests" subtitle={subtitle} />
         <View style={styles.body}>
           {[0, 1, 2].map((i) => (
             <Card key={i} style={styles.skeletonCard}>
@@ -49,11 +57,15 @@ export default function DealerRequestsScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Requests" subtitle="Spare-part requests nearby" />
+      <AppHeader title="Requests" subtitle={subtitle} />
       {requests.length === 0 ? (
         <EmptyState
           title="No open requests"
-          message="New spare-part requests in your service radius will appear here."
+          message={
+            isMechanic
+              ? 'New repair requests in your service radius will appear here.'
+              : 'New spare-part requests in your service radius will appear here.'
+          }
           action={
             <Button title="Refresh" variant="secondary" onPress={() => void refetch()} />
           }
@@ -127,7 +139,10 @@ function RequestCard({
       <View style={styles.footer}>
         <View style={styles.footerMeta}>
           <Text style={styles.metaText}>
-            {labelize(item.fulfillmentType ?? 'PARTS_SHIPPING')}
+            {labelize(item.category)}
+            {item.fulfillmentType
+              ? ` · ${labelize(item.fulfillmentType)}`
+              : ''}
           </Text>
           <Text style={styles.metaText}>
             {item.quotationsCount ?? 0} quote

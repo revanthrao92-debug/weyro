@@ -153,6 +153,7 @@ export class QuotationsController {
     const updated = await this.service.updateStatus(id, user, body.status, {
       trackingNumber: body.trackingNumber,
       carrierName: body.carrierName,
+      completionNotes: body.completionNotes,
     });
     this.tracking.emitStatus(id, updated.status);
     return updated;
