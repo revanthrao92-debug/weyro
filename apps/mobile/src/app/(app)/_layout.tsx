@@ -11,6 +11,7 @@ import {
   Landmark,
   LayoutDashboard,
   MessageCircle,
+  Tag,
   Package,
   Radar,
   ShoppingBag,
@@ -49,6 +50,7 @@ const tabIcon = (IconCmp: LucideIcon) => {
 export default function AppLayout() {
   const { role, providerProfile } = useAuth();
   const isDriver = providerProfile?.providerType === 'DRIVER';
+  const isDealer = providerProfile?.providerType === 'PARTS_DEALER';
   const insets = useSafeAreaInsets();
 
   const hiddenDriverScreens = [
@@ -56,7 +58,24 @@ export default function AppLayout() {
     <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ href: null }} />,
   ];
 
-  const screens: ReactElement[] = isDriver
+  const screens: ReactElement[] = isDealer
+    ? [
+        <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
+        <Tabs.Screen key="opportunities" name="opportunities" options={{ title: 'Requests', tabBarIcon: tabIcon(Radar) }} />,
+        <Tabs.Screen key="orders" name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon(Package) }} />,
+        <Tabs.Screen key="my-listings" name="my-listings" options={{ title: 'Listings', tabBarIcon: tabIcon(Tag) }} />,
+        <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
+        <Tabs.Screen key="messages" name="messages" options={{ href: null }} />,
+        <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
+        <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
+        <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
+        <Tabs.Screen key="providers" name="providers" options={{ href: null }} />,
+        <Tabs.Screen key="escrow" name="escrow" options={{ href: null }} />,
+        <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
+        <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ href: null }} />,
+        <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ href: null }} />,
+      ]
+    : isDriver
     ? [
         <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
         <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ title: 'Jobs', tabBarIcon: tabIcon(Briefcase) }} />,
@@ -85,6 +104,7 @@ export default function AppLayout() {
           <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
           <Tabs.Screen key="opportunities" name="opportunities" options={{ href: null }} />,
           <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
+          <Tabs.Screen key="my-listings" name="my-listings" options={{ href: null }} />,
           ...hiddenDriverScreens,
         ]
       : role === 'PROVIDER' || role === 'BOTH'
@@ -100,6 +120,7 @@ export default function AppLayout() {
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
             <Tabs.Screen key="shop" name="shop" options={{ href: null }} />,
+            <Tabs.Screen key="my-listings" name="my-listings" options={{ href: null }} />,
             ...hiddenDriverScreens,
           ]
         : [
@@ -114,6 +135,7 @@ export default function AppLayout() {
             <Tabs.Screen key="activity" name="activity" options={{ href: null }} />,
             <Tabs.Screen key="opportunities" name="opportunities" options={{ href: null }} />,
             <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
+            <Tabs.Screen key="my-listings" name="my-listings" options={{ href: null }} />,
             ...hiddenDriverScreens,
           ];
 

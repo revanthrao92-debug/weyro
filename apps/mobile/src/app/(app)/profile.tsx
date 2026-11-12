@@ -14,6 +14,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { DriverProfileScreen } from '@/components/driver/DriverProfileScreen';
+import { DealerProfileScreen } from '@/components/dealer/DealerProfileScreen';
 import {
   ScreenContainer,
   ListItem,
@@ -40,6 +41,10 @@ export default function ProfileScreen() {
 
   if (providerProfile?.providerType === 'DRIVER') {
     return <DriverProfileScreen />;
+  }
+
+  if (providerProfile?.providerType === 'PARTS_DEALER') {
+    return <DealerProfileScreen />;
   }
 
   return (
