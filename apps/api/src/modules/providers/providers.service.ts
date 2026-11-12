@@ -223,7 +223,7 @@ export class ProvidersService {
       }),
       this.prisma.sparePartOrder.findMany({
         where: { providerId: id, status: 'PAID', deletedAt: null },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
         take: 4,
         select: {
           id: true,
