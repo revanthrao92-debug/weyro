@@ -13,6 +13,7 @@ import { SparePartsService } from './spare-parts.service';
 import {
   CreateSparePartDto,
   CreateSparePartOrderDto,
+  UpdateFulfillmentDto,
   UpdateSparePartDto,
   VerifySparePartOrderDto,
 } from './dto/spare-parts.dto';
@@ -89,6 +90,7 @@ export class SparePartsController {
     }
     return this.service.findDealerOrders(user.providerProfileId || user.sub, {
       status: query.status,
+      fulfillmentStatus: query.fulfillmentStatus,
       cursor: query.cursor,
       limit: query.limit,
     });
@@ -102,9 +104,21 @@ export class SparePartsController {
   ) {
     return this.service.findAdminOrders({
       status: query.status,
+      fulfillmentStatus: query.fulfillmentStatus,
       cursor: query.cursor,
       limit: query.limit,
     });
+  }
+
+  @Patch('orders/:orderId/fulfillment')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async updateFulfillment(
+    @Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string,
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: UpdateFulfillmentDto,
+  ) {
+    return this.service.updateFulfillment(orderId, user, dto);
   }
 
   @Get('orders/:orderId')

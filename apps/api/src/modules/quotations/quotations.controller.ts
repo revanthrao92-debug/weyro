@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { QuotationsService } from './quotations.service';
-import { CreateQuotationDto } from './dto/create-quotation.dto';
+import { CreateQuotationDto, UpdateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
@@ -87,6 +87,16 @@ export class QuotationsController {
     @Headers('x-idempotency-key') idempotencyKey?: string,
   ) {
     return this.service.accept(id, user, dto, idempotencyKey);
+  }
+
+  @Patch('quotations/:id')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async updateQuotation(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+    @Body() dto: UpdateQuotationDto,
+  ) {
+    return this.service.updateQuotation(id, user, dto);
   }
 
   @Get('quotations/my')

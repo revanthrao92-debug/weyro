@@ -10,9 +10,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateSparePartDto,
   CreateSparePartOrderDto,
+  UpdateFulfillmentDto,
   UpdateSparePartDto,
   VerifySparePartOrderDto,
 } from './dto/spare-parts.dto';
+import {
+  canTransitionFulfillment,
+  type FulfillmentState,
+} from './fulfillment-state';
 import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
@@ -369,6 +374,12 @@ export class SparePartsService {
         totalAmount,
         currency: 'INR',
         status: 'PENDING',
+        fulfillmentStatus: 'PENDING',
+        shippingName: dto.shippingName,
+        shippingPhone: dto.shippingPhone,
+        shippingAddress: dto.shippingAddress,
+        shippingCity: dto.shippingCity,
+        shippingPincode: dto.shippingPincode,
         gatewayOrderId: gatewayOrder.orderId,
       },
     });
@@ -548,7 +559,7 @@ export class SparePartsService {
     // gateway refunds. Reverted below if the gateway call fails.
     const claimed = await this.prisma.sparePartOrder.updateMany({
       where: { id: order.id, status: 'PAID' },
-      data: { status: 'REFUNDED' },
+      data: { status: 'REFUNDED', refundedAt: new Date() },
     });
 
     if (claimed.count === 0) {
@@ -587,10 +598,87 @@ export class SparePartsService {
     } catch (error) {
       await this.prisma.sparePartOrder.updateMany({
         where: { id: order.id, status: 'REFUNDED' },
-        data: { status: 'PAID' },
+        data: { status: 'PAID', refundedAt: null },
       });
       throw error;
     }
+  }
+
+  async updateFulfillment(
+    orderId: string,
+    user: { role: string; providerProfileId?: string | null },
+    dto: UpdateFulfillmentDto,
+  ) {
+    const order = await this.prisma.sparePartOrder.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: { select: { userId: true } },
+        sparePart: { select: { name: true } },
+      },
+    });
+
+    if (!order || order.deletedAt) {
+      throw new NotFoundException(`Spare part order ${orderId} not found`);
+    }
+
+    const isAdmin = user.role === 'ADMIN';
+    const isDealer =
+      !!user.providerProfileId && order.providerId === user.providerProfileId;
+    if (!isAdmin && !isDealer) {
+      throw new ForbiddenException('You do not have access to this order');
+    }
+
+    if (order.status !== 'PAID') {
+      throw new BadRequestException(
+        'Only paid orders can move through fulfillment.',
+      );
+    }
+
+    const current = order.fulfillmentStatus as FulfillmentState;
+    if (!canTransitionFulfillment(current, dto.status)) {
+      throw new BadRequestException(
+        `Cannot move a ${current.toLowerCase()} order to ${dto.status.toLowerCase()}.`,
+      );
+    }
+
+    const now = new Date();
+    const data: Record<string, unknown> = {
+      fulfillmentStatus: dto.status,
+      dealerNotes: dto.dealerNotes,
+    };
+    if (dto.carrierName) data.carrierName = dto.carrierName;
+    if (dto.trackingNumber) data.trackingNumber = dto.trackingNumber;
+    if (dto.status === 'SHIPPED') data.shippedAt = now;
+    if (dto.status === 'DELIVERED') data.deliveredAt = now;
+
+    const updated = await this.prisma.sparePartOrder.update({
+      where: { id: order.id },
+      data,
+    });
+
+    this.notifications
+      .sendPushNotification({
+        userId: order.customer.userId,
+        title: `Order ${dto.status.toLowerCase()}`,
+        body: `${order.sparePart.name} is now ${dto.status.toLowerCase()}.`,
+        data: {
+          type: 'SPARE_PART_ORDER_FULFILLMENT',
+          orderId: order.id,
+          fulfillmentStatus: dto.status,
+        },
+      })
+      .catch(() => {});
+
+    return {
+      orderId: updated.id,
+      status: updated.status,
+      fulfillmentStatus: updated.fulfillmentStatus,
+      carrierName: updated.carrierName,
+      trackingNumber: updated.trackingNumber,
+      shippedAt: updated.shippedAt,
+      deliveredAt: updated.deliveredAt,
+      dealerNotes: updated.dealerNotes,
+    };
   }
 
   async findMyOrders(customerId: string) {
@@ -616,7 +704,12 @@ export class SparePartsService {
 
   async findDealerOrders(
     providerId: string,
-    params: { status?: string; cursor?: string; limit?: number },
+    params: {
+      status?: string;
+      fulfillmentStatus?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ) {
     const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
     const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
@@ -628,6 +721,9 @@ export class SparePartsService {
 
     if (params.status) {
       where.status = params.status;
+    }
+    if (params.fulfillmentStatus) {
+      where.fulfillmentStatus = params.fulfillmentStatus;
     }
 
     const items = await this.prisma.sparePartOrder.findMany({
@@ -641,8 +737,17 @@ export class SparePartsService {
         totalAmount: true,
         currency: true,
         status: true,
+        fulfillmentStatus: true,
         paidAt: true,
         createdAt: true,
+        shippingName: true,
+        shippingAddress: true,
+        shippingCity: true,
+        shippingPincode: true,
+        carrierName: true,
+        trackingNumber: true,
+        shippedAt: true,
+        deliveredAt: true,
         sparePart: {
           select: { id: true, name: true, partNumber: true, imageUrl: true },
         },
@@ -664,7 +769,7 @@ export class SparePartsService {
     };
   }
 
-  async findAdminOrders(params: { status?: string; cursor?: string; limit?: number }) {
+  async findAdminOrders(params: { status?: string; fulfillmentStatus?: string; cursor?: string; limit?: number }) {
     const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
     const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
     const where: any = {
@@ -674,6 +779,9 @@ export class SparePartsService {
 
     if (params.status) {
       where.status = params.status;
+    }
+    if (params.fulfillmentStatus) {
+      where.fulfillmentStatus = params.fulfillmentStatus;
     }
 
     const items = await this.prisma.sparePartOrder.findMany({
@@ -728,6 +836,18 @@ export class SparePartsService {
         totalAmount: true,
         currency: true,
         status: true,
+        fulfillmentStatus: true,
+        shippingName: true,
+        shippingPhone: true,
+        shippingAddress: true,
+        shippingCity: true,
+        shippingPincode: true,
+        carrierName: true,
+        trackingNumber: true,
+        dealerNotes: true,
+        shippedAt: true,
+        deliveredAt: true,
+        refundedAt: true,
         gatewayOrderId: true,
         gatewayPaymentId: true,
         paidAt: true,

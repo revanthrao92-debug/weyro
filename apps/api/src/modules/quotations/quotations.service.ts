@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { CreateQuotationDto } from './dto/create-quotation.dto';
+import { CreateQuotationDto, UpdateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
@@ -491,6 +491,95 @@ export class QuotationsService {
             })
           : null,
     };
+  }
+
+  async updateQuotation(
+    id: string,
+    user: AuthUserPayload,
+    dto: UpdateQuotationDto,
+  ) {
+    const quote = await this.prisma.quotation.findUnique({
+      where: { id },
+      include: { request: true },
+    });
+
+    if (!quote) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    const isOwner =
+      !!user.providerProfileId && quote.providerId === user.providerProfileId;
+    if (!isOwner && user.role !== 'ADMIN') {
+      throw new ForbiddenException('You do not own this quotation');
+    }
+    if (quote.status !== 'PENDING') {
+      throw new BadRequestException(
+        'Only pending quotations can be edited.',
+      );
+    }
+    if (
+      quote.request.status !== 'OPEN' &&
+      quote.request.status !== 'QUOTES_RECEIVED'
+    ) {
+      throw new BadRequestException(
+        `Cannot edit quotation: request is currently ${quote.request.status}`,
+      );
+    }
+
+    let parts = Number(dto.partsCost ?? quote.partsCost);
+    let labour = Number(dto.labourCost ?? quote.labourCost);
+    let shipping = Number(dto.shippingCost ?? quote.shippingCost ?? 0);
+    let totalCost = parts + labour + shipping;
+
+    if (quote.request.category === 'TOWING') {
+      const provider = await this.prisma.providerProfile.findUnique({
+        where: { id: quote.providerId },
+      });
+      if (!provider) {
+        throw new NotFoundException('Provider profile not found');
+      }
+      const baseFee =
+        provider.towingBaseFee != null
+          ? Number(provider.towingBaseFee)
+          : TOWING_TARIFF.baseFee;
+      const perKmFee =
+        provider.towingPerKmFee != null
+          ? Number(provider.towingPerKmFee)
+          : TOWING_TARIFF.perKmFee;
+      totalCost = estimateTowingFare(quote.request.towingDistanceKm ?? 0, {
+        baseFee,
+        perKmFee,
+        minimumFare: TOWING_TARIFF.minimumFare,
+      });
+      parts = 0;
+      labour = totalCost;
+      shipping = 0;
+    }
+
+    return this.prisma.quotation.update({
+      where: { id },
+      data: {
+        ...(dto.partsCost !== undefined ? { partsCost: parts } : {}),
+        ...(dto.labourCost !== undefined ? { labourCost: labour } : {}),
+        ...(dto.shippingCost !== undefined
+          ? { shippingCost: shipping }
+          : {}),
+        totalCost,
+        ...(dto.partCondition !== undefined
+          ? { partCondition: dto.partCondition }
+          : {}),
+        ...(dto.warrantyDays !== undefined
+          ? { warrantyDays: dto.warrantyDays }
+          : {}),
+        ...(dto.etaDescription !== undefined
+          ? { etaDescription: dto.etaDescription }
+          : {}),
+        ...(dto.deliveryMethod !== undefined
+          ? { deliveryMethod: dto.deliveryMethod }
+          : {}),
+        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+      },
+    });
   }
 
   async withdrawQuotation(id: string, user: AuthUserPayload) {

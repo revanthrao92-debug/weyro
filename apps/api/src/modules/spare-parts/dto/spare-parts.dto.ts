@@ -61,6 +61,11 @@ export class UpdateSparePartDto implements z.infer<typeof updateSparePartSchema>
 export const createSparePartOrderSchema = z
   .object({
     quantity: z.number().int().min(1).max(10).default(1),
+    shippingName: z.string().min(1).max(120).optional(),
+    shippingPhone: z.string().min(8).max(20).optional(),
+    shippingAddress: z.string().min(5).max(500).optional(),
+    shippingCity: z.string().min(2).max(100).optional(),
+    shippingPincode: z.string().min(4).max(12).optional(),
   })
   .strict();
 
@@ -70,6 +75,11 @@ export class CreateSparePartOrderDto
   static readonly schema = createSparePartOrderSchema;
 
   quantity!: number;
+  shippingName?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingPincode?: string;
 }
 
 export const verifySparePartOrderSchema = z
@@ -88,4 +98,25 @@ export class VerifySparePartOrderDto
   razorpayOrderId!: string;
   razorpayPaymentId!: string;
   razorpaySignature!: string;
+}
+
+
+export const updateFulfillmentSchema = z
+  .object({
+    status: z.enum(['PROCESSING', 'READY', 'SHIPPED', 'DELIVERED']),
+    carrierName: z.string().min(1).max(100).optional(),
+    trackingNumber: z.string().min(1).max(120).optional(),
+    dealerNotes: z.string().max(500).optional(),
+  })
+  .strict();
+
+export type UpdateFulfillmentInput = z.infer<typeof updateFulfillmentSchema>;
+
+export class UpdateFulfillmentDto implements UpdateFulfillmentInput {
+  static readonly schema = updateFulfillmentSchema;
+
+  status!: 'PROCESSING' | 'READY' | 'SHIPPED' | 'DELIVERED';
+  carrierName?: string;
+  trackingNumber?: string;
+  dealerNotes?: string;
 }

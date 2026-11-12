@@ -126,6 +126,15 @@ enum SparePartOrderStatus {
   REFUNDED
 }
 
+enum FulfillmentStatus {
+  PENDING
+  PROCESSING
+  READY
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
 enum ShopListingKind {
   PART
   PACKAGE
@@ -554,24 +563,36 @@ model SparePart {
 }
 
 model SparePartOrder {
-  id               String               @id @default(uuid())
-  sparePartId      String
-  sparePart        SparePart            @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
-  providerId       String
-  provider         ProviderProfile      @relation(fields: [providerId], references: [id], onDelete: Restrict)
-  customerId       String
-  customer         CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  quantity         Int                  @default(1)
-  unitPrice        Decimal              @db.Decimal(10, 2)
-  totalAmount      Decimal              @db.Decimal(10, 2)
-  currency         String               @default("INR")
-  status           SparePartOrderStatus @default(PENDING)
-  gatewayOrderId   String?              @unique
-  gatewayPaymentId String?
-  paidAt           DateTime?
-  deletedAt        DateTime?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id                String               @id @default(uuid())
+  sparePartId       String
+  sparePart         SparePart            @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
+  providerId        String
+  provider          ProviderProfile      @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  customerId        String
+  customer          CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  quantity          Int                  @default(1)
+  unitPrice         Decimal              @db.Decimal(10, 2)
+  totalAmount       Decimal              @db.Decimal(10, 2)
+  currency          String               @default("INR")
+  status            SparePartOrderStatus @default(PENDING)
+  fulfillmentStatus FulfillmentStatus    @default(PENDING)
+  shippingName      String?
+  shippingPhone     String?
+  shippingAddress   String?
+  shippingCity      String?
+  shippingPincode   String?
+  carrierName       String?
+  trackingNumber    String?
+  dealerNotes       String?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  refundedAt        DateTime?
+  gatewayOrderId    String?              @unique
+  gatewayPaymentId  String?
+  paidAt            DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   @@index([customerId])
   @@index([providerId])

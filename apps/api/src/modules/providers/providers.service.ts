@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PROVIDER_TYPE_CATEGORIES } from '@weyro/api-contracts';
 import { CacheService } from '../../common/redis/cache.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
@@ -61,6 +62,145 @@ export class ProvidersService {
         reviews: _count.reviews,
         listings: _count.spareParts,
       },
+    };
+  }
+
+  async getDashboard(user: AuthUserPayload) {
+    const id = this.providerId(user);
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        businessName: true,
+        providerType: true,
+        verificationStatus: true,
+        isAvailable: true,
+        avgRating: true,
+        totalReviews: true,
+        completedJobs: true,
+        serviceRadiusKm: true,
+      },
+    });
+    if (!provider) {
+      throw new NotFoundException('Provider profile not found');
+    }
+
+    const categories =
+      PROVIDER_TYPE_CATEGORIES[
+        provider.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES
+      ] ?? [];
+
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+
+    const [
+      openRequests,
+      pendingQuotes,
+      pendingOrders,
+      listings,
+      recentOrders,
+      recentQuotes,
+      paidAggregate,
+      todayPaidAggregate,
+    ] = await Promise.all([
+      categories.length
+        ? this.prisma.serviceRequest.count({
+            where: {
+              category: { in: categories as any },
+              status: { in: ['OPEN', 'QUOTES_RECEIVED'] },
+              deletedAt: null,
+            },
+          })
+        : Promise.resolve(0),
+      this.prisma.quotation.count({
+        where: { providerId: id, status: 'PENDING', deletedAt: null },
+      }),
+      this.prisma.sparePartOrder.count({
+        where: {
+          providerId: id,
+          status: 'PAID',
+          fulfillmentStatus: { notIn: ['DELIVERED', 'CANCELLED'] },
+          deletedAt: null,
+        },
+      }),
+      this.prisma.sparePart.findMany({
+        where: { providerId: id, deletedAt: null },
+        select: { price: true, stockQuantity: true, isActive: true },
+      }),
+      this.prisma.sparePartOrder.findMany({
+        where: { providerId: id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+        select: {
+          id: true,
+          totalAmount: true,
+          status: true,
+          fulfillmentStatus: true,
+          createdAt: true,
+          sparePart: { select: { name: true, partNumber: true } },
+          customer: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      this.prisma.quotation.findMany({
+        where: { providerId: id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+        select: {
+          id: true,
+          totalCost: true,
+          status: true,
+          createdAt: true,
+          request: { select: { id: true, title: true, category: true } },
+        },
+      }),
+      this.prisma.sparePartOrder.aggregate({
+        where: { providerId: id, status: 'PAID', deletedAt: null },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.sparePartOrder.aggregate({
+        where: {
+          providerId: id,
+          status: 'PAID',
+          deletedAt: null,
+          paidAt: { gte: dayStart },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    const activeListings = listings.filter((item) => item.isActive).length;
+    const lowStock = listings.filter(
+      (item) => item.isActive && item.stockQuantity <= 3,
+    ).length;
+    const inventoryValue = listings
+      .filter((item) => item.isActive)
+      .reduce(
+        (sum, item) => sum + Number(item.price) * item.stockQuantity,
+        0,
+      );
+
+    return {
+      provider,
+      counts: {
+        openRequests,
+        pendingQuotes,
+        pendingOrders,
+        activeListings,
+        lowStock,
+      },
+      revenue: {
+        paidTotal: Number(paidAggregate._sum.totalAmount ?? 0),
+        todayPaid: Number(todayPaidAggregate._sum.totalAmount ?? 0),
+        inventoryValue: Math.round(inventoryValue * 100) / 100,
+      },
+      recentOrders: recentOrders.map((order) => ({
+        ...order,
+        totalAmount: Number(order.totalAmount),
+      })),
+      recentQuotes: recentQuotes.map((quote) => ({
+        ...quote,
+        totalCost: Number(quote.totalCost),
+      })),
     };
   }
 

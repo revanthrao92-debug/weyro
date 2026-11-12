@@ -29,6 +29,12 @@ export class ProvidersController {
     return this.providers.getMyProfile(user);
   }
 
+  @Get('me/dashboard')
+  @Roles('PROVIDER', 'BOTH')
+  async getDashboard(@CurrentUser() user: AuthUserPayload) {
+    return this.providers.getDashboard(user);
+  }
+
   @Patch('me')
   @Roles('PROVIDER', 'BOTH')
   async updateMyProfile(

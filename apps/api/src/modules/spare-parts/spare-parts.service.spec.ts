@@ -506,7 +506,7 @@ describe('SparePartsService order flow', () => {
 
       expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenLastCalledWith({
         where: { id: 'order-1', status: 'REFUNDED' },
-        data: { status: 'PAID' },
+        data: { status: 'PAID', refundedAt: null },
       });
     });
   });

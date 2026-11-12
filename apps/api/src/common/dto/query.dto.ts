@@ -46,7 +46,10 @@ export const bookingsQuerySchema = cursorPaginationSchema.extend({
 
 export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
   status: z
-    .enum(['PENDING', 'PAID', 'CANCELLED', 'FAILED'])
+    .enum(['PENDING', 'PAID', 'CANCELLED', 'FAILED', 'REFUNDED'])
+    .optional(),
+  fulfillmentStatus: z
+    .enum(['PENDING', 'PROCESSING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
     .optional(),
 });
 
