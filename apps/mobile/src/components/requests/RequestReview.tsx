@@ -82,7 +82,8 @@ export function RequestReview({
     }))
     .filter((row) => row.value);
 
-  const showUrgency = config.urgencyMode !== 'none';
+  const showUrgency =
+    config.urgencyMode !== 'none' || ctx.urgency !== 'NORMAL';
 
   return (
     <View>

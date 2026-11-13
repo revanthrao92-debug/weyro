@@ -11,6 +11,7 @@ import {
   composeTitle,
   initialValues,
   initialUrgency,
+  resolveUrgency,
   validateDraft,
   type DraftContext,
   type DraftValues,
@@ -69,10 +70,12 @@ const validValues: Record<ServiceCategory, DraftValues> = {
     affectedArea: 'Front bumper',
     issue: 'Deep dent on the front bumper after a parking knock.',
     drivable: 'No',
+    serviceMode: 'WORKSHOP_VISIT',
   },
   MAINTENANCE: {
     serviceType: 'Full service',
     odometer: '42500',
+    serviceMode: 'WORKSHOP_VISIT',
     preferredDate: addDaysISO(2),
   },
   SPARE_PART: {
@@ -86,7 +89,7 @@ const validValues: Record<ServiceCategory, DraftValues> = {
     vehicleCondition: "Won't start",
     towingType: 'FLATBED',
     pickupTime: 'Now',
-    emergency: 'No',
+    vehicleWeight: '2000',
   },
   ROADSIDE: {
     assistanceType: 'Battery',
@@ -94,6 +97,7 @@ const validValues: Record<ServiceCategory, DraftValues> = {
   },
   INSPECTION: {
     inspectionType: 'Pre-purchase',
+    serviceMode: 'WORKSHOP_VISIT',
     preferredDate: addDaysISO(3),
     preferredTime: 'Morning (9–12)',
   },
@@ -112,11 +116,12 @@ describe('service field configuration', () => {
       'affectedArea',
       'issue',
       'drivable',
+      'serviceMode',
     ]);
     expect(SERVICE_CONFIGS.MAINTENANCE.fields.map((f) => f.key)).toEqual([
       'serviceType',
       'odometer',
-      'lastServiceDate',
+      'serviceMode',
       'preferredDate',
       'notes',
     ]);
@@ -131,7 +136,7 @@ describe('service field configuration', () => {
       'vehicleCondition',
       'towingType',
       'pickupTime',
-      'emergency',
+      'vehicleWeight',
     ]);
     expect(SERVICE_CONFIGS.ROADSIDE.fields.map((f) => f.key)).toEqual([
       'assistanceType',
@@ -139,6 +144,7 @@ describe('service field configuration', () => {
     ]);
     expect(SERVICE_CONFIGS.INSPECTION.fields.map((f) => f.key)).toEqual([
       'inspectionType',
+      'serviceMode',
       'preferredDate',
       'preferredTime',
       'notes',
@@ -308,7 +314,7 @@ describe('submission mapping', () => {
     expect(pickup.address).toBe(HOME.address);
   });
 
-  it('maps supported roadside kinds and leaves lockout untyped', () => {
+  it('maps supported roadside kinds and leaves other untyped', () => {
     const battery = buildPayload(
       SERVICE_CONFIGS.ROADSIDE,
       context(validValues.ROADSIDE, { location: HOME, urgency: 'URGENT' }),
@@ -317,16 +323,62 @@ describe('submission mapping', () => {
     expect(battery.roadsideKind).toBe('BATTERY');
     expect(battery.fulfillmentType).toBe('ON_SITE');
 
-    const lockout = buildPayload(
+    const other = buildPayload(
       SERVICE_CONFIGS.ROADSIDE,
       context(
-        { assistanceType: 'Lockout', issue: 'Keys are locked inside the car.' },
+        { assistanceType: 'Other', issue: 'Keys are locked inside the car.' },
         { location: HOME },
       ),
       { photos: [], isBroadcast: true },
     );
-    expect(lockout.roadsideKind).toBeUndefined();
-    expect(lockout.description).toContain('Lockout');
+    expect(other.roadsideKind).toBeUndefined();
+    expect(other.description).toContain('Other');
+  });
+
+  it('sends the selected repair, maintenance and inspection service mode', () => {
+    const repair = buildPayload(
+      SERVICE_CONFIGS.REPAIR,
+      context({ ...validValues.REPAIR, serviceMode: 'ON_SITE' }),
+      { photos: [], isBroadcast: true },
+    );
+    expect(repair.fulfillmentType).toBe('ON_SITE');
+
+    const maintenance = buildPayload(
+      SERVICE_CONFIGS.MAINTENANCE,
+      context(validValues.MAINTENANCE),
+      { photos: [], isBroadcast: true },
+    );
+    expect(maintenance.fulfillmentType).toBe('WORKSHOP_VISIT');
+
+    const inspection = buildPayload(
+      SERVICE_CONFIGS.INSPECTION,
+      context(
+        { ...validValues.INSPECTION, serviceMode: 'ON_SITE' },
+        { location: HOME },
+      ),
+      { photos: [], isBroadcast: true },
+    );
+    expect(inspection.fulfillmentType).toBe('ON_SITE');
+  });
+
+  it('derives towing urgency from the pickup window and sends the weight', () => {
+    const payload = buildPayload(
+      SERVICE_CONFIGS.TOWING,
+      context(validValues.TOWING, {
+        location: HOME,
+        dropoff: KORAMANGALA,
+      }),
+      { photos: [], isBroadcast: true },
+    );
+    expect(payload.urgency).toBe('EMERGENCY');
+    expect(payload.vehicleWeightKg).toBe(2000);
+
+    expect(
+      resolveUrgency(SERVICE_CONFIGS.TOWING, { pickupTime: 'Within 1 hour' }, 'NORMAL'),
+    ).toBe('URGENT');
+    expect(
+      resolveUrgency(SERVICE_CONFIGS.TOWING, { pickupTime: 'Tomorrow' }, 'EMERGENCY'),
+    ).toBe('NORMAL');
   });
 
   it('falls back to manual vehicle fields when no saved vehicle is selected', () => {
@@ -415,7 +467,7 @@ describe('composition and prefills', () => {
     ).toMatchObject({ assistanceType: 'Battery' });
     expect(
       initialValues(SERVICE_CONFIGS.TOWING, 'Wheel-lift tow', 'EMERGENCY'),
-    ).toMatchObject({ towingType: 'HOOK_AND_CHAIN', emergency: 'Yes' });
+    ).toMatchObject({ towingType: 'HOOK_AND_CHAIN', pickupTime: 'Now' });
     expect(
       initialValues(SERVICE_CONFIGS.MAINTENANCE, 'AC service'),
     ).toMatchObject({ serviceType: 'AC service' });

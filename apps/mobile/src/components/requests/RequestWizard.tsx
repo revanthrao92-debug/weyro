@@ -46,6 +46,8 @@ import {
   initialUrgency,
   initialValues,
   isServiceCategory,
+  prettyDate,
+  resolveUrgency,
   urgencyLabel,
   validateDraft,
   type DraftContext,
@@ -112,25 +114,21 @@ function FieldBlock({
   }
 
   if (field.type === 'date') {
+    const quick = [
+      { label: 'Today', days: 0 },
+      { label: 'Tomorrow', days: 1 },
+      { label: 'In 3 days', days: 3 },
+      { label: 'Next week', days: 7 },
+    ];
     return (
       <View style={styles.field}>
-        <Input
-          label={label}
-          value={value}
-          onChangeText={onChange}
-          placeholder="YYYY-MM-DD"
-          error={error}
-          containerStyle={styles.inputContainer}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <Text style={styles.fieldLabel}>
+          {field.label}
+          {field.required ? <Text style={styles.required}> *</Text> : null}
+        </Text>
         {field.future ? (
           <View style={styles.quickDates}>
-            {[
-              { label: 'Today', days: 0 },
-              { label: 'Tomorrow', days: 1 },
-              { label: 'In 3 days', days: 3 },
-            ].map((option) => (
+            {quick.map((option) => (
               <Chip
                 key={option.label}
                 label={option.label}
@@ -140,6 +138,21 @@ function FieldBlock({
             ))}
           </View>
         ) : null}
+        {value ? (
+          <Text style={styles.dateSummary}>
+            Selected: {prettyDate(value)}
+          </Text>
+        ) : null}
+        <Input
+          label="Or enter a date"
+          value={value}
+          onChangeText={onChange}
+          placeholder="YYYY-MM-DD"
+          error={error}
+          containerStyle={styles.inputContainer}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
         {field.help ? <Text style={styles.help}>{field.help}</Text> : null}
       </View>
     );
@@ -286,12 +299,9 @@ export function RequestWizard() {
         null
       : null;
 
-  const effectiveUrgency: Urgency =
-    config?.urgencyMode === 'emergency'
-      ? values.emergency === 'Yes'
-        ? 'EMERGENCY'
-        : 'NORMAL'
-      : urgency;
+  const effectiveUrgency: Urgency = config
+    ? resolveUrgency(config, values, urgency)
+    : urgency;
 
   const ctx: DraftContext = {
     values,
@@ -950,6 +960,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xs,
     marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  dateSummary: {
+    ...typography.caption,
+    color: palette.accent,
+    marginBottom: spacing.xs,
   },
   textarea: { minHeight: 104, textAlignVertical: 'top' },
   fieldGap: { height: spacing.md },

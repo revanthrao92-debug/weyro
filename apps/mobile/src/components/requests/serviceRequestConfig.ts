@@ -75,7 +75,7 @@ export type ServiceConfig = {
   locationLabel: string;
   locationHelp: string;
   locationError: string;
-  urgencyMode: 'none' | 'select' | 'emergency';
+  urgencyMode: 'none' | 'select';
   defaults?: DraftValues;
   titleFor: (ctx: DraftContext) => string;
   extraDescription?: (ctx: DraftContext) => string[];
@@ -118,7 +118,6 @@ export const ROADSIDE_KIND_MAP: Record<
   Battery: 'BATTERY',
   'Flat tyre': 'TYRE',
   'Out of fuel': 'FUEL',
-  Lockout: undefined,
   Other: undefined,
 };
 
@@ -162,6 +161,17 @@ const SERVICE_LIST: ServiceConfig[] = [
         required: true,
         options: yesNo().concat([{ value: 'Not sure', label: 'Not sure' }]),
       },
+      {
+        key: 'serviceMode',
+        label: 'Where should the work happen?',
+        descriptionLabel: 'Service mode',
+        type: 'chips',
+        required: true,
+        options: [
+          { value: 'WORKSHOP_VISIT', label: 'Drop off at garage' },
+          { value: 'ON_SITE', label: 'At my location' },
+        ],
+      },
     ],
     photos: {
       label: 'Photos of the damage',
@@ -173,6 +183,7 @@ const SERVICE_LIST: ServiceConfig[] = [
     locationHelp: 'Saved address is used unless you change it.',
     locationError: 'Add the vehicle location so garages can reach you.',
     urgencyMode: 'none',
+    defaults: { serviceMode: 'WORKSHOP_VISIT' },
     titleFor: (ctx) => {
       const area = ctx.values.affectedArea;
       const damage = ctx.values.damageType;
@@ -222,12 +233,15 @@ const SERVICE_LIST: ServiceConfig[] = [
         help: 'Kilometres on the clock.',
       },
       {
-        key: 'lastServiceDate',
-        label: 'Last service date',
-        descriptionLabel: 'Last service',
-        type: 'date',
-        past: true,
-        help: 'Optional. Approximate is fine.',
+        key: 'serviceMode',
+        label: 'How should the service happen?',
+        descriptionLabel: 'Service mode',
+        type: 'chips',
+        required: true,
+        options: [
+          { value: 'WORKSHOP_VISIT', label: 'Drop off at garage' },
+          { value: 'ON_SITE', label: 'At my location' },
+        ],
       },
       {
         key: 'preferredDate',
@@ -251,6 +265,7 @@ const SERVICE_LIST: ServiceConfig[] = [
     locationHelp: 'Garage visit or your address — saved address is used by default.',
     locationError: 'Add the service location so garages can plan the work.',
     urgencyMode: 'none',
+    defaults: { serviceMode: 'WORKSHOP_VISIT' },
     titleFor: (ctx) =>
       ctx.values.serviceType && ctx.values.serviceType !== 'Other'
         ? ctx.values.serviceType
@@ -334,9 +349,17 @@ const SERVICE_LIST: ServiceConfig[] = [
       return qty > 1 ? `${name} ×${qty}` : name;
     },
     extraDescription: (ctx) => {
-      const lines = [
+      const lines: string[] = [];
+      if (ctx.selectedVehicle) {
+        lines.push(
+          `Vehicle: ${ctx.selectedVehicle.make} ${ctx.selectedVehicle.model}${
+            ctx.selectedVehicle.year ? ` ${ctx.selectedVehicle.year}` : ''
+          }${ctx.selectedVehicle.registrationNumber ? ` (${ctx.selectedVehicle.registrationNumber})` : ''}`,
+        );
+      }
+      lines.push(
         `Fulfilment: ${ctx.spareFulfillment === 'DELIVERY' ? 'Delivery' : 'Dealer pickup'}`,
-      ];
+      );
       if (ctx.spareFulfillment === 'DELIVERY') {
         const place = effectiveLocationFor(SERVICE_CONFIGS.SPARE_PART, ctx);
         if (place) lines.push(`Delivery address: ${place.address}`);
@@ -381,7 +404,7 @@ const SERVICE_LIST: ServiceConfig[] = [
       },
       {
         key: 'pickupTime',
-        label: 'Preferred pickup',
+        label: 'When do you need the tow?',
         descriptionLabel: 'Pickup time',
         type: 'chips',
         required: true,
@@ -393,12 +416,16 @@ const SERVICE_LIST: ServiceConfig[] = [
         ],
       },
       {
-        key: 'emergency',
-        label: 'Is this an emergency?',
-        descriptionLabel: 'Emergency',
+        key: 'vehicleWeight',
+        label: 'Approximate vehicle weight',
+        descriptionLabel: 'Vehicle weight',
         type: 'chips',
         required: true,
-        options: yesNo(),
+        options: [
+          { value: '1200', label: 'Up to 1,500 kg' },
+          { value: '2000', label: '1,500–2,500 kg' },
+          { value: '3000', label: 'Over 2,500 kg' },
+        ],
       },
     ],
     locationMode: 'trip',
@@ -406,8 +433,8 @@ const SERVICE_LIST: ServiceConfig[] = [
     locationLabel: 'Pickup point',
     locationHelp: 'Where is the vehicle now? Drag the pin to fine-tune.',
     locationError: 'Confirm the pickup point.',
-    urgencyMode: 'emergency',
-    defaults: { emergency: 'No' },
+    urgencyMode: 'none',
+    defaults: { pickupTime: 'Today' },
     titleFor: (ctx) =>
       ctx.dropoff ? `Tow to ${shortPlace(ctx.dropoff)}` : 'Towing request',
     extraDescription: (ctx) => {
@@ -440,7 +467,6 @@ const SERVICE_LIST: ServiceConfig[] = [
           { value: 'Battery', label: 'Battery' },
           { value: 'Flat tyre', label: 'Flat tyre' },
           { value: 'Out of fuel', label: 'Out of fuel' },
-          { value: 'Lockout', label: 'Lockout' },
           { value: 'Other', label: 'Other' },
         ],
       },
@@ -498,6 +524,17 @@ const SERVICE_LIST: ServiceConfig[] = [
         ],
       },
       {
+        key: 'serviceMode',
+        label: 'Where should the inspection happen?',
+        descriptionLabel: 'Inspection mode',
+        type: 'chips',
+        required: true,
+        options: [
+          { value: 'WORKSHOP_VISIT', label: 'At garage' },
+          { value: 'ON_SITE', label: 'At my location' },
+        ],
+      },
+      {
         key: 'preferredDate',
         label: 'Preferred date',
         type: 'date',
@@ -529,6 +566,7 @@ const SERVICE_LIST: ServiceConfig[] = [
     locationHelp: 'Where should the inspector meet the vehicle?',
     locationError: 'Confirm the inspection location.',
     urgencyMode: 'none',
+    defaults: { serviceMode: 'WORKSHOP_VISIT' },
     titleFor: (ctx) =>
       ctx.values.inspectionType
         ? `${ctx.values.inspectionType} inspection`
@@ -786,10 +824,27 @@ export function initialValues(
   if (prefillTitle) {
     Object.assign(values, config.prefill?.(prefillTitle) ?? {});
   }
-  if (config.urgencyMode === 'emergency' && urgencyParam === 'EMERGENCY') {
-    values.emergency = 'Yes';
+  if (config.category === 'TOWING' && urgencyParam === 'EMERGENCY') {
+    values.pickupTime = 'Now';
   }
   return values;
+}
+
+/**
+ * Towing captures timing as the pickup window, so urgency is derived instead of
+ * asking the same question twice. Other services use the selected urgency.
+ */
+export function resolveUrgency(
+  config: ServiceConfig,
+  values: DraftValues,
+  urgency: Urgency,
+): Urgency {
+  if (config.category === 'TOWING') {
+    if (values.pickupTime === 'Now') return 'EMERGENCY';
+    if (values.pickupTime === 'Within 1 hour') return 'URGENT';
+    return 'NORMAL';
+  }
+  return urgency;
 }
 
 export function initialUrgency(
@@ -823,7 +878,7 @@ export function buildPayload(
     address: place.address,
     latitude: place.latitude,
     longitude: place.longitude,
-    urgency: ctx.urgency,
+    urgency: resolveUrgency(config, ctx.values, ctx.urgency),
     mediaUrls: extras.photos,
     damagePhotos: extras.photos,
     isBroadcast: extras.isBroadcast,
@@ -848,6 +903,10 @@ export function buildPayload(
       | 'HOOK_AND_CHAIN'
       | 'MOTORCYCLE'
       | 'ANY';
+    const weight = Number(ctx.values.vehicleWeight);
+    if (Number.isFinite(weight) && weight > 0) {
+      payload.vehicleWeightKg = weight;
+    }
   } else if (config.category === 'SPARE_PART') {
     payload.fulfillmentType =
       ctx.spareFulfillment === 'DELIVERY' ? 'PARTS_SHIPPING' : 'WORKSHOP_VISIT';
@@ -856,7 +915,9 @@ export function buildPayload(
     payload.roadsideKind =
       ROADSIDE_KIND_MAP[ctx.values.assistanceType] ?? undefined;
   } else {
-    payload.fulfillmentType = 'ON_SITE';
+    // Repair, maintenance and inspection all collect an explicit service mode.
+    payload.fulfillmentType =
+      ctx.values.serviceMode === 'ON_SITE' ? 'ON_SITE' : 'WORKSHOP_VISIT';
   }
 
   return payload;
