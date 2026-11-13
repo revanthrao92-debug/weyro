@@ -4,6 +4,7 @@ import {
   Activity,
   Bell,
   ChevronRight,
+  ClipboardList,
   Landmark,
   LifeBuoy,
   LogOut,
@@ -85,6 +86,12 @@ export function AdminProfileScreen() {
           label="Providers"
           detail="Verification and onboarding"
           onPress={() => router.push('/providers')}
+        />
+        <Action
+          icon={<ClipboardList size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Operations"
+          detail="Orders, jobs and disputes"
+          onPress={() => router.push('/operations')}
         />
         <Action
           icon={<Landmark size={17} color={palette.textSecondary} strokeWidth={1.8} />}

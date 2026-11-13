@@ -57,6 +57,35 @@ export const adminActivityQuerySchema = cursorPaginationSchema.extend({
   action: z.string().max(100).optional(),
 });
 
+export const adminOrdersQuerySchema = z
+  .object({
+    status: z
+      .enum(['PENDING', 'PAID', 'CANCELLED', 'FAILED', 'REFUNDED'])
+      .optional(),
+    fulfillmentStatus: z
+      .enum(['PENDING', 'PROCESSING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
+      .optional(),
+  })
+  .strict();
+
+export const adminBookingsQuerySchema = z
+  .object({
+    status: z
+      .enum([
+        'CONFIRMED',
+        'PROVIDER_EN_ROUTE',
+        'IN_PROGRESS',
+        'COMPLETED',
+        'CANCELLED',
+        'DISPUTED',
+      ])
+      .optional(),
+    category: z
+      .enum(['REPAIR', 'MAINTENANCE', 'SPARE_PART', 'TOWING', 'ROADSIDE', 'INSPECTION'])
+      .optional(),
+  })
+  .strict();
+
 export const providerAdminQuerySchema = z
   .object({
     status: z.enum(['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED']).optional(),
@@ -70,3 +99,5 @@ export type BookingsQuery = z.infer<typeof bookingsQuerySchema>;
 export type SparePartOrderQuery = z.infer<typeof sparePartOrderQuerySchema>;
 export type ProviderAdminQuery = z.infer<typeof providerAdminQuerySchema>;
 export type AdminActivityQuery = z.infer<typeof adminActivityQuerySchema>;
+export type AdminOrdersQuery = z.infer<typeof adminOrdersQuerySchema>;
+export type AdminBookingsQuery = z.infer<typeof adminBookingsQuerySchema>;

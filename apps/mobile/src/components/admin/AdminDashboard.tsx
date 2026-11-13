@@ -9,6 +9,7 @@ import {
   Activity,
   Bell,
   ChevronRight,
+  ClipboardList,
   Landmark,
   ShieldCheck,
 } from 'lucide-react-native';
@@ -192,6 +193,12 @@ export function AdminDashboard() {
           label="Provider verification"
           detail={`${data.pendingVerifications} pending`}
           onPress={() => router.push('/providers')}
+        />
+        <ActionRow
+          icon={<ClipboardList size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Orders and jobs"
+          detail="Refunds, disputes and fulfillment"
+          onPress={() => router.push('/operations')}
         />
         <ActionRow
           icon={<Landmark size={17} color={palette.textSecondary} strokeWidth={1.8} />}

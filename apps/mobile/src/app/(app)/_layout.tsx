@@ -6,6 +6,7 @@ import {
   Bell,
   Briefcase,
   CalendarDays,
+  ClipboardList,
   Gauge,
   House,
   Landmark,
@@ -82,6 +83,7 @@ export default function AppLayout() {
         <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ href: null }} />,
         <Tabs.Screen key="jobs" name="jobs" options={{ href: null }} />,
         <Tabs.Screen key="quotes" name="quotes" options={{ href: null }} />,
+        <Tabs.Screen key="operations" name="operations" options={{ href: null }} />,
       ]
     : isMechanic || isAssist
     ? [
@@ -119,14 +121,16 @@ export default function AppLayout() {
         <Tabs.Screen key="orders" name="orders" options={{ href: null }} />,
         <Tabs.Screen key="jobs" name="jobs" options={{ href: null }} />,
         <Tabs.Screen key="quotes" name="quotes" options={{ href: null }} />,
+        <Tabs.Screen key="operations" name="operations" options={{ href: null }} />,
       ]
     : role === 'ADMIN'
       ? [
           <Tabs.Screen key="index" name="index" options={{ title: 'Overview', tabBarIcon: tabIcon(Gauge) }} />,
           <Tabs.Screen key="providers" name="providers" options={{ title: 'Providers', tabBarIcon: tabIcon(Wrench) }} />,
+          <Tabs.Screen key="operations" name="operations" options={{ title: 'Operations', tabBarIcon: tabIcon(ClipboardList) }} />,
           <Tabs.Screen key="escrow" name="escrow" options={{ title: 'Escrow', tabBarIcon: tabIcon(Landmark) }} />,
           <Tabs.Screen key="activity" name="activity" options={{ title: 'Activity', tabBarIcon: tabIcon(Activity) }} />,
-          <Tabs.Screen key="notifications" name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon(Bell) }} />,
+          <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
           <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,
           <Tabs.Screen key="bookings" name="bookings" options={{ href: null }} />,
           <Tabs.Screen key="messages" name="messages" options={{ href: null }} />,
@@ -154,6 +158,7 @@ export default function AppLayout() {
             <Tabs.Screen key="my-listings" name="my-listings" options={{ href: null }} />,
             <Tabs.Screen key="jobs" name="jobs" options={{ href: null }} />,
             <Tabs.Screen key="quotes" name="quotes" options={{ href: null }} />,
+            <Tabs.Screen key="operations" name="operations" options={{ href: null }} />,
             ...hiddenDriverScreens,
           ]
         : [
@@ -171,6 +176,7 @@ export default function AppLayout() {
             <Tabs.Screen key="my-listings" name="my-listings" options={{ href: null }} />,
             <Tabs.Screen key="jobs" name="jobs" options={{ href: null }} />,
             <Tabs.Screen key="quotes" name="quotes" options={{ href: null }} />,
+            <Tabs.Screen key="operations" name="operations" options={{ href: null }} />,
             ...hiddenDriverScreens,
           ];
 

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyProviderDto } from './dto/verify-provider.dto';
 import {
@@ -11,10 +16,17 @@ import {
   decodeCursor,
   encodeCursor,
 } from '../../common/utils/cursor';
+import {
+  PAYMENT_GATEWAY,
+  PaymentGateway,
+} from '../payments/interfaces/payment-gateway.interface';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+  ) {}
 
   async getOverview(): Promise<AdminOverviewMetrics> {
     const [
@@ -54,6 +66,140 @@ export class AdminService {
       totalEscrowVolume,
       pendingVerifications,
       verifiedProviders,
+    };
+  }
+
+  async getOrders(params: { status?: string; fulfillmentStatus?: string }) {
+    const items = await this.prisma.sparePartOrder.findMany({
+      where: {
+        deletedAt: null,
+        ...(params.status ? { status: params.status as any } : {}),
+        ...(params.fulfillmentStatus
+          ? { fulfillmentStatus: params.fulfillmentStatus as any }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        status: true,
+        fulfillmentStatus: true,
+        quantity: true,
+        totalAmount: true,
+        currency: true,
+        createdAt: true,
+        paidAt: true,
+        refundedAt: true,
+        carrierName: true,
+        trackingNumber: true,
+        sparePart: { select: { name: true, partNumber: true } },
+        provider: { select: { businessName: true, providerType: true } },
+        customer: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    return {
+      items: items.map((item) => ({
+        ...item,
+        totalAmount: Number(item.totalAmount),
+      })),
+    };
+  }
+
+  async getBookings(params: { status?: string; category?: string }) {
+    const items = await this.prisma.booking.findMany({
+      where: {
+        deletedAt: null,
+        ...(params.status ? { status: params.status as any } : {}),
+        ...(params.category
+          ? { quotation: { request: { category: params.category as any } } }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        customer: { select: { firstName: true, lastName: true } },
+        provider: { select: { businessName: true, providerType: true } },
+        quotation: {
+          include: {
+            request: {
+              select: {
+                id: true,
+                title: true,
+                category: true,
+                address: true,
+              },
+            },
+          },
+        },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    return {
+      items: items.map((booking) => ({
+        id: booking.id,
+        status: booking.status,
+        scheduledAt: booking.scheduledAt,
+        createdAt: booking.createdAt,
+        completedAt: booking.completedAt,
+        completionNotes: booking.completionNotes,
+        customer: booking.customer,
+        provider: booking.provider,
+        request: booking.quotation?.request ?? null,
+        totalCost: Number(booking.quotation?.totalCost ?? 0),
+        payment: booking.payments[0]
+          ? {
+              id: booking.payments[0].id,
+              status: booking.payments[0].status,
+              amount: Number(booking.payments[0].amount),
+            }
+          : null,
+      })),
+    };
+  }
+
+  async refundBooking(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    if (!booking || booking.deletedAt) {
+      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+    }
+
+    const payment = booking.payments[0];
+    if (!payment) {
+      throw new ConflictException('Booking has no payment to refund');
+    }
+    if (!['AUTHORIZED', 'CAPTURED', 'RELEASED'].includes(payment.status)) {
+      throw new ConflictException(
+        `Cannot refund a payment in ${payment.status} status`,
+      );
+    }
+    if (!payment.gatewayPaymentId) {
+      throw new ConflictException('Payment has no gateway reference to refund');
+    }
+
+    const refund = await this.gateway.refundPayment({
+      paymentId: payment.gatewayPaymentId,
+      amountInPaise: Math.round(Number(payment.amount) * 100),
+      notes: { bookingId, reason: 'admin_refund' },
+    });
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: 'REFUNDED' },
+    });
+
+    return {
+      bookingId,
+      paymentId: payment.id,
+      status: 'REFUNDED',
+      refundId: refund.refundId,
     };
   }
 

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,10 @@ import {
   providerAdminQuerySchema,
   AdminActivityQuery,
   adminActivityQuerySchema,
+  AdminOrdersQuery,
+  adminOrdersQuerySchema,
+  AdminBookingsQuery,
+  adminBookingsQuerySchema,
 } from '../../common/dto/query.dto';
 import { idParamSchema } from '../../common/dto/id-param.schema';
 
@@ -31,6 +36,25 @@ export class AdminController {
   @Get('overview')
   async getOverview() {
     return this.service.getOverview();
+  }
+
+  @Get('orders')
+  async getOrders(
+    @Query(new ZodValidationPipe(adminOrdersQuerySchema)) query: AdminOrdersQuery,
+  ) {
+    return this.service.getOrders(query);
+  }
+
+  @Get('bookings')
+  async getBookings(
+    @Query(new ZodValidationPipe(adminBookingsQuerySchema)) query: AdminBookingsQuery,
+  ) {
+    return this.service.getBookings(query);
+  }
+
+  @Post('bookings/:id/refund')
+  async refundBooking(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
+    return this.service.refundBooking(id);
   }
 
   @Get('providers')

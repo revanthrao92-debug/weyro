@@ -159,3 +159,93 @@ export function useAdminActivityStats() {
     queryFn: async () => apiClient<AdminActivityStats>('/admin/activity-stats'),
   });
 }
+
+export type AdminOrder = {
+  id: string;
+  status: string;
+  fulfillmentStatus: string;
+  quantity: number;
+  totalAmount: number;
+  currency: string;
+  createdAt: string;
+  paidAt: string | null;
+  refundedAt: string | null;
+  carrierName: string | null;
+  trackingNumber: string | null;
+  sparePart: { name: string; partNumber: string } | null;
+  provider: { businessName: string; providerType: string } | null;
+  customer: { firstName: string; lastName: string } | null;
+};
+
+export type AdminBooking = {
+  id: string;
+  status: string;
+  scheduledAt: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  completionNotes: string | null;
+  customer: { firstName: string; lastName: string } | null;
+  provider: { businessName: string; providerType: string } | null;
+  request: {
+    id: string;
+    title: string;
+    category: string;
+    address: string;
+  } | null;
+  totalCost: number;
+  payment: { id: string; status: string; amount: number } | null;
+};
+
+export function useAdminOrders(params?: {
+  status?: string;
+  fulfillmentStatus?: string;
+}) {
+  return useQuery({
+    queryKey: ['adminOrders', params],
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set('status', params.status);
+      if (params?.fulfillmentStatus)
+        qs.set('fulfillmentStatus', params.fulfillmentStatus);
+      return apiClient<{ items: AdminOrder[] }>(`/admin/orders?${qs.toString()}`);
+    },
+  });
+}
+
+export function useAdminBookings(params?: { status?: string; category?: string }) {
+  return useQuery({
+    queryKey: ['adminBookings', params],
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set('status', params.status);
+      if (params?.category) qs.set('category', params.category);
+      return apiClient<{ items: AdminBooking[] }>(
+        `/admin/bookings?${qs.toString()}`,
+      );
+    },
+  });
+}
+
+export function useAdminRefundOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) =>
+      apiClient(`/spare-parts/orders/${orderId}/refund`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
+    },
+  });
+}
+
+export function useAdminRefundBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bookingId: string) =>
+      apiClient(`/admin/bookings/${bookingId}/refund`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
+    },
+  });
+}

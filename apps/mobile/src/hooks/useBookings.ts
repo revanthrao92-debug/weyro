@@ -157,6 +157,8 @@ export function useUpdateBookingStatus() {
       const id = (variables as { id: string }).id;
       queryClient.invalidateQueries({ queryKey: ['booking', id] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
     },
   });
 }

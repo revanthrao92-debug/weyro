@@ -97,6 +97,9 @@ export const BOOKING_TRANSITIONS: TransitionRule<BookingStatus>[] = [
   { from: 'IN_PROGRESS', to: 'COMPLETED', allowedActors: ['PROVIDER', 'BOTH', 'ADMIN'] },
   { from: 'IN_PROGRESS', to: 'DISPUTED', allowedActors: ['CUSTOMER', 'BOTH', 'ADMIN'] },
   { from: 'COMPLETED', to: 'DISPUTED', allowedActors: ['CUSTOMER', 'BOTH', 'ADMIN'] },
+  { from: 'DISPUTED', to: 'IN_PROGRESS', allowedActors: ['ADMIN'] },
+  { from: 'DISPUTED', to: 'COMPLETED', allowedActors: ['ADMIN'] },
+  { from: 'DISPUTED', to: 'CANCELLED', allowedActors: ['ADMIN'] },
 ];
 
 export function validateBookingTransition(
