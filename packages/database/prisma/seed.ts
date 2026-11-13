@@ -11,8 +11,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   if (process.env.NODE_ENV === 'production') {
-    console.warn('⚠️ Seeding is disabled in production environments.');
-    return;
+    throw new Error(
+      'Refusing to seed demo/development accounts in production. Set NODE_ENV explicitly for non-production environments.',
+    );
   }
 
   console.log('🌱 Starting Weyro database seeding for Indian market (INR / UPI / +91)...');

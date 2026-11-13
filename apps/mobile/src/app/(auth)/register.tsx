@@ -11,11 +11,28 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Input, Chip, BackButton } from '@/components/ui';
+import * as Location from 'expo-location';
+import { Input, Chip, BackButton, Button } from '@/components/ui';
 import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
+
+const PROVIDER_TYPES = [
+  { value: 'MECHANIC', label: 'Mechanic' },
+  { value: 'GARAGE', label: 'Garage' },
+  { value: 'PARTS_DEALER', label: 'Parts dealer' },
+  { value: 'TOWING', label: 'Towing' },
+  { value: 'ROADSIDE', label: 'Roadside' },
+  { value: 'DRIVER', label: 'Driver' },
+] as const;
+
+const TOWING_TYPES = [
+  { value: 'FLATBED', label: 'Flatbed' },
+  { value: 'HOOK_AND_CHAIN', label: 'Hook & chain' },
+  { value: 'MOTORCYCLE', label: 'Motorcycle' },
+  { value: 'ANY', label: 'Any' },
+] as const;
 
 /** Role carried over from the Login screen's role buttons (Customer/Dealer/Mechanic). */
 function roleFromParams(
@@ -25,8 +42,9 @@ function roleFromParams(
   const key = Array.isArray(roleKey) ? roleKey[0] : roleKey;
   const api = Array.isArray(apiRole) ? apiRole[0] : apiRole;
   if (api === 'PROVIDER') return 'PROVIDER';
-  if (key === 'DEALER') return 'PROVIDER';
-  if (key === 'MECHANIC') return 'PROVIDER';
+  if (key === 'DEALER' || key === 'MECHANIC' || key === 'OTHER') {
+    return 'PROVIDER';
+  }
   return 'CUSTOMER';
 }
 
@@ -43,6 +61,12 @@ export default function RegisterScreen() {
     firstName: string;
     lastName: string;
     businessName: string;
+    providerType: string;
+    description: string;
+    address: string;
+    latitude: number | null;
+    longitude: number | null;
+    towingVehicleTypes: string[];
   }>({
     email: '',
     phone: '',
@@ -51,11 +75,69 @@ export default function RegisterScreen() {
     firstName: '',
     lastName: '',
     businessName: '',
+    providerType:
+      (Array.isArray(roleKey) ? roleKey[0] : roleKey) === 'DEALER'
+        ? 'PARTS_DEALER'
+        : 'MECHANIC',
+    description: '',
+    address: '',
+    latitude: null,
+    longitude: null,
+    towingVehicleTypes: [],
   });
+  const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  async function captureCurrentLocation() {
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Location needed',
+          'Allow location access so customers can find your business.',
+        );
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+      let address = form.address;
+      try {
+        const [place] = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+        if (place) {
+          address = [
+            place.name,
+            place.street,
+            place.district ?? place.city,
+            place.region,
+            place.postalCode,
+          ]
+            .filter(Boolean)
+            .join(', ');
+        }
+      } catch {
+        // Keep the typed address; coordinates are still valid.
+      }
+      setForm((current) => ({
+        ...current,
+        latitude,
+        longitude,
+        address: address || current.address,
+      }));
+    } catch {
+      Alert.alert('Could not get location', 'Enter your address and try again.');
+    } finally {
+      setLocating(false);
+    }
+  }
 
   async function handleRegister() {
     const { email, phone, password, role, firstName, lastName, businessName } = form;
@@ -67,6 +149,36 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Password must be at least 8 characters');
       return;
     }
+    const isProvider = role === 'PROVIDER' || role === 'BOTH';
+    if (isProvider) {
+      if (!businessName.trim() || !form.address.trim()) {
+        Alert.alert(
+          'Business details needed',
+          'Add your business name and address so customers can find you.',
+        );
+        return;
+      }
+      if (
+        form.latitude === null ||
+        form.longitude === null
+      ) {
+        Alert.alert(
+          'Location needed',
+          'Use your current location so Weyro can match nearby work.',
+        );
+        return;
+      }
+      if (
+        form.providerType === 'TOWING' &&
+        form.towingVehicleTypes.length === 0
+      ) {
+        Alert.alert(
+          'Towing equipment needed',
+          'Select at least one towing vehicle type.',
+        );
+        return;
+      }
+    }
     setLoading(true);
     try {
       await register({
@@ -77,15 +189,16 @@ export default function RegisterScreen() {
         firstName,
         lastName,
         businessName: businessName || undefined,
-        providerType:
-          role === 'PROVIDER'
-            ? roleKey === 'DEALER' || (Array.isArray(roleKey) && roleKey[0] === 'DEALER')
-              ? 'DEALER'
-              : 'MECHANIC'
-            : undefined,
-        description:
-          role === 'PROVIDER' || role === 'BOTH'
-            ? 'Automotive service & parts specialist'
+        providerType: isProvider ? form.providerType : undefined,
+        description: isProvider
+          ? form.description.trim() || undefined
+          : undefined,
+        address: isProvider ? form.address.trim() : undefined,
+        latitude: isProvider ? form.latitude ?? undefined : undefined,
+        longitude: isProvider ? form.longitude ?? undefined : undefined,
+        towingVehicleTypes:
+          isProvider && form.providerType === 'TOWING'
+            ? form.towingVehicleTypes
             : undefined,
       });
       router.replace('/(app)');
@@ -170,12 +283,93 @@ export default function RegisterScreen() {
           </View>
 
           {form.role !== 'CUSTOMER' && (
-            <Input
-              label="Business name"
-              placeholder="e.g. Sharma Motors"
-              value={form.businessName}
-              onChangeText={(t) => setForm({ ...form, businessName: t })}
-            />
+            <>
+              <Input
+                label="Business name"
+                placeholder="e.g. Sharma Motors"
+                value={form.businessName}
+                onChangeText={(t) => setForm({ ...form, businessName: t })}
+              />
+
+              <Text style={styles.label}>Provider type</Text>
+              <View style={styles.roleSelector}>
+                {PROVIDER_TYPES.map((type) => (
+                  <View key={type.value} style={styles.roleChip}>
+                    <Chip
+                      label={type.label}
+                      selected={form.providerType === type.value}
+                      onPress={() =>
+                        setForm({ ...form, providerType: type.value })
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+
+              {form.providerType === 'TOWING' ? (
+                <>
+                  <Text style={styles.label}>Towing equipment</Text>
+                  <View style={styles.roleSelector}>
+                    {TOWING_TYPES.map((type) => {
+                      const selected = form.towingVehicleTypes.includes(
+                        type.value,
+                      );
+                      return (
+                        <View key={type.value} style={styles.roleChip}>
+                          <Chip
+                            label={type.label}
+                            selected={selected}
+                            onPress={() =>
+                              setForm({
+                                ...form,
+                                towingVehicleTypes: selected
+                                  ? form.towingVehicleTypes.filter(
+                                      (value) => value !== type.value,
+                                    )
+                                  : [...form.towingVehicleTypes, type.value],
+                              })
+                            }
+                          />
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              <Input
+                label="Business address"
+                placeholder="Street, area, city"
+                value={form.address}
+                onChangeText={(t) => setForm({ ...form, address: t })}
+                multiline
+              />
+              <Button
+                title={
+                  locating
+                    ? 'Getting location…'
+                    : form.latitude !== null
+                      ? 'Location set — update'
+                      : 'Use my current location'
+                }
+                variant="secondary"
+                onPress={() => void captureCurrentLocation()}
+                loading={locating}
+                disabled={locating}
+              />
+              <Text style={styles.locationHelp}>
+                Customers only see your approximate distance, never your exact
+                pin.
+              </Text>
+
+              <Input
+                label="About your business"
+                placeholder="Services, specialties, years of experience"
+                value={form.description}
+                onChangeText={(t) => setForm({ ...form, description: t })}
+                multiline
+              />
+            </>
           )}
         </View>
 
@@ -219,6 +413,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   topBarSpacer: { width: 44 },
+  locationHelp: {
+    ...typography.caption,
+    color: palette.textMuted,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
   eyebrow: {
     ...typography.label,
     color: palette.accent,

@@ -44,6 +44,12 @@ const DEMO_PARTS = [
 ];
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed demo/development accounts in production. Set NODE_ENV explicitly for non-production environments.',
+    );
+  }
+
   const passwordHash = await bcrypt.hash('WeyroDev@2026', 12);
 
   let dealerUser = await prisma.user.findUnique({

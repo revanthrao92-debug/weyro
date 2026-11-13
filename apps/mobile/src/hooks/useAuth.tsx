@@ -266,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSessionExpiredHandler(async () => {
       await tokenStorage.clearAll();
+      await clearOfflineQueue();
       setAccessToken(null);
       setUser(null);
     });
@@ -312,4 +313,5 @@ interface RegisterData {
   address?: string;
   latitude?: number;
   longitude?: number;
+  towingVehicleTypes?: string[];
 }

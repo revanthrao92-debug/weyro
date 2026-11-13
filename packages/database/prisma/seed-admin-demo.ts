@@ -85,6 +85,12 @@ async function ensureProvider(input: {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed demo/development accounts in production. Set NODE_ENV explicitly for non-production environments.',
+    );
+  }
+
   const pending = await ensureProvider({
     email: 'pending@weyro.dev',
     phone: '+919880055667',

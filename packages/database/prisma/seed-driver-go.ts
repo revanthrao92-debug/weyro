@@ -32,6 +32,12 @@ function atTime(hour: number, dayOffset = 0) {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed demo/development accounts in production. Set NODE_ENV explicitly for non-production environments.',
+    );
+  }
+
   const demoPasswordHash = await bcrypt.hash('DriverGo123', 12);
   const customerUser = await prisma.user.upsert({
     where: { email: 'drivergo.customer@weyro.dev' },
