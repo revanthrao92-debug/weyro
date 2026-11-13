@@ -41,8 +41,8 @@
     "json"
   ],
   "lastPass": {
-    "at": "2026-11-13T16:10:04+00:00",
-    "commit": "2d46c91",
+    "at": "2026-11-13T16:16:25+00:00",
+    "commit": "0798040",
     "gates": "api tsc 0; api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 63/63"
   },
   "leftAlone": {
@@ -57,7 +57,7 @@
     "apps/mobile/src/maps/LocationPicker.tsx": "826 lines, new cohesive map UI; do not split yet"
   },
   "nextMoves": [
-    "split dealer dashboard and request detail with tests; add admin operations mobile tests"
+    "split home and request wizard screens; add admin operations tests; add env config tests"
   ],
   "scopes": [
     "apps",
@@ -84,7 +84,7 @@
     "apps/api/src/common/interceptors/idempotency.interceptor.spec.ts": "a8422478fbe31ff3a43227761dec915c95d557deb7d30028d57b188ca113ba19",
     "apps/api/src/common/interceptors/idempotency.interceptor.ts": "37a81c9957902e92659d6d01bd550e9441c90f812b42e5fac9f3194902f38f02",
     "apps/api/src/common/logger/http-serializers.spec.ts": "b8f71e76ba7a1ebb022957cab7db3da85f17ac83e3816e1a5de341d27e80bdf4",
-    "apps/api/src/common/logger/http-serializers.ts": "3bc87455ec6a7f448903adbbb5613894bfb7f7c0e6c90c83665f86ddd01678a0",
+    "apps/api/src/common/logger/http-serializers.ts": "a1b7d89238665ffd2958f9a87ea58f546d2bcd654a6fb1e62b5bae86103a2cb4",
     "apps/api/src/common/logger/pino.logger.ts": "9e01ba923fa0cbfc7e4ad9860072eed74d21f570df919d777cc713877178fdc7",
     "apps/api/src/common/pipes/zod-validation.pipe.ts": "4e4997fd4598e0de99b93c1b3f5d3411d54d316bbc6278a1b671fac0aefc848e",
     "apps/api/src/common/redis/cache.service.ts": "b07f80ab0a70b679d54527d675575450e8c7b6a4aa7527a34f97e021f751e816",
@@ -96,12 +96,12 @@
     "apps/api/src/common/state-machines/state-machines.ts": "12172d1a50b31f0f63c4c8717f72860a3a194168b557c4de41fe061033fb5d46",
     "apps/api/src/common/types/auth-user-payload.type.ts": "fe5dc6c0814f803a83fc3522d5781e91ddc61ec6f6b9a21c0602dceda16e44c7",
     "apps/api/src/common/utils/cursor.ts": "709cd56758f1ae045e54a8c3a7ed660f219b0c4e79242835cf89e61ade499c53",
-    "apps/api/src/config/env.config.ts": "58ccd49c496f3894a91513edcf0624c7a893ea827476a2d49596c9cb7a1039a8",
-    "apps/api/src/main.ts": "911108e566cf89a027cf2c33565dabfc90e8df8465bd0625b83e270c0ec5bd2b",
+    "apps/api/src/config/env.config.ts": "a7f4bb23eef5b2f14e47a8b4d563f4b561a7abc0afa3092da46a6628f70ac265",
+    "apps/api/src/main.ts": "87492eaa930d5c6a003548bf88d95c331a7fedffbb7068ad02c2b401c72439ad",
     "apps/api/src/modules/admin/admin.controller.ts": "af1f945a39f65c251008fc394b33db7dd3c961007e794f001c09331d62d72782",
     "apps/api/src/modules/admin/admin.module.ts": "f27a420fd7cf55b691a00b0d286efda472b7c7318c4d592a4ede9e622118f4f0",
     "apps/api/src/modules/admin/admin.service.spec.ts": "a2c7ec6f7c85097167f9e0449071ea9359cdd9cc7e9fb960df55dd6e205483f7",
-    "apps/api/src/modules/admin/admin.service.ts": "b0fe750a74a29a2aff31a6ba9e482c8189c8a467a6f571236d001cf5d77bdb71",
+    "apps/api/src/modules/admin/admin.service.ts": "cc7904fc8abe089a9cfeaf82465dfefa674278d8e178c77a9075d6194a00cef4",
     "apps/api/src/modules/admin/dto/verify-provider.dto.ts": "941ef7cabfa70d2467fc4f58c1ee1adeca5a8693c8f0e3a941414a5f43f1a4e4",
     "apps/api/src/modules/auth/auth.controller.ts": "54bed46df4e2ad725fe9dc8d18f2037508b9f2b2c1acf87057f058448c61083b",
     "apps/api/src/modules/auth/auth.module.ts": "3094cdd78948474c174bdb543c99404c686c3ab225f79d5461f03ee508b98934",
@@ -512,7 +512,7 @@
     "apps/mobile/src/utils/format.ts": "a66c756bd9c537beecf18d653ac127913751b9e93aefd437961064449862884a",
     "apps/mobile/tailwind.config.js": "1afb241def1b2ee491ee382147a865a5e5dfdb3ae31d8159bbd53632163d5788",
     "apps/mobile/tsconfig.json": "e2018f4555fb020c7f164228ccef235d5b3e861eefa1906574183b2089bdc608",
-    "package.json": "c9644de2bd8338c81e91b182a97e8838a0ed9e88ed0147922b83ab8cbbe05a0b",
+    "package.json": "d3c9baafe65c0cd3b462a2a4e24293edf7636b52173b208fb08ed00e0b67f806",
     "packages/api-contracts/package.json": "6ef0ad2480e48ad470bc43c0f3fa052178b6de26da6c2e1db7ff4dfb162681ac",
     "packages/api-contracts/src/index.ts": "cb042e941d2b9c8cd1db5ae1cc82e9a11b55be4f3404d20b4cdfa19113bd21fd",
     "packages/api-contracts/tsconfig.json": "dc028bb12dc509f94feace3d59ca95ac5f49c67b4707ebf22b3be06c2b99d5a4",
@@ -562,8 +562,8 @@
     "tsconfig.base.json": "352b221ba3270755e1d04a5bb1676284211f2e62b7e3a93f1739c492cb6a27c3",
     "tsconfig.json": "96f82049559b6a50052b25f697559f344e89f09e38e47dc20ca4215f8e9db307"
   },
-  "settledAt": "2026-11-13T16:10:04+00:00",
-  "settledReason": "dependency prune and login role testability",
-  "updatedAt": "2026-11-13T16:10:04+00:00",
+  "settledAt": "2026-11-13T16:16:25+00:00",
+  "settledReason": "deployment and logging hardening",
+  "updatedAt": "2026-11-13T16:16:25+00:00",
   "version": 1
 }
