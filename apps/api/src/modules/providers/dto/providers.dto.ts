@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 export const updateProviderProfileSchema = z
-  .object({
-    businessName: z.string().min(2).max(120).optional(),
+  .object({    businessName: z.string().min(2).max(120).optional(),
     description: z.string().min(10).max(1000).optional(),
     phone: z.string().min(8).max(20).optional(),
     address: z.string().min(5).max(300).optional(),
@@ -46,4 +45,32 @@ export class UpdateProviderProfileDto
   maxVehicleWeightKg?: number | null;
   towingBaseFee?: number | null;
   towingPerKmFee?: number | null;
+}
+
+export const submitVerificationDocumentsSchema = z
+  .object({
+    documents: z
+      .array(
+        z
+          .object({
+            label: z
+              .string()
+              .min(2)
+              .max(60)
+              .regex(/^[A-Za-z0-9 _-]+$/, 'Use letters, numbers, spaces, - or _'),
+            key: z.string().min(8).max(512),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(10),
+  })
+  .strict();
+
+export class SubmitVerificationDocumentsDto
+  implements z.infer<typeof submitVerificationDocumentsSchema>
+{
+  static readonly schema = submitVerificationDocumentsSchema;
+
+  documents!: Array<{ label: string; key: string }>;
 }

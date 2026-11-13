@@ -3,6 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import { lastValueFrom, of } from 'rxjs';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'crypto';
 
 function context(path: string, method: string, body: any, userId?: string) {
   const request: any = {
@@ -92,8 +93,7 @@ describe('IdempotencyInterceptor', () => {
     prisma.idempotencyKey.findUnique.mockResolvedValue({
       id: 'idem-1',
       status: 'PROCESSED',
-      requestHash: require('crypto')
-        .createHash('sha256')
+      requestHash: createHash('sha256')
         .update(JSON.stringify({ x: 1 }))
         .digest('hex'),
       responseStatus: 200,

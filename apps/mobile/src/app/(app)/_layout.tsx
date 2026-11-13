@@ -128,7 +128,7 @@ export default function AppLayout() {
           <Tabs.Screen key="index" name="index" options={{ title: 'Overview', tabBarIcon: tabIcon(Gauge) }} />,
           <Tabs.Screen key="providers" name="providers" options={{ title: 'Providers', tabBarIcon: tabIcon(Wrench) }} />,
           <Tabs.Screen key="operations" name="operations" options={{ title: 'Operations', tabBarIcon: tabIcon(ClipboardList) }} />,
-          <Tabs.Screen key="escrow" name="escrow" options={{ title: 'Escrow', tabBarIcon: tabIcon(Landmark) }} />,
+          <Tabs.Screen key="escrow" name="escrow" options={{ title: 'Payments', tabBarIcon: tabIcon(Landmark) }} />,
           <Tabs.Screen key="activity" name="activity" options={{ title: 'Activity', tabBarIcon: tabIcon(Activity) }} />,
           <Tabs.Screen key="notifications" name="notifications" options={{ href: null }} />,
           <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,

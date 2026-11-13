@@ -405,12 +405,11 @@ export default function MechanicJobDetailScreen() {
                 ? payment.status.toLowerCase()
                 : booking.status === 'COMPLETED'
                   ? 'released on completion'
-                  : 'held in escrow'
+                  : 'held until completion'
             }
           />
           <Text style={styles.meta}>
-            Funds release automatically when the job is marked complete. Payout
-            settlement is not yet shown in the app.
+            Weyro releases funds after the job is confirmed complete. Payout settlement is not yet shown in the app.
           </Text>
         </Card>
       </ScrollView>

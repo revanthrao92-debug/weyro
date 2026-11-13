@@ -185,8 +185,7 @@ export function useProviderProfile() {
   });
 }
 
-export function useUpdateProviderProfile() {
-  const queryClient = useQueryClient();
+export function useUpdateProviderProfile() {  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: {
@@ -214,8 +213,28 @@ export function useUpdateProviderProfile() {
   });
 }
 
-export function usePublicProvider(id: string) {
-  return useQuery({
+export function useSubmitVerificationDocuments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      documents: { label: string; key: string }[],
+    ) => {
+      return apiClient<{ verificationStatus: string; documentCount: number }>(
+        '/providers/me/verification-documents',
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ documents }),
+        },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['providerProfile'] });
+    },
+  });
+}
+
+export function usePublicProvider(id: string) {  return useQuery({
     queryKey: ['publicProvider', id],
     queryFn: async () => apiClient<ProviderProfile>(`/providers/${id}`),
     enabled: !!id,

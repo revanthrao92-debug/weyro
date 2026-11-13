@@ -1,6 +1,6 @@
 import { apiClient } from './api-client';
 
-export type UploadFolder = 'damage-requests' | 'vehicles' | 'avatars' | 'spare-parts';
+export type UploadFolder = 'damage-requests' | 'vehicles' | 'avatars' | 'spare-parts' | 'verification-documents';
 
 export interface UploadedImage {
   url: string;
@@ -31,11 +31,10 @@ interface PresignResponse {
 
 /**
  * Upload a local image (file:// uri from expo-image-picker) to the backend:
- * presign -> PUT the bytes -> finalize -> return the public URL.
+ * presign -> PUT the bytes -> finalize.
  *
- * Dev note: the default `mock` storage driver returns a non-routable presigned
- * URL, so the PUT is expected to fail locally. In __DEV__ we fall back to the
- * placeholder fileUrl it provides so the UI flow stays testable end-to-end.
+ * The returned URL is only ever the one the server finalized. A failed PUT
+ * must fail the upload; there is no placeholder success path.
  */
 export async function uploadImage(
   uri: string,
@@ -58,25 +57,23 @@ export async function uploadImage(
   });
   const presign = await apiClient<PresignResponse>(`/uploads/presigned-url?${qs.toString()}`);
 
-  try {
-    const put = await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body,
-    });
-    if (!put.ok) {
-      throw new Error(`Upload failed (${put.status})`);
-    }
-    const finalized = await apiClient<{ fileUrl: string; key: string }>('/uploads/finalize', {
-      method: 'POST',
-      body: JSON.stringify({ key: presign.key, contentType }),
-    });
-    return { url: finalized.fileUrl || presign.fileUrl, key: presign.key };
-  } catch (error) {
-    if (__DEV__) {
-      // Mock storage driver — keep the flow usable with its placeholder image.
-      return { url: presign.fileUrl, key: presign.key };
-    }
-    throw error;
+  const put = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body,
+  });
+  if (!put.ok) {
+    throw new Error(`Photo upload failed (${put.status}). Try again.`);
   }
+
+  const finalized = await apiClient<{ fileUrl: string; key: string }>('/uploads/finalize', {
+    method: 'POST',
+    body: JSON.stringify({ key: presign.key, contentType }),
+  });
+
+  if (!finalized.fileUrl) {
+    throw new Error('Photo upload could not be confirmed. Try again.');
+  }
+
+  return { url: finalized.fileUrl, key: presign.key };
 }

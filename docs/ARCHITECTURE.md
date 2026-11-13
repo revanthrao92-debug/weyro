@@ -85,5 +85,5 @@ Direct file uploads to the API process and local disk writes are completely deco
 
 - **Token Security**: Tokens are saved in hardware-backed secure storage via `expo-secure-store`.
 - **Resilient API Client**: Centralized `apiClient` manages automatic `Authorization: Bearer <token>` injection and intercepts HTTP 401s to perform stateful refresh token rotation seamlessly.
-- **Offline Mutation Queue**: Mutations are stored in `AsyncStorage`. JWTs are attached at dispatch time (not queue time) with unique idempotency keys. Failed requests retry with exponential backoff (up to 5 attempts); unrecoverable 4xx client errors are dropped to prevent poison-pill locks.
+- **Offline Mutation Queue**: Queueable non-financial mutations are stored through an encrypted persistence adapter (`SecureStore` native, `localStorage` on web). JWTs are attached at dispatch time (not queue time) with unique idempotency keys. Failed requests retry with exponential backoff (up to 5 attempts); unrecoverable 4xx client errors are dropped to prevent poison-pill locks.
 - **Modular Screen Architecture**: All primary screens (`index.tsx`, `quotes.tsx`, `explore.tsx`, `admin.tsx`) are decomposed into small, typed components ≤ 220 lines each.

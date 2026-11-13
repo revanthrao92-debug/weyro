@@ -10,10 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { hashDriverStartOtp } from './driver-otp';
-import {
-  rangesOverlap,
-  windowFitsAvailability,
-} from './driver-availability';
+import { windowFitsAvailability } from './driver-availability';
 import {
   calculateDriverFare,
   driverBookingEnd,

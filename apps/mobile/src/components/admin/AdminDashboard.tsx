@@ -131,7 +131,7 @@ export function AdminDashboard() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Escrow held and captured</Text>
+          <Text style={styles.heroLabel}>Payments collected</Text>
           <Text style={styles.heroValue}>{money(data.totalEscrowVolume)}</Text>
           <Text style={styles.heroMeta}>
             {data.pendingVerifications} providers awaiting verification ·{' '}
@@ -202,7 +202,7 @@ export function AdminDashboard() {
         />
         <ActionRow
           icon={<Landmark size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Escrow ledger"
+          label="Payment ledger"
           detail="Held, released and refunded payments"
           onPress={() => router.push('/escrow')}
         />

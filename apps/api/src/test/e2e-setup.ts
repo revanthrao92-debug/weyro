@@ -7,6 +7,7 @@
  * accidentally reach the live payment API.
  */
 process.env.NODE_ENV = 'test';
+process.env.PAYMENT_GATEWAY = 'mock';
 process.env.RAZORPAY_KEY_ID = '';
 process.env.RAZORPAY_KEY_SECRET = '';
 process.env.RAZORPAY_WEBHOOK_SECRET = '';

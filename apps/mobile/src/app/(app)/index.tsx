@@ -275,7 +275,7 @@ export default function HomeScreen() {
           <View style={styles.heroScrim} />
           <SideFade reach={0.72} opacity={0.86} />
           <View style={styles.heroContent}>
-            <Text style={styles.heroMeta}>Verified garages · escrow payments</Text>
+            <Text style={styles.heroMeta}>Verified garages · protected payments</Text>
             <Text style={styles.heroTitle}>Service, parts,{'\n'}roadside.</Text>
             <Text style={styles.heroSub}>
               Post one request. Compare quotes from verified garages near you.
@@ -574,7 +574,7 @@ export default function HomeScreen() {
             <View style={styles.bandContent}>
               <Text style={styles.bandTitle}>Every repair,{`
 `}documented.</Text>
-              <Text style={styles.bandMeta}>Photo quotes · escrow payments</Text>
+              <Text style={styles.bandMeta}>Photo quotes · protected payments</Text>
             </View>
           </View>
 
@@ -624,7 +624,7 @@ export default function HomeScreen() {
             {[
               ['Verified garages', 'Every partner is reviewed before quoting'],
               ['Photo-based quotes', 'Prices come from the photos you upload'],
-              ['Escrow payments', 'Funds release after the work is complete'],
+              ['Protected payments', 'Released after the work is confirmed complete'],
             ].map(([label, detail], i) => (
               <View key={label} style={[styles.assuranceRow, i > 0 && styles.rowDivider]}>
                 <Text style={styles.assuranceLabel}>{label}</Text>

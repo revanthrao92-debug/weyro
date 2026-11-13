@@ -7,6 +7,11 @@ import { MockPaymentGateway } from './gateways/mock.gateway';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { env } from '../../config/env.config';
 
+export function selectedGateway(): 'razorpay' | 'mock' {
+  if (env.PAYMENT_GATEWAY) return env.PAYMENT_GATEWAY;
+  return env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET ? 'razorpay' : 'mock';
+}
+
 @Module({
   imports: [NotificationsModule],
   controllers: [PaymentsController],
@@ -15,7 +20,7 @@ import { env } from '../../config/env.config';
     {
       provide: PAYMENT_GATEWAY,
       useClass:
-        env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
+        selectedGateway() === 'razorpay'
           ? RazorpayPaymentGateway
           : MockPaymentGateway,
     },

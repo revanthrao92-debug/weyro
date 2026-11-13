@@ -42,6 +42,9 @@ export const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // Explicit gateway choice. Omitted = Razorpay when keys exist, mock only in
+  // non-production. Production is rejected if mock is requested.
+  PAYMENT_GATEWAY: z.enum(['razorpay', 'mock']).optional(),
   // OTP hashing secret (HMAC-SHA256). Dev default keeps tests simple;
   // production must supply a real random secret.
   OTP_HASH_SECRET: z.string().default('weyro_dev_otp_hash_secret_32_chars_x'),
@@ -85,6 +88,23 @@ export const envSchema = z.object({
       code: "custom",
       path: ['STORAGE_DRIVER'],
       message: 'STORAGE_DRIVER must be s3 in production',
+    });
+  }
+
+  if (value.STORAGE_PUBLIC_URL) {
+    ctx.addIssue({
+      code: "custom",
+      path: ['STORAGE_PUBLIC_URL'],
+      message:
+        'STORAGE_PUBLIC_URL must be unset in production — uploads are served through short-lived signed URLs',
+    });
+  }
+
+  if (value.PAYMENT_GATEWAY === 'mock') {
+    ctx.addIssue({
+      code: "custom",
+      path: ['PAYMENT_GATEWAY'],
+      message: 'PAYMENT_GATEWAY=mock is not allowed in production',
     });
   }
 

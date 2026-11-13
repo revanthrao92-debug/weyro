@@ -239,7 +239,10 @@ export function RequestWizard() {
   const [errors, setErrors] = useState<RequestErrorMap>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState<{ title: string } | null>(null);
+  const [submitted, setSubmitted] = useState<{
+    title: string;
+    queued: boolean;
+  } | null>(null);
 
   const [photos, setPhotos] = useState<UploadedImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -415,8 +418,11 @@ export function RequestWizard() {
         photos: photos.map((photo) => photo.url),
         isBroadcast,
       });
-      await createRequest.mutateAsync(payload);
-      setSubmitted({ title: payload.title });
+      const result = await createRequest.mutateAsync(payload);
+      setSubmitted({
+        title: payload.title,
+        queued: Boolean((result as { queued?: boolean }).queued),
+      });
     } catch (error: any) {
       setFormError(error?.message || 'Could not send the request. Try again.');
     } finally {
@@ -429,10 +435,13 @@ export function RequestWizard() {
       <ScreenContainer chrome="dark" safeBottom>
         <View style={styles.success}>
           <CheckCircle2 size={42} color={palette.accent} strokeWidth={1.6} />
-          <Text style={styles.successTitle}>Request sent</Text>
+          <Text style={styles.successTitle}>
+            {submitted.queued ? 'Request saved' : 'Request sent'}
+          </Text>
           <Text style={styles.successBody}>
-            {submitted.title} is now with nearby verified providers. Quotes will
-            appear in your requests.
+            {submitted.queued
+              ? `${submitted.title} will be sent automatically when your connection returns. It is not with providers yet.`
+              : `${submitted.title} is now with nearby verified providers. Quotes will appear in your requests.`}
           </Text>
           <Button
             title="View my requests"

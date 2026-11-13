@@ -15,6 +15,7 @@ import {
   type EntryRole,
 } from '@/auth/entryRole';
 import { tokenStorage } from '@/services/token-storage';
+import { clearOfflineQueue } from '@/services/offline-queue';
 import {
   UserRole,
   User,
@@ -234,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ignore logout errors — always clear local state
     } finally {
       await tokenStorage.clearAll();
+      await clearOfflineQueue();
       setAccessToken(null);
       setUser(null);
     }

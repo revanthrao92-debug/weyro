@@ -17,6 +17,7 @@ import {
   cursorPaginationSchema,
 } from '../../common/dto/query.dto';
 import { UpdateProviderProfileDto } from './dto/providers.dto';
+import { SubmitVerificationDocumentsDto } from './dto/providers.dto';
 import { idParamSchema } from '../../common/dto/id-param.schema';
 
 @Controller('providers')
@@ -51,6 +52,15 @@ export class ProvidersController {
     @Body() dto: UpdateProviderProfileDto,
   ) {
     return this.providers.updateMyProfile(user, dto);
+  }
+
+  @Patch('me/verification-documents')
+  @Roles('PROVIDER', 'BOTH')
+  async submitVerificationDocuments(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: SubmitVerificationDocumentsDto,
+  ) {
+    return this.providers.submitVerificationDocuments(user, dto);
   }
 
   @Public()

@@ -740,6 +740,52 @@ describe('HTTP E2E flows (Postgres)', () => {
         .patch(`${API}/providers/me`)
         .set(auth)
         .send({ isAvailable: true });
+
+      // KYC submission is real but never self-verifies. A provider can only
+      // submit keys from its own upload folder.
+      const foreignDoc = await http()
+        .patch(`${API}/providers/me/verification-documents`)
+        .set(auth)
+        .send({
+          documents: [
+            {
+              label: 'GST certificate',
+              key: 'verification-documents/someone-else/gst.jpg',
+            },
+          ],
+        });
+      expect(foreignDoc.status).toBe(400);
+
+      const submitted = await http()
+        .patch(`${API}/providers/me/verification-documents`)
+        .set(auth)
+        .send({
+          documents: [
+            {
+              label: 'GST certificate',
+              key: `verification-documents/${garage.userId}/gst.jpg`,
+            },
+          ],
+        });
+      expect(submitted.status).toBe(200);
+      expect(submitted.body).toEqual({
+        verificationStatus: 'PENDING',
+        documentCount: 1,
+      });
+
+      const stored = await prisma.providerProfile.findUnique({
+        where: { id: garage.profileId },
+        select: { verificationDocuments: true },
+      });
+      expect(stored?.verificationDocuments).toEqual({
+        'GST certificate': `verification-documents/${garage.userId}/gst.jpg`,
+      });
+
+      // Restore so later marketplace tests still use a verified provider.
+      await prisma.providerProfile.update({
+        where: { id: garage.profileId },
+        data: { verificationStatus: 'VERIFIED' },
+      });
     });
 
     it('lists the provider quotations and allows withdrawal', async () => {

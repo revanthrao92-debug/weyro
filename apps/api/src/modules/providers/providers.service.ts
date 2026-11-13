@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -20,7 +21,10 @@ import {
   encodeCursor,
 } from '../../common/utils/cursor';
 import { toPublicProvider } from '../../common/serializers/public-provider';
-import { UpdateProviderProfileDto } from './dto/providers.dto';
+import {
+  SubmitVerificationDocumentsDto,
+  UpdateProviderProfileDto,
+} from './dto/providers.dto';
 
 @Injectable()
 export class ProvidersService {
@@ -371,6 +375,73 @@ export class ProvidersService {
     });
     await this.cache.del(`provider:public:${id}`);
     return updated;
+  }
+
+  /**
+   * Provider submits private KYC document keys. Submitting documents only puts
+   * the account back in the review queue; it never marks the provider verified.
+   */
+  async submitVerificationDocuments(
+    user: AuthUserPayload,
+    dto: SubmitVerificationDocumentsDto,
+  ) {
+    const id = this.providerId(user);
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id },
+      select: { verificationStatus: true },
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider profile not found');
+    }
+    if (provider.verificationStatus === 'SUSPENDED') {
+      throw new ForbiddenException(
+        'Suspended providers cannot submit new verification documents',
+      );
+    }
+
+    const ownPrefix = `verification-documents/${user.sub}/`;
+    const documents: Record<string, string> = {};
+    for (const document of dto.documents) {
+      if (!document.key.startsWith(ownPrefix) || document.key.includes('..')) {
+        throw new BadRequestException(
+          'Document keys must be uploads owned by your account',
+        );
+      }
+      documents[document.label] = document.key;
+    }
+
+    const updated = await this.prisma.providerProfile.update({
+      where: { id },
+      data: {
+        verificationDocuments: documents,
+        verificationStatus: 'PENDING',
+        verifiedAt: null,
+        verifiedBy: null,
+        auditorNotes: null,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.sub,
+        actorRole: user.role,
+        action: 'provider.documents.submit',
+        entityType: 'ProviderProfile',
+        entityId: id,
+        oldValues: { status: provider.verificationStatus },
+        newValues: {
+          status: updated.verificationStatus,
+          documentCount: dto.documents.length,
+        },
+      },
+    });
+
+    await this.cache.del(`provider:public:${id}`);
+    return {
+      verificationStatus: updated.verificationStatus,
+      documentCount: dto.documents.length,
+    };
   }
 
   /**

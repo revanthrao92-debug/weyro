@@ -12,6 +12,7 @@ import {
   Bell,
   CalendarDays,
   ChevronRight,
+  FileCheck2,
   LifeBuoy,
   LogOut,
   MessageCircle,
@@ -289,6 +290,16 @@ export function MechanicProfileScreen() {
         />
 
         <SectionHead index="02" title="Manage" />
+        <Action
+          icon={<FileCheck2 size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Verification documents"
+          detail={
+            verified
+              ? 'Verified by Weyro'
+              : 'Upload business registration and owner ID'
+          }
+          onPress={() => router.push('/verification')}
+        />
         <Action
           icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"

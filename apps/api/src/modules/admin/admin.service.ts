@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { validatePaymentTransition } from '../../common/state-machines/state-machines';
@@ -21,12 +22,19 @@ import {
   PAYMENT_GATEWAY,
   PaymentGateway,
 } from '../payments/interfaces/payment-gateway.interface';
+import {
+  STORAGE_SERVICE,
+  StorageService,
+} from '../uploads/interfaces/storage.interface';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    @Optional()
+    @Inject(STORAGE_SERVICE)
+    private readonly storage?: StorageService,
   ) {}
 
   async getOverview(): Promise<AdminOverviewMetrics> {
@@ -372,7 +380,9 @@ export class AdminService {
     return {
       ...profile,
       email: user.email,
-      verificationDocuments: provider.verificationDocuments,
+      verificationDocuments: await this.resolveDocuments(
+        provider.verificationDocuments,
+      ),
       counts: {
         quotations: _count.quotations,
         bookings: _count.bookings,
@@ -380,6 +390,29 @@ export class AdminService {
         listings: _count.spareParts,
       },
     };
+  }
+
+  /** Private buckets store keys; admins need a short-lived signed URL. */
+  private async resolveDocuments(value: unknown): Promise<Record<string, string> | null> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    );
+    const resolved = await Promise.all(
+      entries.map(async ([label, key]) => {
+        if (/^https?:\/\//i.test(key) || !this.storage) return [label, key] as const;
+        try {
+          const { downloadUrl } = await this.storage.getPresignedDownloadUrl({
+            key,
+            expiresInSeconds: 300,
+          });
+          return [label, downloadUrl] as const;
+        } catch {
+          return [label, key] as const;
+        }
+      }),
+    );
+    return Object.fromEntries(resolved);
   }
 
   async getActivityLogs(params: { action?: string; cursor?: string; limit?: number }) {

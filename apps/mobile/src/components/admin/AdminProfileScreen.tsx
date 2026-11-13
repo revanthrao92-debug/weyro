@@ -76,7 +76,7 @@ export function AdminProfileScreen() {
         <View style={styles.identity}>
           <Text style={styles.identityLabel}>Access</Text>
           <Text style={styles.identityValue}>
-            Platform operations · verification · escrow
+            Platform operations · verification · payments
           </Text>
         </View>
 
@@ -95,7 +95,7 @@ export function AdminProfileScreen() {
         />
         <Action
           icon={<Landmark size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Escrow"
+          label="Payments"
           detail="Held, released and refunded payments"
           onPress={() => router.push('/escrow')}
         />

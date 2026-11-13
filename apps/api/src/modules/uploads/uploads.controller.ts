@@ -28,6 +28,7 @@ const UPLOAD_FOLDERS = [
   'vehicles',
   'avatars',
   'spare-parts',
+  'verification-documents',
 ] as const;
 
 const presignedDownloadQuerySchema = z

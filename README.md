@@ -75,11 +75,12 @@ graph TD
 | Query/body validation | ✅ Implemented | Global Zod pipe; shared schemas in `@weyro/validation` |
 | Rate limiting | ✅ Implemented | Global bucket + tighter per-route write limits |
 | Health/readiness probes | ✅ Implemented | `GET /health`, `GET /ready` |
-| Escrow capture/release | ✅ Implemented | Webhook capture + admin release with payout reference and audit log; gateway auto-payout is **planned** |
-| Provider KYC document validation (GSTIN/trade licence) | 🟡 Partial | Documents field exists; validation workflow is **planned** |
+| Payment capture/release | ✅ Implemented | Webhook capture + admin release with payout reference and audit log. This is application-level payment protection, **not** a licensed escrow service; gateway auto-payout is **planned** |
+| Provider KYC documents | ✅ Implemented (partial authenticity checks) | Providers upload business registration + owner ID to a private folder; admin reviews/rejects/suspends with audit trail. Document authenticity/registry checks are manual |
 | Phone OTP login | ✅ Implemented | `POST /auth/send-otp`, `POST /auth/verify-otp` |
-| Private media + signed GET URLs | 🟡 Planned | Objects are served from `STORAGE_PUBLIC_URL` today |
+| Private media + signed GET URLs | ✅ Implemented | Production rejects `STORAGE_PUBLIC_URL`, requires S3, and admin document review uses short-lived signed GETs |
 | Request-level idempotency keys | ✅ Implemented | `Idempotency-Key` / `X-Idempotency-Key` interceptor + middleware |
+| Offline request queue | ✅ Implemented (request creation) | Persistent queue with idempotency keys, exponential backoff, retry cap and explicit `PENDING` / `FAILED` / `REQUIRES_ATTENTION` states. Financial mutations are rejected from the queue |
 | Soft delete + audit log | ✅ Implemented | `deletedAt` filters, `softDelete()` helper, `audit_logs` table |
 
 ---
@@ -264,10 +265,14 @@ isolated without a disruptive move.
 
 ## ⚠️ Known Limitations
 
-- Escrow release is recorded by an admin with a manual `payoutReference`;
-  automated gateway transfers to provider accounts are not implemented.
-- Media is served from a public CDN/bucket URL rather than short-lived signed
-  GET URLs.
+- Payment release is recorded by an admin with a manual `payoutReference`;
+  automated gateway transfers to provider accounts are not implemented. The
+  UI describes this as payment protection, not escrow.
+- Media URLs are signed for a bounded lifetime. Older request photos need a
+  fresh signed URL before display; a read-time media resolver is still needed
+  for long-lived history.
+- Offline queueing covers request creation only; other mutations still require
+  connectivity.
 - Push notifications require an EAS project ID and a development/production
   build; web push is not registered.
 - The chat client uses REST rather than subscribing to the Socket.IO gateway for
@@ -275,7 +280,7 @@ isolated without a disruptive move.
 - Live tracking shares foreground location only and displays ETA plus a
   last-updated timestamp; an in-app map view and background tracking are not
   implemented.
-- GSTIN/trade-licence validation is planned.
+- Provider document authenticity and registry checks are manual.
 
 ---
 

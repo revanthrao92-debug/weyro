@@ -17,7 +17,13 @@ export const presignedUrlQuerySchema = z
         'Invalid content type. Allowed types: image/jpeg, image/png, image/webp, image/heic',
     }),
     folder: z
-      .enum(['damage-requests', 'vehicles', 'avatars', 'spare-parts'])
+      .enum([
+        'damage-requests',
+        'vehicles',
+        'avatars',
+        'spare-parts',
+        'verification-documents',
+      ])
       .default('damage-requests'),
     fileSize: z.coerce
       .number()

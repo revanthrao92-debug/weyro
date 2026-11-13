@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: 'When am I charged?',
-    a: 'You pay after accepting a quote. Payments are held in escrow and released to the provider when the work is marked complete.',
+    a: 'You pay after accepting a quote. The payment gateway collects the money, and Weyro releases it to the provider after the work is confirmed complete.',
   },
   {
     q: 'Can I cancel a request?',
@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: 'Is my payment protected?',
-    a: 'Payments are captured by the gateway and settled through Weyro escrow. Providers receive funds only after completion.',
+    a: 'Payments are captured by the payment gateway and released by Weyro after completion is confirmed. This is payment protection, not a licensed escrow service.',
   },
 ];
 
@@ -38,6 +38,7 @@ const LINKS = [
   { label: 'My requests', route: '/requests/my' },
   { label: 'My vehicles', route: '/vehicles' },
   { label: 'Messages', route: '/messages' },
+  { label: 'Pending actions', route: '/pending-actions' },
 ];
 
 export default function HelpScreen() {

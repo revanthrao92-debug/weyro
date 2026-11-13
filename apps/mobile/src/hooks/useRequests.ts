@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
+import {
+  enqueueMutation,
+  isNetworkFailure,
+} from '@/services/offline-queue';
 
 export type ServiceRequest = {
   id: string;
@@ -151,10 +155,24 @@ export function useCreateServiceRequest() {
 
   return useMutation({
     mutationFn: async (data: CreateServiceRequest) => {
-      return apiClient<ServiceRequest>('/damage-requests', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      try {
+        return await apiClient<ServiceRequest>('/damage-requests', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+      } catch (error) {
+        // A request is safe to queue: the server assigns the id and the
+        // idempotency key prevents duplicates when it is retried.
+        if (isNetworkFailure(error) && data.category !== 'PAYMENT') {
+          await enqueueMutation({
+            endpoint: '/damage-requests',
+            method: 'POST',
+            body: data,
+          });
+          return { queued: true as const };
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myRequests'] });

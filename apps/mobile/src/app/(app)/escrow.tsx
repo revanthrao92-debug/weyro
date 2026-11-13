@@ -33,7 +33,7 @@ function statusTone(status: string): StatusTone {
 }
 
 function statusLabel(status: string) {
-  if (status === 'HELD_IN_ESCROW') return 'Held in escrow';
+  if (status === 'HELD_IN_ESCROW') return 'Held';
   if (status === 'RELEASED_TO_PROVIDER') return 'Released';
   if (status === 'REFUNDED_TO_CUSTOMER') return 'Refunded';
   return titleize(status);
@@ -63,7 +63,7 @@ export default function EscrowScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Escrow" subtitle="Payments held and released" />
+      <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.paymentId ?? item.bookingId}
@@ -112,7 +112,7 @@ export default function EscrowScreen() {
               title={filter === 'ALL' ? 'No payments yet' : 'Nothing here'}
               message={
                 filter === 'ALL'
-                  ? 'Escrow entries appear when bookings are paid.'
+                  ? 'Payments appear here when a booking is paid.'
                   : 'No payments match this state.'
               }
             />
