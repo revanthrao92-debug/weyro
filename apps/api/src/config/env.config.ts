@@ -63,6 +63,15 @@ export const envSchema = z.object({
     return;
   }
 
+  const defaultCors =
+    'http://localhost:3000,http://localhost:8081,http://localhost:19006,http://localhost:8082';
+  if (value.CORS_ORIGINS === defaultCors) {
+    ctx.addIssue({
+      code: "custom",
+      path: ['CORS_ORIGINS'],
+      message: 'CORS_ORIGINS must be set explicitly in production',
+    });
+  }
   if (value.CORS_ORIGINS.split(',').map((o) => o.trim()).includes('*')) {
     ctx.addIssue({
       code: "custom",

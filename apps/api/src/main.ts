@@ -101,9 +101,9 @@ async function bootstrap() {
         return 'info';
       },
       customSuccessMessage: (req: any, res: any) =>
-        `${req.method} ${req.url} ${res.statusCode}`,
+        `${req.method} ${String(req.url ?? '').split('?')[0]} ${res.statusCode}`,
       customErrorMessage: (req: any, res: any, err: any) =>
-        `${req.method} ${req.url} ${res.statusCode} - ${err?.message}`,
+        `${req.method} ${String(req.url ?? '').split('?')[0]} ${res.statusCode} - ${err?.message}`,
     }),
   );
 

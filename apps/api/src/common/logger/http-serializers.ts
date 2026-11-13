@@ -20,11 +20,14 @@ type RequestLike = {
 
 type ResponseLike = { statusCode?: number };
 
+/** Query strings can contain search text, coordinates and filenames. */
+const pathOnly = (url?: string) => (url ? url.split('?')[0] : url);
+
 export const httpSerializers = {
   req: (req: RequestLike) => ({
     id: req.id,
     method: req.method,
-    url: req.url,
+    url: pathOnly(req.url),
     remoteAddress: req.remoteAddress,
     remotePort: req.remotePort,
   }),

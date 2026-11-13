@@ -278,6 +278,21 @@ export class AdminService {
       },
     });
 
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: adminUserId ?? null,
+        actorRole: 'ADMIN',
+        action: 'provider.verify',
+        entityType: 'ProviderProfile',
+        entityId: id,
+        oldValues: { status: provider.verificationStatus },
+        newValues: {
+          status: updated.verificationStatus,
+          auditorNotes: dto.auditorNotes ?? null,
+        },
+      },
+    });
+
     return {
       id: updated.id,
       businessName: updated.businessName,
