@@ -19,6 +19,7 @@ import {
   UserRound,
   Package,
   Wrench,
+  Ellipsis,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
@@ -39,39 +40,41 @@ import { PressableScale } from '@/components/ui';
 const HERO_CAR =
   'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 
-type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
+type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC' | 'OTHER';
 
 const ROLES: { key: EntryRole; label: string; Icon: typeof UserRound }[] = [
   { key: 'CUSTOMER', label: 'Customer', Icon: UserRound },
   { key: 'DEALER', label: 'Dealer', Icon: Package },
-  { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
+  { key: 'MECHANIC', label: 'Mechanic / Garage', Icon: Wrench },
+  { key: 'OTHER', label: 'Other', Icon: Ellipsis },
 ];
 
-const SERVICE_PROVIDER_TYPES = [
+const MECHANIC_PROVIDER_TYPES = [
   'MECHANIC',
   'GARAGE',
   'AUTHORIZED_CENTER',
-  'TOWING',
-  'ROADSIDE',
-  'DRIVER',
 ];
+
+const OTHER_PROVIDER_TYPES = ['TOWING', 'ROADSIDE', 'DRIVER'];
 
 function accountInterface(account: {
   role?: string | null;
   providerProfile?: { providerType?: string | null } | null;
-}): EntryRole | 'ADMIN' {
-  if (account.role === 'ADMIN') return 'ADMIN';
+}): EntryRole {
+  if (account.role === 'ADMIN') return 'OTHER';
   const providerType = account.providerProfile?.providerType;
   if (providerType === 'PARTS_DEALER') return 'DEALER';
-  if (providerType && SERVICE_PROVIDER_TYPES.includes(providerType)) {
+  if (providerType && MECHANIC_PROVIDER_TYPES.includes(providerType)) {
     return 'MECHANIC';
+  }
+  if (providerType && OTHER_PROVIDER_TYPES.includes(providerType)) {
+    return 'OTHER';
   }
   return 'CUSTOMER';
 }
 
 function roleMatches(account: any, role: EntryRole) {
-  const actual = accountInterface(account);
-  return actual === 'ADMIN' || actual === role;
+  return accountInterface(account) === role;
 }
 
 export default function LoginScreen() {
@@ -103,18 +106,20 @@ export default function LoginScreen() {
       const account = await login(emailOrPhone.trim(), password);
       if (!roleMatches(account, role)) {
         const actual = accountInterface(account);
-        const actualLabel =
+        const buttonLabel =
           actual === 'CUSTOMER'
             ? 'Customer'
             : actual === 'DEALER'
               ? 'Dealer'
               : actual === 'MECHANIC'
-                ? 'Mechanic'
-                : 'Admin';
+                ? 'Mechanic / Garage'
+                : 'Other';
+        const accountLabel =
+          account.role === 'ADMIN' ? 'Admin' : buttonLabel;
         await logout();
         if (mounted.current) {
           setErrorNote(
-            `This account signs in as ${actualLabel}. Select ${actualLabel} and try again.`,
+            `This account signs in as ${accountLabel}. Select ${buttonLabel} and try again.`,
           );
         }
         return;
@@ -416,14 +421,16 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   roleSection: { marginTop: spacing.md },
-  roleRow: { flexDirection: 'row', gap: spacing.sm },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   roleTab: {
-    flex: 1,
+    flexBasis: '48%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 44,
+    paddingHorizontal: 6,
+    height: 48,
     borderRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
@@ -433,7 +440,12 @@ const styles = StyleSheet.create({
     borderColor: palette.accent,
     backgroundColor: palette.accentSoftBg,
   },
-  roleText: { ...typography.label, color: palette.textSecondary },
+  roleText: {
+    ...typography.label,
+    color: palette.textSecondary,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
   roleTextSelected: { color: palette.accent },
   inputShell: {
     flexDirection: 'row',
