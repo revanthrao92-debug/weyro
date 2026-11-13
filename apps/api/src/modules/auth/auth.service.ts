@@ -486,19 +486,28 @@ export class AuthService {
       throw new BadRequestException('OTP has expired');
     }
 
-    if (otp.attempts >= otp.maxAttempts) {
-      throw new BadRequestException('Maximum OTP verification attempts exceeded');
-    }
-
     if (otp.purpose !== 'reset_password') {
       throw new BadRequestException('OTP was not issued for password reset');
     }
 
-    if (otp.code !== dto.code) {
-      await this.prisma.oTP.update({
-        where: { phone },
-        data: { attempts: otp.attempts + 1 },
-      });
+    const gate = await this.prisma.oTP.updateMany({
+      where: {
+        phone,
+        verifiedAt: null,
+        purpose: 'reset_password',
+        attempts: { lt: otp.maxAttempts },
+      },
+      data: { attempts: { increment: 1 } },
+    });
+
+    if (gate.count === 0) {
+      await this.prisma.oTP.deleteMany({ where: { phone, verifiedAt: null } });
+      throw new BadRequestException(
+        'Maximum OTP verification attempts exceeded',
+      );
+    }
+
+    if (!this.otpMatches(phone, dto.code, otp.code)) {
       throw new BadRequestException('Invalid OTP code');
     }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { Package, Wrench } from 'lucide-react-native';
 import {
@@ -67,6 +67,7 @@ export default function OperationsScreen() {
   const refundOrder = useAdminRefundOrder();
   const refundBooking = useAdminRefundBooking();
   const updateBooking = useUpdateBookingStatus();
+  const refundGuard = useRef(false);
 
   const orders = (ordersQuery.data?.items ?? []).filter((order) =>
     orderFilter === 'ALL' ? true : order.status === orderFilter,
@@ -80,24 +81,44 @@ export default function OperationsScreen() {
     return booking.status === jobFilter;
   });
 
-  const confirmRefund = (kind: 'order' | 'booking', id: string) =>
+  const confirmRefund = (kind: 'order' | 'booking', id: string) => {
+    if (refundGuard.current) return;
+    refundGuard.current = true;
     Alert.alert(
       'Issue refund',
       'Refund the captured payment through the gateway?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            refundGuard.current = false;
+          },
+        },
         {
           text: 'Refund',
           style: 'destructive',
           onPress: () => {
             const mutation = kind === 'order' ? refundOrder : refundBooking;
-            mutation.mutateAsync(id).catch((e: any) =>
-              Alert.alert('Refund failed', e?.message || 'Could not refund.'),
-            );
+            mutation
+              .mutateAsync(id)
+              .catch((e: any) =>
+                Alert.alert('Refund failed', e?.message || 'Could not refund.'),
+              )
+              .finally(() => {
+                refundGuard.current = false;
+              });
           },
         },
       ],
+      {
+        cancelable: true,
+        onDismiss: () => {
+          refundGuard.current = false;
+        },
+      },
     );
+  };
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>

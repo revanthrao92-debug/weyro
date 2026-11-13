@@ -212,6 +212,64 @@ describe('AuthService – OTP security hardening', () => {
     });
   });
 
+  describe('password reset OTP verification', () => {
+    it('accepts a correctly hashed reset code and updates the password', async () => {
+      const phone = '+919000000011';
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'reset_password',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'u11',
+        role: 'CUSTOMER',
+        phone,
+        isActive: true,
+      });
+      mockPrisma.$transaction.mockImplementation((arg: any) =>
+        Promise.resolve(Array.isArray(arg) ? arg : arg(mockPrisma)),
+      );
+
+      const result = await service.resetPassword({
+        phone,
+        code: '123456',
+        newPassword: 'NewPass123!',
+      } as never);
+
+      expect(result.status).toBe('reset');
+      expect(mockPrisma.user.update).toHaveBeenCalled();
+      expect(mockPrisma.oTP.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { verifiedAt: expect.any(Date) } }),
+      );
+    });
+
+    it('rejects a plaintext code that does not match the stored hash', async () => {
+      const phone = '+919000000012';
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'reset_password',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+
+      await expect(
+        service.resetPassword({
+          phone,
+          code: '000000',
+          newPassword: 'NewPass123!',
+        } as never),
+      ).rejects.toThrow('Invalid OTP code');
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('C1 – the OTP code never reaches logs', () => {
     it('does not log the code during send or verification', async () => {
       const phone = '+919000000004';
