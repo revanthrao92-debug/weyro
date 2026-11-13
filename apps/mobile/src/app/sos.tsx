@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -10,6 +11,7 @@ import {
 import {
   ScreenContainer,
   BackButton,
+  Button,
   PressableScale,
   Surface,
   Section,
@@ -54,6 +56,12 @@ const OPTIONS = [
 export default function SosScreen() {
   const router = useRouter();
   const { kind } = useLocalSearchParams<{ kind?: string }>();
+  const initialKind = OPTIONS.some((option) => option.key === kind)
+    ? (kind as string)
+    : null;
+  const [selected, setSelected] = useState<string | null>(initialKind);
+
+  const selectedOption = OPTIONS.find((option) => option.key === selected);
 
   const start = (option: (typeof OPTIONS)[number]) => {
     router.push(
@@ -83,20 +91,21 @@ export default function SosScreen() {
 
         <View style={styles.grid}>
           {OPTIONS.map((option) => {
-            const selected = kind === option.key;
+            const isSelected = selected === option.key;
             return (
               <PressableScale
                 key={option.key}
-                onPress={() => start(option)}
+                onPress={() => setSelected(option.key)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={option.label}
                 scaleTo={0.96}
-                style={[styles.tile, selected && styles.tileSelected]}
+                style={[styles.tile, isSelected && styles.tileSelected]}
               >
                 <View style={styles.iconWrap}>
                   <option.Icon
                     size={22}
-                    color={selected ? palette.accent : palette.textSecondary}
+                    color={isSelected ? palette.accent : palette.textSecondary}
                     strokeWidth={1.7}
                   />
                 </View>
@@ -112,6 +121,17 @@ export default function SosScreen() {
             );
           })}
         </View>
+
+        <Button
+          title={
+            selectedOption
+              ? `Continue with ${selectedOption.label.toLowerCase()}`
+              : 'Choose an assistance type'
+          }
+          disabled={!selectedOption}
+          onPress={() => selectedOption && start(selectedOption)}
+          style={styles.continueButton}
+        />
 
         <Section eyebrow="How it works" title="Three steps">
           <Surface style={styles.step} radius={radii.md}>
@@ -164,6 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  continueButton: { marginTop: spacing.lg },
   tile: {
     flexBasis: '48%',
     flexGrow: 1,
