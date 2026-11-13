@@ -45,7 +45,13 @@ describe('Security foundations (Postgres)', () => {
       firstName: 'Sec',
       lastName: tag,
       ...(role === 'PROVIDER'
-        ? { latitude: 12.9716, longitude: 77.5946, address: 'Bengaluru' }
+        ? {
+            providerType: 'GARAGE',
+            businessName: `Security Garage ${tag}`,
+            latitude: 12.9716,
+            longitude: 77.5946,
+            address: 'Bengaluru',
+          }
         : {}),
     } as never);
 
@@ -143,6 +149,32 @@ describe('Security foundations (Postgres)', () => {
       firstName: 'Extra',
       lastName: 'Field',
       isAdmin: true,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects provider registration without business identity', async () => {
+    const res = await http().post(`${API}/auth/register`).send({
+      email: `no-business-${suffix}@example.com`,
+      phone: `+9194${suffix.slice(-8)}`,
+      password,
+      role: 'PROVIDER',
+      firstName: 'No',
+      lastName: 'Business',
+      latitude: 12.9716,
+      longitude: 77.5946,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a password without a letter and a number', async () => {
+    const res = await http().post(`${API}/auth/register`).send({
+      email: `weak-${suffix}@example.com`,
+      phone: `+9195${suffix.slice(-8)}`,
+      password: 'passwordonly',
+      role: 'CUSTOMER',
+      firstName: 'Weak',
+      lastName: 'Password',
     });
     expect(res.status).toBe(400);
   });

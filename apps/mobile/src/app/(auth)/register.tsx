@@ -145,8 +145,15 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+    if (
+      password.length < 8 ||
+      !/[A-Za-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      Alert.alert(
+        'Error',
+        'Password must be at least 8 characters and include a letter and a number.',
+      );
       return;
     }
     const isProvider = role === 'PROVIDER' || role === 'BOTH';

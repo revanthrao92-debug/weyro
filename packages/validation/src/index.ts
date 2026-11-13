@@ -5,7 +5,12 @@ export const RegisterSchema = z
   .object({
     email: z.string().email(),
     phone: z.string().min(10).max(15),
-    password: z.string().min(8),
+    password: z
+      .string()
+      .min(8)
+      .max(128)
+      .regex(/[A-Za-z]/, 'Password must contain a letter')
+      .regex(/\d/, 'Password must contain a number'),
     role: z.enum(['CUSTOMER', 'PROVIDER', 'BOTH']).default('CUSTOMER'),
     firstName: z.string().min(1).default('Customer'),
     lastName: z.string().min(1).default('User'),
@@ -35,14 +40,35 @@ export const RegisterSchema = z
   })
   .strict()
   .superRefine((data, ctx) => {
-    if (
-      (data.role === 'PROVIDER' || data.role === 'BOTH') &&
-      (data.latitude === undefined || data.longitude === undefined)
-    ) {
+    const isProvider = data.role === 'PROVIDER' || data.role === 'BOTH';
+    if (!isProvider) return;
+
+    if (data.latitude === undefined || data.longitude === undefined) {
       ctx.addIssue({
         code: "custom",
         path: ['latitude'],
         message: 'Provider registration requires latitude and longitude',
+      });
+    }
+    if (!data.providerType) {
+      ctx.addIssue({
+        code: "custom",
+        path: ['providerType'],
+        message: 'Select a provider type',
+      });
+    }
+    if (!data.businessName || data.businessName.trim().length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ['businessName'],
+        message: 'Business name is required',
+      });
+    }
+    if (!data.address || data.address.trim().length < 5) {
+      ctx.addIssue({
+        code: "custom",
+        path: ['address'],
+        message: 'Business address is required',
       });
     }
     if (
