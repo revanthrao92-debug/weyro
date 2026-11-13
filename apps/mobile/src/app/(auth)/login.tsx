@@ -31,6 +31,11 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { PressableScale } from '@/components/ui';
+import {
+  roleMatches,
+  roleMismatchMessage,
+  type EntryRole,
+} from '@/auth/entryRole';
 
 /**
  * Login — full-bleed automotive artwork with a rigid work-order form sheet.
@@ -40,42 +45,12 @@ import { PressableScale } from '@/components/ui';
 const HERO_CAR =
   'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 
-type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC' | 'OTHER';
-
 const ROLES: { key: EntryRole; label: string; Icon: typeof UserRound }[] = [
   { key: 'CUSTOMER', label: 'Customer', Icon: UserRound },
   { key: 'DEALER', label: 'Dealer', Icon: Package },
   { key: 'MECHANIC', label: 'Mechanic / Garage', Icon: Wrench },
   { key: 'OTHER', label: 'Other', Icon: Ellipsis },
 ];
-
-const MECHANIC_PROVIDER_TYPES = [
-  'MECHANIC',
-  'GARAGE',
-  'AUTHORIZED_CENTER',
-];
-
-const OTHER_PROVIDER_TYPES = ['TOWING', 'ROADSIDE', 'DRIVER'];
-
-function accountInterface(account: {
-  role?: string | null;
-  providerProfile?: { providerType?: string | null } | null;
-}): EntryRole {
-  if (account.role === 'ADMIN') return 'OTHER';
-  const providerType = account.providerProfile?.providerType;
-  if (providerType === 'PARTS_DEALER') return 'DEALER';
-  if (providerType && MECHANIC_PROVIDER_TYPES.includes(providerType)) {
-    return 'MECHANIC';
-  }
-  if (providerType && OTHER_PROVIDER_TYPES.includes(providerType)) {
-    return 'OTHER';
-  }
-  return 'CUSTOMER';
-}
-
-function roleMatches(account: any, role: EntryRole) {
-  return accountInterface(account) === role;
-}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -105,22 +80,9 @@ export default function LoginScreen() {
     try {
       const account = await login(emailOrPhone.trim(), password);
       if (!roleMatches(account, role)) {
-        const actual = accountInterface(account);
-        const buttonLabel =
-          actual === 'CUSTOMER'
-            ? 'Customer'
-            : actual === 'DEALER'
-              ? 'Dealer'
-              : actual === 'MECHANIC'
-                ? 'Mechanic / Garage'
-                : 'Other';
-        const accountLabel =
-          account.role === 'ADMIN' ? 'Admin' : buttonLabel;
         await logout();
         if (mounted.current) {
-          setErrorNote(
-            `This account signs in as ${accountLabel}. Select ${buttonLabel} and try again.`,
-          );
+          setErrorNote(roleMismatchMessage(account));
         }
         return;
       }
