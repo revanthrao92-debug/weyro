@@ -16,6 +16,9 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  UserRound,
+  Package,
+  Wrench,
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
@@ -36,9 +39,45 @@ import { PressableScale } from '@/components/ui';
 const HERO_CAR =
   'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1400&q=85';
 
+type EntryRole = 'CUSTOMER' | 'DEALER' | 'MECHANIC';
+
+const ROLES: { key: EntryRole; label: string; Icon: typeof UserRound }[] = [
+  { key: 'CUSTOMER', label: 'Customer', Icon: UserRound },
+  { key: 'DEALER', label: 'Dealer', Icon: Package },
+  { key: 'MECHANIC', label: 'Mechanic', Icon: Wrench },
+];
+
+const SERVICE_PROVIDER_TYPES = [
+  'MECHANIC',
+  'GARAGE',
+  'AUTHORIZED_CENTER',
+  'TOWING',
+  'ROADSIDE',
+  'DRIVER',
+];
+
+function accountInterface(account: {
+  role?: string | null;
+  providerProfile?: { providerType?: string | null } | null;
+}): EntryRole | 'ADMIN' {
+  if (account.role === 'ADMIN') return 'ADMIN';
+  const providerType = account.providerProfile?.providerType;
+  if (providerType === 'PARTS_DEALER') return 'DEALER';
+  if (providerType && SERVICE_PROVIDER_TYPES.includes(providerType)) {
+    return 'MECHANIC';
+  }
+  return 'CUSTOMER';
+}
+
+function roleMatches(account: any, role: EntryRole) {
+  const actual = accountInterface(account);
+  return actual === 'ADMIN' || actual === role;
+}
+
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
+  const [role, setRole] = useState<EntryRole>('CUSTOMER');
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +100,25 @@ export default function LoginScreen() {
     setLoading(true);
     setErrorNote(null);
     try {
-      await login(emailOrPhone.trim(), password);
+      const account = await login(emailOrPhone.trim(), password);
+      if (!roleMatches(account, role)) {
+        const actual = accountInterface(account);
+        const actualLabel =
+          actual === 'CUSTOMER'
+            ? 'Customer'
+            : actual === 'DEALER'
+              ? 'Dealer'
+              : actual === 'MECHANIC'
+                ? 'Mechanic'
+                : 'Admin';
+        await logout();
+        if (mounted.current) {
+          setErrorNote(
+            `This account signs in as ${actualLabel}. Select ${actualLabel} and try again.`,
+          );
+        }
+        return;
+      }
       if (mounted.current) {
         router.replace('/(app)');
       }
@@ -110,6 +167,43 @@ export default function LoginScreen() {
             <View style={styles.formHead}>
               <Text style={styles.formTitle}>Log in</Text>
               <Text style={styles.formMeta}>Member access</Text>
+            </View>
+
+            <View style={styles.roleSection}>
+              <Text style={styles.label}>Sign in as</Text>
+              <View style={styles.roleRow}>
+                {ROLES.map(({ key, label, Icon }) => {
+                  const selected = role === key;
+                  return (
+                    <PressableScale
+                      key={key}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Sign in as ${label}`}
+                      onPress={() => {
+                        setRole(key);
+                        setErrorNote(null);
+                      }}
+                      scaleTo={0.98}
+                      style={[styles.roleTab, selected && styles.roleTabSelected]}
+                    >
+                      <Icon
+                        size={15}
+                        color={selected ? palette.accent : palette.textMuted}
+                        strokeWidth={1.8}
+                      />
+                      <Text
+                        style={[
+                          styles.roleText,
+                          selected && styles.roleTextSelected,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.field}>
@@ -321,6 +415,26 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     marginBottom: 6,
   },
+  roleSection: { marginTop: spacing.md },
+  roleRow: { flexDirection: 'row', gap: spacing.sm },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 44,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceAlt,
+  },
+  roleTabSelected: {
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
+  },
+  roleText: { ...typography.label, color: palette.textSecondary },
+  roleTextSelected: { color: palette.accent },
   inputShell: {
     flexDirection: 'row',
     alignItems: 'center',

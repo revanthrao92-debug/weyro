@@ -29,7 +29,7 @@ interface AuthContextType {
   role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (emailOrPhone: string, password: string) => Promise<void>;
+  login: (emailOrPhone: string, password: string) => Promise<AuthUser>;
   register: (data: RegisterData) => Promise<void>;
   verifyOtp: (phone: string, code: string, purpose?: string) => Promise<void>;
   resetPassword: (phone: string, code: string, newPassword: string) => Promise<void>;
@@ -144,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await tokenStorage.setRefreshToken(res.refreshToken);
       setAccessToken(res.accessToken);
       setUser(res.user);
+      return res.user;
     },
     []
   );
