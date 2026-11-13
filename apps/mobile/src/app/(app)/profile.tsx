@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DriverProfileScreen } from '@/components/driver/DriverProfileScreen';
 import { DealerProfileScreen } from '@/components/dealer/DealerProfileScreen';
 import { MechanicProfileScreen } from '@/components/mechanic/MechanicProfileScreen';
+import { AdminProfileScreen } from '@/components/admin/AdminProfileScreen';
 import {
   ScreenContainer,
   ListItem,
@@ -33,12 +34,16 @@ import {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, providerProfile } = useAuth();
+  const { user, role, logout, providerProfile } = useAuth();
 
   const name = user?.customerProfile?.firstName
     ? `${user.customerProfile.firstName} ${user.customerProfile.lastName ?? ''}`.trim()
     : user?.email?.split('@')[0] ?? 'Owner';
   const email = user?.email ?? '';
+
+  if (role === 'ADMIN') {
+    return <AdminProfileScreen />;
+  }
 
   if (providerProfile?.providerType === 'DRIVER') {
     return <DriverProfileScreen />;

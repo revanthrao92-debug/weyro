@@ -51,6 +51,111 @@ export function useVerifyProvider() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminProviders'] });
+      queryClient.invalidateQueries({ queryKey: ['adminProviderDetail'] });
+      queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
     },
+  });
+}
+
+export type AdminOverview = {
+  totalRequests: number;
+  openBroadcasts: number;
+  totalQuotations: number;
+  acceptedQuotations: number;
+  totalBookings: number;
+  completedBookings: number;
+  totalEscrowVolume: number;
+  pendingVerifications: number;
+  verifiedProviders: number;
+};
+
+export type AdminProviderDetail = ProviderVerificationRecord & {
+  email: string;
+  verificationDocuments?: Record<string, string> | null;
+  verifiedAt?: string;
+  auditorNotes?: string;
+  counts: {
+    quotations: number;
+    bookings: number;
+    reviews: number;
+    listings: number;
+  };
+};
+
+export type EscrowEntry = {
+  bookingId: string;
+  paymentId?: string;
+  customerName: string;
+  providerName: string;
+  amount: number;
+  status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  bookingStatus?: string;
+  payoutReference?: string;
+  confirmedAt: string;
+  completedAt?: string;
+  releasedAt?: string;
+};
+
+export type AdminActivityLog = {
+  id: string;
+  actorId: string | null;
+  actorRole: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  createdAt: string;
+};
+
+export type AdminActivityStats = {
+  days: {
+    date: string;
+    requests: number;
+    bookings: number;
+    quotations: number;
+    sparePartOrders: number;
+  }[];
+  totals: { users: number; providers: number };
+};
+
+export function useAdminOverview() {
+  return useQuery({
+    queryKey: ['adminOverview'],
+    queryFn: async () => apiClient<AdminOverview>('/admin/overview'),
+  });
+}
+
+export function useAdminProviderDetail(id?: string) {
+  return useQuery({
+    queryKey: ['adminProviderDetail', id],
+    queryFn: async () => apiClient<AdminProviderDetail>(`/admin/providers/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useAdminEscrow() {
+  return useQuery({
+    queryKey: ['adminEscrow'],
+    queryFn: async () => apiClient<EscrowEntry[]>('/admin/escrow-ledger'),
+  });
+}
+
+export function useAdminActivity(params?: { action?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['adminActivity', params],
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      if (params?.action) qs.set('action', params.action);
+      if (params?.limit) qs.set('limit', String(params.limit));
+      return apiClient<{ items: AdminActivityLog[]; nextCursor?: string | null }>(
+        `/admin/activity-logs?${qs.toString()}`,
+      );
+    },
+  });
+}
+
+export function useAdminActivityStats() {
+  return useQuery({
+    queryKey: ['adminActivityStats'],
+    queryFn: async () => apiClient<AdminActivityStats>('/admin/activity-stats'),
   });
 }

@@ -1,220 +1,326 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, ToastAndroid, Platform, View } from 'react-native';
-import { UserRound } from 'lucide-react-native';
-import { useAdminProviders, useVerifyProvider } from '@/hooks/useAdmin';
-import type { ProviderVerificationRecord } from '@/hooks/useAdmin';
 import {
-  ScreenContainer,
+  Alert,
+  FlatList,
+  Linking,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { FileCheck2, UserRound } from 'lucide-react-native';
+import {
+  useAdminProviderDetail,
+  useAdminProviders,
+  useVerifyProvider,
+  type ProviderVerificationRecord,
+} from '@/hooks/useAdmin';
+import {
   AppHeader,
-  StatusPill,
-  EmptyState,
-  Skeleton,
-  FilterChips,
   Button,
+  Chip,
+  EmptyState,
+  Input,
+  PressableScale,
+  ScreenContainer,
+  Skeleton,
+  StatusPill,
 } from '@/components/ui';
-import { labelize, formatDate } from '@/utils/format';
-import { palette, spacing, radii, typography } from '@/theme';
+import { formatDate, labelize } from '@/utils/format';
+import {
+  fontFamilyMono,
+  palette,
+  spacing,
+  typography,
+  type StatusTone,
+} from '@/theme';
 
-/**
- * Admin — provider verification (Checkpoint 3).
- * One primary action per card: PENDING rows show a single Verify button;
- * VERIFIED/REJECTED/SUSPENDED rows are status-only. No duplicated CTAs.
- */
+const FILTERS = ['ALL', 'PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'] as const;
 
-const FILTERS = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Pending', value: 'PENDING' },
-  { label: 'Verified', value: 'VERIFIED' },
-  { label: 'Rejected', value: 'REJECTED' },
-];
-
-function StatusPillTone(status: string) {
-  switch (status) {
-    case 'PENDING':
-      return 'warning';
-    case 'VERIFIED':
-      return 'success';
-    case 'REJECTED':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
+function docLabel(label: string) {
+  const upper = label.replace(/\b(gst|pan)\b/gi, (match) => match.toUpperCase());
+  const spaced = upper.replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-function notify(msg: string) {
-  if (Platform.OS === 'android') ToastAndroid.show(msg, ToastAndroid.SHORT);
-  else Alert.alert('Weyro', msg);
+function statusTone(status: string): StatusTone {
+  if (status === 'VERIFIED') return 'success';
+  if (status === 'PENDING') return 'warning';
+  if (status === 'REJECTED' || status === 'SUSPENDED') return 'danger';
+  return 'neutral';
 }
 
 export default function ProvidersScreen() {
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('PENDING');
+  const [expanded, setExpanded] = useState<string | null>(null);
   const { data, isLoading } = useAdminProviders(
-    statusFilter === 'ALL' ? undefined : statusFilter,
+    filter === 'ALL' ? undefined : filter,
   );
-  const verifyProvider = useVerifyProvider();
-
   const providers = data?.items ?? [];
-  const pendingCount = providers.filter((p) => p.verificationStatus === 'PENDING').length;
-
-  const handleVerify = async (record: ProviderVerificationRecord) => {
-    try {
-      await verifyProvider.mutateAsync({ id: record.id, status: 'VERIFIED' });
-      notify(`${record.businessName} verified`);
-    } catch (e: any) {
-      notify(e?.message || 'Verification failed');
-    }
-  };
-
-  const header = (
-    <View style={styles.pendingRow}>
-      <Text style={styles.pendingLabel}>PENDING VERIFICATION</Text>
-      <Text style={styles.pendingValue}>{pendingCount}</Text>
-    </View>
-  );
 
   return (
-    <ScreenContainer chrome="dark">
-      <AppHeader title="Provider Verification" subtitle="Manage provider onboarding" />
-
-      <FilterChips
-        options={FILTERS}
-        value={statusFilter ?? 'ALL'}
-        onChange={(value) => setStatusFilter(value === 'ALL' ? undefined : value)}
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <AppHeader title="Providers" subtitle="Verification and onboarding" />
+      <FlatList
+        data={isLoading ? [] : providers}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.filters}>
+              {FILTERS.map((item) => (
+                <Chip
+                  key={item}
+                  label={
+                    item === 'ALL'
+                      ? 'All'
+                      : item.charAt(0) + item.slice(1).toLowerCase()
+                  }
+                  selected={filter === item}
+                  onPress={() => {
+                    setFilter(item);
+                    setExpanded(null);
+                  }}
+                />
+              ))}
+            </View>
+            {isLoading
+              ? [0, 1, 2].map((i) => (
+                  <View key={i} style={styles.skeleton}>
+                    <Skeleton width="60%" height={18} />
+                    <Skeleton width="40%" height={12} style={{ marginTop: 8 }} />
+                  </View>
+                ))
+              : null}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? undefined : (
+            <EmptyState
+              icon={<UserRound size={26} color={palette.textMuted} strokeWidth={1.7} />}
+              title={filter === 'ALL' ? 'No providers yet' : 'Nothing here'}
+              message={
+                filter === 'ALL'
+                  ? 'Provider accounts appear here after registration.'
+                  : 'No providers match this verification state.'
+              }
+            />
+          )
+        }
+        renderItem={({ item }) => (
+          <ProviderRow
+            item={item}
+            expanded={expanded === item.id}
+            onToggle={() =>
+              setExpanded((current) => (current === item.id ? null : item.id))
+            }
+          />
+        )}
       />
-
-      {isLoading ? (
-        [0, 1, 2].map((i) => <Skeleton key={i} width="100%" height={88} />)
-      ) : providers.length === 0 ? (
-        <EmptyState
-          icon={<UserRound size={28} color={palette.textMuted} />}
-          title="No providers here"
-          message="Providers with this verification state will appear here."
-        />
-      ) : (
-        <FlatList
-          data={providers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={header}
-          renderItem={({ item }) => <ProviderCard item={item} onVerify={handleVerify} />}
-        />
-      )}
     </ScreenContainer>
   );
 }
 
-function ProviderCard({
+function ProviderRow({
   item,
-  onVerify,
-  submitting,
+  expanded,
+  onToggle,
 }: {
   item: ProviderVerificationRecord;
-  onVerify: (r: ProviderVerificationRecord) => Promise<void>;
-  submitting?: boolean;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
+  const detail = useAdminProviderDetail(expanded ? item.id : undefined);
+  const verify = useVerifyProvider();
+  const [notes, setNotes] = useState('');
+
+  const update = async (status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED') => {
+    try {
+      await verify.mutateAsync({
+        id: item.id,
+        status,
+        ...(notes.trim() ? { auditorNotes: notes.trim() } : {}),
+      });
+      setNotes('');
+      Alert.alert(
+        'Provider updated',
+        `${item.businessName} is now ${status.toLowerCase()}.`,
+      );
+    } catch (e: any) {
+      Alert.alert('Failed', e?.message || 'Could not update this provider.');
+    }
+  };
+
+  const documents = detail.data?.verificationDocuments ?? null;
+
   return (
-    <View style={cardStyles.card}>
-      <View style={cardStyles.head}>
-        <View style={cardStyles.avatar}>
-          <UserRound size={20} color={palette.onAccent} strokeWidth={1.75} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={cardStyles.name} numberOfLines={1} maxFontSizeMultiplier={2}>
+    <View style={styles.rowWrap}>
+      <PressableScale
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.businessName}, ${item.verificationStatus}`}
+        scaleTo={0.99}
+        style={styles.row}
+      >
+        <View style={styles.rowText}>
+          <Text style={styles.name} numberOfLines={1}>
             {item.businessName}
           </Text>
-          <Text style={cardStyles.meta} numberOfLines={1}>
+          <Text style={styles.meta} numberOfLines={1}>
             {labelize(item.providerType)} · {item.phone}
           </Text>
+          <Text style={styles.registered}>
+            Onboarded {formatDate(item.createdAt)}
+          </Text>
         </View>
-        <StatusPill label={item.verificationStatus} tone={StatusPillTone(item.verificationStatus)} />
-      </View>
+        <StatusPill
+          label={labelize(item.verificationStatus)}
+          tone={statusTone(item.verificationStatus)}
+        />
+      </PressableScale>
 
-      <View style={cardStyles.footer}>
-        <Text style={cardStyles.registered}>Onboarded {formatDate(item.createdAt)}</Text>
-        {item.verificationStatus === 'PENDING' ? (
-          // The ONE action on a pending card
-          <Button
-            title="Verify"
-            loading={submitting}
-            onPress={() => void onVerify(item)}
-            style={cardStyles.verifyBtn}
-          />
-        ) : null}
-      </View>
+      {expanded ? (
+        <View style={styles.detail}>
+          {detail.isLoading ? (
+            <Skeleton width="100%" height={80} />
+          ) : detail.data ? (
+            <>
+              <View style={styles.detailGrid}>
+                <Detail label="Email" value={detail.data.email} />
+                <Detail label="Address" value={detail.data.address} />
+                <Detail
+                  label="Jobs"
+                  value={`${detail.data.counts.bookings} bookings · ${detail.data.counts.quotations} quotes`}
+                />
+                <Detail
+                  label="Reviews"
+                  value={`${detail.data.counts.reviews} reviews${
+                    detail.data.counts.listings
+                      ? ` · ${detail.data.counts.listings} listings`
+                      : ''
+                  }`}
+                />
+              </View>
+
+              <Text style={styles.sectionLabel}>Documents</Text>
+              {documents && Object.keys(documents).length > 0 ? (
+                Object.entries(documents).map(([label, url]) => (
+                  <PressableScale
+                    key={label}
+                    onPress={() => void Linking.openURL(url)}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Open ${label}`}
+                    scaleTo={0.98}
+                    style={styles.docRow}
+                  >
+                    <FileCheck2 size={15} color={palette.textSecondary} strokeWidth={1.8} />
+                    <Text style={styles.docLabel}>{docLabel(label)}</Text>
+                    <Text style={styles.docOpen}>Open</Text>
+                  </PressableScale>
+                ))
+              ) : (
+                <Text style={styles.meta}>No documents uploaded.</Text>
+              )}
+
+              <Input
+                label="Auditor notes (optional)"
+                placeholder="Reason for rejection, missing documents, etc."
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+              />
+
+              <View style={styles.actions}>
+                <Button
+                  title="Verify"
+                  loading={verify.isPending}
+                  onPress={() => void update('VERIFIED')}
+                />
+                <Button
+                  title="Reject"
+                  variant="destructive"
+                  onPress={() => void update('REJECTED')}
+                />
+                <Button
+                  title="Suspend"
+                  variant="secondary"
+                  onPress={() => void update('SUSPENDED')}
+                />
+              </View>
+            </>
+          ) : (
+            <Text style={styles.meta}>Could not load provider details.</Text>
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { paddingBottom: spacing.xxl },
-  pendingRow: {
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  filters: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
   },
-  pendingLabel: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.5,
-  },
-  pendingValue: {
-    ...typography.heading,
-    color: palette.textPrimary,
-  },
-});
-
-const cardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-  },
-  meta: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginTop: 2,
-  },
-  footer: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
+  skeleton: { paddingVertical: spacing.md },
+  rowWrap: {
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  rowText: { flex: 1, gap: 2 },
+  name: { ...typography.bodyMedium, color: palette.textPrimary },
+  meta: { ...typography.caption, color: palette.textSecondary },
+  registered: {
+    fontFamily: fontFamilyMono,
+    fontSize: 9,
+    color: palette.textMuted,
+  },
+  detail: {
+    paddingBottom: spacing.lg,
     gap: spacing.md,
   },
-  registered: {
-    ...typography.label,
-    color: palette.textMuted,
-    flex: 1,
+  detailGrid: { gap: 2 },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: 3,
   },
-  verifyBtn: { minWidth: 108 },
+  detailLabel: { ...typography.label, color: palette.textMuted },
+  detailValue: {
+    ...typography.caption,
+    color: palette.textPrimary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  sectionLabel: { ...typography.label, color: palette.textMuted, marginTop: spacing.sm },
+  docRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 40,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+  },
+  docLabel: { ...typography.caption, color: palette.textPrimary, flex: 1 },
+  docOpen: { ...typography.label, color: palette.accent },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 });

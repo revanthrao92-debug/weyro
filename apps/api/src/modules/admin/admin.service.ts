@@ -137,15 +137,19 @@ export class AdminService {
       status:
         payment.status === 'REFUNDED'
           ? 'REFUNDED_TO_CUSTOMER'
-          : payment.status === 'RELEASED'
+          : payment.status === 'RELEASED' || payment.status === 'CAPTURED'
             ? 'RELEASED_TO_PROVIDER'
             : 'HELD_IN_ESCROW',
       bookingStatus: payment.booking?.status,
       payoutReference: payment.payoutReference ?? undefined,
-      releasedAt: payment.paidToProviderAt
-        ? payment.paidToProviderAt.toISOString()
-        : undefined,
-      confirmedAt: payment.createdAt.toISOString(),
+      releasedAt:
+        payment.status === 'REFUNDED'
+          ? undefined
+          : payment.paidToProviderAt?.toISOString() ??
+            (payment.status === 'CAPTURED' || payment.status === 'RELEASED'
+              ? (payment.booking?.completedAt ?? payment.updatedAt).toISOString()
+              : undefined),
+      confirmedAt: (payment.paidAt ?? payment.createdAt).toISOString(),
       completedAt: payment.booking?.completedAt
         ? payment.booking.completedAt.toISOString()
         : undefined,

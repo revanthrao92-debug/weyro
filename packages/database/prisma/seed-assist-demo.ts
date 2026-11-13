@@ -275,6 +275,10 @@ async function main() {
         paidAt: input.createdAt,
         paidToProviderAt:
           input.paymentStatus === 'CAPTURED' ? input.completedAt ?? null : null,
+        updatedAt:
+          input.paymentStatus === 'AUTHORIZED'
+            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            : undefined,
       },
     });
 

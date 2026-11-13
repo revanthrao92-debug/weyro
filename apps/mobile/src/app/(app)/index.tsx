@@ -21,6 +21,7 @@ import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
 import { DriverDashboard } from '@/components/driver/DriverDashboard';
 import { DealerDashboard } from '@/components/dealer/DealerDashboard';
 import { MechanicDashboard } from '@/components/mechanic/MechanicDashboard';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
@@ -29,7 +30,6 @@ import { useParts } from '@/hooks/useParts';
 import { useNotifications } from '@/hooks/useNotifications';
 import {
   ScreenContainer,
-  EmptyState,
   StatusPill,
   PressableScale,
   SideFade,
@@ -194,14 +194,7 @@ export default function HomeScreen() {
   const loading = requestsQuery.isLoading || bookingsQuery.isLoading;
 
   if (role === 'ADMIN') {
-    return (
-      <ScreenContainer chrome="dark">
-        <EmptyState
-          title="Nothing here yet"
-          message="The admin dashboard stays on the Overview tab."
-        />
-      </ScreenContainer>
-    );
+    return <AdminDashboard />;
   }
 
   if (providerProfile?.providerType === 'DRIVER') {
