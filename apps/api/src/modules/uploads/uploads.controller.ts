@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
   Get,
   Inject,
   Post,
+  Put,
   Query,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -20,6 +24,7 @@ import {
 } from './dto/presigned-url.dto';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { z } from 'zod';
 
@@ -102,5 +107,36 @@ export class UploadsController {
       key: dto.key,
       contentType: dto.contentType,
     });
+  }
+
+  /**
+   * Development-only local driver. The PUT body is captured by express.raw in
+   * main.ts; finalize still validates the image signature and strips EXIF.
+   */
+  @Public()
+  @Put('local-upload')
+  async localUpload(@Query('key') key: string, @Req() req: any) {
+    if (!this.storageService.receiveLocalUpload) {
+      throw new BadRequestException('Local uploads are not enabled');
+    }
+    if (!key) throw new BadRequestException('Storage key is required');
+    await this.storageService.receiveLocalUpload(key, req.body);
+    return { uploaded: true };
+  }
+
+  @Public()
+  @Get('local-file')
+  async localFile(
+    @Query('key') key: string,
+    @Res() res: any,
+  ) {
+    if (!this.storageService.readLocalFile) {
+      throw new BadRequestException('Local storage is not enabled');
+    }
+    if (!key) throw new BadRequestException('Storage key is required');
+    const file = await this.storageService.readLocalFile(key);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Cache-Control', 'private, max-age=0');
+    res.send(file.body);
   }
 }

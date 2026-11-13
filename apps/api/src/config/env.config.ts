@@ -13,6 +13,8 @@ export const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.coerce.number().default(4000),
+  // Public base URL used by the local development storage driver.
+  API_PUBLIC_URL: z.string().url().optional(),
   // Set to a hop count (e.g. "1") when the API sits behind a load balancer so
   // per-IP rate limiting sees client addresses instead of the proxy's.
   TRUST_PROXY: z.string().optional(),

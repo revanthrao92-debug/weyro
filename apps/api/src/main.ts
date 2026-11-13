@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import express from 'express';
 
 import pinoHttp from 'pino-http';
 import { AppModule } from './app.module';
@@ -126,6 +127,13 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
+
+  // Development-only local storage driver: accept raw image bytes before the
+  // JSON parser so the dev upload URL works without S3.
+  app.use(
+    '/api/v1/uploads/local-upload',
+    express.raw({ type: '*/*', limit: '10mb' }),
+  );
 
   // Request body limits (rawBody is captured by Nest for webhook signatures)
   app.useBodyParser('json', { limit: '1mb' });

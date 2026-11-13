@@ -72,3 +72,6 @@ backups/
 
 # prisma generated client (v7-style location, regenerated on install)
 packages/database/src/generated/
+
+# local development uploads (STORAGE_DRIVER=local)
+uploads/
