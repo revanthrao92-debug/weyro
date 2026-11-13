@@ -41,9 +41,9 @@
     "json"
   ],
   "lastPass": {
-    "at": "2026-11-13T16:16:25+00:00",
-    "commit": "0798040",
-    "gates": "api tsc 0; api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 63/63"
+    "at": "2026-11-13T16:55:09+00:00",
+    "commit": "2e389f1",
+    "gates": "api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 64/64"
   },
   "leftAlone": {
     "apps/api/src/common/middleware/idempotency.middleware.ts": "written but unwired; product decision",
@@ -57,7 +57,7 @@
     "apps/mobile/src/maps/LocationPicker.tsx": "826 lines, new cohesive map UI; do not split yet"
   },
   "nextMoves": [
-    "split home and request wizard screens; add admin operations tests; add env config tests"
+    "split home and request wizard; admin operations integration tests"
   ],
   "scopes": [
     "apps",
@@ -201,7 +201,7 @@
     "apps/api/src/test/e2e-setup.ts": "c43b50c642148f3decc481337a779f9b1308b91a72e9b43ebe7205320f862d87",
     "apps/api/src/test/integration.spec.ts": "cc6fc2bda1b406ab1c36b55a88fb2f4d73f067ed5633c0214470e2baad3bf3b1",
     "apps/api/tsconfig.json": "7f95b46f11d9c70a88ed9f1e241fd8e6db654544afb11384bdfaa439b599d467",
-    "apps/mobile/__tests__/api-client.spec.ts": "1cc721d9e20da3ce7d76c0f4ba4b172c1fdd25066d048d065d101b28b7fd28c5",
+    "apps/mobile/__tests__/api-client.spec.ts": "07169029e93f4f41845d4ccd5ca2caad5f87f252c0937ab9737bc7ed457fcfde",
     "apps/mobile/__tests__/entry-role.spec.ts": "49d83ecc17f9bc48ed8b16c7854a37778f51d677b2486c20a3793cc7c111070d",
     "apps/mobile/__tests__/maps-client.spec.ts": "72639ba5f547253e304196b63d4731e8320a33785c07db09d6ed884d16d6dbe2",
     "apps/mobile/__tests__/maps-geo.spec.ts": "8b7baff71751ed949716965df9b3cab06d0f2d91d8313a4c6b034b10ee6a3a51",
@@ -383,10 +383,10 @@
     "apps/mobile/src/app/(app)/shop.tsx": "c9aa4d7aa5ecb290c56c43612499b962205682305e64e1628f5dbdd97cd0ce8c",
     "apps/mobile/src/app/(auth)/_layout.tsx": "b4edf209079107b6c012f2ac9f9ee73a140e47ba0902863a1bd262f512e1f625",
     "apps/mobile/src/app/(auth)/forgot-password.tsx": "1493d314a5fb0a245472f36f1bfe5280218338c9af45648ebf2ff606deabfa8a",
-    "apps/mobile/src/app/(auth)/login.tsx": "d5166b0101c73297abbc4a7b0c0b861f38d759002ac7cc652e89d6d28c7ef219",
+    "apps/mobile/src/app/(auth)/login.tsx": "07b2e3bf5f0dc8bb47750fe16b38161ecc6e9d4bb1f2cc8e52aa3a56512ef98f",
     "apps/mobile/src/app/(auth)/register.tsx": "b7f31701f0ff2887b4d1ae6dec102091f64f5d23e1716b79dffa9f7b35ed2cea",
     "apps/mobile/src/app/(auth)/reset-password.tsx": "c3138582c944a6d8c8e346bcada9269a30b6cced1c2fbd775570028947354d10",
-    "apps/mobile/src/app/_layout.tsx": "b38062bd13eb26ec5722e2c58f787f3de8ca59a595f1b5c151a6549b790c97a0",
+    "apps/mobile/src/app/_layout.tsx": "5b12e6244963e68af67a260ab9302c9586ff4d03552fb6ebd5801e26c4e52e94",
     "apps/mobile/src/app/addresses.tsx": "60c45d39e343ceb65c339bda9bb8a08bcd8cd8ef05685f077f965682fd0bb64d",
     "apps/mobile/src/app/alerts.tsx": "eca5f6b472e28ee851d06ed4e29977754632b8515069d4d53b26ce4ee805b4e6",
     "apps/mobile/src/app/booking/[id].tsx": "ca53fad1a046cc3411b8050e5cf29a9a21b1d2eeb668aaf155857d46dac6ee99",
@@ -399,7 +399,7 @@
     "apps/mobile/src/app/financials.tsx": "72bafe7a3a6f52b47b8ff45ab040be489ecfaef98152602ac668f6c307ee1531",
     "apps/mobile/src/app/help.tsx": "efb5934a8c08f707c5e39764f2091941ecb557275a933421554bd6aa71961742",
     "apps/mobile/src/app/inbox.tsx": "6cc0bb85eb08e96137082309f927f78617f36671165256b0450280d41fadf043",
-    "apps/mobile/src/app/index.tsx": "297643f87cda65228f4947608d43d402387aa757429111e4c706af4162f270ab",
+    "apps/mobile/src/app/index.tsx": "bbd9eafcd72bbce66ba3f7aed01477205ab5cd9b843fb21660d1dac7bb514355",
     "apps/mobile/src/app/job/[id].tsx": "f812ae1e2e84b3ce5398497e4583eae36e88b292fc78192c631b63100b6f8ae9",
     "apps/mobile/src/app/listings/[id].tsx": "c92a86c467e3ccf8e58d1bed7d064af728d9dbc3f908f0eee67c01cbbe0d1c5e",
     "apps/mobile/src/app/listings/create.tsx": "a91ce2fb703208ece03416aa188cf844c7bb2cd554080c091d57dba8db6b954a",
@@ -458,6 +458,7 @@
     "apps/mobile/src/components/ui/ButtonRow.tsx": "4aefe1d7ce8643e9d820acaac704f9c00ce3936d804817d5642be2189cdf3227",
     "apps/mobile/src/components/ui/Chip.tsx": "fcf722dbafbbf819c3164bcf51e1829a66ad2021503da45a66884c5c6f966d66",
     "apps/mobile/src/components/ui/EmptyState.tsx": "14e39e0d77aec6ecd093e48efce00c25dd828e5ac3c21a8eb536457fb4456b88",
+    "apps/mobile/src/components/ui/ErrorBoundary.tsx": "a585bffbfd2f68fe013c703fded17550e518e9cbdea9cc2141465714f8691a84",
     "apps/mobile/src/components/ui/ErrorState.tsx": "7385d2adb10fc918d7570bd3d851e208c4bc788dd193250a94d480a86a366f6d",
     "apps/mobile/src/components/ui/FilterBar.tsx": "c0d7c925261f11b7615247948776fffa8fa9b683e4ad9413285dcab893b2a3bf",
     "apps/mobile/src/components/ui/IconButton.tsx": "d89599d2e82af0f3cd9a2e1915c86913e5d969e38ffe0a452a6d96b52a2ee4bc",
@@ -473,7 +474,7 @@
     "apps/mobile/src/components/ui/StatusPill.tsx": "216c447fc9051322cda94782f2566e47c92882b14022d63c3d72714cdac9910b",
     "apps/mobile/src/components/ui/index.ts": "7d82728f16efd7bdad152e8a98e5dbfd93decaf54a993eb2ec43c811418e4426",
     "apps/mobile/src/hooks/useAdmin.ts": "46bf263419790acfc8fc482b8352b6c519b4e7d227654020ddfbbfec6c589499",
-    "apps/mobile/src/hooks/useAuth.tsx": "5a0bf85129d71bc9d1c1e5533a1d2621e75adaf11d9e02b7c5a5b6dfb359892f",
+    "apps/mobile/src/hooks/useAuth.tsx": "b958c895a24227ba3773c5091b7abc4e953d343ca36a9770cab5af2c56687b29",
     "apps/mobile/src/hooks/useBookings.ts": "2ae0c7fbb278225c056676d3dc2b04604e3bda911a77662678eba4925db92018",
     "apps/mobile/src/hooks/useChatThreads.ts": "a742dd03bf2adae5c0926fa541045862580399c61b06b68cfa4662c2c1fcc0d8",
     "apps/mobile/src/hooks/useDriverGo.ts": "93c1a436626f3178ef6372912155506fd6914fcc18c20c2bb2382dfe9d42040d",
@@ -498,7 +499,7 @@
     "apps/mobile/src/maps/types.ts": "128b5451212b23afeebb0b8bf641016d354a19a8c2ca10852afbc7cf286cfd41",
     "apps/mobile/src/maps/useDeviceLocation.ts": "1ed414891354cc84917bdc8398158718e02152b08c1d8bb059be5c06f1c9c9b7",
     "apps/mobile/src/maps/useDirections.ts": "b0ceaa6973180c7c765836408c6bd5a72c7e15b627eb4bacbc0eb5f1ba1d7647",
-    "apps/mobile/src/services/api-client.ts": "3d7d39234d227dab7c08c3b15cf5b66b982ae98b7e77a0ab967866c27b808b6f",
+    "apps/mobile/src/services/api-client.ts": "811e438bf5f4b9f9fcde206992b99754d8e8db155dc7e7c7a19f3e86993c2161",
     "apps/mobile/src/services/token-storage.ts": "27c774d034263b07841eb1ee1f5a2e1a935a3bda6c1589880a6ddb87d6d9d068",
     "apps/mobile/src/services/uploads.ts": "f71c292154440d3bd6075fb9a5b88c3ade7b162ecec265ec82926938414cd2cc",
     "apps/mobile/src/theme/colors.ts": "ae21ab93dc30eb4b2839f69ce8892d1d00f3028a343404ac5fb1e297f0c275c0",
@@ -562,8 +563,8 @@
     "tsconfig.base.json": "352b221ba3270755e1d04a5bb1676284211f2e62b7e3a93f1739c492cb6a27c3",
     "tsconfig.json": "96f82049559b6a50052b25f697559f344e89f09e38e47dc20ca4215f8e9db307"
   },
-  "settledAt": "2026-11-13T16:16:25+00:00",
-  "settledReason": "deployment and logging hardening",
-  "updatedAt": "2026-11-13T16:16:25+00:00",
+  "settledAt": "2026-11-13T16:55:09+00:00",
+  "settledReason": "auth role validation before session commit",
+  "updatedAt": "2026-11-13T16:55:09+00:00",
   "version": 1
 }
