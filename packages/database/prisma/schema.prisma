@@ -748,7 +748,8 @@ model OTP {
 
 model IdempotencyKey {
   id             String    @id @default(uuid())
-  key            String    @unique // The idempotency key value (client-generated)
+  key            String // The idempotency key value (client-generated)
+  scope          String    @default("") // Bound principal + method + endpoint
   endpoint       String // The API endpoint path
   method         String // HTTP method
   userId         String? // The user who made the request (if authenticated)
@@ -760,6 +761,7 @@ model IdempotencyKey {
   processedAt    DateTime?
   expiresAt      DateTime // TTL for cleanup (e.g., 24 hours)
 
+  @@unique([key, scope])
   @@index([userId])
   @@index([endpoint])
   @@index([expiresAt])

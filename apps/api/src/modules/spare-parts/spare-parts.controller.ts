@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { SparePartsService } from './spare-parts.service';
 import {
@@ -21,6 +22,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { VerifiedProviderGuard } from '../../common/guards/verified-provider.guard';
 import { Throttle } from '@nestjs/throttler';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
@@ -141,6 +143,7 @@ export class SparePartsController {
 
   @Post()
   @Roles('PROVIDER', 'ADMIN')
+  @UseGuards(VerifiedProviderGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async create(
     @CurrentUser() user: AuthUserPayload,
@@ -154,6 +157,7 @@ export class SparePartsController {
 
   @Patch(':id')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @UseGuards(VerifiedProviderGuard)
   async update(
     @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,
@@ -164,6 +168,7 @@ export class SparePartsController {
 
   @Delete(':id')
   @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  @UseGuards(VerifiedProviderGuard)
   async remove(
     @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @CurrentUser() user: AuthUserPayload,

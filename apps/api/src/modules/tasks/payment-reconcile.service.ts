@@ -116,9 +116,10 @@ export class PaymentReconcileService {
       bookingId: string | null;
     },
   ): Promise<void> {
-    // Payments without a gateway order were never opened on Razorpay.
-    if (!row.gatewayOrderId) {
-      await this.markFailed(row, 'missing gateway order id');
+    // A local PENDING/AUTHORIZED row without a payment id was never verified
+    // and cannot be looked up by payment id. Leave it for verification or the
+    // webhook rather than guessing from the order id.
+    if (!row.gatewayPaymentId) {
       return;
     }
 
@@ -130,11 +131,11 @@ export class PaymentReconcileService {
       status?: string;
     };
     try {
-      remote = await this.gateway().fetchPayment(row.gatewayOrderId);
+      remote = await this.gateway().fetchPayment(row.gatewayPaymentId);
     } catch (err: any) {
       // Not found at the gateway = the order was never paid.
       if (isNotFound(err)) {
-        await this.markFailed(row, 'order not found on gateway');
+        await this.markFailed(row, 'payment not found on gateway');
         return;
       }
       throw err; // transient network / gateway hiccup — retried next cycle

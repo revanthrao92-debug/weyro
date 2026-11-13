@@ -22,7 +22,7 @@ describe('PaymentReconcileService', () => {
       amount: 100,
       currency: 'INR',
       gatewayOrderId: 'order_rec_1',
-      gatewayPaymentId: null,
+      gatewayPaymentId: 'pay_rec_1',
       bookingId: 'bk_rec_1',
       ...overrides,
     };
@@ -135,9 +135,20 @@ describe('PaymentReconcileService', () => {
     );
   });
 
-  it('marks FAILED when the gateway cannot find the order (never opened)', async () => {
+  it('leaves rows untouched when no gateway payment id exists', async () => {
+    prisma.payment.findMany.mockResolvedValue([
+      seedRow({ gatewayPaymentId: null }),
+    ]);
+
+    await reconcile.reconcile();
+
+    expect(gatewayFetch).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('marks FAILED when the gateway cannot find the payment', async () => {
     prisma.payment.findMany.mockResolvedValue([seedRow()]);
-    gatewayFetch.mockRejectedValue({ statusCode: 404, message: 'order_id not found' });
+    gatewayFetch.mockRejectedValue({ statusCode: 404, message: 'payment not found' });
 
     await reconcile.reconcile();
 

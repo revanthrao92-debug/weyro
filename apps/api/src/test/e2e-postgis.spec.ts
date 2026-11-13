@@ -223,7 +223,9 @@ describe('PostGIS & Soft Delete E2E', () => {
 
       await expect(prisma.idempotencyKey.create({ data })).rejects.toThrow();
 
-      const found = await prisma.idempotencyKey.findUnique({ where: { key } });
+      const found = await prisma.idempotencyKey.findUnique({
+        where: { key_scope: { key, scope: '' } },
+      });
       expect(found?.endpoint).toBe('/api/v1/e2e-test');
     });
   });

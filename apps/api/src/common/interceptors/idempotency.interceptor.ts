@@ -1,5 +1,6 @@
 import {
   CallHandler,
+  ConflictException,
   ExecutionContext,
   Injectable,
   Logger,
@@ -44,6 +45,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    const rawPath = String(request.path || '');
+    // Never cache credential-bearing auth responses, even for a bound key.
+    if (rawPath.includes('/auth/')) {
+      return next.handle();
+    }
+
     const key = idempotencyKey as string;
     const endpoint = request.route?.path || request.path;
     const method = request.method;
@@ -51,6 +58,13 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const requestHash = crypto
       .createHash('sha256')
       .update(JSON.stringify(request.body || {}))
+      .digest('hex');
+    // Bind a key to one principal, method and endpoint. A key used by a
+    // different principal or route gets a separate namespace and cannot
+    // replay the original response.
+    const scope = crypto
+      .createHash('sha256')
+      .update(`${userId ?? 'anonymous'}:${method}:${endpoint}`)
       .digest('hex');
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -60,6 +74,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
       this.prisma.idempotencyKey.create({
         data: {
           key,
+          scope,
           endpoint,
           method,
           userId,
@@ -80,7 +95,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         // Capture the response and update the idempotency key
         const statusCode = response.statusCode || 200;
         await this.prisma.idempotencyKey.update({
-          where: { key },
+          where: { key_scope: { key, scope } },
           data: {
             status: 'PROCESSED',
             responseStatus: statusCode,
@@ -93,7 +108,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         // Mark the key as FAILED if the handler errors
         from(
           this.prisma.idempotencyKey.update({
-            where: { key },
+            where: { key_scope: { key, scope } },
             data: { status: 'FAILED' },
           }),
         ).subscribe(() => {}, () => {}); // Never block due to audit errors
@@ -108,6 +123,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
           // Key already claimed by another request - wait for it to complete
           return this.handleKeyClaimedByAnother(
             key,
+            scope,
+            requestHash,
             endpoint,
             method,
             response,
@@ -124,6 +141,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
    */
   private handleKeyClaimedByAnother(
     key: string,
+    scope: string,
+    requestHash: string,
     endpoint: string,
     method: string,
     response: any,
@@ -141,12 +160,33 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
       const poll = () => {
         from(
-          this.prisma.idempotencyKey.findUnique({ where: { key } }),
+          this.prisma.idempotencyKey.findUnique({
+            where: { key_scope: { key, scope } },
+          }),
         ).subscribe({
           next: (record: any) => {
             attempts++;
 
-            if (
+            if (record && new Date(record.expiresAt).getTime() <= Date.now()) {
+              void this.prisma.idempotencyKey
+                .deleteMany({ where: { id: record.id } })
+                .catch(() => {});
+              subscriber.error(
+                new ConflictException(
+                  'Idempotency key expired; retry with a new key',
+                ),
+              );
+            } else if (
+              record &&
+              record.requestHash &&
+              record.requestHash !== requestHash
+            ) {
+              subscriber.error(
+                new ConflictException(
+                  'Idempotency key was used with a different request body',
+                ),
+              );
+            } else if (
               record &&
               record.status === 'PROCESSED' &&
               record.responseStatus &&
@@ -160,7 +200,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
               subscriber.complete();
             } else if (record && record.status === 'FAILED') {
               subscriber.error(
-                new Error('Previous request with this idempotency key failed'),
+                new ConflictException(
+                  'Previous request with this idempotency key failed',
+                ),
               );
             } else if (attempts >= maxAttempts) {
               subscriber.error(

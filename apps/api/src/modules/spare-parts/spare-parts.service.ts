@@ -90,7 +90,11 @@ export class SparePartsService {
     limit?: number;
   }) {
     const boundedLimit = Math.min(50, Math.max(1, params.limit || 20));
-    const where: any = { isActive: true };
+    const where: any = {
+      isActive: true,
+      deletedAt: null,
+      provider: { verificationStatus: 'VERIFIED' },
+    };
     const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
 
     if (params.condition) {
@@ -168,7 +172,12 @@ export class SparePartsService {
 
   async findOne(id: string) {
     const part = await this.prisma.sparePart.findFirst({
-      where: { id, isActive: true },
+      where: {
+        id,
+        isActive: true,
+        deletedAt: null,
+        provider: { verificationStatus: 'VERIFIED' },
+      },
       include: {
         provider: {
           select: {
@@ -324,10 +333,25 @@ export class SparePartsService {
   ) {
     const part = await this.prisma.sparePart.findFirst({
       where: { id: partId, isActive: true, deletedAt: null },
+      include: {
+        provider: {
+          select: { verificationStatus: true, isAvailable: true },
+        },
+      },
     });
 
     if (!part) {
       throw new NotFoundException(`Spare part with ID ${partId} not found`);
+    }
+
+    if (part.provider.verificationStatus !== 'VERIFIED') {
+      throw new ForbiddenException(
+        'This dealer is not verified and cannot accept orders',
+      );
+    }
+
+    if (!part.provider.isAvailable) {
+      throw new ConflictException('This dealer is currently closed');
     }
 
     // Packages are booked once; stock checks only apply to physical parts

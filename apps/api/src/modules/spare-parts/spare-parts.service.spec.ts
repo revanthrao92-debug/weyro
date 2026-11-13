@@ -110,10 +110,41 @@ describe('SparePartsService order flow', () => {
       price: 1000,
       stockQuantity: 1,
       providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
     });
 
     await expect(
       service.createOrder('part-1', 'cust-1', { quantity: 3 }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(mockGateway.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects orders from an unverified dealer', async () => {
+    mockPrisma.sparePart.findFirst.mockResolvedValue({
+      id: 'part-1',
+      price: 1000,
+      stockQuantity: 5,
+      providerId: 'prov-1',
+      provider: { verificationStatus: 'PENDING', isAvailable: true },
+    });
+
+    await expect(
+      service.createOrder('part-1', 'cust-1', { quantity: 1 }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(mockGateway.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects orders from a closed dealer', async () => {
+    mockPrisma.sparePart.findFirst.mockResolvedValue({
+      id: 'part-1',
+      price: 1000,
+      stockQuantity: 5,
+      providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: false },
+    });
+
+    await expect(
+      service.createOrder('part-1', 'cust-1', { quantity: 1 }),
     ).rejects.toMatchObject({ status: 409 });
     expect(mockGateway.createOrder).not.toHaveBeenCalled();
   });
@@ -124,6 +155,7 @@ describe('SparePartsService order flow', () => {
       price: 1499.5,
       stockQuantity: 5,
       providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
     });
     (mockGateway.createOrder as jest.Mock).mockResolvedValue({
       orderId: 'order_gw_1',
@@ -265,6 +297,7 @@ describe('SparePartsService order flow', () => {
       price: 2500,
       stockQuantity: 1,
       providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
     });
     (mockGateway.createOrder as jest.Mock).mockResolvedValue({
       orderId: 'order_gw_2',
@@ -379,6 +412,7 @@ describe('SparePartsService order flow', () => {
       deletedAt: null,
       customerId: 'cust-1',
       providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
       sparePartId: 'part-1',
       quantity: 2,
       totalAmount: 3000,
@@ -528,6 +562,7 @@ describe('SparePartsService order flow', () => {
         price: 1000,
         stockQuantity: 5,
         providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
       });
       (mockGateway.createOrder as jest.Mock).mockResolvedValue({
         orderId: 'order_gw_1',
@@ -539,6 +574,7 @@ describe('SparePartsService order flow', () => {
         sparePartId: 'part-1',
         customerId: 'cust-1',
         providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
         quantity: 2,
         totalAmount: 2000,
         currency: 'INR',
@@ -564,6 +600,7 @@ describe('SparePartsService order flow', () => {
         status: 'PENDING',
         customerId: 'cust-1',
         providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
         gatewayOrderId: 'order_gw_1',
         quantity: 2,
         totalAmount: 2000,
@@ -617,6 +654,7 @@ describe('SparePartsService order flow', () => {
         deletedAt: null,
         customerId: 'cust-1',
         providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
         sparePartId: 'part-1',
         quantity: 1,
         totalAmount: 1000,
@@ -643,6 +681,7 @@ describe('SparePartsService order flow', () => {
         deletedAt: null,
         customerId: 'cust-1',
         providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
         sparePartId: 'part-1',
         quantity: 1,
         totalAmount: 1000,
@@ -675,6 +714,7 @@ describe('SparePartsService order flow', () => {
       deletedAt: null,
       customerId: 'cust-1',
       providerId: 'prov-1',
+      provider: { verificationStatus: 'VERIFIED', isAvailable: true },
       quantity: 1,
       unitPrice: 100,
       totalAmount: 100,
