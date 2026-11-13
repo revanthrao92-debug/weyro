@@ -63,10 +63,10 @@ GET `/notifications` (cursor-paged) · GET `/unread-count` · PATCH `/:id/read` 
 GET `/uploads/presigned-url` · GET `/uploads/presigned-download-url` · POST `/uploads/finalize` — S3 (prod) / local-mock (dev). Key-ownership + traversal guards.
 
 ## Providers (`/providers`)
-GET/PATCH `/providers/me` · GET `/providers/:id` (public) · GET `/providers/:id/reviews` (public)
+GET/PATCH `/providers/me` · PATCH `/providers/me/verification-documents` (private KYC keys) · GET `/providers/:id` (public) · GET `/providers/:id/reviews` (public)
 
 ## Admin (`/admin`) — `ADMIN` role only
-GET `/admin/overview` · GET `/admin/providers` · PATCH `/admin/providers/:id/verify` · GET `/admin/escrow-ledger` · GET `/admin/activity-logs` · GET `/admin/activity-stats`
+GET `/admin/overview` · GET `/admin/providers` · PATCH `/admin/providers/:id/verify` · GET `/admin/escrow-ledger` (payment ledger; application-level release, not licensed escrow) · GET `/admin/activity-logs` · GET `/admin/activity-stats`
 
 ## Health
 GET `/health` (liveness) · GET `/ready` (DB ping, used by docker healthchecks)

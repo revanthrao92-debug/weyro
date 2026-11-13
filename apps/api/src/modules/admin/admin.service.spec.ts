@@ -85,3 +85,74 @@ describe('AdminService.refundBooking', () => {
     });
   });
 });
+
+describe('AdminService.verifyProvider', () => {
+  let service: AdminService;
+  let prisma: any;
+
+  beforeEach(() => {
+    prisma = {
+      providerProfile: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    service = new AdminService(prisma, {} as PaymentGateway);
+  });
+
+  it('records approval with reviewer and audit trail', async () => {
+    prisma.providerProfile.findUnique.mockResolvedValue({
+      id: 'provider-1',
+      businessName: 'Deccan Auto Care',
+      providerType: 'GARAGE',
+      phone: '+919876543210',
+      address: 'Indiranagar, Bengaluru',
+      verificationStatus: 'PENDING',
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    prisma.providerProfile.update.mockResolvedValue({
+      id: 'provider-1',
+      businessName: 'Deccan Auto Care',
+      providerType: 'GARAGE',
+      phone: '+919876543210',
+      address: 'Indiranagar, Bengaluru',
+      verificationStatus: 'VERIFIED',
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    const result = await service.verifyProvider(
+      'provider-1',
+      { status: 'VERIFIED', auditorNotes: 'GST and ID checked' },
+      'admin-1',
+    );
+
+    expect(prisma.providerProfile.update).toHaveBeenCalledWith({
+      where: { id: 'provider-1' },
+      data: expect.objectContaining({
+        verificationStatus: 'VERIFIED',
+        verifiedBy: 'admin-1',
+        auditorNotes: 'GST and ID checked',
+        verifiedAt: expect.any(Date),
+      }),
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'provider.verify',
+        actorId: 'admin-1',
+        actorRole: 'ADMIN',
+        entityId: 'provider-1',
+      }),
+    });
+    expect(result.verificationStatus).toBe('VERIFIED');
+  });
+
+  it('rejects a missing provider', async () => {
+    prisma.providerProfile.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.verifyProvider('missing', { status: 'VERIFIED' }, 'admin-1'),
+    ).rejects.toThrow('not found');
+    expect(prisma.providerProfile.update).not.toHaveBeenCalled();
+  });
+});
