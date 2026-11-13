@@ -1,7 +1,7 @@
 {
   "name": "weyro",
   "version": "1.0.0",
-  "description": "Weyro monorepo — NestJS API backend",
+  "description": "Weyro monorepo \u2014 NestJS API backend",
   "private": true,
   "workspaces": [
     "apps/api",
@@ -28,7 +28,8 @@
     "typecheck:all": "npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api"
   },
   "overrides": {
-    "multer": "2.5.0"
+    "multer": "2.5.0",
+    "zod": "^4.6.7"
   },
   "dependencies": {
     "@expo-google-fonts/sora": "^0.4.2",
