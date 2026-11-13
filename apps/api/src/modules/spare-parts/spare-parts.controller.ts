@@ -191,6 +191,7 @@ export class SparePartsController {
   }
 
   @Post('orders/:orderId/verify')
+  @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async verifyOrder(
     @Param('orderId', new ZodValidationPipe(idParamSchema)) orderId: string,

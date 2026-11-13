@@ -164,6 +164,54 @@ describe('AuthService – OTP security hardening', () => {
     });
   });
 
+  describe('account state gate', () => {
+    it('refuses to mint tokens for an inactive user', async () => {
+      const phone = '+919000000009';
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'u9',
+        role: 'CUSTOMER',
+        phone,
+        email: 'u9@example.com',
+        isActive: false,
+        deletedAt: null,
+        customerProfile: { id: 'c9' },
+        providerProfile: null,
+      });
+
+      await expect(
+        service.verifyOtp({ phone, code: '123456' } as never),
+      ).rejects.toThrow('This account is disabled');
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(mockJwt.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('binds an OTP to its issued purpose when both are supplied', async () => {
+      const phone = '+919000000010';
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'reset_password',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+
+      await expect(
+        service.verifyOtp({ phone, code: '123456', purpose: 'login' } as never),
+      ).rejects.toThrow('OTP is not valid for this action');
+      expect(mockPrisma.oTP.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe('C1 – the OTP code never reaches logs', () => {
     it('does not log the code during send or verification', async () => {
       const phone = '+919000000004';

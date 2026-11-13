@@ -368,6 +368,10 @@ export class AuthService {
       throw new BadRequestException('OTP has already been verified');
     }
 
+    if (dto.purpose && otp.purpose && dto.purpose !== otp.purpose) {
+      throw new BadRequestException('OTP is not valid for this action');
+    }
+
     if (otp.expiresAt < new Date()) {
       throw new BadRequestException('OTP has expired');
     }
@@ -413,6 +417,10 @@ export class AuthService {
         providerProfile: true,
       },
     });
+
+    if (user && (!user.isActive || user.deletedAt)) {
+      throw new UnauthorizedException('This account is disabled');
+    }
 
     const isNewUser = !user;
 

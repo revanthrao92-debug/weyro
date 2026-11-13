@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { validatePaymentTransition } from '../../common/state-machines/state-machines';
 import { VerifyProviderDto } from './dto/verify-provider.dto';
 import {
   AdminOverviewMetrics,
@@ -159,7 +160,7 @@ export class AdminService {
     };
   }
 
-  async refundBooking(bookingId: string) {
+  async refundBooking(bookingId: string, adminUserId?: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -175,32 +176,66 @@ export class AdminService {
     if (!payment) {
       throw new ConflictException('Booking has no payment to refund');
     }
-    if (!['AUTHORIZED', 'CAPTURED', 'RELEASED'].includes(payment.status)) {
-      throw new ConflictException(
-        `Cannot refund a payment in ${payment.status} status`,
-      );
+    if (payment.status === 'REFUNDED') {
+      return {
+        bookingId,
+        paymentId: payment.id,
+        status: 'REFUNDED',
+        refundId: null,
+      };
     }
     if (!payment.gatewayPaymentId) {
       throw new ConflictException('Payment has no gateway reference to refund');
     }
 
-    const refund = await this.gateway.refundPayment({
-      paymentId: payment.gatewayPaymentId,
-      amountInPaise: Math.round(Number(payment.amount) * 100),
-      notes: { bookingId, reason: 'admin_refund' },
-    });
+    validatePaymentTransition(payment.status, 'REFUNDED', 'ADMIN');
 
-    await this.prisma.payment.update({
-      where: { id: payment.id },
+    // Claim the payment before touching the gateway so concurrent or retried
+    // admin requests cannot both initiate a refund.
+    const claimed = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: payment.status },
       data: { status: 'REFUNDED' },
     });
+    if (claimed.count === 0) {
+      throw new ConflictException('Payment is no longer refundable');
+    }
 
-    return {
-      bookingId,
-      paymentId: payment.id,
-      status: 'REFUNDED',
-      refundId: refund.refundId,
-    };
+    try {
+      const refund = await this.gateway.refundPayment({
+        paymentId: payment.gatewayPaymentId,
+        amountInPaise: Math.round(Number(payment.amount) * 100),
+        notes: { bookingId, reason: 'admin_refund' },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: adminUserId ?? null,
+          actorRole: 'ADMIN',
+          action: 'payment.refund',
+          entityType: 'Payment',
+          entityId: payment.id,
+          oldValues: { status: payment.status },
+          newValues: {
+            status: 'REFUNDED',
+            refundId: refund.refundId,
+            bookingId,
+          },
+        },
+      });
+
+      return {
+        bookingId,
+        paymentId: payment.id,
+        status: 'REFUNDED',
+        refundId: refund.refundId,
+      };
+    } catch (error) {
+      await this.prisma.payment.updateMany({
+        where: { id: payment.id, status: 'REFUNDED' },
+        data: { status: payment.status as any },
+      });
+      throw error;
+    }
   }
 
   async getProviders(status?: string): Promise<ProviderVerificationRecord[]> {

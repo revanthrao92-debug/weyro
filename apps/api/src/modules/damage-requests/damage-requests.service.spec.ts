@@ -292,6 +292,7 @@ describe('DamageRequestsService', () => {
       mockPrisma.serviceRequest.findUnique.mockResolvedValue({
         id: 'req-1',
         customerId: 'cust-1',
+        category: 'REPAIR',
         address: '123 Tech Park, Whitefield, Bengaluru',
         customer: {
           id: 'cust-1',
@@ -309,9 +310,14 @@ describe('DamageRequestsService', () => {
         providerProfileId: 'prov-1',
       };
 
+      mockPrisma.providerProfile.findUnique.mockResolvedValue({
+        providerType: 'MECHANIC',
+        verificationStatus: 'VERIFIED',
+      });
+
       const result = await service.findOne('req-1', providerUser as any);
 
-      expect(result.address).toBe('Whitefield, Bengaluru');
+      expect(result.address).toBe('Bengaluru');
       expect((result.customer as any).user).toBeUndefined();
     });
   });
@@ -360,12 +366,18 @@ describe('DamageRequestsService authorization regressions', () => {
     mockPrisma.serviceRequest.findUnique.mockResolvedValue({
       id: 'req-1',
       customerId: 'cust-1',
+      category: 'REPAIR',
       address: '1 Main Road, Whitefield, Bengaluru',
       customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
       quotations: [
         { id: 'q-own', providerId: 'prov-1', status: 'PENDING', booking: null },
         { id: 'q-rival', providerId: 'prov-2', status: 'PENDING', booking: null },
       ],
+    });
+
+    mockPrisma.providerProfile.findUnique.mockResolvedValue({
+      providerType: 'MECHANIC',
+      verificationStatus: 'VERIFIED',
     });
 
     const result = await service.findOne('req-1', providerUser as any);
@@ -378,6 +390,7 @@ describe('DamageRequestsService authorization regressions', () => {
     mockPrisma.serviceRequest.findUnique.mockResolvedValue({
       id: 'req-1',
       customerId: 'cust-1',
+      category: 'REPAIR',
       address: '1 Main Road, Whitefield, Bengaluru',
       customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
       quotations: [
@@ -400,6 +413,7 @@ describe('DamageRequestsService authorization regressions', () => {
     mockPrisma.serviceRequest.findUnique.mockResolvedValue({
       id: 'req-1',
       customerId: 'cust-1',
+      category: 'REPAIR',
       address: '1 Main Road, Whitefield, Bengaluru',
       customer: { id: 'cust-1', firstName: 'A', lastName: 'B', avatarUrl: null },
       quotations: [],

@@ -156,7 +156,7 @@ export class NotificationsService {
             ) {
               const invalidToken = chunk[index].to as string;
               this.logger.log(
-                `Purging unregistered device token: ${invalidToken}`,
+                'Purging unregistered push token for this user',
               );
               await this.prisma.pushToken.deleteMany({
                 where: { token: invalidToken },

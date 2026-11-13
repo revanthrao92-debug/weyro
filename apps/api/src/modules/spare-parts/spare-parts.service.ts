@@ -437,7 +437,10 @@ export class SparePartsService {
       throw new NotFoundException(`Spare part order ${orderId} not found`);
     }
 
-    if (customerId && order.customerId !== customerId && customerId !== 'ADMIN') {
+    if (!customerId) {
+      throw new ForbiddenException('Customer profile required to verify payment');
+    }
+    if (order.customerId !== customerId && customerId !== 'ADMIN') {
       throw new ForbiddenException('Only the order customer can verify payment');
     }
 

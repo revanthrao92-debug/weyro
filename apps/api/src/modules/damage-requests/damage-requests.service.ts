@@ -445,11 +445,14 @@ export class DamageRequestsService {
     ) {
       const provider = await this.prisma.providerProfile.findUnique({
         where: { id: user.providerProfileId },
-        select: { providerType: true },
+        select: { providerType: true, verificationStatus: true },
       });
-      const eligible = provider
-        ? PROVIDER_TYPE_CATEGORIES[provider.providerType]
-        : undefined;
+      if (!provider || provider.verificationStatus !== 'VERIFIED') {
+        throw new ForbiddenException(
+          'Only verified providers can open service requests',
+        );
+      }
+      const eligible = PROVIDER_TYPE_CATEGORIES[provider.providerType];
       if (eligible && !eligible.includes(found.category)) {
         throw new ForbiddenException(
           'This request does not match your provider service category',
@@ -489,9 +492,30 @@ export class DamageRequestsService {
         avatarUrl: found.customer.avatarUrl,
       };
 
+      const {
+        latitude: _latitude,
+        longitude: _longitude,
+        dropoffLatitude: _dropoffLatitude,
+        dropoffLongitude: _dropoffLongitude,
+        vehicle,
+        ...rest
+      } = found;
       return {
-        ...found,
-        address: this.maskAddress(found.address),
+        ...rest,
+        address: this.maskDetailAddress(found.address),
+        dropoffAddress: found.dropoffAddress
+          ? this.maskDetailAddress(found.dropoffAddress)
+          : found.dropoffAddress,
+        vehicle: vehicle
+          ? {
+              make: vehicle.make,
+              model: vehicle.model,
+              year: vehicle.year,
+              fuelType: vehicle.fuelType,
+              transmission: vehicle.transmission,
+              color: vehicle.color,
+            }
+          : null,
         customer: sanitizedCustomer,
         quotations,
       };
@@ -500,14 +524,23 @@ export class DamageRequestsService {
     return { ...found, quotations };
   }
 
+  private maskDetailAddress(fullAddress: string): string {
+    if (!fullAddress) return 'Location shared after acceptance';
+    const parts = fullAddress
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length >= 2) return parts[parts.length - 1];
+    return 'Location shared after acceptance';
+  }
+
   private maskAddress(fullAddress: string): string {
     if (!fullAddress) return 'Location specified upon booking';
     const parts = fullAddress.split(',');
-    // If multiple parts, return the city/area only
     if (parts.length >= 2) {
       return parts
         .slice(-2)
-        .map((p) => p.trim())
+        .map((part) => part.trim())
         .join(', ');
     }
     return fullAddress.replace(/^\d+[\w\s]+,\s*/, '').trim();

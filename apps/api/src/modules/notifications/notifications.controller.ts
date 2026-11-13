@@ -13,6 +13,10 @@ import { DeletePushTokenDto, RegisterPushTokenDto } from './dto/notifications.dt
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { idParamSchema } from '../../common/dto/id-param.schema';
+import {
+  CursorPaginationQuery,
+  cursorPaginationSchema,
+} from '../../common/dto/query.dto';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @Controller('notifications')
@@ -43,13 +47,13 @@ export class NotificationsController {
   @Get()
   async getNotifications(
     @CurrentUser() user: AuthUserPayload,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(cursorPaginationSchema))
+    query: CursorPaginationQuery,
   ) {
     return this.service.getUserNotifications(
       user.sub,
-      cursor,
-      limit ? parseInt(limit, 10) : 20,
+      query.cursor,
+      query.limit ?? 20,
     );
   }
 

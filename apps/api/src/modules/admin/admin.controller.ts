@@ -53,8 +53,11 @@ export class AdminController {
   }
 
   @Post('bookings/:id/refund')
-  async refundBooking(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
-    return this.service.refundBooking(id);
+  async refundBooking(
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.service.refundBooking(id, user.sub);
   }
 
   @Get('providers')

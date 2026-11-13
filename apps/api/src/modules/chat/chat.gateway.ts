@@ -100,7 +100,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const token = authHeader.replace(/^Bearer\s+/i, '');
       const payload: AuthUserPayload = this.jwtService.verify(token, {
         secret: env.JWT_ACCESS_SECRET,
+        algorithms: ['HS256'],
       });
+      if (
+        typeof payload.sub !== 'string' ||
+        !payload.sub ||
+        !['CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN'].includes(payload.role)
+      ) {
+        throw new Error('Invalid token claims');
+      }
 
       client.data.user = payload;
       this.logger.log(
