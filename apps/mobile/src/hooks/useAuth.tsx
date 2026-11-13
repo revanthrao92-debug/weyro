@@ -9,6 +9,11 @@ import {
 import { Alert , Platform as RNPlatform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, setAccessToken, setTokenRefresher, setSessionExpiredHandler } from '@/services/api-client';
+import {
+  roleMatches,
+  roleMismatchMessage,
+  type EntryRole,
+} from '@/auth/entryRole';
 import { tokenStorage } from '@/services/token-storage';
 import {
   UserRole,
@@ -29,7 +34,11 @@ interface AuthContextType {
   role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (emailOrPhone: string, password: string) => Promise<AuthUser>;
+  login: (
+    emailOrPhone: string,
+    password: string,
+    expectedRole?: EntryRole,
+  ) => Promise<AuthUser>;
   register: (data: RegisterData) => Promise<void>;
   verifyOtp: (phone: string, code: string, purpose?: string) => Promise<void>;
   resetPassword: (phone: string, code: string, newPassword: string) => Promise<void>;
@@ -130,7 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, registerStoredPushToken]);
 
   const login = useCallback(
-    async (emailOrPhone: string, password: string) => {
+    async (
+      emailOrPhone: string,
+      password: string,
+      expectedRole?: EntryRole,
+    ) => {
       const res = await apiClient<{
         accessToken: string;
         refreshToken: string;
@@ -139,6 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         body: JSON.stringify({ emailOrPhone, password }),
       });
+
+      // Validate the selected interface before storing tokens or setting the
+      // user, so a mismatch can never flash the app open and bounce back.
+      if (expectedRole && !roleMatches(res.user, expectedRole)) {
+        throw new Error(roleMismatchMessage(res.user));
+      }
 
       await tokenStorage.setAccessToken(res.accessToken);
       await tokenStorage.setRefreshToken(res.refreshToken);

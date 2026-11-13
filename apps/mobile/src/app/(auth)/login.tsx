@@ -31,11 +31,7 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { PressableScale } from '@/components/ui';
-import {
-  roleMatches,
-  roleMismatchMessage,
-  type EntryRole,
-} from '@/auth/entryRole';
+import { type EntryRole } from '@/auth/entryRole';
 
 /**
  * Login — full-bleed automotive artwork with a rigid work-order form sheet.
@@ -54,7 +50,7 @@ const ROLES: { key: EntryRole; label: string; Icon: typeof UserRound }[] = [
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, logout } = useAuth();
+  const { login } = useAuth();
   const [role, setRole] = useState<EntryRole>('CUSTOMER');
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -78,14 +74,7 @@ export default function LoginScreen() {
     setLoading(true);
     setErrorNote(null);
     try {
-      const account = await login(emailOrPhone.trim(), password);
-      if (!roleMatches(account, role)) {
-        await logout();
-        if (mounted.current) {
-          setErrorNote(roleMismatchMessage(account));
-        }
-        return;
-      }
+      await login(emailOrPhone.trim(), password, role);
       if (mounted.current) {
         router.replace('/(app)');
       }
