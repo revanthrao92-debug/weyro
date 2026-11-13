@@ -1,7 +1,4 @@
-import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
 import { palette } from '@/theme';
 
 /**
@@ -10,14 +7,8 @@ import { palette } from '@/theme';
  * here loops against the declarative auth guards in the root Stack.
  */
 export default function Index() {
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (isLoading) return;
-    router.replace(isAuthenticated ? '/(app)' : '/(auth)/login');
-  }, [isAuthenticated, isLoading, router]);
-
+  // The root layout redirects once auth bootstrap resolves; this route only
+  // paints a calm loading surface during that decision.
   return (
     <View style={styles.root}>
       <ActivityIndicator size="large" color={palette.accent} />

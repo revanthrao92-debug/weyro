@@ -1,11 +1,13 @@
 import '../../global.css';
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PortalHost } from '@rn-primitives/portal';
 import { useAuth , AuthProvider } from '@/hooks/useAuth';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
 import { palette } from '@/theme';
 import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
@@ -23,7 +25,9 @@ export default function RootLayout() {
         <AuthProvider>
           {/* Light is the app's active theme (see global.css). */}
           <StatusBar style="light" />
-          <AuthRouter />
+          <ErrorBoundary>
+            <AuthRouter />
+          </ErrorBoundary>
         </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
@@ -32,6 +36,18 @@ export default function RootLayout() {
 
 function AuthRouter() {
   const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (isLoading) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      router.replace('/(app)');
+    }
+  }, [isAuthenticated, isLoading, router, segments]);
 
   if (isLoading) {
     return (
@@ -45,15 +61,8 @@ function AuthRouter() {
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected
-            guard={isAuthenticated}
-            redirectTo="/(auth)/login"
-          >
-            <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          </Stack.Protected>
-          <Stack.Protected guard={!isAuthenticated} redirectTo="/(app)">
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          </Stack.Protected>
+          <Stack.Screen name="(app)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
       {/* RNR portal host — must stay the last child of the providers. */}
