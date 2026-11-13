@@ -3,7 +3,6 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, {
   Defs,
   LinearGradient,
-  RadialGradient,
   Rect,
   Stop,
 } from 'react-native-svg';
@@ -36,63 +35,6 @@ export function MetallicEdge({ opacity = 0.2, height = 1, style }: MetallicEdgeP
           </LinearGradient>
         </Defs>
         <Rect width="100%" height={height} fill="url(#weyroEdge)" />
-      </Svg>
-    </View>
-  );
-}
-
-export interface RadialGlowProps {
-  size?: number;
-  color?: string;
-  opacity?: number;
-  style?: StyleProp<ViewStyle>;
-}
-
-/** Soft ambient light. Place behind heroes/CTAs, never in front of text. */
-export function RadialGlow({
-  size = 280,
-  color = palette.accent,
-  opacity = 0.16,
-  style,
-}: RadialGlowProps) {
-  return (
-    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
-      <Svg width={size} height={size}>
-        <Defs>
-          <RadialGradient id="weyroGlow" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={color} stopOpacity={opacity} />
-            <Stop offset="0.6" stopColor={color} stopOpacity={opacity * 0.35} />
-            <Stop offset="1" stopColor={color} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect width={size} height={size} fill="url(#weyroGlow)" />
-      </Svg>
-    </View>
-  );
-}
-
-export interface BottomFadeProps {
-  height?: number;
-  color?: string;
-  style?: StyleProp<ViewStyle>;
-}
-
-/** Vertical fade from transparent to the canvas — cinematic image edge. */
-export function BottomFade({ height = 160, color = palette.canvas, style }: BottomFadeProps) {
-  return (
-    <View
-      pointerEvents="none"
-      style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, height }, style]}
-    >
-      <Svg width="100%" height={height}>
-        <Defs>
-          <LinearGradient id="weyroFade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={color} stopOpacity="0" />
-            <Stop offset="0.55" stopColor={color} stopOpacity="0.55" />
-            <Stop offset="1" stopColor={color} stopOpacity="1" />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height={height} fill="url(#weyroFade)" />
       </Svg>
     </View>
   );
