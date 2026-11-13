@@ -41,9 +41,9 @@
     "json"
   ],
   "lastPass": {
-    "at": "2026-11-13T15:24:18+00:00",
-    "commit": "0ae378a",
-    "gates": "api tsc 0; api tests 211/211; mobile tsc 0; mobile eslint 0; mobile tests 52/52"
+    "at": "2026-11-13T15:47:09+00:00",
+    "commit": "813b0ee",
+    "gates": "api tsc 0; api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 52/52"
   },
   "leftAlone": {
     "apps/api/src/common/middleware/idempotency.middleware.ts": "written but unwired; product decision",
@@ -57,7 +57,7 @@
     "apps/mobile/src/maps/LocationPicker.tsx": "826 lines, new cohesive map UI; do not split yet"
   },
   "nextMoves": [
-    "fix admin refund UI double-submit; remove unused @sentry/node after lockfile refresh; validate remaining untested mobile screens"
+    "remove unused @sentry/node after lockfile refresh; split largest dealer/mechanic screens; add mobile tests for admin operations"
   ],
   "scopes": [
     "apps",
@@ -105,8 +105,8 @@
     "apps/api/src/modules/admin/dto/verify-provider.dto.ts": "941ef7cabfa70d2467fc4f58c1ee1adeca5a8693c8f0e3a941414a5f43f1a4e4",
     "apps/api/src/modules/auth/auth.controller.ts": "54bed46df4e2ad725fe9dc8d18f2037508b9f2b2c1acf87057f058448c61083b",
     "apps/api/src/modules/auth/auth.module.ts": "3094cdd78948474c174bdb543c99404c686c3ab225f79d5461f03ee508b98934",
-    "apps/api/src/modules/auth/auth.otp.spec.ts": "b92717dc455fe66a1125027c50169fb0ca2fe534cbc1cb790cbdb3a1ebaa1c4d",
-    "apps/api/src/modules/auth/auth.service.ts": "28d6a368c0a33f3d07887e9956191d0ef2ba05057ea6753adb2bb77884550b15",
+    "apps/api/src/modules/auth/auth.otp.spec.ts": "d7c60bc9381ab0275cefa919b0605def25ae57fc7c2a10193e1e138975dc2270",
+    "apps/api/src/modules/auth/auth.service.ts": "84af23c0d4a086c366c7df00409a1fead3b24e4c35120facbab853fa15155271",
     "apps/api/src/modules/auth/dto/auth.dto.ts": "da73de1ca2472c843a6c8537289096ade3173f6fe3391bcf3ee6d2538423feb7",
     "apps/api/src/modules/auth/dto/otp.dto.ts": "8c91b0df7bd4ace653416351417dcdfa2696855cd608e3a4052ff5a025e60083",
     "apps/api/src/modules/auth/guards/admin.guard.ts": "8ae5eb2dcfc5fbdce6c02a03f4f02c633b47fed2eff91c9de93e7cd328b8fab5",
@@ -371,7 +371,7 @@
     "apps/mobile/src/app/(app)/messages.tsx": "1a3f534e54bdda26b98b29980f23c8175ac73abc4a69fddb2ea29cbeeec4ec03",
     "apps/mobile/src/app/(app)/my-listings.tsx": "fa32c115fc9dbbe60d05aacb90db54e506a9752295002faad606a36638e9ee6c",
     "apps/mobile/src/app/(app)/notifications.tsx": "dd3c3335018c6c2f0ae03807da89859d75f5fd291b1ed988249edc07aafba85f",
-    "apps/mobile/src/app/(app)/operations.tsx": "854026ce1c3ca0a55e4aa130317d6b90c527ff385d0a3d091080403cff8e8653",
+    "apps/mobile/src/app/(app)/operations.tsx": "a33b70c99974706dbeb7cad86d8fdb4b3ef98cf7c241e1a26ec9a9c55ae41bf6",
     "apps/mobile/src/app/(app)/opportunities.tsx": "32d86318be3a233dc6d612a087f95c42f30f3346c0108723301e7079cc29af9e",
     "apps/mobile/src/app/(app)/orders.tsx": "32457cf0c4dd2a83ca4a98382ff998534b98de17f3038148d1abe77ad2c4b21b",
     "apps/mobile/src/app/(app)/profile-edit.tsx": "a8e27a4aaa97950bb03b8dbea16ee1bbc5b1b171481763526edb3daa13015e85",
@@ -560,8 +560,8 @@
     "tsconfig.base.json": "352b221ba3270755e1d04a5bb1676284211f2e62b7e3a93f1739c492cb6a27c3",
     "tsconfig.json": "96f82049559b6a50052b25f697559f344e89f09e38e47dc20ca4215f8e9db307"
   },
-  "settledAt": "2026-11-13T15:24:18+00:00",
-  "settledReason": "dead code removal + security hardening pass",
-  "updatedAt": "2026-11-13T15:24:18+00:00",
+  "settledAt": "2026-11-13T15:47:09+00:00",
+  "settledReason": "second hardening pass: reset OTP verification, admin refund submission guard",
+  "updatedAt": "2026-11-13T15:47:09+00:00",
   "version": 1
 }
