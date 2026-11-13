@@ -41,9 +41,9 @@
     "json"
   ],
   "lastPass": {
-    "at": "2026-11-13T16:55:09+00:00",
-    "commit": "2e389f1",
-    "gates": "api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 64/64"
+    "at": "2026-11-13T17:13:16+00:00",
+    "commit": "2b0bb2b",
+    "gates": "mobile tsc 0; mobile eslint 0; mobile tests 66/66; six request categories POST 201 + cancel"
   },
   "leftAlone": {
     "apps/api/src/common/middleware/idempotency.middleware.ts": "written but unwired; product decision",
@@ -57,7 +57,7 @@
     "apps/mobile/src/maps/LocationPicker.tsx": "826 lines, new cohesive map UI; do not split yet"
   },
   "nextMoves": [
-    "split home and request wizard; admin operations integration tests"
+    "optional contact card; payments blocked by non-live Razorpay"
   ],
   "scopes": [
     "apps",
@@ -205,7 +205,7 @@
     "apps/mobile/__tests__/entry-role.spec.ts": "49d83ecc17f9bc48ed8b16c7854a37778f51d677b2486c20a3793cc7c111070d",
     "apps/mobile/__tests__/maps-client.spec.ts": "72639ba5f547253e304196b63d4731e8320a33785c07db09d6ed884d16d6dbe2",
     "apps/mobile/__tests__/maps-geo.spec.ts": "8b7baff71751ed949716965df9b3cab06d0f2d91d8313a4c6b034b10ee6a3a51",
-    "apps/mobile/__tests__/service-request-config.spec.ts": "d1d624f770ab07db08f64fb4c28024b2968589d9e080f5353e33b99bcb09de2b",
+    "apps/mobile/__tests__/service-request-config.spec.ts": "0ea8bdb9e0f0ee689e437ea332fcded85d14d6bf6aeaf68013451b72f3de95cc",
     "apps/mobile/app.json": "6c9624cf3a965302dbda929b0f2c6190a39a4d489ae209344db36097bdfe7ada",
     "apps/mobile/babel.config.js": "b3bc0722517522471c8ca26b744296b34bab37a5e972f70bed66585c7fa207db",
     "apps/mobile/components.json": "02c9c07aae13f29ee87cd998dfc499b93dceb21c97b7549e2f09b693b3167386",
@@ -413,7 +413,7 @@
     "apps/mobile/src/app/requests/create.tsx": "83c9165483fbdc107f3e01059b4cf5b5f29f05b98e4484d1ac20ce038756be16",
     "apps/mobile/src/app/requests/my.tsx": "702b88b5d2f42b5d916081eb72075b14bc5ddbbccaa3d30174f3b44b3911221f",
     "apps/mobile/src/app/shop/[id].tsx": "fd2ae786d97611269af5d8837df23214ffa529a2d85600134df3f86451790370",
-    "apps/mobile/src/app/sos.tsx": "3eb516164f6e4a5a67fca1c41485ec105fff33e873422ef0a83a350cb46836d1",
+    "apps/mobile/src/app/sos.tsx": "7a4c176ae4e17df8023731b3f40c22a2269d91473b9718359b451f0b2cb459b1",
     "apps/mobile/src/app/vehicles.tsx": "64b9cc8ba10c093796692c54e77666c04e5c70f8285f3a403121dddc7241e76a",
     "apps/mobile/src/app/vehicles/[id].tsx": "3cda957fb082880909d11e551a14e657dfd0c4dbbc5435bbc64383b2e653799c",
     "apps/mobile/src/auth/entryRole.ts": "95abff8abfcb40498f4b40480692647177c812287ad6ac01aaf264f8b6bbfafc",
@@ -444,10 +444,10 @@
     "apps/mobile/src/components/mechanic/MechanicProfileScreen.tsx": "43293a3129afd104f4c64340c9f38e392dee408c56e141bbd45615f443bc9a0c",
     "apps/mobile/src/components/provider/MyQuotesScreen.tsx": "b36000fdcf8b7d56ec189349c040bd6bc874bd97ca78ca2224039eb57f7e59c4",
     "apps/mobile/src/components/requests/PhotoPicker.tsx": "0958793c137d88e927f5f58855e733b5db19750d91f66b95541db7f57cd8f085",
-    "apps/mobile/src/components/requests/RequestReview.tsx": "4f47cf4fa65c93963e07e869b56fb049a298398acd955864408646ddc3fdf561",
-    "apps/mobile/src/components/requests/RequestWizard.tsx": "ba9c78a5177a25c28bc8abc48d9562da2393c1751ce4b64664baa50dfa0682c5",
+    "apps/mobile/src/components/requests/RequestReview.tsx": "6b2fe41cf53b73f470ae7c352964cbd6782db4c04f0fc74a75891ca8dfe5cc80",
+    "apps/mobile/src/components/requests/RequestWizard.tsx": "5afbe26537d55c9cd9ec400cdaabe173f4c10d84bc0a500785bd42df9d3457bf",
     "apps/mobile/src/components/requests/VehicleSelector.tsx": "f017f4956831456eebaefc03a6e816f7a4d3fc94ebd3f7ea685b8730cf5c9f9f",
-    "apps/mobile/src/components/requests/serviceRequestConfig.ts": "8d01bd42a870f4abe7638ea15d01cab9ad558e62bd2f9d432aa3e1ba9bb71fba",
+    "apps/mobile/src/components/requests/serviceRequestConfig.ts": "a65e214b02a7d19cf43bece4f8fd54fcf98d009d52126a51c1a6735ba6821d56",
     "apps/mobile/src/components/ui/AdBanner.tsx": "6771568bcfe9eb3ed3d1718605b35456932e023050c9765dbcb06e4582e48dd7",
     "apps/mobile/src/components/ui/AdSlot.tsx": "56c6183854c4b1ba37b0f98751f8c899ea4b44122bbb32c2d34ef57c0776111b",
     "apps/mobile/src/components/ui/AppHeader.tsx": "fe031d97cc6b6797dbeabd2961ff92a64c41833967baf6dddef596b438121a81",
@@ -563,8 +563,8 @@
     "tsconfig.base.json": "352b221ba3270755e1d04a5bb1676284211f2e62b7e3a93f1739c492cb6a27c3",
     "tsconfig.json": "96f82049559b6a50052b25f697559f344e89f09e38e47dc20ca4215f8e9db307"
   },
-  "settledAt": "2026-11-13T16:55:09+00:00",
-  "settledReason": "auth role validation before session commit",
-  "updatedAt": "2026-11-13T16:55:09+00:00",
+  "settledAt": "2026-11-13T17:13:16+00:00",
+  "settledReason": "customer request flows corrected; service mode, towing weight/urgency, date chips",
+  "updatedAt": "2026-11-13T17:13:16+00:00",
   "version": 1
 }
