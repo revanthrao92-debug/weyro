@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+node_modules
+**/node_modules
+**/.env
+**/.env.*
+!.env.example
+coverage
+**/coverage
+apps/mobile
+graphify-out
+.untangle
+docs
+backups
+*.log

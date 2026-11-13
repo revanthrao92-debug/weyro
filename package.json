@@ -36,7 +36,6 @@
     "@nestjs/schedule": "*",
     "@nestjs/throttler": "*",
     "@nestjs/websockets": "*",
-    "@rn-primitives/dialog": "^1.5.2",
     "@rn-primitives/portal": "^1.5.3",
     "@socket.io/redis-adapter": "*",
     "class-variance-authority": "^0.7.1",

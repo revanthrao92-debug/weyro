@@ -46,4 +46,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 4000
 
+# Run as the unprivileged node user shipped with the base image.
+USER node
+
 CMD ["node", "apps/api/dist/main.js"]
