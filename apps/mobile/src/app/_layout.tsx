@@ -45,10 +45,13 @@ function AuthRouter() {
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={isAuthenticated}>
+          <Stack.Protected
+            guard={isAuthenticated}
+            redirectTo="/(auth)/login"
+          >
             <Stack.Screen name="(app)" options={{ headerShown: false }} />
           </Stack.Protected>
-          <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Protected guard={!isAuthenticated} redirectTo="/(app)">
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           </Stack.Protected>
         </Stack>
