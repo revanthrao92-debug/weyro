@@ -164,3 +164,19 @@ describe('H6 — single-flight token refresh', () => {
     expect(refresherCalls).toBe(0);
   });
 });
+
+describe('network failure handling', () => {
+  it('returns a clear connection message instead of raw fetch failure', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
+
+    await expect(apiClient('/ready')).rejects.toMatchObject({
+      status: 0,
+      message: 'Cannot reach Weyro servers. Check your connection and try again.',
+    });
+
+    global.fetch = originalFetch;
+  });
+});

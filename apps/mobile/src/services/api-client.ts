@@ -123,10 +123,18 @@ export async function apiClient<T = any>(
     ? input.toString()
     : `${API_URL}${input.toString()}`;
 
-  const response = await fetch(url, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Cannot reach Weyro servers. Check your connection and try again.',
+    );
+  }
 
   // H6: on 401 (except exempt auth endpoints), refresh once and retry once.
   if (
