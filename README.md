@@ -71,6 +71,7 @@ graph TD
 | Push notifications | ✅ Implemented (needs EAS project ID) | Tokens registered only when a real project ID is configured |
 | Presigned uploads + size/MIME checks | ✅ Implemented | 10 MB limit, required `fileSize`, owner-scoped keys, `Content-Length` signed |
 | EXIF/GPS stripping | ✅ Implemented | `POST /uploads/finalize` re-encodes with `sharp`; mobile calls it after upload |
+| Local development storage | ✅ Implemented | `STORAGE_DRIVER=local` writes real files under `uploads/`, validates signatures and strips EXIF; no placeholder images |
 | Provider verification | ✅ Implemented | Admin-gated, `verifiedBy`/`verifiedAt`/notes audit trail, DB-backed enforcement |
 | Query/body validation | ✅ Implemented | Global Zod pipe; shared schemas in `@weyro/validation` |
 | Rate limiting | ✅ Implemented | Global bucket + tighter per-route write limits |
