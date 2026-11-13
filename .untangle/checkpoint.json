@@ -41,9 +41,9 @@
     "json"
   ],
   "lastPass": {
-    "at": "2026-11-13T15:47:09+00:00",
-    "commit": "813b0ee",
-    "gates": "api tsc 0; api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 52/52"
+    "at": "2026-11-13T16:10:04+00:00",
+    "commit": "2d46c91",
+    "gates": "api tsc 0; api tests 213/213; mobile tsc 0; mobile eslint 0; mobile tests 63/63"
   },
   "leftAlone": {
     "apps/api/src/common/middleware/idempotency.middleware.ts": "written but unwired; product decision",
@@ -57,7 +57,7 @@
     "apps/mobile/src/maps/LocationPicker.tsx": "826 lines, new cohesive map UI; do not split yet"
   },
   "nextMoves": [
-    "remove unused @sentry/node after lockfile refresh; split largest dealer/mechanic screens; add mobile tests for admin operations"
+    "split dealer dashboard and request detail with tests; add admin operations mobile tests"
   ],
   "scopes": [
     "apps",
@@ -67,7 +67,7 @@
     "apps/api/eslint.config.js": "2cfba0c86bc6eff14e4dbc5e984914befa45456498485b13d3b3ed851668c8c9",
     "apps/api/jest-e2e.config.js": "d297600f239467d1014d35aacd0df0e7cdc1ab0ef52c0a832009b1b8b26340a0",
     "apps/api/jest.config.js": "23a2a32d040ed2f667e2395c8edc7beaa5d58c20b1fd23ca355a426ba860fa43",
-    "apps/api/package.json": "977e422af6781dd66342c43afb1b33b4ea51d5fd4c16cbaef14d6481f361f220",
+    "apps/api/package.json": "8cb60b09ec4c06ba8e8dc3ec0bd79f22db22d7b31c72d49297c5463cf9274498",
     "apps/api/src/__mocks__/expo-server-sdk.ts": "a9a9429678fee72d9c65605dfa82aa66d8b541193b5e5b8f9cebdb556bc27ee4",
     "apps/api/src/app.module.ts": "40562f11716773caf5828f4b98eecb7aa07e3e166f8fed9bbad0c3a12efc5040",
     "apps/api/src/common/decorators/current-user.decorator.ts": "eabc9c7f1b4dea8181cc8ffcef3caf3b89af8c1c388be92244991b10edd0aee3",
@@ -202,6 +202,7 @@
     "apps/api/src/test/integration.spec.ts": "cc6fc2bda1b406ab1c36b55a88fb2f4d73f067ed5633c0214470e2baad3bf3b1",
     "apps/api/tsconfig.json": "7f95b46f11d9c70a88ed9f1e241fd8e6db654544afb11384bdfaa439b599d467",
     "apps/mobile/__tests__/api-client.spec.ts": "1cc721d9e20da3ce7d76c0f4ba4b172c1fdd25066d048d065d101b28b7fd28c5",
+    "apps/mobile/__tests__/entry-role.spec.ts": "49d83ecc17f9bc48ed8b16c7854a37778f51d677b2486c20a3793cc7c111070d",
     "apps/mobile/__tests__/maps-client.spec.ts": "72639ba5f547253e304196b63d4731e8320a33785c07db09d6ed884d16d6dbe2",
     "apps/mobile/__tests__/maps-geo.spec.ts": "8b7baff71751ed949716965df9b3cab06d0f2d91d8313a4c6b034b10ee6a3a51",
     "apps/mobile/__tests__/service-request-config.spec.ts": "d1d624f770ab07db08f64fb4c28024b2968589d9e080f5353e33b99bcb09de2b",
@@ -382,7 +383,7 @@
     "apps/mobile/src/app/(app)/shop.tsx": "c9aa4d7aa5ecb290c56c43612499b962205682305e64e1628f5dbdd97cd0ce8c",
     "apps/mobile/src/app/(auth)/_layout.tsx": "b4edf209079107b6c012f2ac9f9ee73a140e47ba0902863a1bd262f512e1f625",
     "apps/mobile/src/app/(auth)/forgot-password.tsx": "1493d314a5fb0a245472f36f1bfe5280218338c9af45648ebf2ff606deabfa8a",
-    "apps/mobile/src/app/(auth)/login.tsx": "d42db853322c05b1cb3a4818548d5f7f2ccf8dec9b80e631d321d7521c9bba3c",
+    "apps/mobile/src/app/(auth)/login.tsx": "d5166b0101c73297abbc4a7b0c0b861f38d759002ac7cc652e89d6d28c7ef219",
     "apps/mobile/src/app/(auth)/register.tsx": "b7f31701f0ff2887b4d1ae6dec102091f64f5d23e1716b79dffa9f7b35ed2cea",
     "apps/mobile/src/app/(auth)/reset-password.tsx": "c3138582c944a6d8c8e346bcada9269a30b6cced1c2fbd775570028947354d10",
     "apps/mobile/src/app/_layout.tsx": "b38062bd13eb26ec5722e2c58f787f3de8ca59a595f1b5c151a6549b790c97a0",
@@ -415,6 +416,7 @@
     "apps/mobile/src/app/sos.tsx": "3eb516164f6e4a5a67fca1c41485ec105fff33e873422ef0a83a350cb46836d1",
     "apps/mobile/src/app/vehicles.tsx": "64b9cc8ba10c093796692c54e77666c04e5c70f8285f3a403121dddc7241e76a",
     "apps/mobile/src/app/vehicles/[id].tsx": "3cda957fb082880909d11e551a14e657dfd0c4dbbc5435bbc64383b2e653799c",
+    "apps/mobile/src/auth/entryRole.ts": "95abff8abfcb40498f4b40480692647177c812287ad6ac01aaf264f8b6bbfafc",
     "apps/mobile/src/components/admin/AdminDashboard.tsx": "1afaf9aae705835424a9c1a7fbabfdeccc736591f951f5d86f5ed608308b3ea3",
     "apps/mobile/src/components/admin/AdminProfileScreen.tsx": "ed87a2af17a3938544164c2587304cc4d446db85d6b453ae3c36bf9029aaec6b",
     "apps/mobile/src/components/dashboard/ProviderDashboard.tsx": "e75c6408251cf7031b13ead694c9dafd4d19bebb7727fd905d7497c829d5a093",
@@ -510,7 +512,7 @@
     "apps/mobile/src/utils/format.ts": "a66c756bd9c537beecf18d653ac127913751b9e93aefd437961064449862884a",
     "apps/mobile/tailwind.config.js": "1afb241def1b2ee491ee382147a865a5e5dfdb3ae31d8159bbd53632163d5788",
     "apps/mobile/tsconfig.json": "e2018f4555fb020c7f164228ccef235d5b3e861eefa1906574183b2089bdc608",
-    "package.json": "72cd65616cd9749ac5a61feb45164b5b37724e9fdd7415664bd2e9ca8e2815ce",
+    "package.json": "c9644de2bd8338c81e91b182a97e8838a0ed9e88ed0147922b83ab8cbbe05a0b",
     "packages/api-contracts/package.json": "6ef0ad2480e48ad470bc43c0f3fa052178b6de26da6c2e1db7ff4dfb162681ac",
     "packages/api-contracts/src/index.ts": "cb042e941d2b9c8cd1db5ae1cc82e9a11b55be4f3404d20b4cdfa19113bd21fd",
     "packages/api-contracts/tsconfig.json": "dc028bb12dc509f94feace3d59ca95ac5f49c67b4707ebf22b3be06c2b99d5a4",
@@ -560,8 +562,8 @@
     "tsconfig.base.json": "352b221ba3270755e1d04a5bb1676284211f2e62b7e3a93f1739c492cb6a27c3",
     "tsconfig.json": "96f82049559b6a50052b25f697559f344e89f09e38e47dc20ca4215f8e9db307"
   },
-  "settledAt": "2026-11-13T15:47:09+00:00",
-  "settledReason": "second hardening pass: reset OTP verification, admin refund submission guard",
-  "updatedAt": "2026-11-13T15:47:09+00:00",
+  "settledAt": "2026-11-13T16:10:04+00:00",
+  "settledReason": "dependency prune and login role testability",
+  "updatedAt": "2026-11-13T16:10:04+00:00",
   "version": 1
 }
