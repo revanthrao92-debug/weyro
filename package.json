@@ -1,7 +1,7 @@
 {
   "name": "weyro",
   "version": "1.0.0",
-  "description": "Weyro monorepo \u2014 NestJS API backend",
+  "description": "Weyro monorepo — NestJS API backend",
   "private": true,
   "workspaces": [
     "apps/api",
@@ -38,8 +38,6 @@
     "@nestjs/websockets": "*",
     "@rn-primitives/dialog": "^1.5.2",
     "@rn-primitives/portal": "^1.5.3",
-    "@rn-primitives/slot": "^1.5.2",
-    "@sentry/node": "*",
     "@socket.io/redis-adapter": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
