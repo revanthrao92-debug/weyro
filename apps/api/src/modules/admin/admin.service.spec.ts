@@ -62,6 +62,22 @@ describe('AdminService.refundBooking', () => {
     expect(result).toMatchObject({ status: 'REFUNDED', refundId: 'rfnd_1' });
   });
 
+  it('reuses an existing gateway refund after a timeout', async () => {
+    prisma.booking.findUnique.mockResolvedValue(booking('CAPTURED'));
+    (gateway as any).findRefund = jest.fn().mockResolvedValue({
+      refundId: 'rfnd_existing',
+      status: 'processed',
+    });
+
+    const result = await service.refundBooking('bk-1', 'admin-1');
+
+    expect(gateway.refundPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: 'REFUNDED',
+      refundId: 'rfnd_existing',
+    });
+  });
+
   it('does not call the gateway when the claim loses a race', async () => {
     prisma.booking.findUnique.mockResolvedValue(booking('CAPTURED'));
     prisma.payment.updateMany.mockResolvedValue({ count: 0 });

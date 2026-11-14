@@ -602,13 +602,19 @@ export class SparePartsService {
       throw new ConflictException('Order is no longer refundable');
     }
 
+    const amountInPaise = Math.round(Number(order.totalAmount) * 100);
     let refund;
     try {
-      refund = await this.gateway.refundPayment({
-        paymentId: order.gatewayPaymentId,
-        amountInPaise: Math.round(Number(order.totalAmount) * 100),
-        notes: { orderId: order.id, reason: 'admin_refund' },
-      });
+      refund =
+        (await this.gateway.findRefund?.(
+          order.gatewayPaymentId,
+          amountInPaise,
+        )) ??
+        (await this.gateway.refundPayment({
+          paymentId: order.gatewayPaymentId,
+          amountInPaise,
+          notes: { orderId: order.id, reason: 'admin_refund' },
+        }));
     } catch (error) {
       await this.prisma.sparePartOrder.updateMany({
         where: { id: order.id, status: 'REFUNDED' },

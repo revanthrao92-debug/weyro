@@ -153,6 +153,41 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     }
   }
 
+  async fetchOrderPayments(orderId: string): Promise<
+    {
+      id: string;
+      order_id: string;
+      amount: number;
+      currency: string;
+      status: string;
+    }[]
+  > {
+    const result = await this.instance.orders.fetchPayments(orderId);
+    return (result.items ?? []).map((payment: any) => ({
+      id: payment.id,
+      order_id: payment.order_id,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      status: payment.status,
+    }));
+  }
+
+  async findRefund(
+    paymentId: string,
+    amountInPaise?: number,
+  ): Promise<RefundPaymentResult | null> {
+    const result = await this.instance.payments.fetchMultipleRefund(paymentId);
+    const existing = (result.items ?? []).find(
+      (refund: any) =>
+        amountInPaise === undefined || Number(refund.amount) === amountInPaise,
+    );
+    if (!existing) return null;
+    return {
+      refundId: existing.id,
+      status: existing.status || 'processed',
+    };
+  }
+
   async refundPayment(params: RefundPaymentParams): Promise<RefundPaymentResult> {
     const refund = await this.instance.payments.refund(params.paymentId, {
       amount: params.amountInPaise,

@@ -211,13 +211,21 @@ export class AdminService {
       throw new ConflictException('Payment is no longer refundable');
     }
 
+    const amountInPaise = Math.round(Number(payment.amount) * 100);
     let refund;
     try {
-      refund = await this.gateway.refundPayment({
-        paymentId: payment.gatewayPaymentId,
-        amountInPaise: Math.round(Number(payment.amount) * 100),
-        notes: { bookingId, reason: 'admin_refund' },
-      });
+      // A timeout after gateway success can leave local state CAPTURED.
+      // Reuse the existing gateway refund instead of issuing a second one.
+      refund =
+        (await this.gateway.findRefund?.(
+          payment.gatewayPaymentId,
+          amountInPaise,
+        )) ??
+        (await this.gateway.refundPayment({
+          paymentId: payment.gatewayPaymentId,
+          amountInPaise,
+          notes: { bookingId, reason: 'admin_refund' },
+        }));
     } catch (error) {
       // Only a failed gateway call may release the claim. Reverting after a
       // successful refund would allow a second refund or a provider payout.

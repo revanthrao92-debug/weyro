@@ -38,13 +38,14 @@ describe('PaymentReconcileService', () => {
         update: jest.fn(),
       },
       sparePartOrder: {
+        findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn().mockResolvedValue(null),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'spo_x', status: 'PAID' }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       sparePart: {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue({ stockQuantity: 10 }),
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
       $transaction: jest.fn((cb: any) => cb(prisma)),
@@ -66,6 +67,92 @@ describe('PaymentReconcileService', () => {
     await reconcile.reconcile();
     expect(advisoryLock.tryLock).toHaveBeenCalledWith('payment.reconcile');
     expect(advisoryLock.release).toHaveBeenCalledWith('payment.reconcile');
+  });
+
+  it('reconciles a payment that only has a gateway order id', async () => {
+    prisma.payment.findMany.mockResolvedValue([
+      seedRow({ gatewayPaymentId: null, bookingId: 'bk_rec_1' }),
+    ]);
+    prisma.payment.findUniqueOrThrow.mockResolvedValue({
+      id: 'pay_rec_1',
+      status: 'CAPTURED',
+    });
+    const fetchOrderPayments = jest.fn().mockResolvedValue([
+      {
+        id: 'pay_order_1',
+        order_id: 'order_rec_1',
+        amount: 10000,
+        currency: 'INR',
+        status: 'captured',
+      },
+    ]);
+    reconcile = new PaymentReconcileService(
+      prisma,
+      advisoryLock as unknown as AdvisoryLockService,
+      {
+        fetchPayment: gatewayFetch,
+        fetchOrderPayments,
+      } as unknown as PaymentGateway,
+    );
+
+    await reconcile.reconcile();
+
+    expect(fetchOrderPayments).toHaveBeenCalledWith('order_rec_1');
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'pay_rec_1' }),
+        data: expect.objectContaining({
+          status: 'CAPTURED',
+          gatewayPaymentId: 'pay_order_1',
+        }),
+      }),
+    );
+  });
+
+  it('reconciles a pending spare-part order by order id', async () => {
+    prisma.payment.findMany.mockResolvedValue([]);
+    prisma.sparePartOrder.findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'spo_rec_1',
+        sparePartId: 'part_1',
+        quantity: 1,
+        totalAmount: 500,
+        currency: 'INR',
+        gatewayOrderId: 'order_sp_rec',
+      },
+    ]);
+    prisma.sparePartOrder.findUnique.mockResolvedValue({
+      id: 'spo_rec_1',
+      sparePartId: 'part_1',
+      quantity: 1,
+      status: 'PENDING',
+    });
+    const fetchOrderPayments = jest.fn().mockResolvedValue([
+      {
+        id: 'pay_sp_1',
+        order_id: 'order_sp_rec',
+        amount: 50000,
+        currency: 'INR',
+        status: 'captured',
+      },
+    ]);
+    reconcile = new PaymentReconcileService(
+      prisma,
+      advisoryLock as unknown as AdvisoryLockService,
+      {
+        fetchPayment: gatewayFetch,
+        fetchOrderPayments,
+      } as unknown as PaymentGateway,
+    );
+
+    await reconcile.reconcile();
+
+    expect(prisma.sparePartOrder.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'spo_rec_1', status: { in: ['PENDING', 'FAILED'] } },
+        data: expect.objectContaining({ status: 'PAID' }),
+      }),
+    );
   });
 
   it('returns early when another instance holds the lock', async () => {

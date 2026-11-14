@@ -38,6 +38,17 @@ export class MockPaymentGateway implements PaymentGateway {
     return signature.startsWith('mock_') || signature.length >= 10;
   }
 
+  async fetchOrderPayments(_orderId: string) {
+    return [];
+  }
+
+  async findRefund(
+    _paymentId: string,
+    _amountInPaise?: number,
+  ): Promise<RefundPaymentResult | null> {
+    return null;
+  }
+
   async refundPayment(_params: RefundPaymentParams): Promise<RefundPaymentResult> {
     return {
       refundId: `rfnd_mock_${Date.now()}`,

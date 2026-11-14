@@ -488,6 +488,61 @@ describe('PaymentsService', () => {
       });
     });
 
+    it('auto-refunds a capture that arrives after cancellation', async () => {
+      mockGateway.verifyWebhookSignature.mockReturnValue(true);
+      mockGateway.refundPayment.mockResolvedValue({
+        refundId: 'rfnd_cancelled_1',
+        status: 'processed',
+      } as never);
+      (mockGateway as any).findRefund = jest.fn().mockResolvedValue(null);
+      mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.auditLog = { create: jest.fn().mockResolvedValue({}) };
+      mockPrisma.sparePartOrder = {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'spo-cancelled',
+          sparePartId: 'part-1',
+          quantity: 1,
+          status: 'CANCELLED',
+          totalAmount: 3000,
+          currency: 'INR',
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      };
+
+      const payload = {
+        id: 'evt_cancelled_capture',
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_cancelled_1',
+              order_id: 'order_cancelled_1',
+              amount: 300000,
+              currency: 'INR',
+            },
+          },
+        },
+      };
+
+      const result = await service.handleWebhook('{}', 'valid_sig', payload);
+
+      expect(result.status).toBe('processed');
+      expect(mockGateway.refundPayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentId: 'pay_cancelled_1',
+          amountInPaise: 300000,
+          notes: expect.objectContaining({
+            reason: 'cancelled_after_capture',
+          }),
+        }),
+      );
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: 'spo-cancelled', status: 'CANCELLED' },
+        data: { status: 'REFUNDED' },
+      });
+    });
+
     it('does not decrement stock for a package webhook capture', async () => {
       mockGateway.verifyWebhookSignature.mockReturnValue(true);
       mockPrisma.webhookEvent.findUnique.mockResolvedValue(null);

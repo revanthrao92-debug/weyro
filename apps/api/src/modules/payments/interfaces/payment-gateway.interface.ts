@@ -44,6 +44,13 @@ export interface PaymentGateway {
   refundPayment(params: RefundPaymentParams): Promise<RefundPaymentResult>;
   /** Fetch the real payment record from the gateway (server-to-server). */
   fetchPayment(paymentId: string): Promise<GatewayPaymentInfo>;
+  /** Fetch every payment attempt for an order (used by reconciliation). */
+  fetchOrderPayments?(orderId: string): Promise<GatewayPaymentInfo[]>;
+  /** Find an existing refund so a timed-out retry does not refund twice. */
+  findRefund?(
+    paymentId: string,
+    amountInPaise?: number,
+  ): Promise<RefundPaymentResult | null>;
   /** Whether this gateway supports authoritative server-side binding (real gateways do; mocks don't). */
   supportsServerBinding(): boolean;
 }

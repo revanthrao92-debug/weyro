@@ -41,12 +41,21 @@ export class PaymentReconcileService {
 
   private gateway(): {
     fetchPayment: (id: string) => Promise<{
-      id?: string;
-      order_id?: string;
-      amount?: number;
-      currency?: string;
-      status?: string;
+      id: string;
+      order_id: string;
+      amount: number;
+      currency: string;
+      status: string;
     }>;
+    fetchOrderPayments?: (orderId: string) => Promise<
+      {
+        id: string;
+        order_id: string;
+        amount: number;
+        currency: string;
+        status: string;
+      }[]
+    >;
   } {
     if (!this.paymentGateway) {
       throw new Error('Reconciliation requires a configured PaymentGateway');
@@ -84,11 +93,11 @@ export class PaymentReconcileService {
         },
       });
 
-      if (stale.length === 0) {
-        return;
+      if (stale.length > 0) {
+        this.logger.log(
+          `Reconciling ${stale.length} stale payment(s) (cutoff ${cutoff.toISOString()})`,
+        );
       }
-
-      this.logger.log(`Reconciling ${stale.length} stale payment(s) (cutoff ${cutoff.toISOString()})`);
 
       for (const row of stale) {
         try {
@@ -100,6 +109,8 @@ export class PaymentReconcileService {
           await this.audit(row.id, row.status, 'error', err?.message);
         }
       }
+
+      await this.reconcileSparePartOrders(cutoff, batchSize);
     } finally {
       await this.advisoryLock.release(ACTION);
     }
@@ -116,83 +127,40 @@ export class PaymentReconcileService {
       bookingId: string | null;
     },
   ): Promise<void> {
-    // A local PENDING/AUTHORIZED row without a payment id was never verified
-    // and cannot be looked up by payment id. Leave it for verification or the
-    // webhook rather than guessing from the order id.
-    if (!row.gatewayPaymentId) {
-      return;
-    }
+    const remote = await this.resolveRemotePayment(
+      row.gatewayPaymentId,
+      row.gatewayOrderId,
+      Math.round(Number(row.amount) * 100),
+      String(row.currency),
+    );
 
-    let remote: {
-      id?: string;
-      order_id?: string;
-      amount?: number;
-      currency?: string;
-      status?: string;
-    };
-    try {
-      remote = await this.gateway().fetchPayment(row.gatewayPaymentId);
-    } catch (err: any) {
-      // Not found at the gateway = the order was never paid.
-      if (isNotFound(err)) {
+    if (!remote) {
+      if (row.gatewayPaymentId) {
         await this.markFailed(row, 'payment not found on gateway');
         return;
       }
-      throw err; // transient network / gateway hiccup — retried next cycle
+      // No payment attempt exists yet. Leave the row for the client verify or
+      // a later webhook rather than guessing.
+      return;
     }
 
     switch (remote.status) {
       case 'captured':
       case 'authorized': {
-        if (Math.round(Number(row.amount) * 100) !== Number(remote.amount ?? 0)) {
-          await this.markFailed(
-            row,
-            `amount mismatch on reconcile: gateway ${remote.amount} vs local ₹${row.amount}`,
-          );
-          return;
+        const r = await this.prisma.$transaction((tx) =>
+          settleBookingPayment(
+            tx,
+            { paymentId: row.id },
+            {
+              gatewayPaymentId: remote.id,
+              gatewayOrderId: remote.order_id,
+            },
+          ),
+        );
+        if (r.applied) {
+          await this.audit(row.id, row.status, `settled→${remote.status}`);
         }
-
-        const sparePartOrder = row.bookingId
-          ? null
-          : await this.prisma.sparePartOrder.findUnique({
-          where: { id: row.bookingId ?? '' },
-          select: { id: true, sparePartId: true, quantity: true, status: true },
-        });
-
-        if (sparePartOrder && ['PENDING', 'PAID'].includes(sparePartOrder.status)) {
-          const r = await this.prisma.$transaction((tx) =>
-            settleSparePartOrderPayment(
-              tx,
-              {
-                orderId: sparePartOrder.id,
-                sparePartId: sparePartOrder.sparePartId,
-                quantity: sparePartOrder.quantity,
-              },
-              {
-                gatewayPaymentId: remote.id ?? remote.order_id ?? '',
-                gatewayOrderId: remote.order_id ?? '',
-              },
-            ),
-          );
-          if (r.applied) {
-            await this.audit(row.id, row.status, `settled→${remote.status}`);
-          }
-          return;
-        } else {
-          const r = await this.prisma.$transaction((tx) =>
-            settleBookingPayment(
-              tx,
-              { paymentId: row.id },
-              { gatewayPaymentId: remote.id ?? '', gatewayOrderId: remote.order_id ?? '' },
-            ),
-          );
-          // Only audit when this reconcile actually applied the claim; a
-          // lost race (settled by webhook meanwhile) must stay silent.
-          if (r.applied) {
-            await this.audit(row.id, row.status, `settled→${remote.status}`);
-          }
-          return;
-        }
+        return;
       }
 
       case 'failed': {
@@ -201,9 +169,135 @@ export class PaymentReconcileService {
       }
 
       default: {
-        // 'created' / pending on the gateway — still waiting, no action.
-        this.logger.log(`Reconcile ${row.id}: gateway reports ${remote.status} — leaving as-is`);
+        this.logger.log(
+          `Reconcile ${row.id}: gateway reports ${remote.status} — leaving as-is`,
+        );
         break;
+      }
+    }
+  }
+
+  /**
+   * Find the authoritative payment for a local row. Uses payment id when
+   * present, otherwise scans the order's payment attempts (the case that was
+   * previously unreachable: webhook lost and client never verified).
+   */
+  private async resolveRemotePayment(
+    paymentId: string | null,
+    orderId: string | null,
+    expectedMinor: number,
+    expectedCurrency: string,
+  ): Promise<{
+    id: string;
+    order_id: string;
+    amount: number;
+    currency: string;
+    status: string;
+  } | null> {
+    if (paymentId) {
+      try {
+        const payment = await this.gateway().fetchPayment(paymentId);
+        if (
+          Number(payment.amount) !== expectedMinor ||
+          payment.currency !== expectedCurrency
+        ) {
+          throw new Error(
+            `amount/currency mismatch: gateway ${payment.amount} ${payment.currency} vs local ${expectedMinor} ${expectedCurrency}`,
+          );
+        }
+        return { ...payment, id: payment.id, order_id: payment.order_id };
+      } catch (err: any) {
+        if (isNotFound(err)) return null;
+        throw err;
+      }
+    }
+
+    if (!orderId) return null;
+    const fetchOrderPayments = this.gateway().fetchOrderPayments;
+    if (!fetchOrderPayments) return null;
+
+    const payments = await fetchOrderPayments.call(this.gateway(), orderId);
+    const matching = payments
+      .filter(
+        (payment) =>
+          Number(payment.amount) === expectedMinor &&
+          payment.currency === expectedCurrency,
+      )
+      .sort((a, b) => {
+        const rank = (status: string) =>
+          status === 'captured' ? 0 : status === 'authorized' ? 1 : 2;
+        return rank(a.status) - rank(b.status);
+      });
+    return matching[0] ?? null;
+  }
+
+  private async reconcileSparePartOrders(
+    cutoff: Date,
+    batchSize: number,
+  ): Promise<void> {
+    const fetchOrderPayments = this.gateway().fetchOrderPayments;
+    if (!fetchOrderPayments) return;
+
+    const stale = await this.prisma.sparePartOrder.findMany({
+      where: {
+        status: 'PENDING',
+        gatewayOrderId: { not: null },
+        updatedAt: { lt: cutoff },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: batchSize,
+      select: {
+        id: true,
+        sparePartId: true,
+        quantity: true,
+        totalAmount: true,
+        currency: true,
+        gatewayOrderId: true,
+      },
+    });
+
+    for (const order of stale) {
+      try {
+        const payments = await fetchOrderPayments.call(
+          this.gateway(),
+          order.gatewayOrderId as string,
+        );
+        const expected = Math.round(Number(order.totalAmount) * 100);
+        const captured = payments.find(
+          (payment) =>
+            payment.status === 'captured' &&
+            Number(payment.amount) === expected &&
+            payment.currency === order.currency,
+        );
+        if (!captured) continue;
+
+        const settled = await this.prisma.$transaction((tx) =>
+          settleSparePartOrderPayment(
+            tx,
+            {
+              orderId: order.id,
+              sparePartId: order.sparePartId,
+              quantity: order.quantity,
+            },
+            {
+              gatewayPaymentId: captured.id,
+              gatewayOrderId: order.gatewayOrderId as string,
+            },
+          ),
+        );
+        if (settled.applied) {
+          await this.audit(
+            order.id,
+            'PENDING',
+            'settled→captured',
+            undefined,
+            'SparePartOrder',
+          );
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Reconciliation for spare-part order ${order.id} errored: ${err?.message ?? err}`,
+        );
       }
     }
   }
@@ -223,16 +317,17 @@ export class PaymentReconcileService {
   }
 
   private async audit(
-    paymentId: string,
+    entityId: string,
     from: string,
     outcome: string,
     reason?: string,
+    entityType = 'Payment',
   ): Promise<void> {
     await this.prisma.auditLog.create({
       data: {
         action: ACTION,
-        entityType: 'Payment',
-        entityId: paymentId,
+        entityType,
+        entityId,
         newValues: { from, outcome, reason },
       },
     });

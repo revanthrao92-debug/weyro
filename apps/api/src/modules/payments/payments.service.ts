@@ -446,6 +446,14 @@ export class PaymentsService {
               },
             });
 
+            if (sparePartOrder && sparePartOrder.status === 'CANCELLED') {
+              await this.refundCancelledSpareOrder(
+                sparePartOrder.id,
+                gatewayPaymentId,
+                sparePartOrder.totalAmount,
+              );
+            }
+
             if (sparePartOrder && sparePartOrder.status === 'PENDING') {
               const settled = await this.prisma.$transaction((tx) =>
                 settleSparePartOrderPayment(
@@ -568,6 +576,52 @@ export class PaymentsService {
    * Release captured payment funds to the provider (escrow payout).
    * Only ADMIN or SYSTEM can trigger a release. Requires payment to be CAPTURED.
    */
+  /**
+   * A capture can arrive after the customer cancelled the order. Refund it
+   * once, reusing an existing gateway refund if a previous retry succeeded.
+   */
+  private async refundCancelledSpareOrder(
+    orderId: string,
+    gatewayPaymentId: string | undefined,
+    amount: unknown,
+  ): Promise<void> {
+    if (!gatewayPaymentId) return;
+    const amountInPaise = Math.round(Number(amount) * 100);
+    try {
+      const existing = await this.gateway.findRefund?.(
+        gatewayPaymentId,
+        amountInPaise,
+      );
+      const refund =
+        existing ??
+        (await this.gateway.refundPayment({
+          paymentId: gatewayPaymentId,
+          amountInPaise,
+          notes: { orderId, reason: 'cancelled_after_capture' },
+        }));
+
+      await this.prisma.sparePartOrder.updateMany({
+        where: { id: orderId, status: 'CANCELLED' },
+        data: { status: 'REFUNDED' },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          action: 'payment.auto_refund',
+          entityType: 'SparePartOrder',
+          entityId: orderId,
+          newValues: { refundId: refund.refundId, reason: 'cancelled_after_capture' },
+        },
+      });
+      this.logger.warn(
+        `Auto-refunded cancelled order ${orderId} after late capture (${refund.refundId})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Auto-refund failed for cancelled order ${orderId}: ${(error as Error).message}`,
+      );
+    }
+  }
+
   async releasePayment(
     dto: ReleasePaymentDto,
     actor: AuthUserPayload,
