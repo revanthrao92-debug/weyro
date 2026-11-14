@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import {
   View,
   Text,
   KeyboardAvoidingView,
   Alert,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -28,6 +30,7 @@ export default function ProviderProfilePublicScreen() {
   const { id } = useLocalSearchParams<ProviderParams>();
   const { data: provider, isLoading } = usePublicProvider(id || '');
   const { data: reviewsData } = useProviderReviews(id || '');
+  const [storyExpanded, setStoryExpanded] = useState(false);
 
   const reviews = reviewsData?.items ?? [];
 
@@ -85,8 +88,28 @@ export default function ProviderProfilePublicScreen() {
           </View>
 
           <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{provider.description}</Text>
+            <Text style={styles.sectionTitle}>Their story</Text>
+            <View style={styles.storyBlock}>
+              <View style={styles.storyAccent} />
+              <Text
+                style={styles.description}
+                numberOfLines={storyExpanded ? undefined : 4}
+              >
+                {provider.description}
+              </Text>
+            </View>
+            {(provider.description?.length ?? 0) > 160 ? (
+              <Pressable
+                onPress={() => setStoryExpanded((value) => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={storyExpanded ? 'Show less' : 'Read full story'}
+                hitSlop={8}
+              >
+                <Text style={styles.storyToggle}>
+                  {storyExpanded ? 'Show less' : 'Read full story'}
+                </Text>
+              </Pressable>
+            ) : null}
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Service Radius</Text>
               <Text style={styles.metaValue}>{provider.serviceRadiusKm} km</Text>
@@ -174,7 +197,29 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
-  description: { ...typography.body, color: palette.textSecondary, lineHeight: 22 },
+  storyBlock: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  storyAccent: {
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: palette.accent,
+  },
+  description: {
+    ...typography.body,
+    flex: 1,
+    color: palette.textSecondary,
+    lineHeight: 24,
+    letterSpacing: 0.1,
+  },
+  storyToggle: {
+    ...typography.label,
+    color: palette.accent,
+    marginBottom: spacing.md,
+  },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   metaLabel: { ...typography.caption, color: palette.textSecondary },
   metaValue: { ...typography.captionMedium, color: palette.textPrimary },
