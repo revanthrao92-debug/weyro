@@ -444,7 +444,7 @@ export class QuotationsService {
       });
 
       return booking;
-    });
+    }, { maxWait: 10_000, timeout: 20_000 });
 
     // Notify provider of accepted quotation
     try {
