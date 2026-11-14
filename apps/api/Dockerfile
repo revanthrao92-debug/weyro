@@ -23,6 +23,9 @@ COPY apps/api/ ./apps/api/
 
 # Generate Prisma client and build packages
 RUN npm run build:packages
+# The API workspace resolves its own @prisma/client copy (npm does not always
+# hoist it), so generate the typed client there too before compiling.
+RUN cd apps/api && npx prisma generate --schema ../../packages/database/prisma/schema.prisma
 RUN npm run build:api
 
 # Stage 2: Runner
