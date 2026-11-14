@@ -34,6 +34,8 @@ export const envSchema = z.object({
   STORAGE_BUCKET: z.string().optional(),
   STORAGE_REGION: z.string().default('ap-south-1'),
   STORAGE_ENDPOINT: z.string().optional(),
+  // Set true only for providers that require path-style S3 URLs (MinIO).
+  STORAGE_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('false'),
   STORAGE_ACCESS_KEY: z.string().optional(),
   STORAGE_SECRET_KEY: z.string().optional(),
   STORAGE_PUBLIC_URL: z.string().optional(),

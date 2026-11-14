@@ -73,7 +73,7 @@ export class S3StorageService implements StorageService {
               secretAccessKey: secretKey,
             }
           : undefined,
-      forcePathStyle: Boolean(endpoint),
+      forcePathStyle: env.STORAGE_FORCE_PATH_STYLE === 'true',
     });
   }
 
