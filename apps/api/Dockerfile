@@ -15,6 +15,9 @@ COPY apps/api/package.json ./apps/api/
 
 # Install all workspace dependencies
 RUN npm ci
+# The lockfile is authored on macOS; install the Linux sharp binary
+# explicitly so the runtime image does not look for a darwin build.
+RUN npm install --os=linux --libc=glibc --cpu=x64 sharp
 
 # Copy source trees (tsconfig.base.json is extended by package tsconfigs — required)
 COPY tsconfig.json tsconfig.base.json ./
