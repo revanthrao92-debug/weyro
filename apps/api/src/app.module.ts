@@ -21,6 +21,7 @@ import { DriverGoModule } from './modules/driver-go/driver-go.module';
 import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { requestThrottleTracker } from './common/guards/throttle-tracker';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
@@ -36,10 +37,23 @@ const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
     ThrottlerModule.forRoot(
       USE_REDIS_THROTTLER
         ? {
-            throttlers: [{ ttl: 60000, limit: 100 }],
+            throttlers: [
+              {
+                ttl: 60000,
+                limit: 100,
+                getTracker: requestThrottleTracker,
+              },
+            ],
             storage: new ThrottlerStorageRedisService(env.REDIS_URL),
           }
-        : [{ ttl: 60000, limit: 100 }],
+        : [
+            {
+              ttl: 60000,
+              limit: 100,
+              getTracker: (req: Record<string, any>) =>
+                req.user?.sub ? `user:${req.user.sub}` : `ip:${req.ip}`,
+            },
+          ],
     ),
     ScheduleModule.forRoot(),
     PrismaModule,
@@ -70,15 +84,17 @@ const USE_REDIS_THROTTLER = Boolean(env.REDIS_URL);
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      // Runs last so authenticated requests are tracked per user, while
+      // public routes fall back to the client IP.
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
     {
       provide: APP_INTERCEPTOR,

@@ -74,11 +74,11 @@ graph TD
 | Local development storage | ✅ Implemented | `STORAGE_DRIVER=local` writes real files under `uploads/`, validates signatures and strips EXIF; no placeholder images |
 | Provider verification | ✅ Implemented | Admin-gated, `verifiedBy`/`verifiedAt`/notes audit trail, DB-backed enforcement |
 | Query/body validation | ✅ Implemented | Global Zod pipe; shared schemas in `@weyro/validation` |
-| Rate limiting | ✅ Implemented | Global bucket + tighter per-route write limits |
+| Rate limiting | ✅ Implemented | Per-authenticated-user + per-IP fallback, Redis-backed when configured, tighter per-route write limits |
 | Health/readiness probes | ✅ Implemented | `GET /health`, `GET /ready` |
 | Payment capture/release | ✅ Implemented | Webhook capture + admin release with payout reference and audit log. This is application-level payment protection, **not** a licensed escrow service; gateway auto-payout is **planned** |
 | Provider KYC documents | ✅ Implemented (partial authenticity checks) | Providers upload business registration + owner ID to a private folder; admin reviews/rejects/suspends with audit trail. Document authenticity/registry checks are manual |
-| Phone OTP login | ✅ Implemented | `POST /auth/send-otp`, `POST /auth/verify-otp` |
+| Phone OTP login | ✅ Implemented | `POST /auth/send-otp`, `POST /auth/verify-otp`; per-phone verify throttle is Redis-shared across replicas |
 | Private media + signed GET URLs | ✅ Implemented | Production rejects `STORAGE_PUBLIC_URL`, requires S3, and admin document review uses short-lived signed GETs |
 | Request-level idempotency keys | ✅ Implemented | `Idempotency-Key` / `X-Idempotency-Key` interceptor + middleware |
 | Offline request queue | ✅ Implemented (request creation) | Persistent queue with idempotency keys, exponential backoff, retry cap and explicit `PENDING` / `FAILED` / `REQUIRES_ATTENTION` states. Financial mutations are rejected from the queue |

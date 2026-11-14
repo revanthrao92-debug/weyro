@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -15,6 +17,8 @@ import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { buildSmsGateway, SmsGateway } from './sms.gateway';
+import type Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../common/redis/redis.module';
 
 // Pre-computed bcrypt hash for constant-time comparison when user does not exist
 const DUMMY_HASH =
@@ -33,6 +37,9 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Optional()
+    @Inject(REDIS_CLIENT)
+    private readonly redis?: Redis,
   ) {
     this.smsGateway = buildSmsGateway();
   }
@@ -340,8 +347,52 @@ export class AuthService {
    * Verify a 6-digit OTP and optionally mark the phone as verified.
    * On successful verification for login/register, returns JWT tokens.
    */
-  /** M2: per-phone sliding-window gate for verify-otp (not just per-IP). */
-  private assertPhoneVerifyAllowance(phone: string): void {
+  /**
+   * Per-phone sliding-window gate for verify-otp. Uses an atomic Redis
+   * sorted-set when available so N replicas enforce one shared limit; falls
+   * back to the in-process map only when Redis is not configured.
+   */
+  private async assertPhoneVerifyAllowance(phone: string): Promise<void> {
+    if (this.redis && this.redis.status === 'ready') {
+      const key = `weyro:otp:verify:${phone}`;
+      const now = Date.now();
+      const windowMs = AuthService.VERIFY_WINDOW_MS;
+      const script = `
+        local key = KEYS[1]
+        local now = tonumber(ARGV[1])
+        local window = tonumber(ARGV[2])
+        local max = tonumber(ARGV[3])
+        redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+        local count = redis.call('ZCARD', key)
+        if count >= max then return 0 end
+        redis.call('ZADD', key, now, ARGV[4])
+        redis.call('PEXPIRE', key, window)
+        return 1
+      `;
+      try {
+        const allowed = await this.redis.eval(
+          script,
+          1,
+          key,
+          String(now),
+          String(windowMs),
+          String(AuthService.VERIFY_MAX_PER_WINDOW),
+          `${now}:${crypto.randomBytes(6).toString('hex')}`,
+        );
+        if (Number(allowed) === 0) {
+          throw new BadRequestException(
+            'Too many verification attempts for this number. Please wait a minute and try again.',
+          );
+        }
+        return;
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        this.logger.warn(
+          `Redis OTP throttle unavailable, falling back to local window: ${(error as Error).message}`,
+        );
+      }
+    }
+
     const now = Date.now();
     const window = this.verifyAttemptsByPhone.get(phone) ?? [];
     const recent = window.filter((t) => now - t < AuthService.VERIFY_WINDOW_MS);
@@ -366,7 +417,7 @@ export class AuthService {
   async verifyOtp(dto: VerifyOtpDto) {
     const phone = dto.phone.trim();
     // M2: phone-scoped rate limit BEFORE any DB work
-    this.assertPhoneVerifyAllowance(phone);
+    await this.assertPhoneVerifyAllowance(phone);
 
     const otp = await this.prisma.oTP.findUnique({
       where: { phone },
