@@ -74,4 +74,5 @@ backups/
 packages/database/src/generated/
 
 # local development uploads (STORAGE_DRIVER=local)
-uploads/
+/uploads/
+/apps/api/uploads/
