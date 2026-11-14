@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -30,14 +35,17 @@ export class S3StorageService implements StorageService {
   private readonly publicUrl: string;
   private readonly isPublicBucket: boolean;
 
-  constructor(options?: {
+  constructor(
+    @Optional()
+    options?: {
     bucket?: string;
     region?: string;
     endpoint?: string;
     accessKey?: string;
     secretKey?: string;
-    publicUrl?: string;
-  }) {
+      publicUrl?: string;
+    },
+  ) {
     const bucket = options?.bucket || env.STORAGE_BUCKET || 'weyro-uploads';
     const region = options?.region || env.STORAGE_REGION || 'ap-south-1';
     const endpoint = options?.endpoint || env.STORAGE_ENDPOINT;
