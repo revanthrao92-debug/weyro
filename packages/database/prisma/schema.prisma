@@ -2,6 +2,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// The API workspace resolves its own @prisma/client copy in Docker monorepo
+// installs. Keep this second output in sync with the schema.
+generator clientApi {
+  provider = "prisma-client-js"
+  output   = "../../../apps/api/node_modules/.prisma/client"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
