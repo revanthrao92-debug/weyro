@@ -74,6 +74,10 @@ export class S3StorageService implements StorageService {
             }
           : undefined,
       forcePathStyle: env.STORAGE_FORCE_PATH_STYLE === 'true',
+      // SigV4 presigned PUTs from browsers must not include SDK checksum
+      // headers that the client cannot reproduce.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
