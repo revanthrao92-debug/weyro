@@ -44,9 +44,12 @@ const DEMO_PARTS = [
 ];
 
 async function main() {
-  if (process.env.NODE_ENV === 'production') {
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.ALLOW_DEMO_SEED !== 'true'
+  ) {
     throw new Error(
-      'Refusing to seed demo/development accounts in production. Set NODE_ENV explicitly for non-production environments.',
+      'Refusing to seed demo accounts. Set NODE_ENV to a non-production value and ALLOW_DEMO_SEED=true explicitly.',
     );
   }
 

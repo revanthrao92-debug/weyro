@@ -50,7 +50,7 @@ export async function settleBookingPayment(
   const claimed = await tx.payment.updateMany({
     where: {
       id: input.paymentId,
-      status: { in: ['PENDING', 'AUTHORIZED'] as unknown as PaymentStatus[] },
+      status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] as unknown as PaymentStatus[] },
     },
     data: {
       status: 'CAPTURED' as PaymentStatus,
@@ -96,7 +96,7 @@ export async function settleSparePartOrderPayment(
   data: { gatewayPaymentId: string; gatewayOrderId?: string },
 ): Promise<SettleResult> {
   const claimed = await tx.sparePartOrder.updateMany({
-    where: { id: input.orderId, status: 'PENDING' },
+    where: { id: input.orderId, status: { in: ['PENDING', 'FAILED'] } },
     data: {
       status: 'PAID',
       gatewayPaymentId: data.gatewayPaymentId,

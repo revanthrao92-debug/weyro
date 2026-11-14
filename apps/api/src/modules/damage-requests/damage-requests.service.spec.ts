@@ -12,6 +12,9 @@ describe('DamageRequestsService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
       },
+      vehicle: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
+      },
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
@@ -293,6 +296,8 @@ describe('DamageRequestsService', () => {
         id: 'req-1',
         customerId: 'cust-1',
         category: 'REPAIR',
+        status: 'OPEN',
+        isBroadcast: true,
         address: '123 Tech Park, Whitefield, Bengaluru',
         customer: {
           id: 'cust-1',
@@ -332,6 +337,9 @@ describe('DamageRequestsService authorization regressions', () => {
       serviceRequest: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+      },
+      vehicle: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
       },
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),

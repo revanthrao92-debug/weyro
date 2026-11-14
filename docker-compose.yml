@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: weyro_dev_password
       POSTGRES_DB: weyro_db
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +25,7 @@ services:
     container_name: weyro_api
     restart: unless-stopped
     ports:
-      - '4000:4000'
+      - '127.0.0.1:4000:4000'
     environment:
       NODE_ENV: development
       PORT: 4000
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'no']
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
 
 volumes:
   postgres_data:

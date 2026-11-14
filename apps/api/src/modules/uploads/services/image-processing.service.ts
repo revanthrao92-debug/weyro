@@ -78,10 +78,13 @@ export class ImageProcessingService {
    */
   async stripExif(buffer: Buffer): Promise<Buffer> {
     try {
-      // sharp by default strips all EXIF metadata when re-encoding
-      const processed = await sharp(buffer)
-        .rotate() // auto-orient based on EXIF, then discard orientation tag
-        .withMetadata({}) // strip all metadata including EXIF/GPS
+      // sharp strips metadata on re-encode by default. Do NOT call
+      // withMetadata() here: in sharp 0.35 it keeps EXIF/GPS instead of
+      // stripping it.
+      const processed = await sharp(buffer, {
+        limitInputPixels: 50_000_000,
+      })
+        .rotate() // auto-orient from EXIF, then discard the metadata
         .toBuffer();
 
       this.logger.log(

@@ -219,10 +219,17 @@ export class AuthService {
     // Rotate token atomically: revoke current and issue a new one in the
     // SAME rotation family.
     const newTokens = await this.prisma.$transaction(async (tx) => {
-      await tx.refreshToken.update({
-        where: { id: storedToken.id },
+      // Atomic rotation: only the winner of a concurrent refresh may revoke
+      // and replace this row. The loser must not mint a second live chain.
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: storedToken.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      if (claimed.count === 0) {
+        throw new UnauthorizedException(
+          'Refresh token was already rotated. Please sign in again.',
+        );
+      }
 
       return await this.generateTokenPair(storedToken.user, tx, storedToken.familyId);
     });
@@ -233,7 +240,12 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string, refreshTokenStr?: string) {
+  async logout(userId: string, refreshTokenStr?: string, pushToken?: string) {
+    if (pushToken) {
+      await this.prisma.pushToken.deleteMany({
+        where: { userId, token: pushToken },
+      });
+    }
     if (refreshTokenStr) {
       const tokenHash = this.hashToken(refreshTokenStr);
       await this.prisma.refreshToken.updateMany({
@@ -320,7 +332,7 @@ export class AuthService {
       phone,
       expiresInSeconds: 600,
       // Dev-only: return the code so it can be tested without an SMS gateway
-      ...(env.NODE_ENV !== 'production' ? { code } : {}),
+      ...(env.OTP_DEBUG_ECHO === 'true' ? { code } : {}),
     };
   }
 
@@ -366,6 +378,11 @@ export class AuthService {
 
     if (otp.verifiedAt) {
       throw new BadRequestException('OTP has already been verified');
+    }
+
+    // A recovery code must never double as a login credential.
+    if (otp.purpose === 'reset_password') {
+      throw new BadRequestException('OTP is not valid for this action');
     }
 
     if (dto.purpose && otp.purpose && dto.purpose !== otp.purpose) {
@@ -529,6 +546,11 @@ export class AuthService {
       this.prisma.oTP.update({
         where: { phone },
         data: { verifiedAt: new Date() },
+      }),
+      // A password reset must terminate every existing session.
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
       }),
     ]);
 

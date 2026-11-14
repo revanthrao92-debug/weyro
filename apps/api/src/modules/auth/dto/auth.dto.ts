@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   RegisterSchema,
   LoginSchema,
@@ -54,4 +55,18 @@ export class ResetPasswordDto implements ResetPasswordInput {
   phone!: string;
   code!: string;
   newPassword!: string;
+}
+
+
+export const logoutSchema = z
+  .object({
+    refreshToken: z.string().min(1).optional(),
+    pushToken: z.string().min(1).max(512).optional(),
+  })
+  .strict();
+
+export class LogoutDto implements z.infer<typeof logoutSchema> {
+  static readonly schema = logoutSchema;
+  refreshToken?: string;
+  pushToken?: string;
 }

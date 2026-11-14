@@ -32,6 +32,7 @@ export interface FinalizeImageResult {
 export interface StorageService {
   /** Development-only local driver hooks. Absent for S3. */
   receiveLocalUpload?(key: string, body: Buffer): Promise<void>;
+  verifyLocalKey?(key: string, token: string): boolean;
   readLocalFile?(key: string): Promise<{ body: Buffer; contentType: string }>;
   getPresignedUploadUrl(params: PresignedUrlParams): Promise<PresignedUrlResult>;
   getPresignedDownloadUrl(

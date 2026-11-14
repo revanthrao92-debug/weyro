@@ -6,7 +6,16 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
-import { from, Observable, switchMap, tap, catchError, throwError } from 'rxjs';
+import {
+  from,
+  Observable,
+  switchMap,
+  map,
+  mergeMap,
+  tap,
+  catchError,
+  throwError,
+} from 'rxjs';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
@@ -45,14 +54,18 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const rawPath = String(request.path || '');
+    const rawPath = String(request.path || '').toLowerCase();
     // Never cache credential-bearing auth responses, even for a bound key.
+    // Express routing is case-insensitive, so normalize before checking.
     if (rawPath.includes('/auth/')) {
       return next.handle();
     }
 
     const key = idempotencyKey as string;
     const endpoint = request.route?.path || request.path;
+    const resourcePath = String(
+      request.originalUrl || request.url || request.path || '',
+    ).split('?')[0];
     const method = request.method;
     const userId = request.user?.sub;
     const requestHash = crypto
@@ -64,7 +77,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // replay the original response.
     const scope = crypto
       .createHash('sha256')
-      .update(`${userId ?? 'anonymous'}:${method}:${endpoint}`)
+      .update(`${userId ?? 'anonymous'}:${method}:${resourcePath}`)
       .digest('hex');
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -91,28 +104,38 @@ export class IdempotencyInterceptor implements NestInterceptor {
         );
       }),
       switchMap(() => next.handle()),
-      tap(async (result: any) => {
-        // Capture the response and update the idempotency key
+      // Wait for the record to become PROCESSED before emitting the response.
+      // A fire-and-forget update left retries polling a PENDING key.
+      switchMap((result: any) => {
         const statusCode = response.statusCode || 200;
-        await this.prisma.idempotencyKey.update({
-          where: { key_scope: { key, scope } },
-          data: {
-            status: 'PROCESSED',
-            responseStatus: statusCode,
-            responseBody: result as any,
-            processedAt: new Date(),
-          },
-        });
+        return from(
+          this.prisma.idempotencyKey
+            .update({
+              where: { key_scope: { key, scope } },
+              data: {
+                status: 'PROCESSED',
+                responseStatus: statusCode,
+                responseBody: result as any,
+                processedAt: new Date(),
+              },
+            })
+            .catch((err: unknown) => {
+              this.logger.error(
+                `Failed to persist idempotent response: ${(err as Error).message}`,
+              );
+            }),
+        ).pipe(map(() => result));
       }),
       catchError((err: any) => {
-        // Mark the key as FAILED if the handler errors
-        from(
-          this.prisma.idempotencyKey.update({
-            where: { key_scope: { key, scope } },
-            data: { status: 'FAILED' },
-          }),
-        ).subscribe(() => {}, () => {}); // Never block due to audit errors
-        return throwError(() => err);
+        // Mark the key as FAILED, then propagate the original error.
+        return from(
+          this.prisma.idempotencyKey
+            .update({
+              where: { key_scope: { key, scope } },
+              data: { status: 'FAILED' },
+            })
+            .catch(() => undefined),
+        ).pipe(mergeMap(() => throwError(() => err)));
       }),
     ).pipe(
       catchError((err: any) => {

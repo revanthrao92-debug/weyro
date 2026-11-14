@@ -12,7 +12,6 @@ import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
   validateBookingTransition,
-  validatePaymentTransition,
   validateQuotationTransition,
   validateServiceRequestTransition,
 } from '../../common/state-machines/state-machines';
@@ -265,7 +264,14 @@ export class QuotationsService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
       return {
-        items,
+        items: isAdmin
+          ? items
+          : items.map((item) => ({
+              ...item,
+              provider: item.provider
+                ? toPublicProvider(item.provider)
+                : item.provider,
+            })),
         nextCursor:
           items.length === boundedLimit
             ? encodeCursor({
@@ -364,6 +370,21 @@ export class QuotationsService {
 
     // Atomic acceptance transaction with guarded update
     const result = await this.prisma.$transaction(async (tx) => {
+      // Suspension after quoting must prevent new work allocation.
+      const provider = await tx.providerProfile.findUnique({
+        where: { id: quote.providerId },
+        select: { verificationStatus: true, deletedAt: true },
+      });
+      if (
+        !provider ||
+        provider.deletedAt ||
+        provider.verificationStatus !== 'VERIFIED'
+      ) {
+        throw new ConflictException(
+          'This provider is not currently verified for new work',
+        );
+      }
+
       // Guarded update: ensure quote is still pending. If concurrent accept raced, count will be 0
       const updateResult = await tx.quotation.updateMany({
         where: { id: quotationId, status: 'PENDING' },
@@ -475,14 +496,47 @@ export class QuotationsService {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         request: {
-          include: { vehicle: true, media: true },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            status: true,
+            urgency: true,
+            address: true,
+            createdAt: true,
+            vehicle: {
+              select: {
+                make: true,
+                model: true,
+                year: true,
+                fuelType: true,
+                transmission: true,
+                color: true,
+              },
+            },
+            media: { select: { url: true } },
+          },
         },
         booking: true,
       },
     });
 
+    const masked = items.map((item) => ({
+      ...item,
+      request: item.request
+        ? {
+            ...item.request,
+            address:
+              item.status === 'ACCEPTED'
+                ? item.request.address
+                : this.maskAddress(item.request.address),
+          }
+        : item.request,
+    }));
+
     return {
-      items,
+      items: masked,
       nextCursor:
         items.length === boundedLimit
           ? encodeCursor({
@@ -511,6 +565,21 @@ export class QuotationsService {
       !!user.providerProfileId && quote.providerId === user.providerProfileId;
     if (!isOwner && user.role !== 'ADMIN') {
       throw new ForbiddenException('You do not own this quotation');
+    }
+    if (user.role !== 'ADMIN') {
+      const provider = await this.prisma.providerProfile.findUnique({
+        where: { id: quote.providerId },
+        select: { verificationStatus: true, deletedAt: true },
+      });
+      if (
+        !provider ||
+        provider.deletedAt ||
+        provider.verificationStatus !== 'VERIFIED'
+      ) {
+        throw new ForbiddenException(
+          'Suspended or unverified providers cannot edit quotations',
+        );
+      }
     }
     if (quote.status !== 'PENDING') {
       throw new BadRequestException(
@@ -603,6 +672,17 @@ export class QuotationsService {
       where: { id },
       data: { status: 'WITHDRAWN' },
     });
+  }
+
+  private maskAddress(address: string): string {
+    if (!address) return 'Location shared after acceptance';
+    const parts = address
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return parts.length >= 2
+      ? parts[parts.length - 1]
+      : 'Location shared after acceptance';
   }
 
   async getBooking(id: string, user: AuthUserPayload) {
@@ -715,8 +795,31 @@ export class QuotationsService {
       ...rest
     } = booking;
 
+    const vehicle = booking.quotation?.request?.vehicle;
+    const safeVehicle = vehicle
+      ? {
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year,
+          fuelType: vehicle.fuelType,
+          transmission: vehicle.transmission,
+          color: vehicle.color,
+        }
+      : vehicle ?? null;
+
     return {
       ...rest,
+      ...(booking.quotation?.request
+        ? {
+            quotation: {
+              ...booking.quotation,
+              request: {
+                ...booking.quotation.request,
+                vehicle: safeVehicle,
+              },
+            },
+          }
+        : {}),
       customer: customer ? toPublicCustomer(customer) : null,
       provider: provider ? toPublicProvider(provider) : null,
       payments: (payments ?? []).map(toPaymentSummary),
@@ -753,8 +856,15 @@ export class QuotationsService {
       throw new ForbiddenException('You do not have permission to update this booking');
     }
 
-    // Validate state machine transition with actor permissions
-    validateBookingTransition(booking.status, newStatus as any, user.role);
+    // A BOTH account can own this booking on either side. The acting side must
+    // come from the ownership relation, not from the account's global role.
+    const actorRole: 'ADMIN' | 'PROVIDER' | 'CUSTOMER' = isAdmin
+      ? 'ADMIN'
+      : isProviderOwner
+        ? 'PROVIDER'
+        : 'CUSTOMER';
+
+    validateBookingTransition(booking.status, newStatus as any, actorRole);
 
     const data: any = { status: newStatus as any };
     if (metadata?.trackingNumber !== undefined) {
@@ -790,7 +900,7 @@ export class QuotationsService {
       if (newStatus === 'IN_PROGRESS' && booking.quotation?.request) {
         const request = booking.quotation.request;
         if (request.status === 'ACCEPTED') {
-          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', user.role);
+          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
           await tx.serviceRequest.update({
             where: { id: request.id },
             data: { status: 'IN_PROGRESS' },
@@ -802,7 +912,7 @@ export class QuotationsService {
       if (newStatus === 'COMPLETED' && booking.quotation?.request) {
         const request = booking.quotation.request;
         if (request.status === 'ACCEPTED') {
-          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', user.role);
+          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
           await tx.serviceRequest.update({
             where: { id: request.id },
             data: { status: 'IN_PROGRESS' },
@@ -811,22 +921,13 @@ export class QuotationsService {
         validateServiceRequestTransition(
           request.status === 'ACCEPTED' ? 'IN_PROGRESS' : request.status,
           'COMPLETED',
-          user.role,
+          actorRole,
         );
         await tx.serviceRequest.update({
           where: { id: request.id },
           data: { status: 'COMPLETED' },
         });
 
-        // Trigger payment release/capture per payment state machine
-        const latestPayment = booking.payments?.[0];
-        if (latestPayment && latestPayment.status === 'AUTHORIZED') {
-          validatePaymentTransition(latestPayment.status, 'CAPTURED', 'SYSTEM');
-          await tx.payment.update({
-            where: { id: latestPayment.id },
-            data: { status: 'CAPTURED', paidAt: new Date() },
-          });
-        }
       }
 
       return updatedBooking;

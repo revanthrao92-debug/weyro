@@ -2,6 +2,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from '@nestjs/common';
@@ -29,6 +30,8 @@ import {
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
@@ -208,13 +211,24 @@ export class AdminService {
       throw new ConflictException('Payment is no longer refundable');
     }
 
+    let refund;
     try {
-      const refund = await this.gateway.refundPayment({
+      refund = await this.gateway.refundPayment({
         paymentId: payment.gatewayPaymentId,
         amountInPaise: Math.round(Number(payment.amount) * 100),
         notes: { bookingId, reason: 'admin_refund' },
       });
+    } catch (error) {
+      // Only a failed gateway call may release the claim. Reverting after a
+      // successful refund would allow a second refund or a provider payout.
+      await this.prisma.payment.updateMany({
+        where: { id: payment.id, status: 'REFUNDED' },
+        data: { status: payment.status as any },
+      });
+      throw error;
+    }
 
+    try {
       await this.prisma.auditLog.create({
         data: {
           actorId: adminUserId ?? null,
@@ -230,20 +244,19 @@ export class AdminService {
           },
         },
       });
-
-      return {
-        bookingId,
-        paymentId: payment.id,
-        status: 'REFUNDED',
-        refundId: refund.refundId,
-      };
     } catch (error) {
-      await this.prisma.payment.updateMany({
-        where: { id: payment.id, status: 'REFUNDED' },
-        data: { status: payment.status as any },
-      });
-      throw error;
+      // The money is already refunded; never undo the state for an audit write.
+      this.logger.error(
+        `Refund ${refund.refundId} succeeded but audit logging failed: ${(error as Error).message}`,
+      );
     }
+
+    return {
+      bookingId,
+      paymentId: payment.id,
+      status: 'REFUNDED',
+      refundId: refund.refundId,
+    };
   }
 
   async getProviders(status?: string): Promise<ProviderVerificationRecord[]> {
@@ -341,7 +354,7 @@ export class AdminService {
       status:
         payment.status === 'REFUNDED'
           ? 'REFUNDED_TO_CUSTOMER'
-          : payment.status === 'RELEASED' || payment.status === 'CAPTURED'
+          : payment.status === 'RELEASED'
             ? 'RELEASED_TO_PROVIDER'
             : 'HELD_IN_ESCROW',
       bookingStatus: payment.booking?.status,
@@ -350,7 +363,7 @@ export class AdminService {
         payment.status === 'REFUNDED'
           ? undefined
           : payment.paidToProviderAt?.toISOString() ??
-            (payment.status === 'CAPTURED' || payment.status === 'RELEASED'
+            (payment.status === 'RELEASED'
               ? (payment.booking?.completedAt ?? payment.updatedAt).toISOString()
               : undefined),
       confirmedAt: (payment.paidAt ?? payment.createdAt).toISOString(),

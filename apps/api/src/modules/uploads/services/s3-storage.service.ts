@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -72,13 +73,19 @@ export class S3StorageService implements StorageService {
     params: PresignedUrlParams,
   ): Promise<PresignedUrlResult> {
     const {
-      filename,
       contentType,
       folder = 'damage-requests',
       fileSize,
       ownerId,
     } = params;
-    const cleanExt = filename.split('.').pop()?.toLowerCase() || 'jpg';
+    const cleanExt =
+      contentType === 'image/png'
+        ? 'png'
+        : contentType === 'image/webp'
+          ? 'webp'
+          : contentType === 'image/heic'
+            ? 'heic'
+            : 'jpg';
     const randomId = crypto.randomBytes(8).toString('hex');
     const ownerPrefix = ownerId ? `${ownerId}/` : '';
     const key = `${folder}/${ownerPrefix}${Date.now()}_${randomId}.${cleanExt}`;
@@ -95,7 +102,8 @@ export class S3StorageService implements StorageService {
       expiresIn: expiresInSeconds,
     });
 
-    const fileUrl = this.isPublicBucket ? `${this.publicUrl}/${key}` : '';
+    // Never hand out a working URL before finalize has validated the bytes.
+    const fileUrl = '';
 
     this.logger.log(`Generated presigned PUT URL for key: ${key}`);
 
@@ -139,6 +147,16 @@ export class S3StorageService implements StorageService {
     key: string;
     contentType: string;
   }): Promise<FinalizeImageResult> {
+    const head = await this.s3Client.send(
+      new HeadObjectCommand({ Bucket: this.bucket, Key: params.key }),
+    );
+    if (
+      typeof head.ContentLength === 'number' &&
+      head.ContentLength > MAX_UPLOAD_FILE_SIZE
+    ) {
+      throw new BadRequestException('Uploaded object exceeds the size limit');
+    }
+
     const object = await this.s3Client.send(
       new GetObjectCommand({ Bucket: this.bucket, Key: params.key }),
     );

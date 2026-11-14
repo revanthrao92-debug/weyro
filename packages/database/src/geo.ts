@@ -236,19 +236,18 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       } AS "distanceKm"
     FROM service_requests sr
     WHERE sr.status = 'OPEN'
+      AND sr."isBroadcast" = true
+      AND sr."deletedAt" IS NULL
       AND sr."expiresAt" > NOW()
       ${categorySql}
       ${towingSql}
       ${weightSql}
       ${
         hasCoordinates && pointGeog
-          ? Prisma.sql`AND (
-              sr."isBroadcast" = true
-              OR ST_DWithin(
-                COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
-                ${pointGeog},
-                ${radiusMeters}
-              )
+          ? Prisma.sql`AND ST_DWithin(
+              COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+              ${pointGeog},
+              ${radiusMeters}
             )`
           : Prisma.empty
       }

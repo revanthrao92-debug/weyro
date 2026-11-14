@@ -108,10 +108,10 @@ describe('State Machines', () => {
       ).not.toThrow();
     });
 
-    it('rejects illegal transition from FAILED to CAPTURED', () => {
+    it('allows a later capture after an earlier failed attempt', () => {
       expect(() =>
         validatePaymentTransition('FAILED', 'CAPTURED', 'SYSTEM'),
-      ).toThrow(ConflictException);
+      ).not.toThrow();
     });
   });
 });

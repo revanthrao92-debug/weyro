@@ -133,6 +133,7 @@ export const PAYMENT_TRANSITIONS: TransitionRule<PaymentStatus>[] = [
   { from: 'PENDING', to: 'FAILED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'AUTHORIZED', to: 'CAPTURED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'AUTHORIZED', to: 'FAILED', allowedActors: ['SYSTEM', 'ADMIN'] },
+  { from: 'FAILED', to: 'CAPTURED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'AUTHORIZED', to: 'REFUNDED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'CAPTURED', to: 'REFUNDED', allowedActors: ['ADMIN', 'SYSTEM'] },
   { from: 'CAPTURED', to: 'RELEASED', allowedActors: ['ADMIN', 'SYSTEM'] },

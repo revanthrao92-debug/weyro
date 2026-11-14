@@ -72,6 +72,7 @@ function makeService(remoteOverride: Partial<GatewayPaymentInfo> = {}) {
   const bookingFixture = {
     id: 'bk_1',
     customerId: 'cust_1',
+    status: 'COMPLETED',
     payments: [basePaymentRecord],
   };
 
@@ -103,7 +104,7 @@ describe('H2 – client verify binds amount/currency/order to the gateway record
     expect(res.status).toBe('CAPTURED');
     expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+        where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
       }),
     );
     expect(remote.status).toBe('authorized'); // param sanity
@@ -179,6 +180,7 @@ describe('H3 – conditional state transitions inside transactions', () => {
     seedBooking({
       id: 'bk_1',
       customerId: 'cust_1',
+      status: 'COMPLETED',
       payments: [{ ...basePaymentRecord, status: 'CAPTURED' }],
     });
 
@@ -200,6 +202,7 @@ describe('H3 – conditional state transitions inside transactions', () => {
     seedBooking({
       id: 'bk_1',
       customerId: 'cust_1',
+      status: 'COMPLETED',
       payments: [{ ...basePaymentRecord, status: 'CAPTURED' }],
     } as never);
     mockPrisma.payment.updateMany.mockResolvedValue({ count: 0 });
@@ -218,6 +221,7 @@ describe('H3 – conditional state transitions inside transactions', () => {
     seedBooking({
       id: 'bk_1',
       customerId: 'cust_1',
+      status: 'COMPLETED',
       payments: [
         { ...basePaymentRecord, status: 'RELEASED', payoutReference: 'payout_0' },
       ],

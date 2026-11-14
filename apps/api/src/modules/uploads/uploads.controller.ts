@@ -113,13 +113,22 @@ export class UploadsController {
    * Development-only local driver. The PUT body is captured by express.raw in
    * main.ts; finalize still validates the image signature and strips EXIF.
    */
+  // The local driver is development-only and both routes require the
+  // short-lived HMAC token embedded in the presigned URL.
   @Public()
   @Put('local-upload')
-  async localUpload(@Query('key') key: string, @Req() req: any) {
-    if (!this.storageService.receiveLocalUpload) {
+  async localUpload(
+    @Query('key') key: string,
+    @Query('token') token: string,
+    @Req() req: any,
+  ) {
+    if (!this.storageService.receiveLocalUpload ||
+        !this.storageService.verifyLocalKey) {
       throw new BadRequestException('Local uploads are not enabled');
     }
-    if (!key) throw new BadRequestException('Storage key is required');
+    if (!key || !token || !this.storageService.verifyLocalKey(key, token)) {
+      throw new BadRequestException('Invalid or expired upload token');
+    }
     await this.storageService.receiveLocalUpload(key, req.body);
     return { uploaded: true };
   }
@@ -128,12 +137,16 @@ export class UploadsController {
   @Get('local-file')
   async localFile(
     @Query('key') key: string,
+    @Query('token') token: string,
     @Res() res: any,
   ) {
-    if (!this.storageService.readLocalFile) {
+    if (!this.storageService.readLocalFile ||
+        !this.storageService.verifyLocalKey) {
       throw new BadRequestException('Local storage is not enabled');
     }
-    if (!key) throw new BadRequestException('Storage key is required');
+    if (!key || !token || !this.storageService.verifyLocalKey(key, token)) {
+      throw new BadRequestException('Invalid or expired file token');
+    }
     const file = await this.storageService.readLocalFile(key);
     res.setHeader('Content-Type', file.contentType);
     res.setHeader('Cache-Control', 'private, max-age=0');

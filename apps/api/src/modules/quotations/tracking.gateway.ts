@@ -88,7 +88,18 @@ export class TrackingGateway
         throw new Error('Invalid token claims');
       }
 
+      const expiresAt = Number((payload as { exp?: number }).exp) * 1000;
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        throw new Error('Token has expired');
+      }
       client.data.user = payload;
+      client.data.expiresAt = expiresAt;
+      // A socket must not outlive the access token that authenticated it.
+      const timer = setTimeout(
+        () => client.disconnect(true),
+        Math.min(expiresAt - Date.now(), 2_147_483_647),
+      );
+      timer.unref?.();
     } catch (err: any) {
       this.logger.warn(`Tracking socket unauthorized: ${err.message}`);
       client.disconnect();

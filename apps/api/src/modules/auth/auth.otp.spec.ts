@@ -45,6 +45,7 @@ describe('AuthService – OTP security hardening', () => {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(mockPrisma)),

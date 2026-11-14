@@ -49,6 +49,7 @@ jobs:
       PAYMENT_RECONCILE_WINDOW_MINUTES: 15
       PAYMENT_RECONCILE_BATCH: 25
       NODE_ENV: test
+      ALLOW_DEMO_SEED: 'true'
 
     steps:
       - uses: actions/checkout@v4

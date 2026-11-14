@@ -23,6 +23,7 @@ describe('End-to-End Core Integration Suite', () => {
           findUnique: jest.fn(),
           findFirst: jest.fn(),
           update: jest.fn(),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           deleteMany: jest.fn(),
         },
         $transaction: jest.fn((cb) => cb(mockPrisma)),
@@ -87,9 +88,9 @@ describe('End-to-End Core Integration Suite', () => {
 
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
-      expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith(
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'rt_1' },
+          where: { id: 'rt_1', revokedAt: null },
           data: { revokedAt: expect.any(Date) },
         }),
       );
@@ -196,7 +197,11 @@ describe('End-to-End Core Integration Suite', () => {
           create: jest.fn().mockResolvedValue({}),
         },
         providerProfile: {
-          findUnique: jest.fn().mockResolvedValue({ userId: 'prov_user_1' }),
+          findUnique: jest.fn().mockResolvedValue({
+            userId: 'prov_user_1',
+            verificationStatus: 'VERIFIED',
+            deletedAt: null,
+          }),
         },
         $transaction: jest.fn((cb) => cb(mockPrisma)),
       };

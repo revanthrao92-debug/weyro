@@ -5,6 +5,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   LoginDto,
+  LogoutDto,
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
@@ -62,9 +63,13 @@ export class AuthController {
   @Post('logout')
   async logout(
     @CurrentUser('sub') userId: string,
-    @Body() dto?: Partial<RefreshTokenDto>,
+    @Body() dto?: LogoutDto,
   ) {
-    return this.authService.logout(userId, dto?.refreshToken);
+    return this.authService.logout(
+      userId,
+      dto?.refreshToken,
+      dto?.pushToken,
+    );
   }
 
   @Get('me')

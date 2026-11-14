@@ -9,9 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']),
   PORT: z.coerce.number().default(4000),
   // Public base URL used by the local development storage driver.
   API_PUBLIC_URL: z.string().url().optional(),
@@ -40,7 +38,7 @@ export const envSchema = z.object({
   STORAGE_SECRET_KEY: z.string().optional(),
   STORAGE_PUBLIC_URL: z.string().optional(),
   // Private buckets serve uploads through short-lived presigned GETs.
-  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(604800),
+  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(900),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
@@ -50,6 +48,9 @@ export const envSchema = z.object({
   // OTP hashing secret (HMAC-SHA256). Dev default keeps tests simple;
   // production must supply a real random secret.
   OTP_HASH_SECRET: z.string().default('weyro_dev_otp_hash_secret_32_chars_x'),
+  // Development-only OTP echo. Must be explicitly enabled and is rejected in
+  // production. Never key this on NODE_ENV alone.
+  OTP_DEBUG_ECHO: z.enum(['true', 'false']).default('false'),
   // SMS delivery driver for OTP: console (dev), msg91, twilio
   SMS_PROVIDER: z.enum(['console', 'msg91', 'twilio']).default('console'),
   SMS_MSG91_AUTH_KEY: z.string().optional(),
@@ -107,6 +108,37 @@ export const envSchema = z.object({
       code: "custom",
       path: ['PAYMENT_GATEWAY'],
       message: 'PAYMENT_GATEWAY=mock is not allowed in production',
+    });
+  }
+
+  const devSecrets = new Set([
+    'weyro_dev_jwt_access_secret_super_key_32_chars',
+    'weyro_dev_jwt_refresh_secret_super_key_32_chars',
+    'dev_access_secret_key_change_me_32chars',
+    'dev_refresh_secret_key_change_me_32chars',
+  ]);
+  for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+    if (devSecrets.has(value[key])) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} must not use the published development value in production`,
+      });
+    }
+  }
+  if (value.JWT_ACCESS_SECRET === value.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ['JWT_REFRESH_SECRET'],
+      message: 'JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET',
+    });
+  }
+
+  if (value.OTP_DEBUG_ECHO === 'true') {
+    ctx.addIssue({
+      code: "custom",
+      path: ['OTP_DEBUG_ECHO'],
+      message: 'OTP_DEBUG_ECHO must not be enabled in production',
     });
   }
 

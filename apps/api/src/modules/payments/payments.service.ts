@@ -57,6 +57,12 @@ export class PaymentsService {
       throw new ForbiddenException('Only the booking customer can initiate payment');
     }
 
+    if (!['CONFIRMED', 'IN_PROGRESS'].includes(booking.status)) {
+      throw new ConflictException(
+        'This booking is no longer accepting payment',
+      );
+    }
+
     let payment = booking.payments?.[0];
     if (!payment) {
       // Create payment record if it does not exist
@@ -73,6 +79,9 @@ export class PaymentsService {
 
     if (payment.status === 'CAPTURED') {
       throw new ConflictException('Payment for this booking has already been captured');
+    }
+    if (payment.status === 'RELEASED' || payment.status === 'REFUNDED') {
+      throw new ConflictException('This payment is already finalised');
     }
 
     // Amount in paise (1 INR = 100 paise)
@@ -378,8 +387,11 @@ export class PaymentsService {
 
     this.logger.log(`Processing verified webhook event: ${eventId} (${eventType})`);
 
-    // Process event types
-    switch (eventType) {
+    // Process event types. If handling fails, remove the dedupe row so the
+    // gateway's retry actually reprocesses the event instead of being ignored
+    // as a duplicate. Settlement claims are idempotent.
+    try {
+      switch (eventType) {
       case 'payment.captured': {
         const orderId = payload.payload?.payment?.entity?.order_id;
         const gatewayPaymentId = payload.payload?.payment?.entity?.id;
@@ -397,7 +409,7 @@ export class PaymentsService {
               const claimed = await tx.payment.updateMany({
                 where: {
                   id: payment.id,
-                  status: { in: ['PENDING', 'AUTHORIZED'] as never },
+                  status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] as never },
                 },
                 data: {
                   status: 'CAPTURED' as never,
@@ -520,6 +532,13 @@ export class PaymentsService {
               break;
             }
 
+            if (refundMinorUnits < capturedMinorUnits) {
+              this.logger.warn(
+                `Partial refund ${eventId} for payment ${payment.id} (${refundMinorUnits}/${capturedMinorUnits}) — local status left CAPTURED`,
+              );
+              break;
+            }
+
             validatePaymentTransition(payment.status, 'REFUNDED', 'SYSTEM');
             await this.prisma.payment.update({
               where: { id: payment.id },
@@ -531,9 +550,15 @@ export class PaymentsService {
         break;
       }
 
-      default:
-        this.logger.log(`Unhandled webhook event type: ${eventType}`);
-        break;
+        default:
+          this.logger.log(`Unhandled webhook event type: ${eventType}`);
+          break;
+      }
+    } catch (error) {
+      await this.prisma.webhookEvent
+        .deleteMany({ where: { eventId } })
+        .catch(() => undefined);
+      throw error;
     }
 
     return { status: 'processed', eventId, eventType };
@@ -568,6 +593,12 @@ export class PaymentsService {
     const payment = booking.payments?.[0];
     if (!payment) {
       throw new NotFoundException(`Payment record for booking ${dto.bookingId} not found`);
+    }
+
+    if (booking.status !== 'COMPLETED') {
+      throw new ConflictException(
+        'Payment can only be released after the booking is completed',
+      );
     }
 
     // State machine check: must be CAPTURED to release. RELEASED itself is an

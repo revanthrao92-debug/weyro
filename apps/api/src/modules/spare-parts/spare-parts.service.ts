@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -40,6 +41,8 @@ import { env } from '../../config/env.config';
 
 @Injectable()
 export class SparePartsService {
+  private readonly logger = new Logger(SparePartsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
@@ -599,35 +602,13 @@ export class SparePartsService {
       throw new ConflictException('Order is no longer refundable');
     }
 
+    let refund;
     try {
-      const refund = await this.gateway.refundPayment({
+      refund = await this.gateway.refundPayment({
         paymentId: order.gatewayPaymentId,
         amountInPaise: Math.round(Number(order.totalAmount) * 100),
         notes: { orderId: order.id, reason: 'admin_refund' },
       });
-
-      // Return reserved stock for physical parts; packages never held stock
-      const part = await this.prisma.sparePart.findUnique({
-        where: { id: order.sparePartId },
-        select: { kind: true },
-      });
-
-      if (part?.kind !== 'PACKAGE') {
-        await this.prisma.sparePart.update({
-          where: { id: order.sparePartId },
-          data: { stockQuantity: { increment: order.quantity } },
-        });
-      }
-
-      void this.notificationContext(order)
-        .then((context) => notifyOrderRefunded(this.notifications, context))
-        .catch(() => {});
-
-      return {
-        orderId: order.id,
-        status: 'REFUNDED',
-        refundId: refund.refundId,
-      };
     } catch (error) {
       await this.prisma.sparePartOrder.updateMany({
         where: { id: order.id, status: 'REFUNDED' },
@@ -635,6 +616,34 @@ export class SparePartsService {
       });
       throw error;
     }
+
+    try {
+      // Return reserved stock for physical parts; packages never held stock.
+      const part = await this.prisma.sparePart.findUnique({
+        where: { id: order.sparePartId },
+        select: { kind: true },
+      });
+      if (part?.kind !== 'PACKAGE') {
+        await this.prisma.sparePart.update({
+          where: { id: order.sparePartId },
+          data: { stockQuantity: { increment: order.quantity } },
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Refund ${refund.refundId} succeeded but stock restore failed: ${(error as Error).message}`,
+      );
+    }
+
+    void this.notificationContext(order)
+      .then((context) => notifyOrderRefunded(this.notifications, context))
+      .catch(() => {});
+
+    return {
+      orderId: order.id,
+      status: 'REFUNDED',
+      refundId: refund.refundId,
+    };
   }
 
   async updateFulfillment(

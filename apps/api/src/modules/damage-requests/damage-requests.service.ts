@@ -39,6 +39,16 @@ export class DamageRequestsService {
 
   async create(customerId: string, dto: CreateDamageRequestDto) {
     let vehicleId = dto.vehicleId;
+    if (vehicleId) {
+      const owned = await this.prisma.vehicle.findFirst({
+        where: { id: vehicleId, customerId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!owned) {
+        throw new NotFoundException('Vehicle not found');
+      }
+      vehicleId = owned.id;
+    }
     if (!vehicleId) {
       const make = (dto as any).vehicleMake || 'Universal';
       const model = (dto as any).vehicleModel || 'Standard';
@@ -261,6 +271,8 @@ export class DamageRequestsService {
           where: { id: params.providerId },
           select: {
             providerType: true,
+            latitude: true,
+            longitude: true,
             towingVehicleTypes: true,
             maxVehicleWeightKg: true,
           },
@@ -290,9 +302,14 @@ export class DamageRequestsService {
         : undefined;
     const maxVehicleWeightKg = provider?.maxVehicleWeightKg ?? undefined;
 
+    // Never trust caller-supplied coordinates: use the provider's registered
+    // location so a provider cannot scan another city's targeted requests.
+    const providerLat = provider?.latitude ?? params.providerLat;
+    const providerLng = provider?.longitude ?? params.providerLng;
+
     if (
-      typeof params.providerLat === 'number' &&
-      typeof params.providerLng === 'number'
+      typeof providerLat === 'number' &&
+      typeof providerLng === 'number'
     ) {
       let cursorItem: { createdAt: Date; id: string } | null = null;
       if (params.cursor) {
@@ -303,8 +320,8 @@ export class DamageRequestsService {
       }
 
       const query = getProviderFeedQuery({
-        providerLat: params.providerLat,
-        providerLng: params.providerLng,
+        providerLat,
+        providerLng,
         radiusKm: params.radiusKm || 25,
         categories,
         towingVehicleTypes,
@@ -315,10 +332,19 @@ export class DamageRequestsService {
       });
 
       const rawResults = await this.prisma.$queryRaw<any[]>(query);
-      const items = rawResults.map((req) => ({
-        ...req,
-        address: this.maskAddress(req.address),
-      }));
+      const items = rawResults.map((req) => {
+        const {
+          latitude: _latitude,
+          longitude: _longitude,
+          dropoffLatitude: _dropoffLatitude,
+          dropoffLongitude: _dropoffLongitude,
+          ...safe
+        } = req;
+        return {
+          ...safe,
+          address: this.maskAddress(req.address),
+        };
+      });
 
       return {
         items,
@@ -359,7 +385,16 @@ export class DamageRequestsService {
       where,
       include: {
         media: true,
-        vehicle: true,
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            year: true,
+            fuelType: true,
+            transmission: true,
+            color: true,
+          },
+        },
         customer: {
           select: {
             id: true,
@@ -376,10 +411,20 @@ export class DamageRequestsService {
       take: boundedLimit,
     });
 
-    const items = requests.map((req) => ({
-      ...this.formatRequest(req),
-      address: this.maskAddress(req.address),
-    }));
+    const items = requests.map((req) => {
+      const formatted = this.formatRequest(req);
+      const {
+        latitude: _latitude,
+        longitude: _longitude,
+        dropoffLatitude: _dropoffLatitude,
+        dropoffLongitude: _dropoffLongitude,
+        ...safe
+      } = formatted;
+      return {
+        ...safe,
+        address: this.maskAddress(req.address),
+      };
+    });
 
     return {
       items,
@@ -465,6 +510,24 @@ export class DamageRequestsService {
       throw new ForbiddenException('You can only access your own requests');
     }
 
+    // A provider with no relationship to the request may only open an open
+    // broadcast. Targeted, cancelled and expired requests stay private.
+    if (
+      user.providerProfileId &&
+      !isCustomerOwner &&
+      !isAdmin &&
+      !hasAcceptedBooking
+    ) {
+      const hasOwnQuotation = found.quotations.some(
+        (q) => q.providerId === user.providerProfileId,
+      );
+      if (!found.isBroadcast || found.status !== 'OPEN') {
+        if (!hasOwnQuotation) {
+          throw new NotFoundException(`Request with ID ${id} not found`);
+        }
+      }
+    }
+
     // Privacy protection: never expose competitors' quotations to providers
     const isOwnerOrAdmin = Boolean(isCustomerOwner) || isAdmin;
     const visibleQuotations = isOwnerOrAdmin
@@ -484,20 +547,29 @@ export class DamageRequestsService {
             : quotation.provider,
         }));
 
-    if (!isOwnerOrAdmin && !hasAcceptedBooking) {
-      const sanitizedCustomer = {
-        id: found.customer.id,
-        firstName: found.customer.firstName,
-        lastName: found.customer.lastName,
-        avatarUrl: found.customer.avatarUrl,
-      };
+    const sanitizedCustomer = {
+      id: found.customer.id,
+      firstName: found.customer.firstName,
+      lastName: found.customer.lastName,
+      avatarUrl: found.customer.avatarUrl,
+    };
+    const sanitizedVehicle = found.vehicle
+      ? {
+          make: found.vehicle.make,
+          model: found.vehicle.model,
+          year: found.vehicle.year,
+          fuelType: found.vehicle.fuelType,
+          transmission: found.vehicle.transmission,
+          color: found.vehicle.color,
+        }
+      : null;
 
+    if (!isOwnerOrAdmin && !hasAcceptedBooking) {
       const {
         latitude: _latitude,
         longitude: _longitude,
         dropoffLatitude: _dropoffLatitude,
         dropoffLongitude: _dropoffLongitude,
-        vehicle,
         ...rest
       } = found;
       return {
@@ -506,16 +578,18 @@ export class DamageRequestsService {
         dropoffAddress: found.dropoffAddress
           ? this.maskDetailAddress(found.dropoffAddress)
           : found.dropoffAddress,
-        vehicle: vehicle
-          ? {
-              make: vehicle.make,
-              model: vehicle.model,
-              year: vehicle.year,
-              fuelType: vehicle.fuelType,
-              transmission: vehicle.transmission,
-              color: vehicle.color,
-            }
-          : null,
+        vehicle: sanitizedVehicle,
+        customer: sanitizedCustomer,
+        quotations,
+      };
+    }
+
+    if (!isOwnerOrAdmin && hasAcceptedBooking) {
+      // The assigned provider needs the route, not the customer's account
+      // contact details or vehicle identity numbers.
+      return {
+        ...found,
+        vehicle: sanitizedVehicle,
         customer: sanitizedCustomer,
         quotations,
       };

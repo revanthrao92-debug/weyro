@@ -54,6 +54,11 @@ export class RazorpayPaymentGateway implements PaymentGateway {
         'RAZORPAY_WEBHOOK_SECRET must be set to an independent, non-placeholder value in production',
       );
     }
+    if (process.env.NODE_ENV !== 'production' && !webhookSecret) {
+      throw new Error(
+        'RAZORPAY_WEBHOOK_SECRET is required whenever the Razorpay gateway is enabled',
+      );
+    }
     this.keySecret = keySecret;
     this.webhookSecret = webhookSecret || '';
     this.instance = new Razorpay({

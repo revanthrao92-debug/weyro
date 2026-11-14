@@ -93,7 +93,7 @@ describe('PaymentReconcileService', () => {
 
     expect(prisma.payment.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'pay_rec_1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+        where: { id: 'pay_rec_1', status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
         data: expect.objectContaining({ status: 'CAPTURED' }),
       }),
     );

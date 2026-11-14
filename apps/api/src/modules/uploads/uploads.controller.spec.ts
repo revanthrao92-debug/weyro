@@ -111,7 +111,7 @@ describe('Uploads Module', () => {
   });
 
   describe('S3StorageService', () => {
-    it('generates valid key and fileUrl from configured bucket and region', async () => {
+    it('generates a key and withholds a working URL until finalize', async () => {
       const s3Service = new S3StorageService({
         bucket: 'weyro-prod-media',
         region: 'ap-south-1',
@@ -127,7 +127,7 @@ describe('Uploads Module', () => {
       });
 
       expect(result.key).toMatch(/^damage-requests\/\d+_[a-f0-9]+\.png$/);
-      expect(result.fileUrl).toContain('https://cdn.weyro.in/damage-requests/');
+      expect(result.fileUrl).toBe('');
       expect(result.uploadUrl).toBeDefined();
     });
   });

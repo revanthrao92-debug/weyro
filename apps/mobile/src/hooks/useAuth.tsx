@@ -225,10 +225,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       const refreshToken = await tokenStorage.getRefreshToken();
+      const pushToken = await SecureStore.getItemAsync('weyro_push_token');
       if (refreshToken) {
         await apiClient('/auth/logout', {
           method: 'POST',
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({ refreshToken, pushToken }),
+        });
+      } else if (pushToken) {
+        await apiClient('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ pushToken }),
         });
       }
     } catch {

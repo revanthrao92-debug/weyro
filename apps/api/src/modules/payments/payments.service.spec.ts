@@ -50,6 +50,7 @@ describe('PaymentsService', () => {
       mockPrisma.booking.findUnique.mockResolvedValue({
         id: 'book-1',
         customerId: 'cust-1',
+        status: 'CONFIRMED',
         payments: [
           {
             id: 'pay-1',
@@ -171,7 +172,7 @@ describe('PaymentsService', () => {
       // H3: capture claimed through the conditional updateMany path
       expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+          where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
         }),
       );
     });
@@ -353,7 +354,7 @@ describe('PaymentsService', () => {
       });
       // H3: capture is claimed via conditional updateMany inside a transaction
       expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith({
-        where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+        where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
         data: expect.objectContaining({
           status: 'CAPTURED',
           gatewayPaymentId: 'pay_rzp_123',
@@ -476,7 +477,10 @@ describe('PaymentsService', () => {
         data: { stockQuantity: { decrement: 2 } },
       });
       expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
-        where: { id: 'spo-1', status: 'PENDING' },
+        where: {
+          id: 'spo-1',
+          status: { in: ['PENDING', 'FAILED'] },
+        },
         data: expect.objectContaining({
           status: 'PAID',
           gatewayPaymentId: 'pay_sp_123',
@@ -524,7 +528,10 @@ describe('PaymentsService', () => {
       expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
       // settle claims the order via the conditional updateMany
       expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
-        where: { id: 'spo-pkg', status: 'PENDING' },
+        where: {
+          id: 'spo-pkg',
+          status: { in: ['PENDING', 'FAILED'] },
+        },
         data: expect.objectContaining({ status: 'PAID' }),
       });
     });
