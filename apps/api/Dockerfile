@@ -1,10 +1,10 @@
 # Stage 1: Build
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
 # Install openssl for Prisma
-RUN apk add --no-cache openssl libc6-compat
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace configurations
 COPY package.json package-lock.json ./
@@ -26,11 +26,11 @@ RUN npm run build:packages
 RUN npm run build:api
 
 # Stage 2: Runner
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=4000
