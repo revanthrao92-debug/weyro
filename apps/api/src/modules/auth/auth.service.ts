@@ -42,6 +42,10 @@ export class AuthService {
     private readonly redis?: Redis,
   ) {
     this.smsGateway = buildSmsGateway();
+    // Fail fast when a real provider is selected without its credentials.
+    (
+      this.smsGateway as SmsGateway & { assertConfigured?: () => void }
+    ).assertConfigured?.();
   }
 
   /** HMAC-SHA256 hash of an OTP — codes are never stored or compared in plaintext. */
