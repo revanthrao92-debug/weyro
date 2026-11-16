@@ -3,7 +3,8 @@ export type UserRole = 'CUSTOMER' | 'PROVIDER' | 'BOTH' | 'ADMIN';
 
 export interface User {
   id: string;
-  email: string;
+  /** Null for accounts created by phone OTP that never added an email. */
+  email: string | null;
   phone: string;
   role: UserRole;
   emailVerified: boolean;
@@ -393,7 +394,7 @@ export interface EscrowLedgerEntry {
 }
 
 export interface AdminProviderDetail extends ProviderVerificationRecord {
-  email: string;
+  email: string | null;
   verificationDocuments?: Record<string, string> | null;
   verifiedAt?: string;
   counts: {

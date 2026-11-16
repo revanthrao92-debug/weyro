@@ -1,19 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-export interface NearbyProviderResult {
-  id: string;
-  businessName: string;
-  providerType: string;
-  phone: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  serviceRadiusKm: number;
-  avgRating: number;
-  totalReviews: number;
-  distanceKm: number;
-}
-
 export interface ProviderFeedItem {
   id: string;
   title: string;
@@ -36,97 +22,6 @@ export interface ProviderFeedItem {
  * SQL migration statement to enable PostGIS.
  */
 export const ENABLE_POSTGIS_SQL = Prisma.sql`CREATE EXTENSION IF NOT EXISTS postgis;`;
-
-/**
- * Query nearby providers within a given radius (in kilometers) using PostGIS ST_DWithin
- * on the GiST-indexed geography column for sub-millisecond indexed spatial search.
- */
-export function getNearbyProvidersQuery(
-  lat: number,
-  lng: number,
-  radiusKm: number = 15,
-  providerType?: string,
-): Prisma.Sql {
-  const radiusMeters = radiusKm * 1000;
-  const pointGeog = Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
-
-  return Prisma.sql`
-    SELECT 
-      id,
-      "businessName",
-      "providerType",
-      phone,
-      address,
-      latitude,
-      longitude,
-      "serviceRadiusKm",
-      "avgRating",
-      "totalReviews",
-      ROUND(
-        (ST_Distance(
-          COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
-          ${pointGeog}
-        ) / 1000.0)::numeric,
-        2
-      )::float AS "distanceKm"
-    FROM provider_profiles
-    WHERE "verificationStatus" = 'VERIFIED'
-      AND "isAvailable" = true
-      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
-      AND ST_DWithin(
-        COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
-        ${pointGeog},
-        ${radiusMeters}
-      )
-    ORDER BY "distanceKm" ASC;
-  `;
-}
-
-/**
- * Haversine fallback query for standard PostgreSQL without PostGIS extension.
- */
-export function getNearbyProvidersHaversineQuery(
-  lat: number,
-  lng: number,
-  radiusKm: number = 15,
-  providerType?: string,
-): Prisma.Sql {
-  return Prisma.sql`
-    SELECT 
-      id,
-      "businessName",
-      "providerType",
-      phone,
-      address,
-      latitude,
-      longitude,
-      "serviceRadiusKm",
-      "avgRating",
-      "totalReviews",
-      ROUND(
-        (6371 * acos(
-          LEAST(1.0, GREATEST(-1.0,
-            cos(radians(${lat})) * cos(radians(latitude)) *
-            cos(radians(longitude) - radians(${lng})) +
-            sin(radians(${lat})) * sin(radians(latitude))
-          ))
-        ))::numeric,
-        2
-      )::float AS "distanceKm"
-    FROM provider_profiles
-    WHERE "verificationStatus" = 'VERIFIED'
-      AND "isAvailable" = true
-      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
-      AND (6371 * acos(
-        LEAST(1.0, GREATEST(-1.0,
-          cos(radians(${lat})) * cos(radians(latitude)) *
-          cos(radians(longitude) - radians(${lng})) +
-          sin(radians(${lat})) * sin(radians(latitude))
-        ))
-      )) <= ${radiusKm}
-    ORDER BY "distanceKm" ASC;
-  `;
-}
 
 export interface ProviderFeedQueryParams {
   /**

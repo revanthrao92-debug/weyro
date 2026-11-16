@@ -60,6 +60,7 @@ COPY --from=builder /app/packages/api-contracts/dist ./packages/api-contracts/di
 COPY --from=builder /app/packages/validation/dist ./packages/validation/dist
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+COPY --from=builder /app/packages/database/prisma.config.ts ./packages/database/prisma.config.ts
 # The generated Prisma clients. Each workspace resolves its own @prisma/client
 # copy, so each one needs its generated output (see the generators in schema.prisma).
 COPY --from=builder /app/packages/database/node_modules/.prisma ./packages/database/node_modules/.prisma

@@ -6,6 +6,8 @@ import {
   listQueuedMutations,
 } from '../src/services/offline-queue';
 import { apiClient, ApiError } from '../src/services/api-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();
@@ -17,6 +19,18 @@ jest.mock('expo-secure-store', () => {
     deleteItemAsync: jest.fn(async (key: string) => {
       store.delete(key);
     }),
+  };
+});
+
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const store = new Map<string, string>();
+  return {
+    __esModule: true,
+    default: {
+      getItem: jest.fn(async (key: string) => store.get(key) ?? null),
+      setItem: jest.fn(async (key: string, value: string) => void store.set(key, value)),
+      removeItem: jest.fn(async (key: string) => void store.delete(key)),
+    },
   };
 });
 
@@ -106,5 +120,37 @@ describe('offline mutation queue', () => {
 
     expect(item.status).toBe('FAILED');
     expect(item.attempts).toBe(1);
+  });
+
+  describe('storage (AsyncStorage, not SecureStore)', () => {
+    const KEY = 'weyro_offline_mutation_queue_v1';
+
+    it('writes the queue to AsyncStorage and never to SecureStore', async () => {
+      await clearOfflineQueue();
+      (SecureStore.setItemAsync as jest.Mock).mockClear();
+
+      await enqueueMutation({ endpoint: '/damage-requests', method: 'POST', body: { title: 'Dent' } });
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(KEY, expect.stringContaining('/damage-requests'));
+      expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('migrates a queue left in SecureStore by an older app version, once', async () => {
+      jest.resetModules(); // fresh module registry => fresh in-memory mock stores
+      const legacy = JSON.stringify([
+        { id: 'q_old', idempotencyKey: 'k', endpoint: '/damage-requests', method: 'POST', body: {}, createdAt: new Date().toISOString(), attempts: 0, nextAttemptAt: new Date().toISOString(), status: 'PENDING' },
+      ]);
+      // Everything below comes from the SAME (fresh) registry as the queue module.
+      const freshSecure = require('expo-secure-store');
+      const freshAsync = require('@react-native-async-storage/async-storage').default;
+      await freshSecure.setItemAsync(KEY, legacy);
+
+      const fresh = require('../src/services/offline-queue');
+      const items = await fresh.listQueuedMutations();
+
+      expect(items.map((item: { id: string }) => item.id)).toEqual(['q_old']);
+      expect(await freshAsync.getItem(KEY)).toBe(legacy); // moved
+      expect(await freshSecure.getItemAsync(KEY)).toBeNull(); // and removed from SecureStore
+    });
   });
 });

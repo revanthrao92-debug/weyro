@@ -658,7 +658,6 @@ export class AuthService {
       // Auto-create a customer-profile user for OTP-based login
       user = await this.prisma.user.create({
         data: {
-          email: `${phone}@weyro.in`, // placeholder email; user can update later
           phone,
           passwordHash: '', // OTP-authenticated users have no password
           role: 'CUSTOMER',
@@ -756,7 +755,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('No account found for this phone number');
+      // Same error as a wrong code: the response must not reveal whether an
+      // account exists for this phone number.
+      throw new BadRequestException('Invalid OTP code');
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
@@ -783,7 +784,7 @@ export class AuthService {
   private async generateTokenPair(
     user: {
       id: string;
-      email: string;
+      email: string | null;
       phone: string;
       role: any;
       customerProfile?: { id: string } | null;
@@ -794,7 +795,7 @@ export class AuthService {
   ) {
     const payload: AuthUserPayload = {
       sub: user.id,
-      email: user.email,
+      email: user.email ?? undefined,
       phone: user.phone,
       role: user.role,
       customerProfileId: user.customerProfile?.id,
@@ -858,7 +859,6 @@ export class AuthService {
     // exclusions for token/secret columns — kept explicit for future dates
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, refreshTokens, ...sanitized } = user;
-    return sanitized;
     return sanitized;
   }
 }

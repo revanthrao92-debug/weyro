@@ -180,3 +180,59 @@ describe('network failure handling', () => {
     global.fetch = originalFetch;
   });
 });
+
+describe('request timeout (30s AbortController)', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    jest.useRealTimers();
+    global.fetch = realFetch;
+  });
+
+  /** A fetch that never answers, but honours abort like the real one. */
+  const hangingFetch = () =>
+    jest.fn((_url: unknown, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        // Like the real fetch: an already-aborted signal rejects immediately.
+        if (init?.signal?.aborted) return reject(new Error('Aborted'));
+        init?.signal?.addEventListener('abort', () => reject(new Error('Aborted')));
+      }),
+    );
+
+  it('aborts a request that has not answered after 30 seconds', async () => {
+    jest.useFakeTimers();
+    const fetchMock = hangingFetch();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const pending = apiClient('/slow').catch((error) => error);
+    await jest.advanceTimersByTimeAsync(29_999);
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(false);
+
+    await jest.advanceTimersByTimeAsync(2);
+    const error = await pending;
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    expect(error).toMatchObject({ name: 'ApiError', status: 0 });
+    expect(error.message).toMatch(/timed out/i);
+  });
+
+  it('a fast response is untouched and the timer is cleared', async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    }) as unknown as typeof fetch;
+
+    await expect(apiClient('/fast')).resolves.toEqual({ ok: true });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('a caller-supplied abort still reads as a connection error, not a timeout', async () => {
+    const caller = new AbortController();
+    global.fetch = hangingFetch() as unknown as typeof fetch;
+    const pending = apiClient('/x', { signal: caller.signal }).catch((error) => error);
+    caller.abort();
+    const error = await pending;
+    expect(error.status).toBe(0);
+    expect(error.message).not.toMatch(/timed out/i);
+  });
+});

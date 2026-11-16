@@ -706,4 +706,63 @@ describe('AuthService – OTP security hardening', () => {
       });
     });
   });
+
+  describe('Phase 4 – optional email and non-enumerating reset', () => {
+    const phone = '+919876500888';
+    const validOtp = (purpose: string) => ({
+      phone,
+      code: validHash(phone, '123456'),
+      purpose,
+      attempts: 0,
+      maxAttempts: 5,
+      expiresAt: new Date(Date.now() + 60_000),
+      verifiedAt: null,
+    });
+
+    it('an OTP-created user gets NO placeholder email and can still sign in', async () => {
+      mockPrisma.oTP.findUnique.mockResolvedValue(validOtp('login'));
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockImplementation(async ({ data }: any) => ({
+        id: 'u-new',
+        role: 'CUSTOMER',
+        phone,
+        email: data.email ?? null,
+        phoneVerified: true,
+        customerProfile: { id: 'cp-new' },
+        providerProfile: null,
+      }));
+
+      const result: any = await service.verifyOtp({ phone, code: '123456', purpose: 'login' } as never);
+
+      const data = mockPrisma.user.create.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty('email');
+      expect(JSON.stringify(data)).not.toContain('@weyro.in');
+      expect(result.isNewUser).toBe(true);
+      expect(result.user.email).toBeNull();
+      // The access token is minted without an email claim.
+      const claims = mockJwt.signAsync.mock.calls[0][0];
+      expect(claims.sub).toBe('u-new');
+      expect(claims.email).toBeUndefined();
+    });
+
+    it('reset-password: a missing account and a wrong code give the SAME error', async () => {
+      const attempt = async (userRow: unknown, code: string) => {
+        mockPrisma.oTP.findUnique.mockResolvedValue(validOtp('reset_password'));
+        mockPrisma.user.findUnique.mockResolvedValue(userRow);
+        try {
+          await service.resetPassword({ phone, code, newPassword: 'NewPassw0rd!' } as never);
+          return 'no error';
+        } catch (error: any) {
+          return { status: error.status, message: error.message };
+        }
+      };
+
+      const noAccount = await attempt(null, '123456'); // right code, no such account
+      const wrongCode = await attempt({ id: 'u1', phone }, '000000'); // account exists, wrong code
+
+      expect(noAccount).toEqual({ status: 400, message: 'Invalid OTP code' });
+      expect(wrongCode).toEqual(noAccount);
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+  });
 });
