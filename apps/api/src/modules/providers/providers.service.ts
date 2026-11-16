@@ -1,3 +1,4 @@
+import { assertOwnedMediaKeys } from '../../common/media/media-key';
 import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   BadRequestException,
@@ -415,6 +416,13 @@ export class ProvidersService {
       }
       documents[document.label] = document.key;
     }
+    // H4: documents must also be finalized uploads (object exists, passed validation).
+    await assertOwnedMediaKeys(
+      this.prisma,
+      user.sub,
+      Object.values(documents),
+      ['verification-documents'],
+    );
 
     const updated = await this.prisma.providerProfile.update({
       where: { id },

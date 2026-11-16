@@ -13,7 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { getProviderFeedQuery } from '@weyro/database';
-import { requireMediaKey } from '../../common/media/media-key';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   buildCursorWhere,
@@ -40,7 +40,14 @@ export class DamageRequestsService {
     };
   }
 
-  async create(customerId: string, dto: CreateDamageRequestDto) {
+  async create(customerId: string, dto: CreateDamageRequestDto, ownerUserId?: string) {
+    // H4: photos must be finalized uploads owned by the caller.
+    const photoKeys = await assertOwnedMediaKeys(
+      this.prisma,
+      ownerUserId ?? customerId,
+      dto.mediaUrls?.length ? dto.mediaUrls : (dto.damagePhotos ?? []),
+      MEDIA_FOLDERS_BY_USE.damage,
+    );
     let vehicleId = dto.vehicleId;
     if (vehicleId) {
       const owned = await this.prisma.vehicle.findFirst({
@@ -123,16 +130,12 @@ export class DamageRequestsService {
         roadsideKind,
         estimatedFare,
         expiresAt,
-        media:
-          (dto.mediaUrls?.length || dto.damagePhotos?.length)
-            ? {
-                // C3: persist object keys only; URLs are signed when read.
-                create: (dto.mediaUrls?.length ? dto.mediaUrls : dto.damagePhotos!).map((value) => ({
-                  url: requireMediaKey(value),
-                  fileType: 'image/jpeg',
-                })),
-              }
-            : undefined,
+        media: photoKeys.length
+          ? {
+              // C3: persist object keys only; URLs are signed when read.
+              create: photoKeys.map((key) => ({ url: key, fileType: 'image/jpeg' })),
+            }
+          : undefined,
       },
       include: {
         media: true,

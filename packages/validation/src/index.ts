@@ -276,6 +276,12 @@ export const UpdateBookingStatusSchema = z
     trackingNumber: z.string().optional(),
     carrierName: z.string().optional(),
     completionNotes: z.string().max(1000).optional(),
+    /**
+     * Admin-only: lets a booking move forward without a captured payment. The
+     * reason is stored in the audit log. Ignored for non-admins (they are
+     * refused instead).
+     */
+    overrideReason: z.string().trim().min(5).max(500).optional(),
   })
   .strict();
 

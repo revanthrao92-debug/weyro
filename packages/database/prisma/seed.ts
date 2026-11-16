@@ -313,6 +313,7 @@ async function main() {
     const booking = await prisma.booking.create({
       data: {
         quotationId: quotation.id,
+        requestId: request.id,
         customerId: customerProfileId,
         providerId: provider1User.providerProfile!.id,
         status: 'CONFIRMED',

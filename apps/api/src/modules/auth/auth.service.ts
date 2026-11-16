@@ -1,11 +1,14 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -29,6 +32,10 @@ const DUMMY_HASH =
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly smsGateway: SmsGateway;
+
+  /** H5: OTP send limits. */
+  private static readonly OTP_RESEND_COOLDOWN_SECONDS = 30;
+  private static readonly OTP_MAX_SENDS_PER_DAY = 5;
 
   /** M2: per-phone verify throttle (in-memory sliding window, per instance). */
   private static readonly VERIFY_WINDOW_MS = 60_000;
@@ -353,22 +360,27 @@ export class AuthService {
   async sendOtp(dto: SendOtpDto) {
     const phone = dto.phone.trim();
 
-    // Check if an OTP already exists and hasn't expired
-    const existing = await this.prisma.oTP.findUnique({
-      where: { phone },
-    });
-
-    if (existing && existing.expiresAt > new Date() && !existing.verifiedAt) {
-      // Resend not allowed within the same validity window
-      throw new BadRequestException(
-        'An OTP has already been sent to this number. Please wait for it to expire.',
-      );
-    }
+    // H5: per-phone cooldown / daily cap and the global hourly cap. A resend
+    // after the cooldown simply replaces the previous code.
+    await this.reserveOtpSend(phone);
 
     // Generate 6-digit code; store ONLY its HMAC hash (C1/C2 remediation)
     const code = crypto.randomInt(100000, 1000000).toString();
     const codeHash = this.hashOtp(phone, code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // H5: deliver FIRST. The OTP row is only written once the SMS gateway
+    // accepted the message, so a failed send never leaves a live code behind.
+    try {
+      await this.smsGateway.sendOtp(phone, code);
+    } catch (error) {
+      this.logger.error(
+        `OTP delivery failed for ${phone.slice(0, 3)}******${phone.slice(-2)}: ${(error as Error).message}`,
+      );
+      throw new ServiceUnavailableException(
+        'We could not send the verification code right now. Please try again shortly.',
+      );
+    }
 
     await this.prisma.oTP.upsert({
       where: { phone },
@@ -387,10 +399,6 @@ export class AuthService {
       },
     });
 
-    // Deliver the code through the SMS gateway (DLT template variable for
-    // MSG91, message body for Twilio). Real providers never log the code.
-    await this.smsGateway.sendOtp(phone, code);
-
     return {
       status: 'sent',
       phone,
@@ -398,6 +406,103 @@ export class AuthService {
       // Dev-only: return the code so it can be tested without an SMS gateway
       ...(env.OTP_DEBUG_ECHO === 'true' ? { code } : {}),
     };
+  }
+
+  /**
+   * H5: reserve one OTP send for `phone`, or throw.
+   *  - 1 send per 30 s per phone (429)
+   *  - 5 sends per 24 h per phone (429)
+   *  - OTP_GLOBAL_HOURLY_CAP sends per hour overall (503, logged as an error)
+   * Uses Redis when it is ready (atomic Lua script), otherwise counts rows in
+   * `otp_sends` under a per-phone advisory lock.
+   */
+  private async reserveOtpSend(phone: string): Promise<void> {
+    const cap = env.OTP_GLOBAL_HOURLY_CAP;
+    const cooldown = AuthService.OTP_RESEND_COOLDOWN_SECONDS;
+    const dailyMax = AuthService.OTP_MAX_SENDS_PER_DAY;
+
+    let verdict: 'ok' | 'cooldown' | 'daily' | 'global' | null = null;
+
+    if (this.redis && this.redis.status === 'ready') {
+      const hourBucket = Math.floor(Date.now() / 3_600_000);
+      const script = `
+        if redis.call('EXISTS', KEYS[1]) == 1 then return 1 end
+        local g = tonumber(redis.call('GET', KEYS[3]) or '0')
+        if g >= tonumber(ARGV[5]) then return 3 end
+        local d = tonumber(redis.call('GET', KEYS[2]) or '0')
+        if d >= tonumber(ARGV[3]) then return 2 end
+        redis.call('SET', KEYS[1], '1', 'EX', ARGV[1])
+        if redis.call('INCR', KEYS[2]) == 1 then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
+        if redis.call('INCR', KEYS[3]) == 1 then redis.call('EXPIRE', KEYS[3], ARGV[4]) end
+        return 0
+      `;
+      try {
+        const result = Number(
+          await this.redis.eval(
+            script,
+            3,
+            `weyro:otp:send:cooldown:${phone}`,
+            `weyro:otp:send:daily:${phone}`,
+            `weyro:otp:send:global:${hourBucket}`,
+            String(cooldown),
+            '86400',
+            String(dailyMax),
+            '3660',
+            String(cap),
+          ),
+        );
+        verdict = (['ok', 'cooldown', 'daily', 'global'] as const)[result] ?? 'ok';
+      } catch (error) {
+        this.logger.warn(
+          `Redis OTP send limiter unavailable, using database counts: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    if (verdict === null) {
+      verdict = await this.prisma.$transaction(async (tx) => {
+        // Serialize concurrent sends for the same phone.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`otp-send:${phone}`}))`;
+        const now = Date.now();
+        const [recent, today, thisHour] = await Promise.all([
+          tx.otpSend.count({ where: { phone, createdAt: { gte: new Date(now - cooldown * 1000) } } }),
+          tx.otpSend.count({ where: { phone, createdAt: { gte: new Date(now - 24 * 3_600_000) } } }),
+          tx.otpSend.count({ where: { createdAt: { gte: new Date(now - 3_600_000) } } }),
+        ]);
+        if (recent > 0) return 'cooldown' as const;
+        if (thisHour >= cap) return 'global' as const;
+        if (today >= dailyMax) return 'daily' as const;
+        await tx.otpSend.create({ data: { phone } });
+        // Keep the log small: drop rows older than the longest window we use.
+        if (crypto.randomInt(0, 50) === 0) {
+          await tx.otpSend.deleteMany({
+            where: { createdAt: { lt: new Date(now - 48 * 3_600_000) } },
+          });
+        }
+        return 'ok' as const;
+      });
+    }
+
+    if (verdict === 'cooldown') {
+      throw new HttpException(
+        `Please wait ${cooldown} seconds before requesting another code.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (verdict === 'daily') {
+      throw new HttpException(
+        'Too many verification codes requested for this number. Try again tomorrow.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (verdict === 'global') {
+      this.logger.error(
+        `OTP global hourly cap (${cap}) reached — refusing new sends. Possible SMS pumping attack; investigate.`,
+      );
+      throw new ServiceUnavailableException(
+        'Verification codes are temporarily unavailable. Please try again later.',
+      );
+    }
   }
 
   /**

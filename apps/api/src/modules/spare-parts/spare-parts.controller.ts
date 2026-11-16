@@ -152,7 +152,7 @@ export class SparePartsController {
     if (!user.providerProfileId && user.role !== 'ADMIN') {
       throw new ForbiddenException('Provider profile required to list spare parts');
     }
-    return this.service.create(user.providerProfileId || user.sub, dto);
+    return this.service.create(user.providerProfileId || user.sub, dto, user.sub);
   }
 
   @Patch(':id')

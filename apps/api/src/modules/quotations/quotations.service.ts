@@ -4,7 +4,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -12,11 +14,13 @@ import { CreateQuotationDto, UpdateQuotationDto } from './dto/create-quotation.d
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
+  assertPaymentSatisfied,
   validateBookingTransition,
   validateQuotationTransition,
   validateServiceRequestTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaymentsService } from '../payments/payments.service';
 import {
   estimateTowingFare,
   haversineDistanceKm,
@@ -36,9 +40,14 @@ import {
 
 @Injectable()
 export class QuotationsService {
+  private readonly logger = new Logger(QuotationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    // Optional so the many unit suites that build this service by hand keep
+    // working; in the real app it is always provided (PaymentsModule).
+    @Optional() private readonly payments?: PaymentsService,
   ) {}
 
   async create(
@@ -386,6 +395,20 @@ export class QuotationsService {
         );
       }
 
+      // H6: claim the REQUEST first. This conditional update is the single
+      // serialization point: when two quotes are accepted at once, exactly one
+      // transaction moves the request out of OPEN/QUOTES_RECEIVED; the other
+      // sees count 0 and is refused instead of creating a second booking.
+      const claimed = await tx.serviceRequest.updateMany({
+        where: { id: quote.requestId, status: { in: ['OPEN', 'QUOTES_RECEIVED'] } },
+        data: { status: 'ACCEPTED' },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'This request has already been accepted by another quotation',
+        );
+      }
+
       // Guarded update: ensure quote is still pending. If concurrent accept raced, count will be 0
       const updateResult = await tx.quotation.updateMany({
         where: { id: quotationId, status: 'PENDING' },
@@ -408,16 +431,11 @@ export class QuotationsService {
         data: { status: 'REJECTED' },
       });
 
-      // Update service request status to ACCEPTED
-      await tx.serviceRequest.update({
-        where: { id: quote.requestId },
-        data: { status: 'ACCEPTED' },
-      });
-
       // Create Booking atomically
       const booking = await tx.booking.create({
         data: {
           quotationId: quote.id,
+          requestId: quote.requestId,
           customerId: quote.request.customerId,
           providerId: quote.providerId,
           status: 'CONFIRMED',
@@ -836,7 +854,12 @@ export class QuotationsService {
     id: string,
     user: AuthUserPayload,
     newStatus: string,
-    metadata?: { trackingNumber?: string; carrierName?: string; completionNotes?: string },
+    metadata?: {
+      trackingNumber?: string;
+      carrierName?: string;
+      completionNotes?: string;
+      overrideReason?: string;
+    },
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
@@ -872,6 +895,16 @@ export class QuotationsService {
 
     validateBookingTransition(booking.status, newStatus as any, actorRole);
 
+    // M3: a booking cannot complete (or, if the policy is switched, start)
+    // without a CAPTURED payment. Admins may override with an audited reason.
+    const latestPayment = booking.payments?.[0];
+    const paymentGate = assertPaymentSatisfied({
+      targetStatus: newStatus as any,
+      paymentStatus: latestPayment?.status as any,
+      actorRole,
+      overrideReason: metadata?.overrideReason,
+    });
+
     const data: any = { status: newStatus as any };
     if (metadata?.trackingNumber !== undefined) {
       data.trackingNumber = metadata.trackingNumber;
@@ -900,6 +933,20 @@ export class QuotationsService {
           payments: { orderBy: { createdAt: 'desc' } },
         },
       });
+
+      if (paymentGate.overridden) {
+        await tx.auditLog.create({
+          data: {
+            actorId: user.sub,
+            actorRole: user.role,
+            action: 'booking.payment_override',
+            entityType: 'Booking',
+            entityId: id,
+            oldValues: { status: booking.status, paymentStatus: latestPayment?.status ?? null },
+            newValues: { status: newStatus, reason: paymentGate.reason },
+          },
+        });
+      }
 
       // Starting and completing a job must move the request through its own
       // state machine (ACCEPTED -> IN_PROGRESS -> COMPLETED).
@@ -938,6 +985,27 @@ export class QuotationsService {
 
       return updatedBooking;
     });
+
+    // M3: cancelling after the customer paid refunds them through the gateway.
+    // Never fails the cancellation: a refund problem is logged and audited by
+    // PaymentsService and leaves the payment CAPTURED for manual follow-up.
+    if (newStatus === 'CANCELLED' && latestPayment?.status === 'CAPTURED' && this.payments) {
+      try {
+        await this.payments.refundCapturedBookingPayment(latestPayment.id, {
+          reason: 'booking_cancelled',
+          actorId: user.sub,
+          actorRole: user.role,
+        });
+        (updated as any).payments = await this.prisma.payment.findMany({
+          where: { bookingId: id },
+          orderBy: { createdAt: 'desc' },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Refund after cancelling booking ${id} threw: ${(error as Error).message}`,
+        );
+      }
+    }
 
     // Notify opposite party of booking status update
     try {

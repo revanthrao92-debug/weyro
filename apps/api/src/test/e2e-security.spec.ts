@@ -85,6 +85,39 @@ describe('Security foundations (Postgres)', () => {
     await app.close();
   });
 
+  it('H5: a second OTP send within 30s is refused, and the OTP row only exists after a successful send', async () => {
+    const phone = `+9191${String(Date.now()).slice(-8)}`;
+
+    const first = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(first.status).toBe(201);
+    expect(await prisma.oTP.count({ where: { phone } })).toBe(1);
+    expect(await prisma.otpSend.count({ where: { phone } })).toBe(1);
+
+    const second = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(second.status).toBe(429);
+    expect(await prisma.otpSend.count({ where: { phone } })).toBe(1); // refused sends are not logged
+
+    await prisma.otpSend.deleteMany({ where: { phone } });
+    await prisma.oTP.deleteMany({ where: { phone } });
+  });
+
+  it('H5: the 6th OTP send in 24h is refused (database limiter, real Postgres)', async () => {
+    const phone = `+9190${String(Date.now()).slice(-8)}`;
+    // Five earlier sends today, all outside the 30s cooldown.
+    await prisma.otpSend.createMany({
+      data: Array.from({ length: 5 }, (_, i) => ({
+        phone,
+        createdAt: new Date(Date.now() - (60 + i * 600) * 1000),
+      })),
+    });
+
+    const res = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(res.status).toBe(429);
+    expect(await prisma.oTP.count({ where: { phone } })).toBe(0);
+
+    await prisma.otpSend.deleteMany({ where: { phone } });
+  });
+
   it('rejects a forged JWT signature', async () => {
     const forged = await new JwtService().signAsync(
       { sub: 'attacker', role: 'ADMIN' },

@@ -34,6 +34,9 @@ const JOB_INCLUDE = {
   },
 } as const;
 
+/** Wrong start-code guesses allowed per booking before it locks. */
+const MAX_START_OTP_ATTEMPTS = 5;
+
 @Injectable()
 export class DriverGoService {
   constructor(
@@ -400,16 +403,20 @@ export class DriverGoService {
     if (job.status !== 'ARRIVED') {
       throw new BadRequestException('Start code can only be used after arrival.');
     }
-    if (job.startOtpAttempts >= 5) {
+    // M7: spend an attempt BEFORE comparing, atomically. A conditional
+    // increment (attempts < 5) means N parallel guesses can never get more
+    // than 5 tries in total — a read-check-then-increment would let them all
+    // pass the check at once.
+    const attempt = await this.prisma.driverBooking.updateMany({
+      where: { id, startOtpAttempts: { lt: MAX_START_OTP_ATTEMPTS } },
+      data: { startOtpAttempts: { increment: 1 } },
+    });
+    if (attempt.count === 0) {
       throw new BadRequestException(
         'Too many start-code attempts. Contact support.',
       );
     }
     if (!verifyDriverStartOtp(code, job.startOtpHash)) {
-      await this.prisma.driverBooking.update({
-        where: { id },
-        data: { startOtpAttempts: { increment: 1 } },
-      });
       throw new BadRequestException('That start code is not correct.');
     }
 

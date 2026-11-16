@@ -58,6 +58,8 @@ function makeService(remoteOverride: Partial<GatewayPaymentInfo> = {}) {
     refundPayment: jest.fn(),
     supportsServerBinding: jest.fn().mockReturnValue(true),
     fetchPayment: jest.fn().mockResolvedValue(remote),
+    // M4: capturing an authorized payment returns it as captured.
+    capturePayment: jest.fn().mockImplementation(async () => ({ ...remote, status: 'captured' })),
   };
 
   const service = new PaymentsService(mockPrisma, mockGateway, {
@@ -87,8 +89,8 @@ function makeService(remoteOverride: Partial<GatewayPaymentInfo> = {}) {
 }
 
 describe('H2 – client verify binds amount/currency/order to the gateway record', () => {
-  it('accepts a matching authorized payment', async () => {
-    const { service, mockPrisma, customerUser, seedBooking, remote } = makeService({
+  it('M4: an authorized payment is captured server-side for the expected amount, then settled', async () => {
+    const { service, mockPrisma, mockGateway, customerUser, seedBooking, remote } = makeService({
       status: 'authorized',
     });
     seedBooking();
@@ -103,12 +105,64 @@ describe('H2 – client verify binds amount/currency/order to the gateway record
       customerUser,
     );
     expect(res.status).toBe('CAPTURED');
+    // The capture is for the SERVER's amount (₹100 = 10000 paise), never the client's.
+    expect(mockGateway.capturePayment).toHaveBeenCalledWith('pay_rzp_1', 10000, 'INR');
     expect(mockPrisma.payment.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'pay-1', status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
       }),
     );
+    // Capture happens BEFORE settlement.
+    expect(
+      (mockGateway.capturePayment as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan((mockPrisma.payment.updateMany as jest.Mock).mock.invocationCallOrder[0]);
     expect(remote.status).toBe('authorized'); // param sanity
+  });
+
+  it('M4: settles nothing when capturing the authorized payment fails', async () => {
+    const { service, mockPrisma, mockGateway, customerUser, seedBooking } = makeService({
+      status: 'authorized',
+    });
+    seedBooking();
+    mockGateway.capturePayment.mockRejectedValue(new Error('BAD_REQUEST_ERROR: already captured elsewhere'));
+
+    await expect(
+      service.verifyPayment(
+        { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
+        customerUser,
+      ),
+    ).rejects.toThrow(/Unable to capture the authorized payment/);
+    expect(mockPrisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('M4: settles nothing if the gateway still does not report captured after the capture call', async () => {
+    const { service, mockPrisma, mockGateway, customerUser, seedBooking, remote } = makeService({
+      status: 'authorized',
+    });
+    seedBooking();
+    mockGateway.capturePayment.mockResolvedValue({ ...remote, status: 'authorized' });
+
+    await expect(
+      service.verifyPayment(
+        { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
+        customerUser,
+      ),
+    ).rejects.toThrow(/not captured/);
+    expect(mockPrisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('M4: an already captured payment is not captured again', async () => {
+    const { service, mockPrisma, mockGateway, customerUser, seedBooking } = makeService({
+      status: 'captured',
+    });
+    seedBooking();
+    mockPrisma.payment.findUniqueOrThrow.mockResolvedValue({ id: 'pay-1', status: 'CAPTURED' });
+
+    await service.verifyPayment(
+      { bookingId: 'bk_1', orderId: 'order_abc', paymentId: 'pay_rzp_1', signature: 'x' },
+      customerUser,
+    );
+    expect(mockGateway.capturePayment).not.toHaveBeenCalled();
   });
 
   it('rejects when the gateway amount does not match the local record (tampered amount)', async () => {

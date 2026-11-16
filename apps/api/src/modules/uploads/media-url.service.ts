@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { STORAGE_SERVICE, StorageService } from './interfaces/storage.interface';
-import { extractMediaKey, isHttpUrl, isMediaKey, requireMediaKey } from '../../common/media/media-key';
+import { extractMediaKey, isHttpUrl, isMediaKey } from '../../common/media/media-key';
 
 /** C3: signed GET URLs handed to clients live for one hour. */
 export const MEDIA_URL_TTL_SECONDS = 3600;
@@ -38,13 +38,5 @@ export class MediaUrlService {
     } catch {
       return value;
     }
-  }
-
-  /**
-   * Normalize a client-supplied media reference to the key that gets stored.
-   * Accepts a key, or a full URL that points at our storage (older app builds).
-   */
-  toKey(value: string): string {
-    return requireMediaKey(value);
   }
 }

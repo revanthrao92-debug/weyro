@@ -4,6 +4,7 @@ import { QuotationsController } from './quotations.controller';
 import { QuotationsService } from './quotations.service';
 import { TrackingGateway } from './tracking.gateway';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { env } from '../../config/env.config';
 
 @Module({
@@ -12,6 +13,7 @@ import { env } from '../../config/env.config';
       secret: env.JWT_ACCESS_SECRET,
     }),
     NotificationsModule,
+    PaymentsModule,
   ],
   controllers: [QuotationsController],
   providers: [QuotationsService, TrackingGateway],

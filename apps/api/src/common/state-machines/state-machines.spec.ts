@@ -115,3 +115,88 @@ describe('State Machines', () => {
     });
   });
 });
+
+import {
+  PAYMENT_REQUIRED_BEFORE,
+  assertPaymentSatisfied,
+  validatePaymentTransition as validatePayment,
+} from './state-machines';
+
+describe('M3 – payment policy gate', () => {
+  it('defaults to requiring payment before COMPLETED', () => {
+    expect(PAYMENT_REQUIRED_BEFORE).toBe('COMPLETED');
+  });
+
+  it.each(['PENDING', 'AUTHORIZED', 'FAILED', 'REFUND_PENDING', 'REFUNDED', undefined, null] as const)(
+    'refuses COMPLETED when the payment is %s',
+    (paymentStatus) => {
+      expect(() =>
+        assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus: paymentStatus as never, actorRole: 'PROVIDER' }),
+      ).toThrow(/Payment must be captured/);
+    },
+  );
+
+  it.each(['CAPTURED', 'RELEASED'] as const)('allows COMPLETED when the payment is %s', (paymentStatus) => {
+    expect(
+      assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus, actorRole: 'PROVIDER' }),
+    ).toEqual({ overridden: false });
+  });
+
+  it('does not gate other transitions under the default policy', () => {
+    for (const targetStatus of ['PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'CANCELLED', 'DISPUTED'] as const) {
+      expect(
+        assertPaymentSatisfied({ targetStatus, paymentStatus: 'PENDING', actorRole: 'PROVIDER' }),
+      ).toEqual({ overridden: false });
+    }
+  });
+
+  it('can be switched to IN_PROGRESS: then starting AND completing need payment', () => {
+    const policy = 'IN_PROGRESS' as const;
+    expect(() =>
+      assertPaymentSatisfied({ targetStatus: 'IN_PROGRESS', paymentStatus: 'PENDING', actorRole: 'PROVIDER', policy }),
+    ).toThrow(/Payment must be captured/);
+    expect(() =>
+      assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus: 'PENDING', actorRole: 'PROVIDER', policy }),
+    ).toThrow(/Payment must be captured/);
+    expect(
+      assertPaymentSatisfied({ targetStatus: 'IN_PROGRESS', paymentStatus: 'CAPTURED', actorRole: 'PROVIDER', policy }),
+    ).toEqual({ overridden: false });
+    expect(
+      assertPaymentSatisfied({ targetStatus: 'PROVIDER_EN_ROUTE', paymentStatus: 'PENDING', actorRole: 'PROVIDER', policy }),
+    ).toEqual({ overridden: false });
+  });
+
+  it('lets an ADMIN override only with a reason, and returns it for the audit log', () => {
+    expect(
+      assertPaymentSatisfied({
+        targetStatus: 'COMPLETED',
+        paymentStatus: 'PENDING',
+        actorRole: 'ADMIN',
+        overrideReason: '  Customer paid cash on site  ',
+      }),
+    ).toEqual({ overridden: true, reason: 'Customer paid cash on site' });
+    expect(() =>
+      assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus: 'PENDING', actorRole: 'ADMIN' }),
+    ).toThrow(/admins may override/);
+    expect(() =>
+      assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus: 'PENDING', actorRole: 'ADMIN', overrideReason: '   ' }),
+    ).toThrow(/Payment must be captured/);
+  });
+
+  it('never lets a non-admin override, even with a reason', () => {
+    for (const actorRole of ['PROVIDER', 'CUSTOMER', 'BOTH'] as const) {
+      expect(() =>
+        assertPaymentSatisfied({ targetStatus: 'COMPLETED', paymentStatus: 'PENDING', actorRole, overrideReason: 'please' }),
+      ).toThrow(/Payment must be captured/);
+    }
+  });
+
+  it('refund transitions: CAPTURED -> REFUND_PENDING -> REFUNDED, and REFUND_PENDING -> CAPTURED on failure', () => {
+    expect(() => validatePayment('CAPTURED', 'REFUND_PENDING', 'SYSTEM')).not.toThrow();
+    expect(() => validatePayment('REFUND_PENDING', 'REFUNDED', 'SYSTEM')).not.toThrow();
+    expect(() => validatePayment('REFUND_PENDING', 'CAPTURED', 'SYSTEM')).not.toThrow();
+    expect(() => validatePayment('REFUND_PENDING', 'RELEASED', 'ADMIN')).toThrow();
+    expect(() => validatePayment('PENDING', 'REFUND_PENDING', 'ADMIN')).toThrow();
+    expect(() => validatePayment('CAPTURED', 'REFUND_PENDING', 'CUSTOMER')).toThrow();
+  });
+});

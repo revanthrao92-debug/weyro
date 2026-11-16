@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
-import { requireMediaKey } from '../../common/media/media-key';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import { CreateThreadDto } from './dto/chat.dto';
 import {
   buildCursorWhere,
@@ -284,6 +284,13 @@ export class ChatService {
     mediaUrls: string[] = [],
   ) {
     const thread = await this.verifyParticipant(threadId, user);
+    // H4: attachments must be finalized uploads owned by the sender.
+    const attachmentKeys = await assertOwnedMediaKeys(
+      this.prisma,
+      user.sub,
+      mediaUrls,
+      MEDIA_FOLDERS_BY_USE.chat,
+    );
 
     const senderRole: 'CUSTOMER' | 'PROVIDER' | 'ADMIN' =
       user.sub === thread.customer.userId
@@ -299,7 +306,7 @@ export class ChatService {
           senderId: user.sub,
           senderRole,
           content,
-          mediaUrls: mediaUrls.map((value) => requireMediaKey(value)),
+          mediaUrls: attachmentKeys,
         },
       });
 

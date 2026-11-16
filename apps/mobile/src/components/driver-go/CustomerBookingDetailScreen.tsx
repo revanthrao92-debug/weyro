@@ -183,7 +183,7 @@ export function CustomerBookingDetailScreen() {
           <>
             <SectionHead index="03" title="Start code" />
             <Text style={styles.helper}>
-              Share this 4-digit code with the driver. It confirms the right
+              Share this 6-digit code with the driver. It confirms the right
               driver and starts the trip.
             </Text>
             {code ? (

@@ -23,7 +23,7 @@ import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
 import { settleSparePartOrderPayment } from '../payments/settle-payment';
-import { requireMediaKey } from '../../common/media/media-key';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import {
   notifyOrderCancelled,
   notifyOrderPlaced,
@@ -216,7 +216,10 @@ export class SparePartsService {
     };
   }
 
-  async create(providerId: string, dto: CreateSparePartDto) {
+  async create(providerId: string, dto: CreateSparePartDto, ownerUserId?: string) {
+    const [imageKey] = dto.imageUrl
+      ? await assertOwnedMediaKeys(this.prisma, ownerUserId ?? providerId, [dto.imageUrl], MEDIA_FOLDERS_BY_USE.part)
+      : [];
     return this.prisma.sparePart.create({
       data: {
         providerId,
@@ -227,7 +230,7 @@ export class SparePartsService {
         condition: dto.condition as any,
         price: dto.price,
         stockQuantity: dto.kind === 'PACKAGE' ? 1 : dto.stockQuantity,
-        imageUrl: dto.imageUrl ? requireMediaKey(dto.imageUrl) : undefined,
+        imageUrl: imageKey,
         kind: dto.kind ?? 'PART',
         description: dto.description,
         estimatedMinutes: dto.estimatedMinutes,
@@ -298,17 +301,20 @@ export class SparePartsService {
 
   async update(
     id: string,
-    user: { role: string; providerProfileId?: string },
+    user: { role: string; providerProfileId?: string; sub?: string },
     dto: UpdateSparePartDto,
   ) {
     const part = await this.assertOwnership(id, user);
     const kind = dto.kind ?? part.kind;
+    const [imageKey] = dto.imageUrl
+      ? await assertOwnedMediaKeys(this.prisma, user.sub ?? '', [dto.imageUrl], MEDIA_FOLDERS_BY_USE.part)
+      : [];
 
     return this.prisma.sparePart.update({
       where: { id },
       data: {
         ...dto,
-        imageUrl: dto.imageUrl ? requireMediaKey(dto.imageUrl) : dto.imageUrl,
+        imageUrl: dto.imageUrl === undefined ? undefined : imageKey,
         condition: dto.condition as any,
         stockQuantity:
           kind === 'PACKAGE'

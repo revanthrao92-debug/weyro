@@ -14,6 +14,7 @@
  */
 
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
@@ -30,9 +31,12 @@ jest.mock('@nestjs/schedule', () => ({
 
 
 import { AppModule } from '../app.module';
+import { AuthService } from '../modules/auth/auth.service';
+import { env } from '../config/env.config';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { seedRegisterOtp } from './otp-helper';
+import { STORAGE_SERVICE } from '../modules/uploads/interfaces/storage.interface';
 
 jest.setTimeout(120_000);
 
@@ -69,25 +73,62 @@ describe('HTTP E2E flows (Postgres)', () => {
   let cancelQuotationId: string | undefined;
   let multiQuoteRequestId: string | undefined;
   const extraRequestIds: string[] = [];
+  const extraBookingIds: string[] = [];
 
   const http = () => request(app.getHttpServer());
 
-  const register = async (body: Record<string, unknown>): Promise<Session> => {
+  /**
+   * Registers a user. By default goes straight through AuthService: the HTTP
+   * endpoint is throttled per IP (correctly), and this file creates more users
+   * than that allows in a minute. Pass `viaHttp` for the one real HTTP call.
+   */
+  const register = async (
+    body: Record<string, unknown>,
+    options: { viaHttp?: boolean } = {},
+  ): Promise<Session> => {
     const otpCode = await seedRegisterOtp(prisma, String(body.phone));
-    const res = await http().post(`${API}/auth/register`).send({ ...body, otpCode });
+    let result: { accessToken: string; user: any };
 
-    expect(res.status).toBe(201);
-    expect(typeof res.body.accessToken).toBe('string');
+    if (options.viaHttp) {
+      const res = await http().post(`${API}/auth/register`).send({ ...body, otpCode });
+      expect(res.status).toBe(201);
+      expect(typeof res.body.accessToken).toBe('string');
+      result = res.body;
+    } else {
+      result = (await app.get(AuthService).register({ ...body, otpCode } as never)) as never;
+      expect(typeof result.accessToken).toBe('string');
+    }
 
     const session: Session = {
-      accessToken: res.body.accessToken,
-      userId: res.body.user.id,
-      profileId:
-        res.body.user.customerProfile?.id ?? res.body.user.providerProfile?.id,
+      accessToken: result.accessToken,
+      userId: result.user.id,
+      profileId: result.user.customerProfile?.id ?? result.user.providerProfile?.id,
     };
     sessions.push(session);
     return session;
   };
+
+  // 1x1 PNG — passes the magic-byte check and EXIF stripping in finalize.
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  /** Real upload: put bytes in storage, then POST /uploads/finalize. */
+  const uploadAndFinalize = async (session: Session, folder = 'damage-requests') => {
+    const key = `${folder}/${session.userId}/${Date.now()}_${Math.random().toString(16).slice(2, 10)}.png`;
+    await (app.get(STORAGE_SERVICE) as any).receiveLocalUpload(key, PNG);
+    const res = await http()
+      .post(`${API}/uploads/finalize`)
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .send({ key, contentType: 'image/png' });
+    expect(res.status).toBe(201);
+    expect(res.body.key).toBe(key);
+    expect(res.body).not.toHaveProperty('fileUrl');
+    expect(res.body.previewUrl).toContain('local-file?key=');
+    return key;
+  };
+
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -100,14 +141,17 @@ describe('HTTP E2E flows (Postgres)', () => {
 
     prisma = app.get(PrismaService);
 
-    customer = await register({
-      email: `e2e-customer-${suffix}@example.com`,
-      phone: `+9198${suffix.slice(-8)}`,
-      password,
-      role: 'CUSTOMER',
-      firstName: 'E2E',
-      lastName: 'Customer',
-    });
+    customer = await register(
+      {
+        email: `e2e-customer-${suffix}@example.com`,
+        phone: `+9198${suffix.slice(-8)}`,
+        password,
+        role: 'CUSTOMER',
+        firstName: 'E2E',
+        lastName: 'Customer',
+      },
+      { viaHttp: true },
+    );
 
     garage = await register({
       email: `e2e-garage-${suffix}@example.com`,
@@ -156,6 +200,8 @@ describe('HTTP E2E flows (Postgres)', () => {
       await prisma.serviceRequest.deleteMany({ where: { id: requestId } });
     }
     if (extraRequestIds.length) {
+      // Bookings restrict request/quotation deletion, so remove them first.
+      await prisma.booking.deleteMany({ where: { requestId: { in: extraRequestIds } } });
       await prisma.serviceRequest.deleteMany({ where: { id: { in: extraRequestIds } } });
     }
     if (multiQuoteRequestId) {
@@ -773,17 +819,12 @@ describe('HTTP E2E flows (Postgres)', () => {
         });
       expect(foreignDoc.status).toBe(400);
 
+      // H4: the document must be a finalized upload owned by the provider.
+      const gstKey = await uploadAndFinalize(garage, 'verification-documents');
       const submitted = await http()
         .patch(`${API}/providers/me/verification-documents`)
         .set(auth)
-        .send({
-          documents: [
-            {
-              label: 'GST certificate',
-              key: `verification-documents/${garage.userId}/gst.jpg`,
-            },
-          ],
-        });
+        .send({ documents: [{ label: 'GST certificate', key: gstKey }] });
       expect(submitted.status).toBe(200);
       expect(submitted.body).toEqual({
         verificationStatus: 'PENDING',
@@ -795,7 +836,7 @@ describe('HTTP E2E flows (Postgres)', () => {
         select: { verificationDocuments: true },
       });
       expect(stored?.verificationDocuments).toEqual({
-        'GST certificate': `verification-documents/${garage.userId}/gst.jpg`,
+        'GST certificate': gstKey,
       });
 
       // Restore so later marketplace tests still use a verified provider.
@@ -1104,8 +1145,10 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(other.status).not.toBe(409);
     });
 
-    it('C3: the DB stores the key; the API returns a fresh signed URL', async () => {
-      const key = `damage-requests/${buyer.userId}/1700000000000_ab12cd34.jpg`;
+    it('C3/H4: finalize -> create with the key; DB stores the key, API returns a signed URL', async () => {
+      const key = await uploadAndFinalize(buyer);
+      expect(await prisma.uploadedObject.findUnique({ where: { key } })).toMatchObject({ ownerId: buyer.userId });
+
       const created = await http()
         .post(`${API}/damage-requests`)
         .set('Authorization', `Bearer ${buyer.accessToken}`)
@@ -1123,19 +1166,310 @@ describe('HTTP E2E flows (Postgres)', () => {
         expect(text).toContain('local-file?key=');
         expect(text).not.toContain(`"${key}"`);
       }
+    });
 
-      // Legacy clients that echo back a signed URL still end up storing the key.
+    it('H4: rejects signed URLs, other users\' keys, wrong folders and un-finalized keys with 400', async () => {
+      // Own customer => own throttle bucket (damage-request creation is 10/min/user).
+      const buyer = await register({
+        email: `e2e-h4-${suffix}@example.com`,
+        phone: `+9192${suffix.slice(-8)}`,
+        password,
+        role: 'CUSTOMER',
+        firstName: 'E2E',
+        lastName: 'H4',
+      });
+      const mine = await uploadAndFinalize(buyer);
+      const theirs = await uploadAndFinalize(customer);
+      const wrongFolder = await uploadAndFinalize(buyer, 'avatars');
+      const neverFinalized = `damage-requests/${buyer.userId}/${Date.now()}_neverfinal.png`;
+
+      // A signed URL for the buyer's own, genuinely finalized file.
       const signed = (
-        await http().get(`${API}/damage-requests/${created.body.id}`).set('Authorization', `Bearer ${buyer.accessToken}`)
-      ).body.media[0].url as string;
-      const legacy = await http()
+        await http().get(`${API}/uploads/presigned-download-url`).query({ key: mine }).set('Authorization', `Bearer ${buyer.accessToken}`)
+      ).body.downloadUrl as string;
+      expect(signed).toContain('local-file?key=');
+
+      const attempts: string[] = [theirs, wrongFolder, neverFinalized, 'https://evil.example.com/a.png', signed];
+
+      for (const value of attempts) {
+        const res = await http()
+          .post(`${API}/damage-requests`)
+          .set('Authorization', `Bearer ${buyer.accessToken}`)
+          .send({ ...baseRequest, vehicleMake: 'Tata', vehicleModel: 'Nexon', vehicleYear: 2022, mediaUrls: [value], damagePhotos: [] });
+        expect(res.status).toBe(400);
+      }
+
+      // Control: the caller's own finalized key is still accepted.
+      const ok = await http()
         .post(`${API}/damage-requests`)
         .set('Authorization', `Bearer ${buyer.accessToken}`)
-        .send({ ...baseRequest, vehicleMake: 'Tata', vehicleModel: 'Nexon', vehicleYear: 2022, mediaUrls: [signed], damagePhotos: [] });
-      expect(legacy.status).toBe(201);
-      extraRequestIds.push(legacy.body.id);
-      const legacyRows = await prisma.requestMedia.findMany({ where: { requestId: legacy.body.id } });
-      expect(legacyRows.map((r) => r.url)).toEqual([key]);
+        .send({ ...baseRequest, vehicleMake: 'Tata', vehicleModel: 'Nexon', vehicleYear: 2022, mediaUrls: [mine], damagePhotos: [] });
+      expect(ok.status).toBe(201);
+      extraRequestIds.push(ok.body.id);
+    });
+  });
+
+  describe('H6: concurrent accepts create exactly one booking', () => {
+    it('two simultaneous accepts of different quotes on one request -> one booking, one 409', async () => {
+      const c = await register({
+        email: `e2e-h6c-${suffix}@example.com`,
+        phone: `+9189${suffix.slice(-8)}`,
+        password,
+        role: 'CUSTOMER',
+        firstName: 'E2E',
+        lastName: 'H6',
+      });
+      const providers: Session[] = [];
+      for (const [i, prefix] of ['88', '87'].entries()) {
+        providers.push(
+          await register({
+            email: `e2e-h6p${i}-${suffix}@example.com`,
+            phone: `+91${prefix}${suffix.slice(-8)}`,
+            password,
+            role: 'PROVIDER',
+            providerType: 'GARAGE',
+            businessName: `H6 Garage ${i} ${suffix}`,
+            address: 'Indiranagar, Bengaluru',
+            latitude: 12.9784 + i / 1000,
+            longitude: 77.6408,
+          }),
+        );
+      }
+      await prisma.providerProfile.updateMany({
+        where: { userId: { in: providers.map((p) => p.userId) } },
+        data: { verificationStatus: 'VERIFIED' },
+      });
+
+      // Several independent rounds so one lucky interleaving cannot pass.
+      for (let round = 0; round < 4; round++) {
+        const created = await http()
+          .post(`${API}/damage-requests`)
+          .set('Authorization', `Bearer ${c.accessToken}`)
+          .send({
+            vehicleMake: 'Kia',
+            vehicleModel: 'Seltos',
+            vehicleYear: 2021,
+            category: 'REPAIR',
+            title: `Race round ${round}`,
+            description: 'Two quotes will be accepted at the same time',
+            address: 'Indiranagar, Bengaluru',
+            latitude: 12.9784,
+            longitude: 77.6408,
+            urgency: 'NORMAL',
+            mediaUrls: [],
+            damagePhotos: [],
+            isBroadcast: true,
+          });
+        expect(created.status).toBe(201);
+        const requestId = created.body.id as string;
+        extraRequestIds.push(requestId);
+
+        const quoteIds: string[] = [];
+        for (const provider of providers) {
+          const q = await http()
+            .post(`${API}/damage-requests/${requestId}/quotations`)
+            .set('Authorization', `Bearer ${provider.accessToken}`)
+            .send({ partsCost: 1000, labourCost: 500, warrantyDays: 30, etaDescription: '1 day' });
+          expect(q.status).toBe(201);
+          quoteIds.push(q.body.id);
+        }
+
+        const results = await Promise.all(
+          quoteIds.map((id) =>
+            http().post(`${API}/quotations/${id}/accept`).set('Authorization', `Bearer ${c.accessToken}`).send({}),
+          ),
+        );
+
+        const statuses = results.map((r) => r.status).sort();
+        expect(statuses).toEqual([201, 409]);
+        const active = await prisma.booking.findMany({
+          where: { requestId, status: { not: 'CANCELLED' } },
+        });
+        expect(active).toHaveLength(1);
+        expect(active[0].requestId).toBe(requestId);
+        extraBookingIds.push(active[0].id);
+
+        const request = await prisma.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
+        expect(request.status).toBe('ACCEPTED');
+      }
+    });
+
+    it('the database itself refuses a second active booking for a request (partial unique index)', async () => {
+      const booking = await prisma.booking.findUniqueOrThrow({ where: { id: extraBookingIds[0] } });
+      const rival = await prisma.quotation.findFirstOrThrow({
+        where: { requestId: booking.requestId, id: { not: booking.quotationId } },
+      });
+      await expect(
+        prisma.booking.create({
+          data: {
+            quotationId: rival.id,
+            requestId: booking.requestId,
+            customerId: booking.customerId,
+            providerId: rival.providerId,
+            status: 'CONFIRMED',
+          },
+        }),
+      ).rejects.toThrow(/Unique constraint|bookings_one_active_per_request/);
+
+      // A cancelled booking does not block (and a new active one is then allowed).
+      await prisma.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } });
+      const second = await prisma.booking.create({
+        data: {
+          quotationId: rival.id,
+          requestId: booking.requestId,
+          customerId: booking.customerId,
+          providerId: rival.providerId,
+          status: 'CONFIRMED',
+        },
+      });
+      expect(second.status).toBe('CONFIRMED');
+    });
+  });
+
+  describe('M3: payment rules for bookings', () => {
+    let c: Session;
+    let p: Session;
+
+    const makeBooking = async (title: string): Promise<{ bookingId: string; paymentId: string }> => {
+      const created = await http()
+        .post(`${API}/damage-requests`)
+        .set('Authorization', `Bearer ${c.accessToken}`)
+        .send({
+          vehicleMake: 'Skoda',
+          vehicleModel: 'Kushaq',
+          vehicleYear: 2022,
+          category: 'REPAIR',
+          title,
+          description: 'Booking used to test the payment rules',
+          address: 'Indiranagar, Bengaluru',
+          latitude: 12.9784,
+          longitude: 77.6408,
+          urgency: 'NORMAL',
+          mediaUrls: [],
+          damagePhotos: [],
+          isBroadcast: true,
+        });
+      expect(created.status).toBe(201);
+      extraRequestIds.push(created.body.id);
+      const quote = await http()
+        .post(`${API}/damage-requests/${created.body.id}/quotations`)
+        .set('Authorization', `Bearer ${p.accessToken}`)
+        .send({ partsCost: 1000, labourCost: 500, warrantyDays: 30, etaDescription: '1 day' });
+      expect(quote.status).toBe(201);
+      const accepted = await http()
+        .post(`${API}/quotations/${quote.body.id}/accept`)
+        .set('Authorization', `Bearer ${c.accessToken}`)
+        .send({});
+      expect(accepted.status).toBe(201);
+      const payment = await prisma.payment.findFirstOrThrow({ where: { bookingId: accepted.body.id } });
+      return { bookingId: accepted.body.id, paymentId: payment.id };
+    };
+
+    const setStatus = (session: Session, bookingId: string, body: Record<string, unknown>) =>
+      http()
+        .patch(`${API}/bookings/${bookingId}/status`)
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send(body);
+
+    beforeAll(async () => {
+      c = await register({
+        email: `e2e-m3c-${suffix}@example.com`,
+        phone: `+9186${suffix.slice(-8)}`,
+        password,
+        role: 'CUSTOMER',
+        firstName: 'E2E',
+        lastName: 'M3',
+      });
+      p = await register({
+        email: `e2e-m3p-${suffix}@example.com`,
+        phone: `+9185${suffix.slice(-8)}`,
+        password,
+        role: 'PROVIDER',
+        providerType: 'GARAGE',
+        businessName: `M3 Garage ${suffix}`,
+        address: 'Indiranagar, Bengaluru',
+        latitude: 12.9784,
+        longitude: 77.6408,
+      });
+      await prisma.providerProfile.updateMany({
+        where: { userId: p.userId },
+        data: { verificationStatus: 'VERIFIED' },
+      });
+    });
+
+    it('a booking cannot be COMPLETED until its payment is CAPTURED', async () => {
+      const { bookingId, paymentId } = await makeBooking('M3 unpaid completion');
+      extraBookingIds.push(bookingId);
+
+      expect((await setStatus(p, bookingId, { status: 'IN_PROGRESS' })).status).toBe(200);
+
+      const unpaid = await setStatus(p, bookingId, { status: 'COMPLETED' });
+      expect(unpaid.status).toBe(409);
+      expect(unpaid.body.message).toMatch(/Payment must be captured/);
+      expect((await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })).status).toBe('IN_PROGRESS');
+
+      // A provider cannot talk their way around it.
+      const sneaky = await setStatus(p, bookingId, { status: 'COMPLETED', overrideReason: 'customer paid cash' });
+      expect(sneaky.status).toBe(409);
+
+      await prisma.payment.update({ where: { id: paymentId }, data: { status: 'CAPTURED', gatewayPaymentId: 'pay_m3_1' } });
+      const paid = await setStatus(p, bookingId, { status: 'COMPLETED' });
+      expect(paid.status).toBe(200);
+      expect(paid.body.status).toBe('COMPLETED');
+    });
+
+    it('cancelling a paid booking refunds it: Refund row recorded, payment ends REFUNDED', async () => {
+      const { bookingId, paymentId } = await makeBooking('M3 paid cancellation');
+      extraBookingIds.push(bookingId);
+      await prisma.payment.update({ where: { id: paymentId }, data: { status: 'CAPTURED', gatewayPaymentId: 'pay_m3_2' } });
+
+      const cancelled = await setStatus(c, bookingId, { status: 'CANCELLED' });
+      expect(cancelled.status).toBe(200);
+      expect(cancelled.body.status).toBe('CANCELLED');
+
+      const refunds = await prisma.refund.findMany({ where: { paymentId } });
+      expect(refunds).toHaveLength(1);
+      expect(refunds[0]).toMatchObject({ reason: 'booking_cancelled', status: 'PROCESSED' });
+      expect(Number(refunds[0].amount)).toBe(1500);
+      expect(refunds[0].gatewayRefundId).toBeTruthy();
+      // The mock gateway sends no webhook, so it confirms immediately.
+      expect((await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).status).toBe('REFUNDED');
+
+      // A second cancel attempt is an illegal transition and creates no second refund.
+      expect((await setStatus(c, bookingId, { status: 'CANCELLED' })).status).toBe(200); // same-state no-op
+      expect(await prisma.refund.count({ where: { paymentId } })).toBe(1);
+    });
+
+    it('an admin can override an unpaid completion only with a reason, and it is audit-logged', async () => {
+      const { bookingId } = await makeBooking('M3 admin override');
+      extraBookingIds.push(bookingId);
+      expect((await setStatus(p, bookingId, { status: 'IN_PROGRESS' })).status).toBe(200);
+
+      const adminUser = await prisma.user.create({
+        data: {
+          email: `e2e-m3-admin-${suffix}@example.com`,
+          phone: `+9184${suffix.slice(-8)}`,
+          passwordHash: '',
+          role: 'ADMIN',
+          phoneVerified: true,
+        },
+      });
+      sessions.push({ accessToken: '', userId: adminUser.id, profileId: '' });
+      const token = await app.get(JwtService).signAsync(
+        { sub: adminUser.id, email: adminUser.email, phone: adminUser.phone, role: 'ADMIN' },
+        { secret: env.JWT_ACCESS_SECRET, expiresIn: '5m' },
+      );
+      const asAdmin = { accessToken: token, userId: adminUser.id, profileId: '' };
+
+      expect((await setStatus(asAdmin, bookingId, { status: 'COMPLETED' })).status).toBe(409);
+      const ok = await setStatus(asAdmin, bookingId, { status: 'COMPLETED', overrideReason: 'Paid in cash on site' });
+      expect(ok.status).toBe(200);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'booking.payment_override', entityId: bookingId },
+      });
+      expect(audit).toMatchObject({ actorId: adminUser.id, actorRole: 'ADMIN' });
+      expect(audit?.newValues).toMatchObject({ status: 'COMPLETED', reason: 'Paid in cash on site' });
     });
   });
 });

@@ -15,6 +15,7 @@ const user = {
 describe('Uploads Module', () => {
   let controller: UploadsController;
   let mockStorage: jest.Mocked<StorageService>;
+  let mockPrisma: { uploadedObject: { upsert: jest.Mock } };
 
   beforeEach(() => {
     mockStorage = {
@@ -23,7 +24,8 @@ describe('Uploads Module', () => {
       finalizeImage: jest.fn(),
     };
 
-    controller = new UploadsController(mockStorage);
+    mockPrisma = { uploadedObject: { upsert: jest.fn().mockResolvedValue({}) } };
+    controller = new UploadsController(mockStorage, mockPrisma as any);
   });
 
   describe('UploadsController', () => {
@@ -107,6 +109,26 @@ describe('Uploads Module', () => {
           contentType: 'image/jpeg',
         }),
       ).rejects.toThrow(ForbiddenException);
+      // Only the caller's own key was recorded; the foreign key was refused.
+      expect(mockPrisma.uploadedObject.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('H4: records the finalized key against its owner', async () => {
+      mockStorage.finalizeImage.mockResolvedValue({
+        previewUrl: 'https://cdn.weyro.in/x?sig=1',
+        key: 'damage-requests/user-1/key.jpg',
+      });
+
+      await controller.finalize(user, {
+        key: 'damage-requests/user-1/key.jpg',
+        contentType: 'image/jpeg',
+      });
+
+      expect(mockPrisma.uploadedObject.upsert).toHaveBeenCalledWith({
+        where: { key: 'damage-requests/user-1/key.jpg' },
+        update: { finalizedAt: expect.any(Date) },
+        create: { key: 'damage-requests/user-1/key.jpg', ownerId: 'user-1' },
+      });
     });
   });
 

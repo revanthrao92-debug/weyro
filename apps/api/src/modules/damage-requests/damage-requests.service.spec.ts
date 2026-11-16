@@ -16,6 +16,11 @@ describe('DamageRequestsService', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
         create: jest.fn(),
       },
+      uploadedObject: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ key: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg' }]),
+      },
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
@@ -61,35 +66,37 @@ describe('DamageRequestsService', () => {
       expect(result.damagePhotos).toEqual(['damage-requests/cust-1/1700000000000_ab12cd34.jpg']);
     });
 
-    it('C3: stores the key even when a legacy client sends the signed URL', async () => {
-      mockPrisma.serviceRequest.create.mockResolvedValue({ id: 'req-1', media: [], vehicle: { id: 'veh-1' } });
-
-      await service.create('cust-1', {
+    it('H4: rejects signed URLs, foreign keys and un-finalized keys with 400', async () => {
+      const base = {
         vehicleId: 'veh-1',
-        title: 'Bumper repair',
-        description: 'Cracked bumper description',
-        address: 'MG Road, Bengaluru, Karnataka',
-        latitude: 12.9716,
-        longitude: 77.5946,
-        damagePhotos: ['https://b.s3.ap-south-1.amazonaws.com/damage-requests/cust-1/1700000000000_ab12cd34.jpg?X-Amz-Expires=604800&X-Amz-Signature=abc'],
-      } as any);
+        title: 'x',
+        description: 'long enough description',
+        address: 'MG Road, Bengaluru',
+        latitude: 12.9,
+        longitude: 77.5,
+      };
+      const bad = [
+        'https://evil.example.com/a.jpg',
+        'https://b.s3.ap-south-1.amazonaws.com/damage-requests/cust-1/1700000000000_ab12cd34.jpg?X-Amz-Signature=abc',
+        'damage-requests/someone-else/1700000000000_ab12cd34.jpg',
+        'avatars/cust-1/1700000000000_ab12cd34.jpg', // wrong folder for damage photos
+        'damage-requests/cust-1/../other/x.jpg',
+      ];
+      for (const value of bad) {
+        await expect(
+          service.create('cust-1', { ...base, damagePhotos: [value] } as any),
+        ).rejects.toThrow(/Media must be a key/);
+      }
 
-      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
-      expect(data.media.create[0].url).toBe('damage-requests/cust-1/1700000000000_ab12cd34.jpg');
-    });
-
-    it('C3: rejects media that is neither an uploaded key nor a URL to our storage', async () => {
+      // Well-formed and owned, but never finalized (no uploaded_objects row).
+      mockPrisma.uploadedObject.findMany.mockResolvedValueOnce([]);
       await expect(
         service.create('cust-1', {
-          vehicleId: 'veh-1',
-          title: 'x',
-          description: 'long enough description',
-          address: 'MG Road, Bengaluru',
-          latitude: 12.9,
-          longitude: 77.5,
-          damagePhotos: ['https://evil.example.com/a.jpg'],
+          ...base,
+          damagePhotos: ['damage-requests/cust-1/1700000000000_deadbeef.jpg'],
         } as any),
-      ).rejects.toThrow(/uploaded file key/);
+      ).rejects.toThrow(/not been finalized|not uploaded/);
+
       expect(mockPrisma.serviceRequest.create).not.toHaveBeenCalled();
     });
 

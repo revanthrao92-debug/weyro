@@ -412,7 +412,8 @@ export class DriverGoCustomerService {
       );
     }
 
-    const code = String(randomInt(1000, 10000));
+    // M7: 6 digits (1,000,000 combinations) — a 4-digit code falls to guessing.
+    const code = String(randomInt(100000, 1000000));
     await this.prisma.driverBooking.update({
       where: { id },
       data: {

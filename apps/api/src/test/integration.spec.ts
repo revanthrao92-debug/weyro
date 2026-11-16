@@ -191,6 +191,12 @@ describe('End-to-End Core Integration Suite', () => {
           }),
         },
         serviceRequest: {
+          // H6: the request is claimed first — only the first accept moves it
+          // out of OPEN/QUOTES_RECEIVED; the second sees count 0.
+          updateMany: jest
+            .fn()
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValue({ count: 0 }),
           update: jest.fn().mockResolvedValue({}),
         },
         payment: {
@@ -245,6 +251,8 @@ describe('End-to-End Core Integration Suite', () => {
         payment: {
           findFirst: jest.fn(),
           findUnique: jest.fn(),
+          // settleBookingPayment reads the claimed row back.
+          findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'pay_1', status: 'CAPTURED' }),
           update: jest.fn(),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },

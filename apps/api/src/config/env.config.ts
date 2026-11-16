@@ -54,6 +54,9 @@ export const envSchema = z.object({
   OTP_DEBUG_ECHO: z.enum(['true', 'false']).default('false'),
   // SMS delivery driver for OTP: console (dev), msg91, twilio
   SMS_PROVIDER: z.enum(['console', 'msg91', 'twilio']).default('console'),
+  // H5: hard ceiling on OTP SMS sends per hour across all phones (cost / abuse
+  // guard). An error is logged and sends are refused once it is reached.
+  OTP_GLOBAL_HOURLY_CAP: z.coerce.number().int().min(1).default(500),
   // MSG91 OTP API with a DLT-registered template (C1). The OTP code is passed
   // to the template as its variable.
   MSG91_AUTH_KEY: z.string().optional(),
@@ -155,6 +158,9 @@ export const envSchema = z.object({
     'RAZORPAY_WEBHOOK_SECRET',
     'OTP_HASH_SECRET',
     'SMS_PROVIDER',
+    // H7: behind Railway's proxy every client would share one IP bucket (or
+    // spoof X-Forwarded-For) without an explicit hop count.
+    'TRUST_PROXY',
   ] as const) {
     if (!value[key]) {
       ctx.addIssue({
@@ -181,6 +187,15 @@ export const envSchema = z.object({
       code: "custom",
       path: ['SMS_PROVIDER'],
       message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
+    });
+  }
+
+  if (value.TRUST_PROXY && /^true$/i.test(value.TRUST_PROXY.trim())) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['TRUST_PROXY'],
+      message:
+        'TRUST_PROXY=true trusts every hop and lets clients spoof X-Forwarded-For; use the number of proxy hops (Railway: 1)',
     });
   }
 

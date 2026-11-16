@@ -137,7 +137,54 @@ export const PAYMENT_TRANSITIONS: TransitionRule<PaymentStatus>[] = [
   { from: 'AUTHORIZED', to: 'REFUNDED', allowedActors: ['SYSTEM', 'ADMIN'] },
   { from: 'CAPTURED', to: 'REFUNDED', allowedActors: ['ADMIN', 'SYSTEM'] },
   { from: 'CAPTURED', to: 'RELEASED', allowedActors: ['ADMIN', 'SYSTEM'] },
+  // M3: a refund is requested at the gateway first and confirmed by webhook.
+  { from: 'CAPTURED', to: 'REFUND_PENDING', allowedActors: ['ADMIN', 'SYSTEM'] },
+  { from: 'REFUND_PENDING', to: 'REFUNDED', allowedActors: ['ADMIN', 'SYSTEM'] },
+  // refund.failed: the money was never returned, so the payment is captured again.
+  { from: 'REFUND_PENDING', to: 'CAPTURED', allowedActors: ['ADMIN', 'SYSTEM'] },
 ];
+
+/**
+ * M3 payment policy: the booking status at which a CAPTURED payment becomes
+ * mandatory. 'COMPLETED' = pay-after-service-work (a booking cannot be
+ * completed unpaid). Switch to 'IN_PROGRESS' to require payment before work
+ * starts; every other code path reads this constant.
+ */
+export type PaymentRequiredBefore = 'IN_PROGRESS' | 'COMPLETED';
+export const PAYMENT_REQUIRED_BEFORE: PaymentRequiredBefore = 'COMPLETED';
+
+const PAID_PAYMENT_STATUSES: readonly PaymentStatus[] = ['CAPTURED', 'RELEASED'];
+
+/** Booking statuses that are gated behind a captured payment under the policy. */
+function paymentGatedStatuses(policy: PaymentRequiredBefore): readonly BookingStatus[] {
+  return policy === 'IN_PROGRESS' ? ['IN_PROGRESS', 'COMPLETED'] : ['COMPLETED'];
+}
+
+/**
+ * Throws unless the booking may move to `targetStatus` given its payment.
+ * Admins may override with a reason (returned so the caller can audit-log it).
+ */
+export function assertPaymentSatisfied(input: {
+  targetStatus: BookingStatus;
+  paymentStatus: PaymentStatus | null | undefined;
+  actorRole: ActorRole;
+  overrideReason?: string;
+  policy?: PaymentRequiredBefore;
+}): { overridden: boolean; reason?: string } {
+  const gated = paymentGatedStatuses(input.policy ?? PAYMENT_REQUIRED_BEFORE);
+  if (!gated.includes(input.targetStatus)) return { overridden: false };
+  if (input.paymentStatus && PAID_PAYMENT_STATUSES.includes(input.paymentStatus)) {
+    return { overridden: false };
+  }
+  const reason = input.overrideReason?.trim();
+  if (input.actorRole === 'ADMIN' && reason) {
+    return { overridden: true, reason };
+  }
+  throw new ConflictException(
+    `Payment must be captured before this booking can move to ${input.targetStatus}` +
+      (input.actorRole === 'ADMIN' ? ' (admins may override by providing a reason)' : ''),
+  );
+}
 
 export function validatePaymentTransition(
   currentStatus: PaymentStatus,

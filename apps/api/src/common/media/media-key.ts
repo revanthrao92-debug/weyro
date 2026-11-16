@@ -63,17 +63,58 @@ export function extractMediaKey(value: string): string | null {
   return null;
 }
 
+/** Folders each kind of media reference may point into. */
+export const MEDIA_FOLDERS_BY_USE = {
+  damage: ['damage-requests'],
+  part: ['spare-parts'],
+  avatar: ['avatars'],
+  chat: ['damage-requests', 'spare-parts', 'avatars', 'vehicles'],
+} as const satisfies Record<string, readonly (typeof MEDIA_FOLDERS)[number][]>;
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+interface UploadedObjectLookup {
+  uploadedObject: {
+    findMany(args: {
+      where: { key: { in: string[] }; ownerId: string };
+      select: { key: true };
+    }): Promise<{ key: string }[]>;
+  };
+}
+
 /**
- * Normalize a client-supplied media reference to the key that gets stored.
- * Accepts a key, or a full URL pointing at our storage (older app builds that
- * still send the URL they were given). Anything else is rejected.
+ * H4: media references are accepted only as KEYS that
+ *  1. match `<folder>/<callerUserId>/<file>` for a folder allowed for this use,
+ *  2. were finalized (a row in uploaded_objects, i.e. the object exists and
+ *     passed the magic-byte check) and are owned by the caller.
+ * URLs, other users' keys and un-finalized keys are rejected with 400.
  */
-export function requireMediaKey(value: string): string {
-  const key = extractMediaKey(value);
-  if (!key) {
+export async function assertOwnedMediaKeys(
+  prisma: UploadedObjectLookup,
+  userId: string,
+  values: readonly string[],
+  folders: readonly string[],
+): Promise<string[]> {
+  if (values.length === 0) return [];
+  const pattern = new RegExp(
+    `^(?:${folders.join('|')})/${escapeRegExp(userId)}/[A-Za-z0-9._-]+$`,
+  );
+  for (const value of values) {
+    if (typeof value !== 'string' || !pattern.test(value)) {
+      throw new BadRequestException(
+        'Media must be a key of a file you uploaded (see /uploads/finalize)',
+      );
+    }
+  }
+  const unique = [...new Set(values)];
+  const finalized = await prisma.uploadedObject.findMany({
+    where: { key: { in: unique }, ownerId: userId },
+    select: { key: true },
+  });
+  if (finalized.length !== unique.length) {
     throw new BadRequestException(
-      'Media must be an uploaded file key returned by /uploads/finalize',
+      'One or more files were not uploaded or have not been finalized',
     );
   }
-  return key;
+  return [...values];
 }

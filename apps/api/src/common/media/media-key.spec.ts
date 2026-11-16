@@ -1,4 +1,4 @@
-import { extractMediaKey, isMediaKey, requireMediaKey } from './media-key';
+import { extractMediaKey, isMediaKey } from './media-key';
 
 describe('media keys (C3)', () => {
   const key = 'damage-requests/0b6c1f1e-1111-4222-8333-444455556666/1700000000000_ab12cd34.jpg';
@@ -33,10 +33,4 @@ describe('media keys (C3)', () => {
     ).toBeNull();
   });
 
-  it('requireMediaKey stores keys and normalizes legacy URLs, rejects everything else', () => {
-    expect(requireMediaKey(key)).toBe(key);
-    expect(requireMediaKey(`https://b.s3.amazonaws.com/${key}?X-Amz-Signature=z`)).toBe(key);
-    expect(() => requireMediaKey('https://evil.example.com/a.jpg')).toThrow(/uploaded file key/);
-    expect(() => requireMediaKey('not a key')).toThrow(/uploaded file key/);
-  });
 });

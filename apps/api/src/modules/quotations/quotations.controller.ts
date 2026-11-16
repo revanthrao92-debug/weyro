@@ -154,6 +154,7 @@ export class QuotationsController {
       trackingNumber: body.trackingNumber,
       carrierName: body.carrierName,
       completionNotes: body.completionNotes,
+      overrideReason: body.overrideReason,
     });
     this.tracking.emitStatus(id, updated.status);
     return updated;

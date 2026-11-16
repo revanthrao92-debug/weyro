@@ -7,7 +7,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { normalizeRegistrationNumber } from '@weyro/validation';
-import { requireMediaKey } from '../../common/media/media-key';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import {
   CreateVehicleDto,
   UpdateAddressesDto,
@@ -39,11 +39,15 @@ export class CustomersService {
 
   async updateProfile(user: AuthUserPayload, dto: UpdateCustomerProfileDto) {
     const id = this.customerId(user);
+    // H4: an avatar must be a finalized upload owned by the caller (null clears it).
+    const [avatarKey] = dto.avatarUrl
+      ? await assertOwnedMediaKeys(this.prisma, user.sub, [dto.avatarUrl], MEDIA_FOLDERS_BY_USE.avatar)
+      : [];
     return this.prisma.customerProfile.update({
       where: { id },
       data: {
         ...dto,
-        avatarUrl: dto.avatarUrl ? requireMediaKey(dto.avatarUrl) : dto.avatarUrl,
+        ...(dto.avatarUrl === undefined ? {} : { avatarUrl: avatarKey ?? null }),
       },
     });
   }

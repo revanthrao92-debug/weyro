@@ -49,6 +49,12 @@ describe('AuthService – OTP security hardening', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn(),
       },
+      otpSend: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({}),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn((arg) =>
         Array.isArray(arg) ? Promise.all(arg) : arg(mockPrisma),
       ),
@@ -554,6 +560,149 @@ describe('AuthService – OTP security hardening', () => {
       expect(mockPrisma.oTP.updateMany).toHaveBeenCalledWith({
         where: { phone, verifiedAt: null },
         data: { verifiedAt: expect.any(Date) },
+      });
+    });
+  });
+
+  describe('H5 – OTP send abuse limits', () => {
+    const phone = '+919876500777';
+    const send = () => service.sendOtp({ phone, purpose: 'login' } as never);
+    /** otpSend.count is called as [recent(30s), today(24h), thisHour] per send. */
+    const counts = (recent: number, today: number, hour: number) =>
+      mockPrisma.otpSend.count
+        .mockResolvedValueOnce(recent)
+        .mockResolvedValueOnce(today)
+        .mockResolvedValueOnce(hour);
+
+    it('allows a send, logs it, and serializes concurrent sends per phone', async () => {
+      counts(0, 0, 0);
+      await send();
+      expect(mockPrisma.$executeRaw).toHaveBeenCalled(); // advisory lock
+      expect(mockPrisma.otpSend.create).toHaveBeenCalledWith({ data: { phone } });
+      expect(mockPrisma.oTP.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a second send within 30 seconds with 429 and sends nothing', async () => {
+      const sendSpy = jest.spyOn(
+        (service as unknown as { smsGateway: { sendOtp: unknown } }).smsGateway,
+        'sendOtp',
+      );
+      counts(1, 1, 1);
+      await expect(send()).rejects.toMatchObject({ status: 429 });
+      expect(sendSpy).not.toHaveBeenCalled();
+      expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+      expect(mockPrisma.otpSend.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects the 6th send in 24 hours with 429', async () => {
+      counts(0, 5, 10);
+      await expect(send()).rejects.toMatchObject({ status: 429 });
+      expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows exactly 5 sends in 24 hours', async () => {
+      counts(0, 4, 10);
+      await expect(send()).resolves.toMatchObject({ status: 'sent' });
+    });
+
+    it('enforces the global hourly cap with 503 and logs an error', async () => {
+      const errorSpy = jest
+        .spyOn((service as unknown as { logger: { error: unknown } }).logger, 'error')
+        .mockImplementation(() => undefined);
+      counts(0, 0, env.OTP_GLOBAL_HOURLY_CAP);
+      await expect(send()).rejects.toMatchObject({ status: 503 });
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('global hourly cap'));
+      expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+    });
+
+    it('a resend after the cooldown replaces the previous OTP (no "wait for it to expire" rule)', async () => {
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: 'old-hash',
+        expiresAt: new Date(Date.now() + 9 * 60_000), // still valid
+        verifiedAt: null,
+      });
+      counts(0, 1, 1);
+      await expect(send()).resolves.toMatchObject({ status: 'sent' });
+      expect(mockPrisma.oTP.upsert).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.oTP.upsert.mock.calls[0][0].update.attempts).toBe(0);
+    });
+
+    it('sends the SMS BEFORE persisting the OTP', async () => {
+      const sendSpy = jest.spyOn(
+        (service as unknown as { smsGateway: { sendOtp: unknown } }).smsGateway,
+        'sendOtp',
+      );
+      counts(0, 0, 0);
+      await send();
+      expect(sendSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        mockPrisma.oTP.upsert.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('a gateway failure returns 503 and never persists an OTP', async () => {
+      const errorSpy = jest
+        .spyOn((service as unknown as { logger: { error: unknown } }).logger, 'error')
+        .mockImplementation(() => undefined);
+      jest
+        .spyOn((service as unknown as { smsGateway: { sendOtp: unknown } }).smsGateway, 'sendOtp')
+        .mockRejectedValue(new Error('MSG91 returned HTTP 500'));
+      counts(0, 0, 0);
+
+      await expect(send()).rejects.toMatchObject({ status: 503 });
+      expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+      // The error is logged with a masked phone and never contains a code.
+      expect(String(errorSpy.mock.calls[0][0])).not.toContain(phone);
+    });
+
+    describe('with Redis available', () => {
+      const makeRedis = (result: number) => ({
+        status: 'ready',
+        eval: jest.fn().mockResolvedValue(result),
+      });
+      const withRedis = (result: number) => {
+        const redis = makeRedis(result);
+        const svc = new AuthService(mockPrisma, mockJwt, redis as never);
+        return { svc, redis };
+      };
+
+      it('uses Redis (not the database) and passes the three limits', async () => {
+        const { svc, redis } = withRedis(0);
+        await svc.sendOtp({ phone, purpose: 'login' } as never);
+        expect(redis.eval).toHaveBeenCalledTimes(1);
+        const args = redis.eval.mock.calls[0];
+        expect(args[1]).toBe(3); // three keys
+        expect(args.slice(2, 5)).toEqual([
+          `weyro:otp:send:cooldown:${phone}`,
+          `weyro:otp:send:daily:${phone}`,
+          expect.stringMatching(/^weyro:otp:send:global:\d+$/),
+        ]);
+        expect(args.slice(5)).toEqual(['30', '86400', '5', '3660', String(env.OTP_GLOBAL_HOURLY_CAP)]);
+        expect(mockPrisma.otpSend.count).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        [1, 429],
+        [2, 429],
+        [3, 503],
+      ])('maps limiter verdict %i to HTTP %i', async (verdict, status) => {
+        const { svc } = withRedis(verdict);
+        jest
+          .spyOn((svc as unknown as { logger: { error: unknown } }).logger, 'error')
+          .mockImplementation(() => undefined);
+        await expect(svc.sendOtp({ phone, purpose: 'login' } as never)).rejects.toMatchObject({ status });
+        expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+      });
+
+      it('falls back to database counts when Redis errors', async () => {
+        const redis = { status: 'ready', eval: jest.fn().mockRejectedValue(new Error('ECONNRESET')) };
+        const svc = new AuthService(mockPrisma, mockJwt, redis as never);
+        jest
+          .spyOn((svc as unknown as { logger: { warn: unknown } }).logger, 'warn')
+          .mockImplementation(() => undefined);
+        counts(0, 0, 0);
+        await expect(svc.sendOtp({ phone, purpose: 'login' } as never)).resolves.toMatchObject({ status: 'sent' });
+        expect(mockPrisma.otpSend.create).toHaveBeenCalled();
       });
     });
   });

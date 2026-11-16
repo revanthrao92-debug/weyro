@@ -3,7 +3,7 @@ import { env } from '../../config/env.config';
 
 const secret = env.OTP_HASH_SECRET || 'dev-driver-start-otp-secret';
 
-/** HMAC the 4-digit start code; the plaintext code is never stored. */
+/** HMAC the start code (6 digits; 4 for codes issued before M7); the plaintext is never stored. */
 export function hashDriverStartOtp(code: string): string {
   return createHmac('sha256', secret)
     .update(`driver-start:${code}`)

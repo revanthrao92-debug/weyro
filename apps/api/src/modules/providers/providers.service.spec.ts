@@ -23,6 +23,11 @@ describe('ProvidersService.submitVerificationDocuments', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
+    prisma.uploadedObject = {
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ key: 'verification-documents/user-provider-1/gst.pdf' }]),
+    };
     cache = { del: jest.fn(), getOrSet: jest.fn() };
     service = new ProvidersService(prisma as any, cache as any);
   });
@@ -86,6 +91,18 @@ describe('ProvidersService.submitVerificationDocuments', () => {
       verificationStatus: 'PENDING',
       documentCount: 1,
     });
+  });
+
+  it('H4: rejects document keys that were never finalized', async () => {
+    prisma.providerProfile.findUnique.mockResolvedValue({ verificationStatus: 'PENDING' });
+    prisma.uploadedObject.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.submitVerificationDocuments(user, {
+        documents: [{ label: 'GST certificate', key: 'verification-documents/user-provider-1/gst.pdf' }],
+      }),
+    ).rejects.toThrow(/not been finalized|not uploaded/);
+    expect(prisma.providerProfile.update).not.toHaveBeenCalled();
   });
 
   it('refuses new documents from a suspended provider', async () => {
