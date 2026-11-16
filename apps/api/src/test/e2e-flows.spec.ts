@@ -32,6 +32,7 @@ jest.mock('@nestjs/schedule', () => ({
 
 import { AppModule } from '../app.module';
 import { AuthService } from '../modules/auth/auth.service';
+import { DamageRequestsService } from '../modules/damage-requests/damage-requests.service';
 import { env } from '../config/env.config';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,6 +45,7 @@ const API = '/api/v1';
 
 interface Session {
   accessToken: string;
+  refreshToken?: string;
   userId: string;
   profileId: string;
 }
@@ -87,7 +89,7 @@ describe('HTTP E2E flows (Postgres)', () => {
     options: { viaHttp?: boolean } = {},
   ): Promise<Session> => {
     const otpCode = await seedRegisterOtp(prisma, String(body.phone));
-    let result: { accessToken: string; user: any };
+    let result: { accessToken: string; refreshToken?: string; user: any };
 
     if (options.viaHttp) {
       const res = await http().post(`${API}/auth/register`).send({ ...body, otpCode });
@@ -101,6 +103,7 @@ describe('HTTP E2E flows (Postgres)', () => {
 
     const session: Session = {
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       userId: result.user.id,
       profileId: result.user.customerProfile?.id ?? result.user.providerProfile?.id,
     };
@@ -1440,6 +1443,29 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(await prisma.refund.count({ where: { paymentId } })).toBe(1);
     });
 
+    it('M2: a provider starting the job and the customer cancelling it at the same time -> exactly one wins', async () => {
+      for (let round = 0; round < 5; round++) {
+        const { bookingId } = await makeBooking(`M2 race ${round}`);
+        extraBookingIds.push(bookingId);
+
+        const [start, cancel] = await Promise.all([
+          setStatus(p, bookingId, { status: 'IN_PROGRESS' }),
+          setStatus(c, bookingId, { status: 'CANCELLED' }),
+        ]);
+
+        // One transition wins; the other is refused (409), never silently overwritten.
+        expect([start.status, cancel.status].sort()).toEqual([200, 409]);
+        const booking = await prisma.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          include: { quotation: { include: { request: true } } },
+        });
+        const winner = start.status === 200 ? 'IN_PROGRESS' : 'CANCELLED';
+        expect(booking.status).toBe(winner);
+        // The linked request tracks the booking: IN_PROGRESS only if the job started.
+        expect(booking.quotation.request.status).toBe(winner === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ACCEPTED');
+      }
+    });
+
     it('an admin can override an unpaid completion only with a reason, and it is audit-logged', async () => {
       const { bookingId } = await makeBooking('M3 admin override');
       extraBookingIds.push(bookingId);
@@ -1470,6 +1496,188 @@ describe('HTTP E2E flows (Postgres)', () => {
       });
       expect(audit).toMatchObject({ actorId: adminUser.id, actorRole: 'ADMIN' });
       expect(audit?.newValues).toMatchObject({ status: 'COMPLETED', reason: 'Paid in cash on site' });
+    });
+  });
+
+  describe('M1: feed pagination across mixed urgencies', () => {
+    const RANK: Record<string, number> = { EMERGENCY: 1, URGENT: 2, NORMAL: 3 };
+    const inFeedOrder = (a: any, b: any) =>
+      RANK[a.urgency] - RANK[b.urgency] ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+      (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+
+    let mine: string[] = [];
+
+    beforeAll(async () => {
+      const base = Date.now() - 60 * 60 * 1000;
+      const urgencies = ['NORMAL', 'EMERGENCY', 'URGENT'];
+      const created = [];
+      for (let i = 0; i < 15; i++) {
+        created.push(
+          await prisma.serviceRequest.create({
+            data: {
+              customerId: customer.profileId,
+              category: 'REPAIR',
+              title: `M1 feed ${suffix} #${i}`,
+              description: 'Feed pagination fixture',
+              address: 'Indiranagar, Bengaluru',
+              latitude: 12.9784,
+              longitude: 77.6408,
+              urgency: urgencies[i % 3] as any,
+              status: 'OPEN',
+              isBroadcast: true,
+              expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+              // Groups of 5 share one createdAt, so ties exist within and across urgencies
+              // and page boundaries (limit 3) fall inside them.
+              createdAt: new Date(base + Math.floor(i / 5) * 60_000),
+            },
+          }),
+        );
+      }
+      mine = created.map((r) => r.id);
+      extraRequestIds.push(...mine);
+    });
+
+    const pageThrough = async (fetchPage: (cursor?: string) => Promise<{ items: any[]; nextCursor: string | null }>) => {
+      const all: any[] = [];
+      let cursor: string | undefined;
+      for (let guard = 0; guard < 200; guard++) {
+        const page = await fetchPage(cursor);
+        expect(page.items.length).toBeLessThanOrEqual(3);
+        all.push(...page.items);
+        if (!page.nextCursor) return all;
+        cursor = page.nextCursor;
+      }
+      throw new Error('pagination did not terminate');
+    };
+
+    const expectCompleteAndOrdered = (all: any[]) => {
+      const ids = all.map((r) => r.id);
+      expect(new Set(ids).size).toBe(ids.length); // no repeats
+      for (const id of mine) expect(ids).toContain(id); // none skipped
+      // Pages concatenate to exactly the feed order.
+      expect(all.map((r) => r.id)).toEqual([...all].sort(inFeedOrder).map((r) => r.id));
+    };
+
+    it('SQL feed (HTTP): every request exactly once, in order, across ties and urgency boundaries', async () => {
+      const all = await pageThrough(async (cursor) => {
+        const res = await http()
+          .get(`${API}/damage-requests/feed`)
+          .query({ lat: 12.9784, lng: 77.6408, radiusKm: 25, limit: 3, ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${garage.accessToken}`);
+        expect(res.status).toBe(200);
+        return res.body;
+      });
+      expectCompleteAndOrdered(all);
+      // The cursor is opaque base64url JSON (rank, createdAt, id), not a bare id.
+      const first = await http()
+        .get(`${API}/damage-requests/feed`)
+        .query({ lat: 12.9784, lng: 77.6408, limit: 3 })
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      const decoded = JSON.parse(Buffer.from(first.body.nextCursor, 'base64url').toString());
+      expect(decoded).toEqual({ r: expect.any(Number), c: expect.any(String), i: expect.any(String) });
+    });
+
+    it('Prisma fallback feed (no coordinates): same guarantees', async () => {
+      const service = app.get(DamageRequestsService);
+      const all = await pageThrough((cursor) => service.getBroadcastFeed({ limit: 3, cursor }) as any);
+      expectCompleteAndOrdered(all);
+    });
+
+    it("the customer's own request list (a different cursor format) still pages correctly", async () => {
+      // The M1 cursor change must not leak into findMine, which orders by (createdAt, id) only.
+      const seen: any[] = [];
+      let cursor: string | undefined;
+      for (let guard = 0; guard < 100; guard++) {
+        const res = await http()
+          .get(`${API}/damage-requests/my`)
+          .query({ limit: 4, ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${customer.accessToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.items);
+        if (!res.body.nextCursor) break;
+        cursor = res.body.nextCursor;
+        // findMine cursors are { createdAt, id } — not the feed's { r, c, i }.
+        expect(Object.keys(JSON.parse(Buffer.from(cursor!, 'base64url').toString())).sort()).toEqual(['createdAt', 'id']);
+      }
+      const ids = seen.map((r) => r.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const id of mine) expect(ids).toContain(id);
+      const times = seen.map((r) => new Date(r.createdAt).getTime());
+      expect(times).toEqual([...times].sort((x, y) => y - x));
+    });
+
+    it('still honours a legacy bare-id cursor, and rejects garbage with 400', async () => {
+      const legacy = await http()
+        .get(`${API}/damage-requests/feed`)
+        .query({ lat: 12.9784, lng: 77.6408, limit: 3, cursor: mine[0] })
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      expect(legacy.status).toBe(200);
+
+      const garbage = await http()
+        .get(`${API}/damage-requests/feed`)
+        .query({ lat: 12.9784, lng: 77.6408, limit: 3, cursor: 'not-a-cursor' })
+        .set('Authorization', `Bearer ${garage.accessToken}`);
+      expect(garbage.status).toBe(400);
+    });
+  });
+
+  describe('M10: suspended users lose access immediately', () => {
+    it('a suspended provider\'s still-valid access token and refresh token stop working at once', async () => {
+      const victim = await register({
+        email: `e2e-m10-${suffix}@example.com`,
+        phone: `+9183${suffix.slice(-8)}`,
+        password,
+        role: 'PROVIDER',
+        providerType: 'GARAGE',
+        businessName: `M10 Garage ${suffix}`,
+        address: 'Indiranagar, Bengaluru',
+        latitude: 12.9784,
+        longitude: 77.6408,
+      });
+      await prisma.providerProfile.updateMany({ where: { userId: victim.userId }, data: { verificationStatus: 'VERIFIED' } });
+
+      const me = () => http().get(`${API}/auth/me`).set('Authorization', `Bearer ${victim.accessToken}`);
+      expect((await me()).status).toBe(200);
+
+      const adminUser = await prisma.user.create({
+        data: {
+          email: `e2e-m10-admin-${suffix}@example.com`,
+          phone: `+9182${suffix.slice(-8)}`,
+          passwordHash: '',
+          role: 'ADMIN',
+          phoneVerified: true,
+        },
+      });
+      sessions.push({ accessToken: '', userId: adminUser.id, profileId: '' });
+      const adminToken = await app.get(JwtService).signAsync(
+        { sub: adminUser.id, email: adminUser.email, phone: adminUser.phone, role: 'ADMIN' },
+        { secret: env.JWT_ACCESS_SECRET, expiresIn: '5m' },
+      );
+
+      // Make sure the token's iat is strictly earlier than the suspension second.
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      const suspend = await http()
+        .patch(`${API}/admin/providers/${victim.profileId}/verify`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'SUSPENDED', auditorNotes: 'M10 e2e suspension' });
+      expect(suspend.status).toBe(200);
+
+      // The access token is still cryptographically valid and unexpired, yet refused.
+      const after = await me();
+      expect(after.status).toBe(401);
+      expect(after.body.message).toMatch(/suspended/i);
+
+      // ... and it cannot be traded in for a new one.
+      const refresh = await http().post(`${API}/auth/refresh`).send({ refreshToken: victim.refreshToken });
+      expect(refresh.status).toBe(401);
+      const rows = await prisma.refreshToken.findMany({ where: { userId: victim.userId } });
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.revokedAt !== null)).toBe(true);
+
+      // Other users are untouched.
+      expect((await http().get(`${API}/auth/me`).set('Authorization', `Bearer ${customer.accessToken}`)).status).toBe(200);
     });
   });
 });

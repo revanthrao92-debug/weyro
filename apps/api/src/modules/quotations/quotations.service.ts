@@ -923,9 +923,19 @@ export class QuotationsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedBooking = await tx.booking.update({
-        where: { id },
+      // M2: compare-and-set. The row is only written if it is still in the
+      // status we validated the transition against; a concurrent update (e.g.
+      // the customer cancelling while the provider completes) makes this match
+      // zero rows instead of silently overwriting it.
+      const claimed = await tx.booking.updateMany({
+        where: { id, status: booking.status },
         data,
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('Booking changed, refresh and try again');
+      }
+      const updatedBooking = await tx.booking.findUniqueOrThrow({
+        where: { id },
         include: {
           customer: true,
           provider: true,
@@ -954,10 +964,7 @@ export class QuotationsService {
         const request = booking.quotation.request;
         if (request.status === 'ACCEPTED') {
           validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
-          await tx.serviceRequest.update({
-            where: { id: request.id },
-            data: { status: 'IN_PROGRESS' },
-          });
+          await this.moveRequest(tx, request.id, 'ACCEPTED', 'IN_PROGRESS');
         }
       }
 
@@ -966,20 +973,11 @@ export class QuotationsService {
         const request = booking.quotation.request;
         if (request.status === 'ACCEPTED') {
           validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
-          await tx.serviceRequest.update({
-            where: { id: request.id },
-            data: { status: 'IN_PROGRESS' },
-          });
+          await this.moveRequest(tx, request.id, 'ACCEPTED', 'IN_PROGRESS');
         }
-        validateServiceRequestTransition(
-          request.status === 'ACCEPTED' ? 'IN_PROGRESS' : request.status,
-          'COMPLETED',
-          actorRole,
-        );
-        await tx.serviceRequest.update({
-          where: { id: request.id },
-          data: { status: 'COMPLETED' },
-        });
+        const fromStatus = request.status === 'ACCEPTED' ? 'IN_PROGRESS' : request.status;
+        validateServiceRequestTransition(fromStatus, 'COMPLETED', actorRole);
+        await this.moveRequest(tx, request.id, fromStatus, 'COMPLETED');
 
       }
 
@@ -1056,6 +1054,22 @@ export class QuotationsService {
     }
 
     return this.serializeBooking(updated, user.role);
+  }
+
+  /** M2: compare-and-set a service request's status inside a transaction. */
+  private async moveRequest(
+    tx: Prisma.TransactionClient,
+    requestId: string,
+    from: string,
+    to: string,
+  ): Promise<void> {
+    const moved = await tx.serviceRequest.updateMany({
+      where: { id: requestId, status: from as never },
+      data: { status: to as never },
+    });
+    if (moved.count === 0) {
+      throw new ConflictException('Request changed, refresh and try again');
+    }
   }
 
   async updateLocation(

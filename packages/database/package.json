@@ -31,12 +31,12 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
-    "libphonenumber-js": "^1.13.16"
+    "libphonenumber-js": "^1.13.16",
+    "prisma": "^6.19.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.10.1",
-    "prisma": "^6.19.3",
     "ts-node": "^10.9.2",
     "typescript": "~6.0.3"
   }

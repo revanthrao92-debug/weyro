@@ -16,6 +16,11 @@ export const envSchema = z.object({
   // Set to a hop count (e.g. "1") when the API sits behind a load balancer so
   // per-IP rate limiting sees client addresses instead of the proxy's.
   TRUST_PROXY: z.string().optional(),
+  // M9: error monitoring. Unset = Sentry is off. Read in src/instrument.ts.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: z
     .string()

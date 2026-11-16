@@ -1,3 +1,4 @@
+import { SessionRevocationService } from '../../common/auth/session-revocation.service';
 import {
   ConflictException,
   Inject,
@@ -38,6 +39,8 @@ export class AdminService {
     @Optional()
     @Inject(STORAGE_SERVICE)
     private readonly storage?: StorageService,
+    @Optional()
+    private readonly revocation?: SessionRevocationService,
   ) {}
 
   async getOverview(): Promise<AdminOverviewMetrics> {
@@ -321,6 +324,11 @@ export class AdminService {
         },
       },
     });
+
+    // M10: suspension must take effect NOW, not when the access token expires.
+    if (dto.status === 'SUSPENDED' && provider.verificationStatus !== 'SUSPENDED') {
+      await this.revocation?.revokeUser(provider.userId);
+    }
 
     return {
       id: updated.id,

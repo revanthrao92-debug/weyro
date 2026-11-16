@@ -57,7 +57,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Weyro uses your location to match your repair request with nearby workshops and parts dealers."
+          "locationWhenInUsePermission": "Weyro uses your location to match your repair request with nearby workshops and parts dealers.",
+          "locationAlwaysAndWhenInUsePermission": "If you are a Weyro provider, Weyro uses your location in the background while you have an active job so the customer can follow you on the map. Sharing stops when the job ends. Weyro never tracks customers in the background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-font"

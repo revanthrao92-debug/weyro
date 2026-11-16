@@ -91,4 +91,35 @@ describe('JwtAuthGuard', () => {
     const { ctx } = context(undefined);
     await expect(guardFor(true).canActivate(ctx)).resolves.toBe(true);
   });
+
+  describe('M10 – revoked users', () => {
+    const guardWith = (isRevoked: jest.Mock) => {
+      const reflector = { getAllAndOverride: jest.fn().mockReturnValue(false) } as any;
+      return new JwtAuthGuard(new JwtService(), reflector, { isRevoked } as any);
+    };
+
+    it('refuses a perfectly valid token whose user was suspended, passing the token\'s iat', async () => {
+      const token = await jwt.signAsync(payload, { secret: env.JWT_ACCESS_SECRET });
+      const isRevoked = jest.fn().mockResolvedValue(true);
+      const { ctx, request } = context(`Bearer ${token}`);
+
+      await expect(guardWith(isRevoked).canActivate(ctx)).rejects.toThrow('This account has been suspended');
+      expect(isRevoked).toHaveBeenCalledWith('user-1', expect.any(Number));
+      expect(request.user).toBeUndefined();
+    });
+
+    it('lets a non-revoked user through', async () => {
+      const token = await jwt.signAsync(payload, { secret: env.JWT_ACCESS_SECRET });
+      const { ctx, request } = context(`Bearer ${token}`);
+      await expect(guardWith(jest.fn().mockResolvedValue(false)).canActivate(ctx)).resolves.toBe(true);
+      expect(request.user).toMatchObject({ sub: 'user-1' });
+    });
+
+    it('does not even consult the revocation list for public routes or bad tokens', async () => {
+      const isRevoked = jest.fn();
+      const { ctx } = context('Bearer not-a-jwt');
+      await expect(guardWith(isRevoked).canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(isRevoked).not.toHaveBeenCalled();
+    });
+  });
 });

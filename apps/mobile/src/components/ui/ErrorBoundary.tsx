@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing, typography, displayFamily } from '@/theme';
+import { captureError } from '@/lib/sentry';
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -20,6 +21,8 @@ export class ErrorBoundary extends Component<Props, State> {
     if (__DEV__) {
       console.error('Unhandled UI error', error, info.componentStack);
     }
+    // No-op unless Sentry is configured; the event is scrubbed before sending.
+    captureError(error, { boundary: 'root' });
   }
 
   render() {

@@ -145,9 +145,70 @@ export interface ProviderFeedQueryParams {
   /** Provider's maximum vehicle weight; omit when unrestricted. */
   maxVehicleWeightKg?: number;
   limit?: number;
-  cursorCreatedAt?: Date;
-  cursorId?: string;
+  /** Position after which to continue (see encodeFeedCursor). */
+  cursor?: FeedCursor;
 }
+
+/**
+ * M1: the feed is ordered by (urgency rank ASC, createdAt DESC, id DESC), so a
+ * page boundary must remember all three. A cursor with only (createdAt, id)
+ * skips or repeats rows whenever urgencies are mixed.
+ */
+export interface FeedCursor {
+  /** 1 = EMERGENCY, 2 = URGENT, 3 = everything else (see urgencyRank). */
+  urgencyRank: number;
+  createdAt: Date;
+  id: string;
+}
+
+/** Sort rank of an urgency: lower comes first in the feed. */
+export function urgencyRank(urgency: string | null | undefined): number {
+  switch (urgency) {
+    case 'EMERGENCY':
+      return 1;
+    case 'URGENT':
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+/** Opaque base64url(JSON) cursor for the last item of a page. */
+export function encodeFeedCursor(item: {
+  urgency?: string | null;
+  createdAt: Date | string;
+  id: string;
+}): string {
+  const createdAt = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt);
+  return Buffer.from(
+    JSON.stringify({ r: urgencyRank(item.urgency), c: createdAt.toISOString(), i: item.id }),
+  ).toString('base64url');
+}
+
+/** Returns null for anything that is not a well-formed feed cursor. */
+export function decodeFeedCursor(cursor: string): FeedCursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    const createdAt = new Date(parsed?.c);
+    if (
+      ![1, 2, 3].includes(parsed?.r) ||
+      typeof parsed?.i !== 'string' ||
+      parsed.i.length === 0 ||
+      Number.isNaN(createdAt.getTime())
+    ) {
+      return null;
+    }
+    return { urgencyRank: parsed.r, createdAt, id: parsed.i };
+  } catch {
+    return null;
+  }
+}
+
+const URGENCY_RANK_SQL = Prisma.sql`CASE sr."urgency"
+  WHEN 'EMERGENCY' THEN 1
+  WHEN 'URGENT' THEN 2
+  ELSE 3
+END`;
 
 /**
  * Returns incoming service requests for a provider's feed:
@@ -166,8 +227,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     towingVehicleTypes,
     maxVehicleWeightKg,
     limit = 20,
-    cursorCreatedAt,
-    cursorId,
+    cursor,
   } = params;
 
   const boundedLimit = Math.min(50, Math.max(1, limit));
@@ -266,19 +326,23 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
           : Prisma.empty
       }
       ${
-        cursorCreatedAt && cursorId
+        // Row-value comparison matching ORDER BY (rank ASC, createdAt DESC, id DESC):
+        // a row comes AFTER the cursor when its rank is higher, or the rank ties
+        // and (createdAt, id) is lower.
+        cursor
           ? Prisma.sql`AND (
-              sr."createdAt" < ${cursorCreatedAt}
-              OR (sr."createdAt" = ${cursorCreatedAt} AND sr.id < ${cursorId})
+              ${URGENCY_RANK_SQL} > ${cursor.urgencyRank}
+              OR (${URGENCY_RANK_SQL} = ${cursor.urgencyRank} AND sr."createdAt" < ${cursor.createdAt})
+              OR (
+                ${URGENCY_RANK_SQL} = ${cursor.urgencyRank}
+                AND sr."createdAt" = ${cursor.createdAt}
+                AND sr.id < ${cursor.id}
+              )
             )`
           : Prisma.empty
       }
-    ORDER BY 
-      CASE sr."urgency"
-        WHEN 'EMERGENCY' THEN 1
-        WHEN 'URGENT' THEN 2
-        ELSE 3
-      END ASC,
+    ORDER BY
+      ${URGENCY_RANK_SQL} ASC,
       sr."createdAt" DESC,
       sr.id DESC
     LIMIT ${boundedLimit};

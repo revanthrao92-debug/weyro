@@ -375,13 +375,21 @@ export class DriverGoCustomerService {
       );
     }
 
-    const updated = await this.prisma.driverBooking.update({
-      where: { id },
+    // M2: compare-and-set — if the driver moved the job on (en route, arrived…)
+    // since we read it, do not cancel underneath them.
+    const cancelled = await this.prisma.driverBooking.updateMany({
+      where: { id, customerId, status: booking.status },
       data: {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancellationReason: 'Cancelled by customer',
       },
+    });
+    if (cancelled.count === 0) {
+      throw new ConflictException('Booking changed, refresh and try again');
+    }
+    const updated = await this.prisma.driverBooking.findUniqueOrThrow({
+      where: { id },
       include: BOOKING_INCLUDE,
     });
 

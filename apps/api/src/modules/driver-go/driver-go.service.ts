@@ -355,9 +355,16 @@ export class DriverGoService {
     if (next === 'COMPLETED') data.completedAt = now;
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.driverBooking.update({
+      // M2: compare-and-set on the status we validated the transition against.
+      const claimed = await tx.driverBooking.updateMany({
+        where: { id, driverId: provider.id, status: current as never },
+        data: data as never,
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('Booking changed, refresh and try again');
+      }
+      const result = await tx.driverBooking.findUniqueOrThrow({
         where: { id },
-        data,
         include: JOB_INCLUDE,
       });
       if (next === 'COMPLETED') {
@@ -420,13 +427,21 @@ export class DriverGoService {
       throw new BadRequestException('That start code is not correct.');
     }
 
-    const updated = await this.prisma.driverBooking.update({
-      where: { id },
+    // M2: only start a trip that is still ARRIVED (it may have been cancelled
+    // between the code check and this write).
+    const started = await this.prisma.driverBooking.updateMany({
+      where: { id, status: 'ARRIVED' },
       data: {
         status: 'IN_PROGRESS',
         startedAt: new Date(),
         startOtpAttempts: 0,
       },
+    });
+    if (started.count === 0) {
+      throw new ConflictException('Booking changed, refresh and try again');
+    }
+    const updated = await this.prisma.driverBooking.findUniqueOrThrow({
+      where: { id },
       include: JOB_INCLUDE,
     });
     await this.notify(

@@ -11,7 +11,10 @@ export default defineRailway(() => {
     healthcheck: "/api/v1/ready",
     healthcheckTimeout: 120,
     preDeploy: "npm run db:migrate:deploy",
-    replicas: { "sfo": 1 },
+    // Singapore is the closest Railway region to India. The database and Redis
+    // must live in the same region (see docs/DEPLOYMENT.md). Region ids:
+    // https://docs.railway.com/reference/deployment-regions
+    replicas: { "asia-southeast1-eqsg3a": 1 },
   });
 
   return project("weyro", {

@@ -27,17 +27,23 @@ describe('QuotationsService.updateStatus – payment rules (M3)', () => {
 
   beforeEach(() => {
     prisma = {
-      booking: { findUnique: jest.fn(), update: jest.fn() },
-      serviceRequest: { update: jest.fn().mockResolvedValue({}) },
+      booking: { findUnique: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+      serviceRequest: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
       payment: { findMany: jest.fn().mockResolvedValue([{ id: 'pay-1', status: 'REFUND_PENDING' }]) },
       providerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr-p' }) },
       customerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr-c' }) },
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma)),
     };
-    prisma.booking.update.mockImplementation(async ({ data }: any) => ({
+    // compare-and-set: remember what was written, then read it back.
+    let written: Record<string, unknown> = {};
+    prisma.booking.updateMany.mockImplementation(async ({ data }: any) => {
+      written = data;
+      return { count: 1 };
+    });
+    prisma.booking.findUniqueOrThrow.mockImplementation(async () => ({
       id: 'book-1',
-      status: data.status,
+      status: written.status,
       customerId: 'cust-1',
       providerId: 'prov-1',
       payments: [{ id: 'pay-1', status: 'CAPTURED' }],
@@ -61,7 +67,7 @@ describe('QuotationsService.updateStatus – payment rules (M3)', () => {
       async (paymentStatus) => {
         prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', paymentStatus));
         await expect(service.updateStatus('book-1', provider, 'COMPLETED')).rejects.toThrow(ConflictException);
-        expect(prisma.booking.update).not.toHaveBeenCalled();
+        expect(prisma.booking.updateMany).not.toHaveBeenCalled();
       },
     );
 
@@ -76,7 +82,7 @@ describe('QuotationsService.updateStatus – payment rules (M3)', () => {
       prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', 'PENDING'));
       await service.updateStatus('book-1', admin, 'COMPLETED', { overrideReason: 'Paid in cash on site' });
 
-      expect(prisma.booking.update).toHaveBeenCalled();
+      expect(prisma.booking.updateMany).toHaveBeenCalled();
       expect(prisma.auditLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           actorId: 'usr-a',
@@ -93,7 +99,7 @@ describe('QuotationsService.updateStatus – payment rules (M3)', () => {
     it('an admin without a reason is refused', async () => {
       prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', 'PENDING'));
       await expect(service.updateStatus('book-1', admin, 'COMPLETED')).rejects.toThrow(/admins may override/);
-      expect(prisma.booking.update).not.toHaveBeenCalled();
+      expect(prisma.booking.updateMany).not.toHaveBeenCalled();
     });
 
     it('a provider cannot self-override by sending a reason', async () => {
@@ -147,6 +153,54 @@ describe('QuotationsService.updateStatus – payment rules (M3)', () => {
       const bare = new QuotationsService(prisma, { sendPushNotification: jest.fn().mockResolvedValue({}) } as any);
       prisma.booking.findUnique.mockResolvedValue(bookingRow('CONFIRMED', 'CAPTURED'));
       await expect(bare.updateStatus('book-1', customer, 'CANCELLED')).resolves.toBeDefined();
+    });
+  });
+
+  describe('M2 – concurrent status changes', () => {
+    it('only writes if the booking is still in the status the transition was validated against', async () => {
+      prisma.booking.findUnique.mockResolvedValue(bookingRow('CONFIRMED', 'PENDING'));
+      await service.updateStatus('book-1', provider, 'IN_PROGRESS');
+      expect(prisma.booking.updateMany).toHaveBeenCalledWith({
+        where: { id: 'book-1', status: 'CONFIRMED' },
+        data: expect.objectContaining({ status: 'IN_PROGRESS' }),
+      });
+    });
+
+    it('a concurrent change makes the update match 0 rows -> 409, and nothing else happens', async () => {
+      // e.g. the customer cancelled between our read and our write.
+      prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', 'CAPTURED'));
+      prisma.booking.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.updateStatus('book-1', provider, 'COMPLETED')).rejects.toMatchObject({
+        status: 409,
+        message: 'Booking changed, refresh and try again',
+      });
+      expect(prisma.serviceRequest.updateMany).not.toHaveBeenCalled();
+      expect(prisma.auditLog.create).not.toHaveBeenCalled();
+      expect(payments.refundCapturedBookingPayment).not.toHaveBeenCalled();
+    });
+
+    it('a lost cancel race never triggers a refund', async () => {
+      prisma.booking.findUnique.mockResolvedValue(bookingRow('CONFIRMED', 'CAPTURED'));
+      prisma.booking.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.updateStatus('book-1', customer, 'CANCELLED')).rejects.toThrow(
+        'Booking changed, refresh and try again',
+      );
+      expect(payments.refundCapturedBookingPayment).not.toHaveBeenCalled();
+    });
+
+    it('moves the linked request with compare-and-set too, and a lost request race is a 409', async () => {
+      prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', 'CAPTURED'));
+      await service.updateStatus('book-1', provider, 'COMPLETED');
+      expect(prisma.serviceRequest.updateMany).toHaveBeenCalledWith({
+        where: { id: 'req-1', status: 'IN_PROGRESS' },
+        data: { status: 'COMPLETED' },
+      });
+
+      prisma.serviceRequest.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.updateStatus('book-1', provider, 'COMPLETED')).rejects.toThrow(
+        'Request changed, refresh and try again',
+      );
     });
   });
 });

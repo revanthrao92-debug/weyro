@@ -456,3 +456,4 @@ export interface NotificationItem {
   readAt?: string | null;
   createdAt: string;
 }
+export * from './sentry-scrub';

@@ -23,8 +23,8 @@ TRUST_PROXY=1
 
 ## Region
 
-The API replicas run in **Singapore** (`asia-southeast1`), the closest Railway
-region to India. **The database must live in the same region.** Moving only the
+The API replicas run in **Singapore** (`asia-southeast1-eqsg3a` in
+`.railway/railway.ts`), the closest Railway region to India. **The database must live in the same region.** Moving only the
 API adds a cross-region round trip to every query, which is slower than staying
 put. When you move the API, also:
 
@@ -42,3 +42,48 @@ put. When you move the API, also:
   authorization expiry.
 - Configure the webhook for `payment.captured`, `payment.failed`,
   `refund.processed` and `refund.failed`.
+
+## Error monitoring (Sentry)
+
+Both apps report errors to Sentry **only when a DSN is configured**; without one
+nothing is initialised and nothing is sent.
+
+| App | Variable | Notes |
+| --- | --- | --- |
+| API | `SENTRY_DSN` (+ optional `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE`) | Read in `apps/api/src/instrument.ts`, which must stay the first import of `main.ts`. 5xx and unhandled errors are reported; 4xx are not. |
+| Mobile | `EXPO_PUBLIC_SENTRY_DSN` (+ optional `EXPO_PUBLIC_SENTRY_ENVIRONMENT`) | Set as an EAS environment variable. |
+
+**Privacy.** Phone numbers, OTP codes, passwords and tokens are scrubbed from every
+event and breadcrumb (`packages/api-contracts/src/sentry-scrub.ts`, covered by
+tests that run the real SDK). The SDKs' own collection of headers, cookies, request
+bodies, query strings, DB query parameters and local variables is switched off.
+
+**Not done yet: source maps.** Mobile stack traces are not symbolicated until
+source maps are uploaded. That needs the `@sentry/react-native` config plugin plus a
+`SENTRY_AUTH_TOKEN` in EAS (see Expo's "Using Sentry" guide). It was left out
+deliberately because the plugin can fail a build that has no token.
+
+## Production image
+
+`apps/api/Dockerfile` installs only the API's production dependencies in the runner
+stage (`npm ci --omit=dev -w @weyro/api --include-workspace-root`) plus the generated
+Prisma clients. Mobile, Expo, test and build tooling are not in the image.
+
+`prisma` is a **production** dependency of `@weyro/database` on purpose: the Railway
+pre-deploy step (`npm run db:migrate:deploy`) runs `prisma migrate deploy` inside
+this image.
+
+## Background location (providers)
+
+Providers can share live location for an active job while the app is in the
+background (Android foreground service, iOS `location` background mode). The
+permission strings live in `apps/mobile/app.json` (expo-location plugin).
+
+- Background permission is requested **only** from the provider job screen, never
+  from customer flows (enforced by `__tests__/background-location-scope.spec.ts`).
+- Tracking stops when the job ends, when the provider signs out, and when the
+  server reports the job is over.
+- Apple and Google review background location: describe it as "providers share their
+  live position with the customer during an active job" in the store listings.
+- Limitation: if the access token expires while the app is not mounted, updates
+  resume the next time the app is opened.

@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import * as crypto from 'crypto';
+import { captureServerError } from '../observability/sentry';
 
 @Catch()
 export class PrismaExceptionFilter implements ExceptionFilter {
@@ -71,6 +72,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const res = exception.getResponse();
       if (status >= 500) {
+        captureServerError(exception, { requestId, method: request.method, path: request.url });
         errorName = 'Internal Server Error';
         message = 'An unexpected error occurred';
       } else if (typeof res === 'object' && res !== null) {
@@ -82,6 +84,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         message = res;
       }
     } else if (exception instanceof Error) {
+      captureServerError(exception, { requestId, method: request.method, path: request.url });
       this.logger.error(
         `[Request ${requestId}] Unhandled Exception: ${exception.message} on ${request.method} ${request.url}`,
         exception.stack,

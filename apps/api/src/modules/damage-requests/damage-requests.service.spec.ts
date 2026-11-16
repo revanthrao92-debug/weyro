@@ -11,6 +11,8 @@ describe('DamageRequestsService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
       },
       vehicle: {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
@@ -24,6 +26,8 @@ describe('DamageRequestsService', () => {
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
+      quotation: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
       $queryRaw: jest.fn(),
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
@@ -425,7 +429,11 @@ describe('DamageRequestsService authorization regressions', () => {
       serviceRequest: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
       },
+      quotation: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
       vehicle: {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
       },
@@ -563,5 +571,38 @@ describe('DamageRequestsService authorization regressions', () => {
     await expect(
       service.findOne('req-tow', providerUser as any),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  describe('cancel (M2 – compare-and-set)', () => {
+    const owner = { sub: 'u1', role: 'CUSTOMER', customerProfileId: 'cust-1' } as any;
+    const openRequest = { id: 'req-1', customerId: 'cust-1', status: 'OPEN' };
+
+    it('cancels only a request that is still in the status it was validated in, and withdraws quotes', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue(openRequest);
+      mockPrisma.serviceRequest.findUniqueOrThrow.mockResolvedValue({ ...openRequest, status: 'CANCELLED', media: [] });
+
+      const result: any = await service.cancel('req-1', owner);
+
+      expect(mockPrisma.serviceRequest.updateMany).toHaveBeenCalledWith({
+        where: { id: 'req-1', status: 'OPEN' },
+        data: { status: 'CANCELLED' },
+      });
+      expect(mockPrisma.quotation.updateMany).toHaveBeenCalledWith({
+        where: { requestId: 'req-1', status: 'PENDING' },
+        data: { status: 'WITHDRAWN' },
+      });
+      expect(result.status).toBe('CANCELLED');
+    });
+
+    it('if the request was accepted meanwhile (0 rows) it is a 409 and quotes are untouched', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue(openRequest);
+      mockPrisma.serviceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.cancel('req-1', owner)).rejects.toMatchObject({
+        status: 409,
+        message: 'Request changed, refresh and try again',
+      });
+      expect(mockPrisma.quotation.updateMany).not.toHaveBeenCalled();
+    });
   });
 });

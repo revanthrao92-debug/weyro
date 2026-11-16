@@ -27,14 +27,18 @@ describe('DriverGoService.verifyStartOtp (M7)', () => {
         findFirst: jest.fn().mockImplementation(async () => ({ ...job, customer: { userId: 'usr-c' } })),
         updateMany: jest.fn().mockImplementation(async ({ where, data }: any) => {
           const lt = where.startOtpAttempts?.lt;
-          if (lt !== undefined && !(job.startOtpAttempts < lt)) return { count: 0 };
-          job.startOtpAttempts += data.startOtpAttempts.increment;
+          if (lt !== undefined) {
+            // atomic attempt counter
+            if (!(job.startOtpAttempts < lt)) return { count: 0 };
+            job.startOtpAttempts += data.startOtpAttempts.increment;
+            return { count: 1 };
+          }
+          // compare-and-set on status
+          if (where.status !== undefined && job.status !== where.status) return { count: 0 };
+          Object.assign(job, data);
           return { count: 1 };
         }),
-        update: jest.fn().mockImplementation(async ({ data }: any) => {
-          Object.assign(job, data);
-          return { ...job, customer: { userId: 'usr-c' } };
-        }),
+        findUniqueOrThrow: jest.fn().mockImplementation(async () => ({ ...job, customer: { userId: 'usr-c' } })),
       },
     };
     service = new DriverGoService(prisma, { sendPushNotification: jest.fn().mockResolvedValue({}) } as any);
@@ -78,6 +82,19 @@ describe('DriverGoService.verifyStartOtp (M7)', () => {
     expect(await guess(CODE)).toBe('ok');
     expect(job.status).toBe('IN_PROGRESS');
     expect(job.startOtpAttempts).toBe(0);
+  });
+
+  it('M2: a trip cancelled between the code check and the write is not started (409)', async () => {
+    // The code is right, but the job leaves ARRIVED before our compare-and-set.
+    const realUpdateMany = prisma.driverBooking.updateMany.getMockImplementation();
+    prisma.driverBooking.updateMany.mockImplementation(async (args: any) => {
+      const result = await realUpdateMany(args);
+      if (args.where.startOtpAttempts) job.status = 'CANCELLED'; // changed right after the attempt was spent
+      return result;
+    });
+
+    expect(await guess(CODE)).toBe('Booking changed, refresh and try again');
+    expect(job.status).toBe('CANCELLED'); // not resurrected into IN_PROGRESS
   });
 
   it('only works after arrival', async () => {

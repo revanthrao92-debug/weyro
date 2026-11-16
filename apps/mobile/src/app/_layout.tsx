@@ -11,7 +11,13 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
 import { palette } from '@/theme';
 import { flushOfflineQueue } from '@/services/offline-queue';
+import { initSentry } from '@/lib/sentry';
+// Registers the background location task at module scope (required by Expo Router + TaskManager).
+import '@/services/background-location';
 import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
+
+// M9: crash reporting (off unless EXPO_PUBLIC_SENTRY_DSN is set).
+initSentry();
 
 const queryClient = new QueryClient();
 

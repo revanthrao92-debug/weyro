@@ -10,6 +10,12 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import {
+  getActiveJobId,
+  isJobLocationRunning,
+  startJobLocationUpdates,
+  stopJobLocationUpdates,
+} from '@/services/background-location';
+import {
   useBooking,
   useUpdateBookingLocation,
   useUpdateBookingStatus,
@@ -64,15 +70,40 @@ export default function MechanicJobDetailScreen() {
   const updateLocation = useUpdateBookingLocation();
   const [notes, setNotes] = useState('');
   const [sharing, setSharing] = useState(false);
+  // Foreground-only fallback (used when background permission is not granted).
   const watcher = useRef<Location.LocationSubscription | null>(null);
 
   const stopSharing = () => {
     watcher.current?.remove();
     watcher.current = null;
+    void stopJobLocationUpdates();
     setSharing(false);
   };
 
+  // Leaving this screen must NOT stop the background task (that is the point of
+  // it) — only the foreground fallback watcher is tied to the screen.
   useEffect(() => () => watcher.current?.remove(), []);
+
+  // Pick up a background task that is already running for this job (e.g. the
+  // provider left the screen and came back, or reopened the app).
+  useEffect(() => {
+    if (!id) return;
+    void (async () => {
+      if ((await isJobLocationRunning()) && (await getActiveJobId()) === id) setSharing(true);
+    })();
+  }, [id]);
+
+  // Sharing only makes sense while the job is live. If it ends elsewhere (the
+  // customer cancels, an admin completes it) stop reporting.
+  const liveStatus = booking?.status;
+  useEffect(() => {
+    if (sharing && liveStatus && !['PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(liveStatus)) {
+      watcher.current?.remove();
+      watcher.current = null;
+      // Stop the external task first, then reflect it in state.
+      void stopJobLocationUpdates().then(() => setSharing(false));
+    }
+  }, [liveStatus, sharing]);
 
   if (isLoading) {
     return (
@@ -142,8 +173,9 @@ export default function MechanicJobDetailScreen() {
       return;
     }
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
+      // Provider-only screen: the only place background location is requested.
+      const { permission, started } = await startJobLocationUpdates(booking.id);
+      if (permission === 'denied') {
         Alert.alert(
           'Location permission needed',
           'Allow location access to share your live position with the customer.',
@@ -163,14 +195,21 @@ export default function MechanicJobDetailScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
       send(current.coords);
-      watcher.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 45000,
-          distanceInterval: 100,
-        },
-        (position) => send(position.coords),
-      );
+      if (!started) {
+        // Background permission not granted: share while Weyro is open only.
+        watcher.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 45000,
+            distanceInterval: 100,
+          },
+          (position) => send(position.coords),
+        );
+        Alert.alert(
+          'Sharing only while Weyro is open',
+          'To keep sharing when you switch apps or lock your phone, set Weyro\'s location access to "Always" in Settings.',
+        );
+      }
       setSharing(true);
     } catch {
       Alert.alert('Could not start location', 'Location sharing is unavailable on this device.');
