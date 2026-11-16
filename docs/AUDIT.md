@@ -417,3 +417,88 @@ README as known limitations rather than silently claimed as done.
 | N10 phone auth claim | Fixed | OTP endpoints implemented and documented |
 | T1 towing end-to-end | Fixed | Distance tariff (provider overrides), equipment/capacity matching, feed filtering, live tracking |
 
+
+---
+
+## Fixed in this pass (production fix prompt, audit of commit `9d532d6`)
+
+> These IDs come from the later fix-prompt audit and are **not** the same as the
+> `C1…`/`I1…` findings above (which were an earlier audit). Each row names the commit
+> that fixed it. Commits: **P1** `8559643`, **P2** `d049a05`, **P3** `f9c497d`,
+> **P4** `441a5f5`.
+
+### Phase 1 — launch blockers (`8559643`)
+
+| ID | What changed |
+| --- | --- |
+| C1 | OTP SMS carries the code. Gateway is `sendOtp(phone, code)`; MSG91 OTP API with a DLT template (`MSG91_AUTH_KEY`, `MSG91_OTP_TEMPLATE_ID`, `MSG91_SENDER_ID`), Twilio with the code in the body. |
+| C2 | Provider feed shows `OPEN` + `QUOTES_RECEIVED` and hides requests the provider already quoted. |
+| C3 | Media is stored as keys, signed at read time (1 h TTL) by a global interceptor; migration converts existing URLs. |
+| C4 | No placeholder vehicles; `ServiceRequest.vehicleId` optional with make/model/year columns; plates normalized and unique per customer. |
+| H1 | Password registration needs a `register` OTP; unverified phones can't log in with a password; OTP login clears a claimant's password and sessions. |
+| H2 | OTP codes use `crypto.randomInt`. |
+| H3 | Shared libphonenumber `phoneSchema` (E.164, region IN); `npm run db:normalize-phones`. |
+
+### Phase 2 — money and abuse (`d049a05`)
+
+| ID | What changed |
+| --- | --- |
+| H4 | Media references must be finalized keys owned by the caller (`uploaded_objects`). |
+| H5 | OTP send limits (30 s, 5/day/phone, global hourly cap); SMS first, persist after; 503 on delivery failure. |
+| H6 | Concurrent accepts: conditional request claim + partial unique index (one active booking per request). |
+| H7 | `TRUST_PROXY` required in production; `docs/DEPLOYMENT.md`. |
+| M3 | Payment required before `COMPLETED` (`PAYMENT_REQUIRED_BEFORE`, audited admin override); refunds on cancel via `Refund` + `REFUND_PENDING`; `refund.processed`/`refund.failed` handled. |
+| M4 | `authorized` payments are captured server-side before settling. |
+| M5 | Webhook amount mismatch is recorded as rejected and answered 200; capture uses `settleBookingPayment()`. |
+| M6 | create-order saves the gateway order with a conditional update. |
+| M7 | Driver start code: atomic attempt counter, 6-digit codes. |
+
+### Phase 3 — reliability and correctness (`f9c497d`)
+
+| ID | What changed |
+| --- | --- |
+| M1 | Feed cursor is `(urgency rank, createdAt, id)` as base64 JSON, compared as a tuple. |
+| M2 | Booking / request / driver-booking status updates are compare-and-set; 409 on a lost race. |
+| M8 | Background location for active provider jobs (task manager, foreground service, iOS background mode). |
+| M9 | Railway region `asia-southeast1-eqsg3a`; Sentry (API + app) with PII scrubbing. |
+| M10 | Suspension revokes sessions immediately (Redis marker + refresh tokens; 60 s `isActive` fallback). |
+| M11 | Dependency hygiene; slim production image (built and booted). |
+
+### Phase 4 — cleanup (`441a5f5`)
+
+| ID | What changed |
+| --- | --- |
+| P4.1 | `RECORD_AUDIO` removed. |
+| P4.2 | `User.email` nullable; placeholder `<phone>@weyro.in` emails cleared. |
+| P4.3 | `reset-password` gives the same error whether or not the account exists. |
+| P4.4 | Offline queue moved from SecureStore to AsyncStorage (with one-time migration). |
+| P4.5 | 30 s `AbortController` timeout in `api-client.ts`; stale "Supabase" comment removed. |
+| P4.6 | Expo CNG: `ios/` deleted, `ios/` + `android/` ignored; team id and privacy manifest moved into `app.json`. |
+| P4.7 | `create-admin.ts` / `npm run db:create-admin`. |
+| P4.8 | Unused `getNearbyProviders*Query` functions deleted. |
+| P4.9 | `QuotationsService` split into `QuotationsService` + `BookingsService` (routes unchanged). |
+| P4.10 | `RequestWizard` and the customer home screen split into per-step / per-section components. |
+| P4.11 | Duplicate `return` in `sanitizeUser`; `prisma.config.ts`; dark splash colour. |
+
+### Beyond the list, and things to know
+
+- **`buildCursorWhere` fix (P3).** The shared pagination helper AND-ed `createdAt < c` with
+  `id < i`, silently skipping rows. It now uses the tuple comparison, which fixes
+  "my requests" and ~14 other lists. Not in the prompt; found while testing M1.
+- **Existing password users** registered before H1 have `phoneVerified=false`, so password
+  login is refused until they complete one OTP login (which clears their password).
+  Deliberately not backfilled — that would also bless any pre-taken-over account.
+- **H4 folder names.** Keys use the existing upload folders (`damage-requests`,
+  `spare-parts`, `avatars`, `vehicles`, `verification-documents`) rather than the short
+  names in the prompt's regex, so already-stored keys keep working.
+- **H6 migration** refuses to run, naming the requests, if duplicate active bookings already
+  exist; they may carry payments and need a human decision.
+- **Not verified against live services:** MSG91 (mocked HTTP only), Razorpay capture/refund
+  (mocked), Sentry delivery (capturing transport), and background location on a physical
+  device. The component splits have no visual snapshot; the JSX was copied verbatim and the
+  route table was diffed for the API split.
+- **Not done:** Sentry source-map upload (needs `SENTRY_AUTH_TOKEN` in EAS). `npm audit`
+  still reports 3 high findings (`prisma` → `deepmerge-ts`), fixable only by Prisma 7 — a
+  major upgrade outside this pass; Prisma is on the latest 6.x patch (6.19.3).
+- **Local setup change:** `apps/mobile/ios/` is no longer committed. Run
+  `npx expo prebuild` (or an EAS build) to generate it.
