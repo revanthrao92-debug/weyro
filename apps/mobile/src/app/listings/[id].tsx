@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSparePart, useUpdateSparePart, useDeleteSparePart, type SparePart } from '@/hooks/useParts';
-import type { UploadedImage } from '@/services/uploads';
+import { EXISTING_IMAGE_KEY, type UploadedImage } from '@/services/uploads';
 import { PhotoPicker } from '@/components/requests/PhotoPicker';
 import {
   Input,
@@ -76,7 +76,7 @@ function ListingForm({ part }: { part: SparePart }) {
   });
   const [submitting, setSubmitting] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>(
-    part.imageUrl ? [{ url: part.imageUrl, key: 'existing' }] : [],
+    part.imageUrl ? [{ url: part.imageUrl, key: EXISTING_IMAGE_KEY }] : [],
   );
   const [uploading, setUploading] = useState(false);
 
@@ -92,7 +92,8 @@ function ListingForm({ part }: { part: SparePart }) {
         price: form.price ? parseFloat(form.price) : undefined,
         stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity, 10) : undefined,
         description: form.description || undefined,
-        imageUrl: images[0]?.url || form.imageUrl || undefined,
+        // Only a newly uploaded photo is sent (as its key); unchanged = omitted.
+        imageUrl: images[0] && images[0].key !== EXISTING_IMAGE_KEY ? images[0].key : undefined,
         isActive: form.isActive,
       });
       Alert.alert('Saved', 'Listing updated');

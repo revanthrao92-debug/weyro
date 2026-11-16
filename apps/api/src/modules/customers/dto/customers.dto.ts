@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeRegistrationNumber } from '@weyro/validation';
 
 const currentYear = new Date().getFullYear();
 
@@ -6,7 +7,7 @@ export const updateCustomerProfileSchema = z
   .object({
     firstName: z.string().min(1).max(60).optional(),
     lastName: z.string().min(1).max(60).optional(),
-    avatarUrl: z.string().url().max(500).nullable().optional(),
+    avatarUrl: z.string().min(1).max(1000).nullable().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -52,7 +53,7 @@ export const createVehicleSchema = z
     make: z.string().min(1).max(60),
     model: z.string().min(1).max(60),
     year: z.number().int().min(1900).max(currentYear + 1),
-    registrationNumber: z.string().min(4).max(20),
+    registrationNumber: z.string().min(4).max(20).transform(normalizeRegistrationNumber),
     vinNumber: z.string().min(5).max(40).optional(),
     fuelType: z
       .enum(['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'])

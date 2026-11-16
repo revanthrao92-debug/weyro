@@ -129,6 +129,11 @@ export function getNearbyProvidersHaversineQuery(
 }
 
 export interface ProviderFeedQueryParams {
+  /**
+   * The calling provider. Requests this provider has already quoted are
+   * excluded so the feed only shows work they can still act on.
+   */
+  providerId?: string;
   providerLat?: number;
   providerLng?: number;
   radiusKm?: number;
@@ -152,6 +157,7 @@ export interface ProviderFeedQueryParams {
  */
 export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sql {
   const {
+    providerId,
     providerLat,
     providerLng,
     radiusKm = 25,
@@ -235,10 +241,18 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
           : Prisma.sql`0.0::float`
       } AS "distanceKm"
     FROM service_requests sr
-    WHERE sr.status = 'OPEN'
+    WHERE sr.status IN ('OPEN', 'QUOTES_RECEIVED')
       AND sr."isBroadcast" = true
       AND sr."deletedAt" IS NULL
       AND sr."expiresAt" > NOW()
+      ${
+        providerId
+          ? Prisma.sql`AND NOT EXISTS (
+              SELECT 1 FROM quotations q
+              WHERE q."requestId" = sr.id AND q."providerId" = ${providerId}
+            )`
+          : Prisma.empty
+      }
       ${categorySql}
       ${towingSql}
       ${weightSql}

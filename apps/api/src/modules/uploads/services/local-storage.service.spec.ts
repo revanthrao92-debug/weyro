@@ -43,7 +43,9 @@ describe('LocalStorageService', () => {
     });
 
     expect(finalized.key).toBe(presigned.key);
-    expect(finalized.fileUrl).toContain('/api/v1/uploads/local-file?key=');
+    // C3: finalize hands back the key to store; the URL is only a short-lived preview.
+    expect(finalized).not.toHaveProperty('fileUrl');
+    expect(finalized.previewUrl).toContain('/api/v1/uploads/local-file?key=');
 
     const stored = await service.readLocalFile(presigned.key);
     expect(stored.contentType).toBe('image/png');

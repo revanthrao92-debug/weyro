@@ -1,3 +1,4 @@
+import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   BadRequestException,
   ForbiddenException,
@@ -355,7 +356,11 @@ export class ProvidersService {
                 title: booking.quotation.request.title,
                 category: booking.quotation.request.category,
                 address: booking.quotation.request.address,
-                vehicle: booking.quotation.request.vehicle,
+                // C4: saved vehicle or the request's free-form make/model/year.
+                vehicle: (() => {
+                  const v = resolveRequestVehicle(booking.quotation.request);
+                  return v ? { make: v.make, model: v.model, year: v.year } : null;
+                })(),
               }
             : null,
           totalCost: Number(booking.quotation?.totalCost ?? 0),

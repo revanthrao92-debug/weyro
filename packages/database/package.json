@@ -22,14 +22,16 @@
     "build": "prisma generate && tsc",
     "typecheck": "tsc --noEmit",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed:driver": "ts-node prisma/seed-driver-go.ts"
+    "db:seed:driver": "ts-node prisma/seed-driver-go.ts",
+    "db:normalize-phones": "ts-node prisma/normalize-phones.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "bcrypt": "^6.0.0"
+    "bcrypt": "^6.0.0",
+    "libphonenumber-js": "^1.13.16"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

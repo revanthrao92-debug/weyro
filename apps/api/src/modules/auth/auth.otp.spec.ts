@@ -1,3 +1,4 @@
+import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { env } from '../../config/env.config';
@@ -48,7 +49,9 @@ describe('AuthService – OTP security hardening', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         deleteMany: jest.fn(),
       },
-      $transaction: jest.fn((cb) => cb(mockPrisma)),
+      $transaction: jest.fn((arg) =>
+        Array.isArray(arg) ? Promise.all(arg) : arg(mockPrisma),
+      ),
     };
 
     mockJwt = {
@@ -304,17 +307,39 @@ describe('AuthService – OTP security hardening', () => {
       }
     });
 
-    it('giveaway text sent to the gateway is code-free', async () => {
+    it('the gateway receives the exact code that is hashed and stored', async () => {
       const sendSpy = jest.spyOn(
-        (service as unknown as { smsGateway: { send: unknown } }).smsGateway,
-        'send',
+        (service as unknown as { smsGateway: { sendOtp: unknown } }).smsGateway,
+        'sendOtp',
       );
-      await service.sendOtp({ phone: '+919000000005', purpose: 'login' } as never);
+      const phone = '+919000000005';
+      await service.sendOtp({ phone, purpose: 'login' } as never);
 
-      const [to, text] = sendSpy.mock.calls[0];
-      expect(to).toBe('+919000000005');
-      expect(String(text)).not.toMatch(/^[0-9]{6}$/);
-      expect(String(text)).not.toMatch(/[0-9]{6}/);
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      const [to, code] = sendSpy.mock.calls[0] as [string, string];
+      expect(to).toBe(phone);
+      // 6 digits, and it is the very code whose HMAC was persisted.
+      expect(code).toMatch(/^[0-9]{6}$/);
+      const stored = (mockPrisma.oTP.upsert as jest.Mock).mock.calls[0][0].create.code;
+      expect(stored).toBe(validHash(phone, code));
+    });
+
+    it('H2 – codes come from a CSPRNG (never Math.random) and stay in 100000–999999', async () => {
+      const randomSpy = jest.spyOn(Math, 'random');
+      const sendSpy = jest.spyOn(
+        (service as unknown as { smsGateway: { sendOtp: unknown } }).smsGateway,
+        'sendOtp',
+      );
+      for (let i = 0; i < 25; i++) {
+        mockPrisma.oTP.findUnique.mockResolvedValue(null);
+        await service.sendOtp({ phone: `+9190000001${String(i).padStart(2, '0')}`, purpose: 'login' } as never);
+      }
+      expect(randomSpy).not.toHaveBeenCalled();
+      for (const [, code] of sendSpy.mock.calls as [string, string][]) {
+        expect(Number(code)).toBeGreaterThanOrEqual(100000);
+        expect(Number(code)).toBeLessThanOrEqual(999999);
+      }
+      randomSpy.mockRestore();
     });
   });
 
@@ -337,6 +362,199 @@ describe('AuthService – OTP security hardening', () => {
       expect(
         stored === validHash('+919000000008', '123457'),
       ).toBe(false);
+    });
+  });
+
+  describe('H1 – account pre-takeover via unverified phone', () => {
+    const phone = '+919876543210';
+
+    const attackerRow = {
+      id: 'attacker-claimed',
+      email: 'attacker@example.com',
+      phone,
+      passwordHash: '$2b$12$attackerhash',
+      role: 'CUSTOMER',
+      isActive: true,
+      deletedAt: null,
+      phoneVerified: false,
+      customerProfile: { id: 'cp1' },
+      providerProfile: null,
+    };
+
+    it("victim's OTP login clears the attacker's password and revokes their refresh tokens", async () => {
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'login',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(attackerRow);
+
+      const result = await service.verifyOtp({ phone, code: '123456', purpose: 'login' } as never);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: attackerRow.id },
+        data: { phoneVerified: true, passwordHash: '' },
+      });
+      // Revocation happens before the victim's new token pair is minted.
+      const revoke = (mockPrisma.refreshToken.updateMany as jest.Mock).mock.calls[0][0];
+      expect(revoke.where).toEqual({ userId: attackerRow.id, revokedAt: null });
+      expect(revoke.data.revokedAt).toBeInstanceOf(Date);
+      expect(
+        (mockPrisma.refreshToken.updateMany as jest.Mock).mock.invocationCallOrder[0],
+      ).toBeLessThan((mockPrisma.refreshToken.create as jest.Mock).mock.invocationCallOrder[0]);
+      expect(result.accessToken).toBeDefined();
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('does not touch the password or sessions of an already verified user', async () => {
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'login',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({ ...attackerRow, phoneVerified: true });
+
+      await service.verifyOtp({ phone, code: '123456', purpose: 'login' } as never);
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('password login is rejected for a user whose phone is not verified', async () => {
+      const passwordHash = await bcrypt.hash('Passw0rd!', 4);
+      mockPrisma.user.findFirst = jest
+        .fn()
+        .mockResolvedValue({ ...attackerRow, passwordHash });
+
+      await expect(
+        service.login({ emailOrPhone: phone, password: 'Passw0rd!' } as never),
+      ).rejects.toThrow('Invalid email/phone or password');
+      expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
+    });
+
+    it('password login works once the phone is verified', async () => {
+      const passwordHash = await bcrypt.hash('Passw0rd!', 4);
+      mockPrisma.user.findFirst = jest
+        .fn()
+        .mockResolvedValue({ ...attackerRow, passwordHash, phoneVerified: true });
+
+      const result = await service.login({
+        emailOrPhone: phone,
+        password: 'Passw0rd!',
+      } as never);
+      expect(result.accessToken).toBeDefined();
+    });
+
+    it('register without a valid OTP never creates a user', async () => {
+      mockPrisma.user.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.oTP.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.register({
+          email: 'a@example.com',
+          phone,
+          otpCode: '123456',
+          password: 'Passw0rd!',
+          role: 'CUSTOMER',
+        } as never),
+      ).rejects.toThrow(/Verify your phone number/);
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('register with a wrong OTP is rejected and the account is not created', async () => {
+      mockPrisma.user.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'register',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+
+      await expect(
+        service.register({
+          email: 'a@example.com',
+          phone,
+          otpCode: '000000',
+          password: 'Passw0rd!',
+          role: 'CUSTOMER',
+        } as never),
+      ).rejects.toThrow('Invalid OTP code');
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("register is refused when the OTP was issued for a different purpose (e.g. login)", async () => {
+      mockPrisma.user.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'login',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+
+      await expect(
+        service.register({
+          email: 'a@example.com',
+          phone,
+          otpCode: '123456',
+          password: 'Passw0rd!',
+          role: 'CUSTOMER',
+        } as never),
+      ).rejects.toThrow(/Verify your phone number/);
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('register with the correct OTP creates a phone-verified user', async () => {
+      mockPrisma.user.findFirst = jest.fn().mockResolvedValue(null);
+      mockPrisma.oTP.findUnique.mockResolvedValue({
+        phone,
+        code: validHash(phone, '123456'),
+        purpose: 'register',
+        attempts: 0,
+        maxAttempts: 5,
+        expiresAt: new Date(Date.now() + 60_000),
+        verifiedAt: null,
+      });
+      mockPrisma.user.create.mockResolvedValue({
+        id: 'new-user',
+        email: 'a@example.com',
+        phone,
+        role: 'CUSTOMER',
+        phoneVerified: true,
+        customerProfile: { id: 'cp-new' },
+        providerProfile: null,
+      });
+
+      await service.register({
+        email: 'a@example.com',
+        phone,
+        otpCode: '123456',
+        password: 'Passw0rd!',
+        role: 'CUSTOMER',
+      } as never);
+
+      expect(mockPrisma.user.create.mock.calls[0][0].data).toMatchObject({
+        phone,
+        phoneVerified: true,
+      });
+      // The OTP is single-use: it is claimed as verified.
+      expect(mockPrisma.oTP.updateMany).toHaveBeenCalledWith({
+        where: { phone, verifiedAt: null },
+        data: { verifiedAt: expect.any(Date) },
+      });
     });
   });
 });

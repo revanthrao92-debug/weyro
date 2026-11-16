@@ -309,6 +309,8 @@ export function useAuth() {
 interface RegisterData {
   email: string;
   phone: string;
+  /** 6-digit code from POST /auth/send-otp (purpose: register). */
+  otpCode: string;
   password: string;
   role: UserRole;
   firstName: string;

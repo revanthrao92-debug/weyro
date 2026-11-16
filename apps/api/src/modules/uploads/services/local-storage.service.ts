@@ -79,8 +79,8 @@ export class LocalStorageService implements StorageService {
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
 
-  private fileUrl(key: string): string {
-    return `${this.apiBase()}/api/v1/uploads/local-file?key=${encodeURIComponent(key)}&token=${encodeURIComponent(this.sign(key))}`;
+  private fileUrl(key: string, ttlSeconds?: number): string {
+    return `${this.apiBase()}/api/v1/uploads/local-file?key=${encodeURIComponent(key)}&token=${encodeURIComponent(this.sign(key, ttlSeconds))}`;
   }
 
   async getPresignedUploadUrl(
@@ -112,7 +112,7 @@ export class LocalStorageService implements StorageService {
     params: PresignedDownloadUrlParams,
   ): Promise<PresignedDownloadUrlResult> {
     return {
-      downloadUrl: this.fileUrl(params.key),
+      downloadUrl: this.fileUrl(params.key, params.expiresInSeconds),
       key: params.key,
       expiresInSeconds: params.expiresInSeconds ?? 300,
     };
@@ -170,6 +170,6 @@ export class LocalStorageService implements StorageService {
     await fs.writeFile(target, cleaned);
 
     this.logger.log(`Sanitized local image metadata for key: ${params.key}`);
-    return { fileUrl: this.fileUrl(params.key), key: params.key };
+    return { key: params.key, previewUrl: this.fileUrl(params.key) };
   }
 }

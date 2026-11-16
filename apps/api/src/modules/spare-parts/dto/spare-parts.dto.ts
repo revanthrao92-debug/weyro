@@ -9,7 +9,7 @@ export const createSparePartSchema = z
     condition: z.enum(['OEM', 'AFTERMARKET', 'USED']).default('AFTERMARKET'),
     price: z.number().positive(),
     stockQuantity: z.number().int().min(0).default(1),
-    imageUrl: z.string().url().optional(),
+    imageUrl: z.string().min(1).max(1000).optional(),
     kind: z.enum(['PART', 'PACKAGE']).default('PART'),
     description: z.string().max(500).optional(),
     estimatedMinutes: z.number().int().min(15).max(480).optional(),

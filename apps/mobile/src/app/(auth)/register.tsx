@@ -10,6 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/api-client';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Input, Chip, BackButton, Button } from '@/components/ui';
@@ -56,6 +57,7 @@ export default function RegisterScreen() {
   const [form, setForm] = useState<{
     email: string;
     phone: string;
+    otpCode: string;
     password: string;
     role: RoleOption;
     firstName: string;
@@ -70,6 +72,7 @@ export default function RegisterScreen() {
   }>({
     email: '',
     phone: '',
+    otpCode: '',
     password: '',
     role: roleFromParams(roleKey, apiRole),
     firstName: '',
@@ -87,6 +90,8 @@ export default function RegisterScreen() {
   });
   const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -139,10 +144,35 @@ export default function RegisterScreen() {
     }
   }
 
+  /** H1: the phone must be verified with an SMS code before an account is created. */
+  async function handleSendOtp() {
+    if (!form.phone.trim()) {
+      Alert.alert('Error', 'Enter your phone number first');
+      return;
+    }
+    setSendingOtp(true);
+    try {
+      await apiClient('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone: form.phone.trim(), purpose: 'register' }),
+      });
+      setOtpSent(true);
+      Alert.alert('Code sent', 'We sent a 6-digit verification code to your phone.');
+    } catch (error: any) {
+      Alert.alert('Could not send code', error.message || 'Please try again');
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
   async function handleRegister() {
-    const { email, phone, password, role, firstName, lastName, businessName } = form;
+    const { email, phone, otpCode, password, role, firstName, lastName, businessName } = form;
     if (!email || !phone || !password || !firstName || !lastName) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    if (!/^\d{6}$/.test(otpCode)) {
+      Alert.alert('Verify your phone', 'Tap "Send code" and enter the 6-digit code we text you.');
       return;
     }
     if (
@@ -191,6 +221,7 @@ export default function RegisterScreen() {
       await register({
         email,
         phone,
+        otpCode,
         password,
         role,
         firstName,
@@ -251,10 +282,32 @@ export default function RegisterScreen() {
             label="Phone"
             placeholder="+91 98765 43210"
             value={form.phone}
-            onChangeText={(t) => setForm({ ...form, phone: t })}
+            onChangeText={(t) => {
+              // A new number invalidates any code sent to the previous one.
+              setOtpSent(false);
+              setForm({ ...form, phone: t, otpCode: '' });
+            }}
             keyboardType="phone-pad"
             autoCompleteType="tel"
           />
+          <Button
+            title={sendingOtp ? 'Sending…' : otpSent ? 'Resend code' : 'Send code'}
+            variant="secondary"
+            onPress={() => void handleSendOtp()}
+            loading={sendingOtp}
+            disabled={sendingOtp || !form.phone.trim()}
+          />
+          {otpSent && (
+            <Input
+              label="Verification code"
+              placeholder="6-digit code"
+              value={form.otpCode}
+              onChangeText={(t) => setForm({ ...form, otpCode: t.replace(/\D/g, '').slice(0, 6) })}
+              keyboardType="number-pad"
+              autoCompleteType="sms-otp"
+              maxLength={6}
+            />
+          )}
           <Input
             label="Password"
             placeholder="••••••••"

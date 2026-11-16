@@ -14,6 +14,7 @@ export class RegisterDto implements RegisterInput {
   static readonly schema = RegisterSchema;
   email!: string;
   phone!: string;
+  otpCode!: string;
   password!: string;
   role!: 'CUSTOMER' | 'PROVIDER' | 'BOTH';
   firstName!: string;

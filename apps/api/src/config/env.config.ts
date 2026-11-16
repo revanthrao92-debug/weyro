@@ -40,7 +40,6 @@ export const envSchema = z.object({
   STORAGE_SECRET_KEY: z.string().optional(),
   STORAGE_PUBLIC_URL: z.string().optional(),
   // Private buckets serve uploads through short-lived presigned GETs.
-  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(604800),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
@@ -55,8 +54,11 @@ export const envSchema = z.object({
   OTP_DEBUG_ECHO: z.enum(['true', 'false']).default('false'),
   // SMS delivery driver for OTP: console (dev), msg91, twilio
   SMS_PROVIDER: z.enum(['console', 'msg91', 'twilio']).default('console'),
-  SMS_MSG91_AUTH_KEY: z.string().optional(),
-  SMS_MSG91_SENDER_ID: z.string().optional(),
+  // MSG91 OTP API with a DLT-registered template (C1). The OTP code is passed
+  // to the template as its variable.
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  MSG91_SENDER_ID: z.string().optional(),
   SMS_TWILIO_ACCOUNT_SID: z.string().optional(),
   SMS_TWILIO_AUTH_TOKEN: z.string().optional(),
   SMS_TWILIO_FROM: z.string().optional(),
@@ -180,6 +182,22 @@ export const envSchema = z.object({
       path: ['SMS_PROVIDER'],
       message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
     });
+  }
+
+  if (value.SMS_PROVIDER === 'msg91') {
+    for (const key of [
+      'MSG91_AUTH_KEY',
+      'MSG91_OTP_TEMPLATE_ID',
+      'MSG91_SENDER_ID',
+    ] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required in production when SMS_PROVIDER=msg91`,
+        });
+      }
+    }
   }
 
   // H1: the webhook signing secret must be independent of the API key secret

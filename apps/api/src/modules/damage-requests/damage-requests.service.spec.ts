@@ -14,6 +14,7 @@ describe('DamageRequestsService', () => {
       },
       vehicle: {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
+        create: jest.fn(),
       },
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -30,7 +31,7 @@ describe('DamageRequestsService', () => {
       const mockCreated = {
         id: 'req-1',
         title: 'Bumper repair',
-        media: [{ url: 'https://img.com/1.jpg' }],
+        media: [{ url: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg' }],
         vehicle: { id: 'veh-1' },
       };
 
@@ -43,7 +44,7 @@ describe('DamageRequestsService', () => {
         address: 'MG Road, Bengaluru, Karnataka',
         latitude: 12.9716,
         longitude: 77.5946,
-        damagePhotos: ['https://img.com/1.jpg'],
+        damagePhotos: ['damage-requests/cust-1/1700000000000_ab12cd34.jpg'],
       } as any);
 
       expect(mockPrisma.serviceRequest.create).toHaveBeenCalledWith(
@@ -51,13 +52,93 @@ describe('DamageRequestsService', () => {
           data: expect.objectContaining({
             customerId: 'cust-1',
             media: {
-              create: [{ url: 'https://img.com/1.jpg', fileType: 'image/jpeg' }],
+              create: [{ url: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg', fileType: 'image/jpeg' }],
             },
           }),
         }),
       );
 
-      expect(result.damagePhotos).toEqual(['https://img.com/1.jpg']);
+      expect(result.damagePhotos).toEqual(['damage-requests/cust-1/1700000000000_ab12cd34.jpg']);
+    });
+
+    it('C3: stores the key even when a legacy client sends the signed URL', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({ id: 'req-1', media: [], vehicle: { id: 'veh-1' } });
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        title: 'Bumper repair',
+        description: 'Cracked bumper description',
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        damagePhotos: ['https://b.s3.ap-south-1.amazonaws.com/damage-requests/cust-1/1700000000000_ab12cd34.jpg?X-Amz-Expires=604800&X-Amz-Signature=abc'],
+      } as any);
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.media.create[0].url).toBe('damage-requests/cust-1/1700000000000_ab12cd34.jpg');
+    });
+
+    it('C3: rejects media that is neither an uploaded key nor a URL to our storage', async () => {
+      await expect(
+        service.create('cust-1', {
+          vehicleId: 'veh-1',
+          title: 'x',
+          description: 'long enough description',
+          address: 'MG Road, Bengaluru',
+          latitude: 12.9,
+          longitude: 77.5,
+          damagePhotos: ['https://evil.example.com/a.jpg'],
+        } as any),
+      ).rejects.toThrow(/uploaded file key/);
+      expect(mockPrisma.serviceRequest.create).not.toHaveBeenCalled();
+    });
+
+    it('C4: without a saved vehicle it creates NO placeholder vehicle and keeps the typed details', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({
+        id: 'req-2',
+        media: [],
+        vehicle: null,
+        vehicleMake: 'Maruti',
+        vehicleModel: 'Swift',
+        vehicleYear: 2021,
+      });
+
+      const result: any = await service.create('cust-1', {
+        vehicleMake: ' Maruti ',
+        vehicleModel: 'Swift',
+        vehicleYear: 2021,
+        title: 'Bumper repair',
+        description: 'Cracked bumper description',
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+      } as any);
+
+      expect(mockPrisma.vehicle.create).not.toHaveBeenCalled();
+      expect(mockPrisma.vehicle.findFirst).not.toHaveBeenCalled();
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.vehicleId).toBeUndefined();
+      expect(data).toMatchObject({ vehicleMake: 'Maruti', vehicleModel: 'Swift', vehicleYear: 2021 });
+      // Serializer exposes make/model from the request's own columns.
+      expect(result.vehicle).toMatchObject({ make: 'Maruti', model: 'Swift', year: 2021 });
+    });
+
+    it('C4: with a saved vehicle the free-form columns stay empty', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({ id: 'req-3', media: [], vehicle: { id: 'veh-1', make: 'Honda', model: 'City', year: 2019 } });
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        vehicleMake: 'Ignored',
+        title: 'Bumper repair',
+        description: 'Cracked bumper description',
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+      } as any);
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.vehicleId).toBe('veh-1');
+      expect(data.vehicleMake).toBeUndefined();
     });
 
     it('tags roadside requests with the flat-rate estimate for their kind', async () => {
@@ -356,18 +437,14 @@ describe('DamageRequestsService authorization regressions', () => {
     providerProfileId: 'prov-1',
   };
 
-  it('scopes feed quotations to the calling provider', async () => {
+  it('C2: feed shows OPEN and QUOTES_RECEIVED requests the provider has not quoted yet', async () => {
     mockPrisma.serviceRequest.findMany.mockResolvedValue([]);
 
     await service.getBroadcastFeed({ providerId: 'prov-1' });
 
-    expect(mockPrisma.serviceRequest.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        include: expect.objectContaining({
-          quotations: { where: { providerId: 'prov-1' } },
-        }),
-      }),
-    );
+    const where = mockPrisma.serviceRequest.findMany.mock.calls[0][0].where;
+    expect(where.status).toEqual({ in: ['OPEN', 'QUOTES_RECEIVED'] });
+    expect(where.quotations).toEqual({ none: { providerId: 'prov-1' } });
   });
 
   it('hides competitors quotations from a provider request detail', async () => {

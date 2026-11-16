@@ -8,6 +8,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { PhotoPicker } from '@/components/requests/PhotoPicker';
+import { EXISTING_IMAGE_KEY, type UploadedImage } from '@/services/uploads';
 import { useCustomerProfile, useUpdateCustomerProfile } from '@/hooks/useProfile';
 import {
   Input,
@@ -27,7 +29,10 @@ export default function CustomerProfileScreen() {
   const updateProfile = useUpdateCustomerProfile();
   const [firstName, setFirstName] = useState(profile?.firstName ?? '');
   const [lastName, setLastName] = useState(profile?.lastName ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl ?? '');
+  const [avatar, setAvatar] = useState<UploadedImage[]>(
+    profile?.avatarUrl ? [{ url: profile.avatarUrl, key: EXISTING_IMAGE_KEY }] : [],
+  );
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // State above is initialized on first render, while `profile` is still
@@ -39,16 +44,25 @@ export default function CustomerProfileScreen() {
     seeded.current = true;
     setFirstName(profile.firstName ?? '');
     setLastName(profile.lastName ?? '');
-    setAvatarUrl(profile.avatarUrl ?? '');
+    setAvatar(profile.avatarUrl ? [{ url: profile.avatarUrl, key: EXISTING_IMAGE_KEY }] : []);
   }, [profile]);
 
   const handleSave = async () => {
+    if (uploadingAvatar) return;
     setSaving(true);
     try {
+      // C3: send the uploaded file's key (never a URL). Unchanged → omit; removed → null.
+      const picked = avatar[0];
+      const avatarUrl =
+        picked && picked.key !== EXISTING_IMAGE_KEY
+          ? picked.key
+          : !picked && profile?.avatarUrl
+            ? null
+            : undefined;
       await updateProfile.mutateAsync({
         firstName: firstName || undefined,
         lastName: lastName || undefined,
-        avatarUrl: avatarUrl || null,
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
       });
       Alert.alert('Success', 'Profile updated');
     } catch (e: any) {
@@ -96,13 +110,16 @@ export default function CustomerProfileScreen() {
           <Card style={styles.avatarCard}>
             <View style={styles.avatarRow}>
               <Avatar name={`${firstName} ${lastName}`} size={80} />
-              <Input
-                label="Avatar URL"
-                placeholder="Avatar URL"
-                value={avatarUrl}
-                onChangeText={setAvatarUrl}
-                style={styles.avatarInput}
-              />
+              <View style={styles.avatarInput}>
+                <PhotoPicker
+                  images={avatar}
+                  onChange={setAvatar}
+                  max={1}
+                  folder="avatars"
+                  onUploadingChange={setUploadingAvatar}
+                  helper="Add a profile photo"
+                />
+              </View>
             </View>
           </Card>
 

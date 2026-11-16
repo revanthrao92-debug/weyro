@@ -8,8 +8,12 @@ import {
 export type ServiceRequest = {
   id: string;
   customerId: string;
-  vehicleId: string;
+  /** Null when the request used free-form vehicle details instead of a saved vehicle. */
+  vehicleId?: string | null;
   vehicle?: any;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleYear?: number | null;
   category: string;
   title: string;
   description: string;

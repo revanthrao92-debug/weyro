@@ -23,6 +23,7 @@ import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
 import { settleSparePartOrderPayment } from '../payments/settle-payment';
+import { requireMediaKey } from '../../common/media/media-key';
 import {
   notifyOrderCancelled,
   notifyOrderPlaced,
@@ -226,7 +227,7 @@ export class SparePartsService {
         condition: dto.condition as any,
         price: dto.price,
         stockQuantity: dto.kind === 'PACKAGE' ? 1 : dto.stockQuantity,
-        imageUrl: dto.imageUrl,
+        imageUrl: dto.imageUrl ? requireMediaKey(dto.imageUrl) : undefined,
         kind: dto.kind ?? 'PART',
         description: dto.description,
         estimatedMinutes: dto.estimatedMinutes,
@@ -307,6 +308,7 @@ export class SparePartsService {
       where: { id },
       data: {
         ...dto,
+        imageUrl: dto.imageUrl ? requireMediaKey(dto.imageUrl) : dto.imageUrl,
         condition: dto.condition as any,
         stockQuantity:
           kind === 'PACKAGE'

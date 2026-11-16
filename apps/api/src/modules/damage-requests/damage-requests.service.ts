@@ -13,6 +13,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { getProviderFeedQuery } from '@weyro/database';
+import { requireMediaKey } from '../../common/media/media-key';
+import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   buildCursorWhere,
   decodeCursor,
@@ -32,6 +34,7 @@ export class DamageRequestsService {
       : req.damagePhotos || [];
     return {
       ...req,
+      ...('vehicle' in req ? { vehicle: resolveRequestVehicle(req) } : {}),
       damagePhotos,
       quotationsCount: Array.isArray(req.quotations) ? req.quotations.length : 0,
     };
@@ -49,29 +52,15 @@ export class DamageRequestsService {
       }
       vehicleId = owned.id;
     }
-    if (!vehicleId) {
-      const make = (dto as any).vehicleMake || 'Universal';
-      const model = (dto as any).vehicleModel || 'Standard';
-      const year = (dto as any).vehicleYear || new Date().getFullYear();
-
-      let vehicle = await this.prisma.vehicle.findFirst({
-        where: { customerId, make, model },
-      });
-
-      if (!vehicle) {
-        vehicle = await this.prisma.vehicle.create({
-          data: {
-            customerId,
-            make,
-            model,
-            year,
-            registrationNumber: `IND-${Math.floor(1000 + Math.random() * 9000)}`,
-            fuelType: 'PETROL',
-          },
-        });
-      }
-      vehicleId = vehicle.id;
-    }
+    // C4: no placeholder vehicles. Without a saved vehicle, the request keeps
+    // the free-form make/model/year the customer typed.
+    const freeForm = vehicleId
+      ? {}
+      : {
+          vehicleMake: dto.vehicleMake?.trim() || undefined,
+          vehicleModel: dto.vehicleModel?.trim() || undefined,
+          vehicleYear: dto.vehicleYear || undefined,
+        };
 
     const rawCategory = (dto.category as any) || 'REPAIR';
     const category =
@@ -112,6 +101,7 @@ export class DamageRequestsService {
       data: {
         customerId,
         vehicleId,
+        ...freeForm,
         category,
         title: dto.title,
         description: dto.description,
@@ -136,8 +126,9 @@ export class DamageRequestsService {
         media:
           (dto.mediaUrls?.length || dto.damagePhotos?.length)
             ? {
-                create: (dto.mediaUrls?.length ? dto.mediaUrls : dto.damagePhotos!).map((url) => ({
-                  url,
+                // C3: persist object keys only; URLs are signed when read.
+                create: (dto.mediaUrls?.length ? dto.mediaUrls : dto.damagePhotos!).map((value) => ({
+                  url: requireMediaKey(value),
                   fileType: 'image/jpeg',
                 })),
               }
@@ -320,6 +311,7 @@ export class DamageRequestsService {
       }
 
       const query = getProviderFeedQuery({
+        providerId: params.providerId,
         providerLat,
         providerLng,
         radiusKm: params.radiusKm || 25,
@@ -356,10 +348,15 @@ export class DamageRequestsService {
 
     const where: any = {
       ...buildCursorWhere(cursorTuple),
-      status: 'OPEN',
+      // C2: a request stays visible to other providers after the first quote.
+      status: { in: ['OPEN', 'QUOTES_RECEIVED'] },
       isBroadcast: true,
       expiresAt: { gt: new Date() },
     };
+    // Hide requests this provider has already quoted.
+    if (params.providerId) {
+      where.quotations = { none: { providerId: params.providerId } };
+    }
     if (categories) {
       where.category = { in: categories };
     }
@@ -403,9 +400,6 @@ export class DamageRequestsService {
             avatarUrl: true,
           },
         },
-        quotations: params.providerId
-          ? { where: { providerId: params.providerId } }
-          : false,
       },
       orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       take: boundedLimit,
@@ -553,14 +547,16 @@ export class DamageRequestsService {
       lastName: found.customer.lastName,
       avatarUrl: found.customer.avatarUrl,
     };
-    const sanitizedVehicle = found.vehicle
+    // C4: saved vehicle or the request's own free-form make/model/year.
+    const resolvedVehicle = resolveRequestVehicle(found);
+    const sanitizedVehicle = resolvedVehicle
       ? {
-          make: found.vehicle.make,
-          model: found.vehicle.model,
-          year: found.vehicle.year,
-          fuelType: found.vehicle.fuelType,
-          transmission: found.vehicle.transmission,
-          color: found.vehicle.color,
+          make: resolvedVehicle.make,
+          model: resolvedVehicle.model,
+          year: resolvedVehicle.year,
+          fuelType: resolvedVehicle.fuelType,
+          transmission: resolvedVehicle.transmission,
+          color: resolvedVehicle.color,
         }
       : null;
 
@@ -595,7 +591,7 @@ export class DamageRequestsService {
       };
     }
 
-    return { ...found, quotations };
+    return { ...found, vehicle: resolvedVehicle, quotations };
   }
 
   private maskDetailAddress(fullAddress: string): string {

@@ -23,9 +23,10 @@
     "build:packages": "npm run build -w @weyro/api-contracts && npm run build -w @weyro/validation && npm run build -w @weyro/database",
     "build:api": "npm run build -w @weyro/api",
     "build": "npm run build:packages && npm run build:api",
+    "lint": "npm run lint -w @weyro/api && npm run lint -w @weyro/mobile",
     "lint:api": "npm run lint -w @weyro/api",
     "test": "npm run test -w @weyro/api",
-    "typecheck": "echo \"Root workspace: no source files (checked via apps/* and packages/)\"",
+    "typecheck": "npm run typecheck:all",
     "typecheck:all": "npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api",
     "db:migrate:deploy": "npm run db:migrate:deploy -w @weyro/database"
   },

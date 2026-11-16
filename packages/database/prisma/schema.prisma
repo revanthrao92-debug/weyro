@@ -230,7 +230,8 @@ model Vehicle {
   make               String
   model              String
   year               Int
-  registrationNumber String           @unique
+  // Normalized (uppercase, no spaces) and unique per customer, not globally.
+  registrationNumber String
   vinNumber          String?
   fuelType           FuelType         @default(PETROL)
   color              String?
@@ -241,6 +242,7 @@ model Vehicle {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
+  @@unique([customerId, registrationNumber])
   @@index([customerId])
   @@map("vehicles")
 }
@@ -377,8 +379,12 @@ model ServiceRequest {
   id                  String                                 @id @default(uuid())
   customerId          String
   customer            CustomerProfile                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  vehicleId           String
-  vehicle             Vehicle                                @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  // Optional: a request may use a saved vehicle OR carry free-form details.
+  vehicleId           String?
+  vehicle             Vehicle?                               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  vehicleMake         String?
+  vehicleModel        String?
+  vehicleYear         Int?
   category            ServiceCategory
   title               String
   description         String

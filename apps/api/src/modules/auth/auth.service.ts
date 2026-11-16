@@ -14,6 +14,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+import { normalizePhone } from '@weyro/validation';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { buildSmsGateway, SmsGateway } from './sms.gateway';
@@ -65,8 +66,51 @@ export class AuthService {
     return crypto.timingSafeEqual(a, b);
   }
 
+  /**
+   * H1: consume a `register`-purpose OTP for password sign-up. Same guarantees
+   * as verifyOtp: atomic attempt ceiling, constant-time hash compare, and the
+   * code can be used exactly once.
+   */
+  private async consumeRegisterOtp(phone: string, code: string): Promise<void> {
+    await this.assertPhoneVerifyAllowance(phone);
+
+    const otp = await this.prisma.oTP.findUnique({ where: { phone } });
+    if (
+      !otp ||
+      otp.verifiedAt ||
+      otp.purpose !== 'register' ||
+      otp.expiresAt < new Date()
+    ) {
+      throw new BadRequestException(
+        'Verify your phone number with a valid OTP before registering',
+      );
+    }
+
+    const gate = await this.prisma.oTP.updateMany({
+      where: { phone, verifiedAt: null, attempts: { lt: otp.maxAttempts } },
+      data: { attempts: { increment: 1 } },
+    });
+    if (gate.count === 0) {
+      await this.prisma.oTP.deleteMany({ where: { phone, verifiedAt: null } });
+      throw new BadRequestException('Maximum OTP verification attempts exceeded');
+    }
+
+    if (!this.otpMatches(phone, code, otp.code)) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    const claimed = await this.prisma.oTP.updateMany({
+      where: { phone, verifiedAt: null },
+      data: { verifiedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      throw new BadRequestException('OTP has already been used');
+    }
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
+    // dto.phone is already E.164 (shared phoneSchema).
     const phone = dto.phone.trim();
 
     if (
@@ -93,6 +137,11 @@ export class AuthService {
       );
     }
 
+    // H1: the caller must prove they own this phone before an account (and a
+    // password) can be bound to it — otherwise anyone could pre-register a
+    // victim's number and keep a live password/session on it.
+    await this.consumeRegisterOtp(phone, dto.otpCode);
+
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     const user = await this.prisma.user.create({
@@ -100,6 +149,7 @@ export class AuthService {
         email,
         phone,
         passwordHash,
+        phoneVerified: true,
         role: dto.role,
         customerProfile:
           dto.role === 'CUSTOMER' || dto.role === 'BOTH'
@@ -146,12 +196,17 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const rawTerm = dto.emailOrPhone || dto.email || '';
-    const term = rawTerm.trim().toLowerCase();
+    const rawTerm = (dto.emailOrPhone || dto.email || '').trim();
+    const term = rawTerm.toLowerCase();
+    // H3: a phone identifier is normalized to E.164 so 9876543210,
+    // 09876543210 and +91 98765 43210 all reach the same account.
+    const phoneTerm = rawTerm.includes('@')
+      ? rawTerm
+      : (normalizePhone(rawTerm) ?? rawTerm);
 
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: term }, { phone: rawTerm.trim() }],
+        OR: [{ email: term }, { phone: phoneTerm }],
       },
       include: {
         customerProfile: true,
@@ -163,7 +218,9 @@ export class AuthService {
     const hashToCompare = user ? user.passwordHash : DUMMY_HASH;
     const isPasswordValid = await bcrypt.compare(dto.password, hashToCompare);
 
-    if (!user || !isPasswordValid || !user.isActive) {
+    // H1: a password can only authenticate an account whose phone was proven
+    // via OTP. Legacy unverified rows must sign in with an OTP first.
+    if (!user || !isPasswordValid || !user.isActive || !user.phoneVerified) {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
@@ -290,9 +347,8 @@ export class AuthService {
   }
 
   /**
-   * Send a 6-digit OTP to the user's phone.
-   * In production this would integrate with an SMS gateway (Twilio, MSG91, etc.).
-   * For now, the code is stored in the DB and can be retrieved in test/dev.
+   * Send a 6-digit OTP to the user's phone through the configured SMS gateway.
+   * Only the HMAC hash of the code is stored.
    */
   async sendOtp(dto: SendOtpDto) {
     const phone = dto.phone.trim();
@@ -310,7 +366,7 @@ export class AuthService {
     }
 
     // Generate 6-digit code; store ONLY its HMAC hash (C1/C2 remediation)
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
     const codeHash = this.hashOtp(phone, code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -331,12 +387,9 @@ export class AuthService {
       },
     });
 
-    // Deliver via SMS gateway. The gateway NEVER receives or logs the code
-    // itself; only a user-copyable dev channel (non-prod response) exposes it.
-    await this.smsGateway.send(
-      phone,
-      'Your Weyro verification code. It expires in 10 minutes.',
-    );
+    // Deliver the code through the SMS gateway (DLT template variable for
+    // MSG91, message body for Twilio). Real providers never log the code.
+    await this.smsGateway.sendOtp(phone, code);
 
     return {
       status: 'sent',
@@ -517,12 +570,22 @@ export class AuthService {
           providerProfile: true,
         },
       });
-    } else {
-      // Mark phone as verified for existing users
-      await this.prisma.user.update({
-        where: { id: user!.id },
-        data: { phoneVerified: true },
-      });
+    } else if (!user!.phoneVerified) {
+      // H1: this phone was claimed by a password registration that never
+      // proved ownership (possible pre-takeover). The OTP holder is the real
+      // owner: drop the claimant's password and kill every session they hold.
+      const existing = user!;
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: existing.id },
+          data: { phoneVerified: true, passwordHash: '' },
+        }),
+        this.prisma.refreshToken.updateMany({
+          where: { userId: existing.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+      user = { ...existing, phoneVerified: true, passwordHash: '' };
     }
 
     const tokens = await this.generateTokenPair(user as any);

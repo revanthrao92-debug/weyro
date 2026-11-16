@@ -6,6 +6,8 @@ import {
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { normalizeRegistrationNumber } from '@weyro/validation';
+import { requireMediaKey } from '../../common/media/media-key';
 import {
   CreateVehicleDto,
   UpdateAddressesDto,
@@ -39,7 +41,10 @@ export class CustomersService {
     const id = this.customerId(user);
     return this.prisma.customerProfile.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        avatarUrl: dto.avatarUrl ? requireMediaKey(dto.avatarUrl) : dto.avatarUrl,
+      },
     });
   }
 
@@ -79,7 +84,7 @@ export class CustomersService {
       data: {
         customerId,
         ...dto,
-        registrationNumber: dto.registrationNumber.trim().toUpperCase(),
+        registrationNumber: normalizeRegistrationNumber(dto.registrationNumber),
       },
     });
   }
@@ -103,7 +108,7 @@ export class CustomersService {
       data: {
         ...dto,
         ...(dto.registrationNumber
-          ? { registrationNumber: dto.registrationNumber.trim().toUpperCase() }
+          ? { registrationNumber: normalizeRegistrationNumber(dto.registrationNumber) }
           : {}),
       },
     });

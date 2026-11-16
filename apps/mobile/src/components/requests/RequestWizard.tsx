@@ -415,7 +415,7 @@ export function RequestWizard() {
     setFormError(null);
     try {
       const payload = buildPayload(config, ctx, {
-        photos: photos.map((photo) => photo.url),
+        photos: photos.map((photo) => photo.key),
         isBroadcast,
       });
       const result = await createRequest.mutateAsync(payload);

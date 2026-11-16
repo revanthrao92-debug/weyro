@@ -4,6 +4,7 @@ import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { UploadsModule } from '../uploads/uploads.module';
 import { env } from '../../config/env.config';
 
 @Module({
@@ -12,6 +13,7 @@ import { env } from '../../config/env.config';
       secret: env.JWT_ACCESS_SECRET,
     }),
     NotificationsModule,
+    UploadsModule,
   ],
   controllers: [ChatController],
   providers: [ChatGateway, ChatService],

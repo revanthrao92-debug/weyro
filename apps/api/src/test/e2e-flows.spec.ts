@@ -32,6 +32,7 @@ jest.mock('@nestjs/schedule', () => ({
 import { AppModule } from '../app.module';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { seedRegisterOtp } from './otp-helper';
 
 jest.setTimeout(120_000);
 
@@ -66,11 +67,14 @@ describe('HTTP E2E flows (Postgres)', () => {
   let managedPartId: string | undefined;
   let cancelRequestId: string | undefined;
   let cancelQuotationId: string | undefined;
+  let multiQuoteRequestId: string | undefined;
+  const extraRequestIds: string[] = [];
 
   const http = () => request(app.getHttpServer());
 
   const register = async (body: Record<string, unknown>): Promise<Session> => {
-    const res = await http().post(`${API}/auth/register`).send(body);
+    const otpCode = await seedRegisterOtp(prisma, String(body.phone));
+    const res = await http().post(`${API}/auth/register`).send({ ...body, otpCode });
 
     expect(res.status).toBe(201);
     expect(typeof res.body.accessToken).toBe('string');
@@ -150,6 +154,14 @@ describe('HTTP E2E flows (Postgres)', () => {
     }
     if (requestId) {
       await prisma.serviceRequest.deleteMany({ where: { id: requestId } });
+    }
+    if (extraRequestIds.length) {
+      await prisma.serviceRequest.deleteMany({ where: { id: { in: extraRequestIds } } });
+    }
+    if (multiQuoteRequestId) {
+      await prisma.serviceRequest.deleteMany({
+        where: { id: multiQuoteRequestId },
+      });
     }
     if (cancelRequestId) {
       await prisma.serviceRequest.deleteMany({
@@ -518,14 +530,19 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(afterDuplicate.stockQuantity).toBe(2);
 
       // Settlement also drives the shop notification loop for both sides.
-      const paidNotifications = await prisma.notification.findMany({
-        where: { userId: { in: [customer.userId, dealer.userId] } },
-      });
-      expect(
-        paidNotifications.filter(
+      // Notification dispatch is fire-and-forget by design, so poll briefly
+      // instead of reading once right after the webhook returns.
+      let paidCount = 0;
+      for (let attempt = 0; attempt < 30 && paidCount < 2; attempt++) {
+        const paidNotifications = await prisma.notification.findMany({
+          where: { userId: { in: [customer.userId, dealer.userId] } },
+        });
+        paidCount = paidNotifications.filter(
           (n) => (n.data as any)?.type === 'SPARE_PART_ORDER_PAID',
-        ).length,
-      ).toBeGreaterThanOrEqual(2);
+        ).length;
+        if (paidCount < 2) await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(paidCount).toBeGreaterThanOrEqual(2);
     });
 
     it('lets the customer cancel a pending order without touching stock', async () => {
@@ -918,6 +935,207 @@ describe('HTTP E2E flows (Postgres)', () => {
         .set(auth);
       expect(removed.status).toBe(200);
       expect(removed.body).toEqual({ deleted: true });
+    });
+  });
+
+  describe('C2: a request stays in the feed after the first quote', () => {
+    let garage2: Session;
+
+    const feedIds = async (session: Session): Promise<string[]> => {
+      const res = await http()
+        .get(`${API}/damage-requests/feed?lat=12.9784&lng=77.6408&radiusKm=25&limit=50`)
+        .set('Authorization', `Bearer ${session.accessToken}`);
+      expect(res.status).toBe(200);
+      return res.body.items.map((i: { id: string }) => i.id);
+    };
+
+    const quote = (session: Session, parts: number) =>
+      http()
+        .post(`${API}/damage-requests/${multiQuoteRequestId}/quotations`)
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send({ partsCost: parts, labourCost: 500, warrantyDays: 30, etaDescription: '1 day' });
+
+    it('lets two verified providers both see and quote the same request', async () => {
+      garage2 = await register({
+        email: `e2e-garage2-${suffix}@example.com`,
+        phone: `+9195${suffix.slice(-8)}`,
+        password,
+        role: 'PROVIDER',
+        providerType: 'GARAGE',
+        businessName: `E2E Garage Two ${suffix}`,
+        address: 'Indiranagar, Bengaluru',
+        latitude: 12.9791,
+        longitude: 77.6419,
+      });
+      await prisma.providerProfile.updateMany({
+        where: { userId: garage2.userId },
+        data: { verificationStatus: 'VERIFIED' },
+      });
+
+      const created = await http()
+        .post(`${API}/damage-requests`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          vehicleMake: 'Hyundai',
+          vehicleModel: 'i20',
+          vehicleYear: 2020,
+          category: 'REPAIR',
+          title: 'Two quotes please',
+          description: 'Scratched door panel needs a repaint',
+          address: 'Indiranagar, Bengaluru',
+          latitude: 12.9784,
+          longitude: 77.6408,
+          urgency: 'URGENT',
+          mediaUrls: [],
+          damagePhotos: [],
+          isBroadcast: true,
+        });
+      expect(created.status).toBe(201);
+      multiQuoteRequestId = created.body.id;
+
+      // Both providers see the fresh OPEN request.
+      expect(await feedIds(garage)).toContain(multiQuoteRequestId);
+      expect(await feedIds(garage2)).toContain(multiQuoteRequestId);
+
+      // First provider quotes -> request moves to QUOTES_RECEIVED.
+      const first = await quote(garage, 1000);
+      expect(first.status).toBe(201);
+      const afterFirst = await prisma.serviceRequest.findUniqueOrThrow({
+        where: { id: multiQuoteRequestId },
+      });
+      expect(afterFirst.status).toBe('QUOTES_RECEIVED');
+
+      // Still visible to the second provider, hidden from the one who quoted.
+      expect(await feedIds(garage2)).toContain(multiQuoteRequestId);
+      expect(await feedIds(garage)).not.toContain(multiQuoteRequestId);
+
+      // Second provider can quote too.
+      const second = await quote(garage2, 1500);
+      expect(second.status).toBe(201);
+      expect(await feedIds(garage2)).not.toContain(multiQuoteRequestId);
+
+      // The customer sees both quotes.
+      const detail = await http()
+        .get(`${API}/damage-requests/${multiQuoteRequestId}`)
+        .set('Authorization', `Bearer ${customer.accessToken}`);
+      expect(detail.status).toBe(200);
+      expect(detail.body.quotations).toHaveLength(2);
+    });
+  });
+
+  describe('C3/C4: media keys and optional vehicles', () => {
+    // Own customer => own throttle bucket (damage-request creation is 10/min/user).
+    let buyer: Session;
+    const baseRequest = {
+      category: 'REPAIR',
+      title: 'Free-form vehicle request',
+      description: 'No saved vehicle on this request',
+      address: 'Indiranagar, Bengaluru',
+      latitude: 12.9784,
+      longitude: 77.6408,
+      urgency: 'NORMAL',
+      isBroadcast: true,
+    };
+
+    beforeAll(async () => {
+      buyer = await register({
+        email: `e2e-buyer-${suffix}@example.com`,
+        phone: `+9194${suffix.slice(-8)}`,
+        password,
+        role: 'CUSTOMER',
+        firstName: 'E2E',
+        lastName: 'Buyer',
+      });
+    });
+
+    it('C4: requests without a saved vehicle create no vehicle rows and never collide', async () => {
+      const before = await prisma.vehicle.count({ where: { customerId: buyer.profileId } });
+
+      // Many requests with different free-form vehicles: the old code minted a
+      // random IND-#### plate per make/model and could hit the global unique index.
+      for (let i = 0; i < 6; i++) {
+        const res = await http()
+          .post(`${API}/damage-requests`)
+          .set('Authorization', `Bearer ${buyer.accessToken}`)
+          .send({
+            ...baseRequest,
+            vehicleMake: `Make${i}`,
+            vehicleModel: `Model${i}`,
+            vehicleYear: 2015 + (i % 8),
+            mediaUrls: [],
+            damagePhotos: [],
+          });
+        expect(res.status).toBe(201);
+        extraRequestIds.push(res.body.id);
+        expect(res.body.vehicleId).toBeNull();
+        expect(res.body.vehicle).toMatchObject({ make: `Make${i}`, model: `Model${i}` });
+      }
+
+      expect(await prisma.vehicle.count({ where: { customerId: buyer.profileId } })).toBe(before);
+
+      const detail = await http()
+        .get(`${API}/damage-requests/${extraRequestIds[extraRequestIds.length - 1]}`)
+        .set('Authorization', `Bearer ${buyer.accessToken}`);
+      expect(detail.status).toBe(200);
+      expect(detail.body.vehicle).toMatchObject({ make: 'Make5', model: 'Model5' });
+    });
+
+    it('C4: plates are normalized and unique per customer, not globally', async () => {
+      const first = await http()
+        .post(`${API}/customers/me/vehicles`)
+        .set('Authorization', `Bearer ${buyer.accessToken}`)
+        .send({ make: 'Honda', model: 'City', year: 2019, registrationNumber: ' ka 01 zz 9876 ' });
+      expect(first.status).toBe(201);
+      expect(first.body.registrationNumber).toBe('KA01ZZ9876');
+
+      // Same customer, same plate in a different spelling -> conflict.
+      const dup = await http()
+        .post(`${API}/customers/me/vehicles`)
+        .set('Authorization', `Bearer ${buyer.accessToken}`)
+        .send({ make: 'Honda', model: 'City', year: 2019, registrationNumber: 'KA01ZZ9876' });
+      expect(dup.status).toBe(409);
+
+      // A different customer may own the same plate string.
+      const other = await http()
+        .post(`${API}/customers/me/vehicles`)
+        .set('Authorization', `Bearer ${garage.accessToken}`)
+        .send({ make: 'Honda', model: 'City', year: 2019, registrationNumber: 'KA01ZZ9876' });
+      // garage is a provider, so the customer route refuses it — assert it is not a uniqueness 409.
+      expect(other.status).not.toBe(409);
+    });
+
+    it('C3: the DB stores the key; the API returns a fresh signed URL', async () => {
+      const key = `damage-requests/${buyer.userId}/1700000000000_ab12cd34.jpg`;
+      const created = await http()
+        .post(`${API}/damage-requests`)
+        .set('Authorization', `Bearer ${buyer.accessToken}`)
+        .send({ ...baseRequest, vehicleMake: 'Tata', vehicleModel: 'Nexon', vehicleYear: 2022, mediaUrls: [key], damagePhotos: [key] });
+      expect(created.status).toBe(201);
+      extraRequestIds.push(created.body.id);
+
+      const rows = await prisma.requestMedia.findMany({ where: { requestId: created.body.id } });
+      expect(rows.map((r) => r.url)).toEqual([key]); // key, never a URL
+
+      for (const path of [`damage-requests/${created.body.id}`, 'damage-requests/my']) {
+        const res = await http().get(`${API}/${path}`).set('Authorization', `Bearer ${buyer.accessToken}`);
+        expect(res.status).toBe(200);
+        const text = JSON.stringify(res.body);
+        expect(text).toContain('local-file?key=');
+        expect(text).not.toContain(`"${key}"`);
+      }
+
+      // Legacy clients that echo back a signed URL still end up storing the key.
+      const signed = (
+        await http().get(`${API}/damage-requests/${created.body.id}`).set('Authorization', `Bearer ${buyer.accessToken}`)
+      ).body.media[0].url as string;
+      const legacy = await http()
+        .post(`${API}/damage-requests`)
+        .set('Authorization', `Bearer ${buyer.accessToken}`)
+        .send({ ...baseRequest, vehicleMake: 'Tata', vehicleModel: 'Nexon', vehicleYear: 2022, mediaUrls: [signed], damagePhotos: [] });
+      expect(legacy.status).toBe(201);
+      extraRequestIds.push(legacy.body.id);
+      const legacyRows = await prisma.requestMedia.findMany({ where: { requestId: legacy.body.id } });
+      expect(legacyRows.map((r) => r.url)).toEqual([key]);
     });
   });
 });

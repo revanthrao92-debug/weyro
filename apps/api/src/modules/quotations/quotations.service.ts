@@ -1,3 +1,4 @@
+import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   BadRequestException,
   ConflictException,
@@ -505,6 +506,9 @@ export class QuotationsService {
             urgency: true,
             address: true,
             createdAt: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            vehicleYear: true,
             vehicle: {
               select: {
                 make: true,
@@ -527,6 +531,8 @@ export class QuotationsService {
       request: item.request
         ? {
             ...item.request,
+            // C4: saved vehicle or the request's free-form make/model/year.
+            vehicle: resolveRequestVehicle(item.request),
             address:
               item.status === 'ACCEPTED'
                 ? item.request.address
@@ -795,7 +801,7 @@ export class QuotationsService {
       ...rest
     } = booking;
 
-    const vehicle = booking.quotation?.request?.vehicle;
+    const vehicle = resolveRequestVehicle(booking.quotation?.request);
     const safeVehicle = vehicle
       ? {
           make: vehicle.make,

@@ -4,6 +4,7 @@
     "target": "ES2022",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "types": ["node"]
   }
 }

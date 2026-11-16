@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { env } from '../../config/env.config';
 import { PaymentsService } from './payments.service';
 import { RazorpayPaymentGateway } from './gateways/razorpay.gateway';
 import { GatewayPaymentInfo } from './interfaces/payment-gateway.interface';
@@ -237,33 +238,57 @@ describe('H3 – conditional state transitions inside transactions', () => {
 });
 
 describe('H1/M4 – webhook secret & raw body hard fail', () => {
-  it('gateway constructor refuses webhook secret fallback to API secret in production', () => {
-    const prev = process.env.NODE_ENV;
+  // The gateway reads the import-time parsed `env` before process.env, so the
+  // tests must override that object (and restore it) to be independent of
+  // whatever RAZORPAY_* variables the test runner exports.
+  const withEnv = (overrides: Record<string, string | undefined>, run: () => void) => {
+    const target = env as unknown as Record<string, string | undefined>;
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previous = Object.fromEntries(Object.keys(overrides).map((k) => [k, target[k]]));
+    const previousProcess = Object.fromEntries(
+      Object.keys(overrides).map((k) => [k, process.env[k]]),
+    );
     process.env.NODE_ENV = 'production';
-    process.env.RAZORPAY_KEY_ID = 'rzp_live_k1';
-    process.env.RAZORPAY_KEY_SECRET = 'ks_super_secret_value_1';
-    process.env.RAZORPAY_WEBHOOK_SECRET = 'ks_super_secret_value_1'; // same as API secret
-
-    try {
-      expect(() => new RazorpayPaymentGateway()).toThrow(
-        /independent, non-placeholder value/,
-      );
-    } finally {
-      process.env.NODE_ENV = prev;
+    for (const [k, v] of Object.entries(overrides)) {
+      target[k] = v;
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
     }
+    try {
+      run();
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+      for (const [k, v] of Object.entries(previous)) target[k] = v;
+      for (const [k, v] of Object.entries(previousProcess)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  };
+
+  it('gateway constructor refuses webhook secret fallback to API secret in production', () => {
+    withEnv(
+      {
+        RAZORPAY_KEY_ID: 'rzp_live_k1',
+        RAZORPAY_KEY_SECRET: 'ks_super_secret_value_1',
+        RAZORPAY_WEBHOOK_SECRET: 'ks_super_secret_value_1', // same as API secret
+      },
+      () => {
+        expect(() => new RazorpayPaymentGateway()).toThrow(/independent, non-placeholder value/);
+      },
+    );
   });
 
   it('gateway constructor refuses unset webhook secret in production', () => {
-    const prev = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    process.env.RAZORPAY_KEY_ID = 'rzp_live_k1';
-    process.env.RAZORPAY_KEY_SECRET = 'ks_super_secret_value_1';
-    delete process.env.RAZORPAY_WEBHOOK_SECRET;
-
-    try {
-      expect(() => new RazorpayPaymentGateway()).toThrow(/independent, non-placeholder value/);
-    } finally {
-      process.env.NODE_ENV = prev;
-    }
+    withEnv(
+      {
+        RAZORPAY_KEY_ID: 'rzp_live_k1',
+        RAZORPAY_KEY_SECRET: 'ks_super_secret_value_1',
+        RAZORPAY_WEBHOOK_SECRET: undefined,
+      },
+      () => {
+        expect(() => new RazorpayPaymentGateway()).toThrow(/independent, non-placeholder value/);
+      },
+    );
   });
 });

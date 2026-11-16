@@ -59,8 +59,9 @@ RAZORPAY_WEBHOOK_SECRET=<independent webhook secret>
 OTP_HASH_SECRET=<random 32+ chars>
 OTP_DEBUG_ECHO=false
 SMS_PROVIDER=msg91
-SMS_MSG91_AUTH_KEY=<key>
-SMS_MSG91_SENDER_ID=<id>
+MSG91_AUTH_KEY=<key>
+MSG91_OTP_TEMPLATE_ID=<DLT template id>
+MSG91_SENDER_ID=<id>
 ```
 
 Do **not** set `ALLOW_DEMO_SEED` in production.

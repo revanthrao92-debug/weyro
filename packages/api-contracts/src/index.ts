@@ -223,8 +223,13 @@ export type BroadcastScope = 'LOCAL_RADIUS' | 'BROADCAST_ALL';
 export interface ServiceRequest {
   id: string;
   customerId: string;
-  vehicleId: string;
-  vehicle?: Vehicle;
+  /** Null when the request used free-form vehicle details instead of a saved vehicle. */
+  vehicleId?: string | null;
+  vehicle?: Vehicle | null;
+  /** Free-form vehicle details for requests without a saved vehicle. */
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleYear?: number | null;
   category: ServiceCategory;
   title: string;
   description: string;

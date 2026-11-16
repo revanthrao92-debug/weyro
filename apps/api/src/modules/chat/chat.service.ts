@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { requireMediaKey } from '../../common/media/media-key';
 import { CreateThreadDto } from './dto/chat.dto';
 import {
   buildCursorWhere,
@@ -298,7 +299,7 @@ export class ChatService {
           senderId: user.sub,
           senderRole,
           content,
-          mediaUrls,
+          mediaUrls: mediaUrls.map((value) => requireMediaKey(value)),
         },
       });
 

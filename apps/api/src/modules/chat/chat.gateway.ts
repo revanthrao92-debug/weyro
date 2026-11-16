@@ -1,3 +1,4 @@
+import { MediaUrlService } from '../uploads/media-url.service';
 import {
   ConnectedSocket,
   MessageBody,
@@ -28,7 +29,7 @@ const socketSendMessageSchema = z
   .object({
     threadId: z.string().uuid(),
     content: z.string().min(1).max(2000),
-    mediaUrls: z.array(z.string().url()).max(4).default([]),
+    mediaUrls: z.array(z.string().min(1).max(1000)).max(4).default([]),
   })
   .strict();
 
@@ -67,6 +68,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly chatService: ChatService,
+    private readonly mediaUrls: MediaUrlService,
   ) {}
 
   afterInit(server: Server) {
@@ -194,11 +196,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         mediaUrls,
       );
 
+      // C3: the DB stores keys; sockets carry freshly signed URLs.
+      const outbound = {
+        ...message,
+        mediaUrls: await Promise.all(
+          (message.mediaUrls ?? []).map(async (m) => (await this.mediaUrls.resolve(m)) ?? m),
+        ),
+      };
+
       this.server
         .to(`thread_${threadId}`)
-        .emit('new_message', { threadId, message });
+        .emit('new_message', { threadId, message: outbound });
 
-      return { status: 'sent', message };
+      return { status: 'sent', message: outbound };
     } catch (err: any) {
       return { error: err.message };
     }

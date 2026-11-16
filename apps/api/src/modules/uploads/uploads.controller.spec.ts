@@ -90,7 +90,7 @@ describe('Uploads Module', () => {
 
     it('finalizes only keys owned by the caller', async () => {
       mockStorage.finalizeImage.mockResolvedValue({
-        fileUrl: 'https://cdn.weyro.in/damage-requests/user-1/key.jpg',
+        previewUrl: 'https://cdn.weyro.in/damage-requests/user-1/key.jpg?sig=1',
         key: 'damage-requests/user-1/key.jpg',
       });
 

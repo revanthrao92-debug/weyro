@@ -3,6 +3,7 @@ import { UploadsController } from './uploads.controller';
 import { STORAGE_SERVICE } from './interfaces/storage.interface';
 import { S3StorageService } from './services/s3-storage.service';
 import { LocalStorageService } from './services/local-storage.service';
+import { MediaUrlService } from './media-url.service';
 import { UploadsCleanupService } from './uploads-cleanup.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AdvisoryLockService } from '../../prisma/advisory-lock.service';
@@ -21,7 +22,8 @@ import { env } from '../../config/env.config';
     },
     AdvisoryLockService,
     UploadsCleanupService,
+    MediaUrlService,
   ],
-  exports: [STORAGE_SERVICE],
+  exports: [STORAGE_SERVICE, MediaUrlService],
 })
 export class UploadsModule {}
