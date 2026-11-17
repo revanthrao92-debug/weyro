@@ -49,6 +49,7 @@ function makeHarness(): Harness {
     webhookEvent: {
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
     },
     booking: { findUnique: jest.fn().mockResolvedValue(null) },
     customerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr_c' }) },
@@ -276,7 +277,7 @@ describe('STEP 1 — race matrix (spare-part orders)', () => {
     expect(h.prisma.sparePart.update).toHaveBeenCalledTimes(1);
   });
 
-  it('wrong amount on webhook is rejected before any claim (order stays untouched)', async () => {
+  it('wrong amount on webhook is recorded as rejected before any claim (order stays untouched)', async () => {
     const h = makeHarness();
     h.prisma.payment.findUnique.mockResolvedValue(null);
     h.prisma.sparePartOrder.findUnique.mockResolvedValue(spareSeed('PENDING'));
@@ -284,9 +285,10 @@ describe('STEP 1 — race matrix (spare-part orders)', () => {
     const bad = webhookPayload();
     (bad.payload.payment.entity as Record<string, unknown>).amount = 5;
 
-    await expect(h.payments.handleWebhook('raw', 'sig', bad)).rejects.toThrow(
-      /amount or currency/i,
-    );
+    // M5: answered 200 ("ignored") instead of throwing, so the gateway stops retrying.
+    await expect(h.payments.handleWebhook('raw', 'sig', bad)).resolves.toMatchObject({
+      status: 'ignored',
+    });
     expect(h.prisma.sparePartOrder.updateMany).not.toHaveBeenCalled();
   });
 });

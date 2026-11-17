@@ -33,7 +33,8 @@ export const driverJobStatusSchema = z
   .strict();
 
 export const driverStartOtpSchema = z
-  .object({ code: z.string().regex(/^\d{4}$/, 'Enter the 4-digit start code') })
+  // 6 digits; 4-digit codes issued before the M7 upgrade are still accepted.
+  .object({ code: z.string().regex(/^(\d{6}|\d{4})$/, 'Enter the 6-digit start code') })
   .strict();
 
 export const driverJobsQuerySchema = z

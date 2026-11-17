@@ -2,7 +2,8 @@ import { UserRole } from '@weyro/api-contracts';
 
 export interface AuthUserPayload {
   sub: string;
-  email: string;
+  /** Absent for accounts created by phone OTP that never added an email. */
+  email?: string;
   phone: string;
   role: UserRole;
   customerProfileId?: string;

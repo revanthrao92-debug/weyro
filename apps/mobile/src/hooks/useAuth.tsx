@@ -15,6 +15,7 @@ import {
   type EntryRole,
 } from '@/auth/entryRole';
 import { tokenStorage } from '@/services/token-storage';
+import { stopJobLocationUpdates } from '@/services/background-location';
 import { clearOfflineQueue } from '@/services/offline-queue';
 import {
   UserRole,
@@ -240,6 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore logout errors — always clear local state
     } finally {
+      // M8: never keep reporting a provider's location after they sign out.
+      await stopJobLocationUpdates();
       await tokenStorage.clearAll();
       await clearOfflineQueue();
       setAccessToken(null);
@@ -309,6 +312,8 @@ export function useAuth() {
 interface RegisterData {
   email: string;
   phone: string;
+  /** 6-digit code from POST /auth/send-otp (purpose: register). */
+  otpCode: string;
   password: string;
   role: UserRole;
   firstName: string;

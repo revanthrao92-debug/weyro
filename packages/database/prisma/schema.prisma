@@ -108,7 +108,15 @@ enum PaymentStatus {
   AUTHORIZED
   CAPTURED
   RELEASED
+  // A refund was requested at the gateway and is not confirmed yet (M3).
+  REFUND_PENDING
   REFUNDED
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
   FAILED
 }
 
@@ -182,7 +190,8 @@ enum DriverBookingStatus {
 
 model User {
   id              String           @id @default(uuid())
-  email           String           @unique
+  // Null for OTP-created accounts that never gave an email (no placeholder addresses).
+  email           String?          @unique
   phone           String           @unique
   passwordHash    String
   role            UserRole         @default(CUSTOMER)
@@ -195,6 +204,7 @@ model User {
   refreshTokens   RefreshToken[]
   notifications   Notification[]
   pushTokens      PushToken[]
+  uploadedObjects UploadedObject[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -230,7 +240,8 @@ model Vehicle {
   make               String
   model              String
   year               Int
-  registrationNumber String           @unique
+  // Normalized (uppercase, no spaces) and unique per customer, not globally.
+  registrationNumber String
   vinNumber          String?
   fuelType           FuelType         @default(PETROL)
   color              String?
@@ -241,6 +252,7 @@ model Vehicle {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
+  @@unique([customerId, registrationNumber])
   @@index([customerId])
   @@map("vehicles")
 }
@@ -377,8 +389,12 @@ model ServiceRequest {
   id                  String                                 @id @default(uuid())
   customerId          String
   customer            CustomerProfile                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  vehicleId           String
-  vehicle             Vehicle                                @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  // Optional: a request may use a saved vehicle OR carry free-form details.
+  vehicleId           String?
+  vehicle             Vehicle?                               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  vehicleMake         String?
+  vehicleModel        String?
+  vehicleYear         Int?
   category            ServiceCategory
   title               String
   description         String
@@ -407,6 +423,7 @@ model ServiceRequest {
   quotations          Quotation[]
   media               RequestMedia[]
   threads             Thread[]
+  bookings            Booking[]
   createdAt           DateTime                               @default(now())
   updatedAt           DateTime                               @updatedAt
 
@@ -467,6 +484,11 @@ model Booking {
   id                        String          @id @default(uuid())
   quotationId               String          @unique
   quotation                 Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  // Denormalized from the quotation so the database can enforce "one active
+  // booking per request" (partial unique index in the migration, not
+  // expressible in Prisma: bookings_one_active_per_request).
+  requestId                 String
+  request                   ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Restrict)
   customerId                String
   customer                  CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
   providerId                String
@@ -491,6 +513,7 @@ model Booking {
 
   @@index([customerId])
   @@index([providerId])
+  @@index([requestId])
   @@index([status, createdAt])
   @@index([deletedAt])
   @@map("bookings")
@@ -510,6 +533,7 @@ model Payment {
   // Escrow payout fields
   payoutReference  String?
   paidToProviderAt DateTime?
+  refunds          Refund[]
   deletedAt        DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -518,6 +542,26 @@ model Payment {
   @@index([status, createdAt])
   @@index([deletedAt])
   @@map("payments")
+}
+
+/// M3: one row per refund requested at the gateway for a booking payment. The
+/// payment sits in REFUND_PENDING until the refund.processed webhook confirms.
+model Refund {
+  id              String       @id @default(uuid())
+  paymentId       String
+  payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount          Decimal      @db.Decimal(10, 2)
+  currency        String       @default("INR")
+  status          RefundStatus @default(PENDING)
+  gatewayRefundId String?      @unique
+  reason          String?
+  failureReason   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([paymentId])
+  @@index([status, createdAt])
+  @@map("refunds")
 }
 
 model Review {
@@ -738,6 +782,19 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+/// H4: every object that passed POST /uploads/finalize. Media references sent to
+/// the API are only accepted when the key is owned by the caller AND listed here.
+model UploadedObject {
+  id          String   @id @default(uuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  key         String   @unique
+  finalizedAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@map("uploaded_objects")
+}
+
 model OTP {
   id          String    @id @default(uuid())
   phone       String    @unique
@@ -751,6 +808,18 @@ model OTP {
 
   @@index([expiresAt])
   @@map("otps")
+}
+
+/// H5: one row per OTP SMS send attempt. Backs the per-phone (1 per 30s, 5 per
+/// 24h) and global hourly limits when Redis is not configured.
+model OtpSend {
+  id        String   @id @default(uuid())
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+  @@index([createdAt])
+  @@map("otp_sends")
 }
 
 model IdempotencyKey {

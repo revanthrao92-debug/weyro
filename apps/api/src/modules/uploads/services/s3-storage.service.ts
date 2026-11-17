@@ -26,6 +26,9 @@ import {
 } from './image-processing.service';
 import * as crypto from 'crypto';
 
+/** Preview URLs returned by finalize only need to outlive the upload screen. */
+const MEDIA_PREVIEW_TTL_SECONDS = 900;
+
 @Injectable()
 export class S3StorageService implements StorageService {
   private readonly logger = new Logger(S3StorageService.name);
@@ -203,13 +206,10 @@ export class S3StorageService implements StorageService {
     this.logger.log(`Sanitized image metadata for key: ${params.key}`);
 
     return {
-      fileUrl: this.isPublicBucket
-        ? `${this.publicUrl}/${params.key}`
-        : await this.createDownloadUrl(
-            params.key,
-            env.STORAGE_SIGNED_URL_TTL_SECONDS,
-          ),
       key: params.key,
+      previewUrl: this.isPublicBucket
+        ? `${this.publicUrl}/${params.key}`
+        : await this.createDownloadUrl(params.key, MEDIA_PREVIEW_TTL_SECONDS),
     };
   }
 }

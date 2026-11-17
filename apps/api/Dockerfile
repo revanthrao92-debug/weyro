@@ -38,13 +38,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 ENV NODE_ENV=production
 ENV PORT=4000
 
-# Copy root package.json and built node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-# Nested workspace node_modules that npm did not hoist (e.g. @nestjs/jwt)
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/api/package.json ./apps/api/
+# M11: install ONLY what the API needs at runtime (no mobile / Expo / test /
+# build tooling). Manifests first so this layer is cached until deps change.
+COPY package.json package-lock.json ./
+COPY packages/api-contracts/package.json ./packages/api-contracts/
+COPY packages/validation/package.json ./packages/validation/
+COPY packages/database/package.json ./packages/database/
+COPY apps/api/package.json ./apps/api/
+
+# --omit=dev drops devDependencies; -w limits the install to the API workspace
+# (and the @weyro/* packages it depends on). `prisma` is a production dependency
+# of @weyro/database on purpose: the Railway pre-deploy step runs
+# `prisma migrate deploy` inside this image.
+RUN npm ci --omit=dev -w @weyro/api --include-workspace-root
+# The lockfile is authored on macOS; add the Linux sharp binary explicitly so the
+# runtime image does not look for a darwin build (same fix as the builder stage).
+RUN npm install --omit=dev --no-save --os=linux --libc=glibc --cpu=x64 sharp -w @weyro/api
+
+# Built workspace packages (dist) + the Prisma schema/migrations used by pre-deploy.
+COPY --from=builder /app/packages/api-contracts/dist ./packages/api-contracts/dist
+COPY --from=builder /app/packages/validation/dist ./packages/validation/dist
+COPY --from=builder /app/packages/database/dist ./packages/database/dist
+COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+COPY --from=builder /app/packages/database/prisma.config.ts ./packages/database/prisma.config.ts
+# The generated Prisma clients. Each workspace resolves its own @prisma/client
+# copy, so each one needs its generated output (see the generators in schema.prisma).
+COPY --from=builder /app/packages/database/node_modules/.prisma ./packages/database/node_modules/.prisma
+COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 4000

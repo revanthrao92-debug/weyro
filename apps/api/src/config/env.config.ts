@@ -16,6 +16,11 @@ export const envSchema = z.object({
   // Set to a hop count (e.g. "1") when the API sits behind a load balancer so
   // per-IP rate limiting sees client addresses instead of the proxy's.
   TRUST_PROXY: z.string().optional(),
+  // M9: error monitoring. Unset = Sentry is off. Read in src/instrument.ts.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_ACCESS_SECRET: z
     .string()
@@ -40,7 +45,6 @@ export const envSchema = z.object({
   STORAGE_SECRET_KEY: z.string().optional(),
   STORAGE_PUBLIC_URL: z.string().optional(),
   // Private buckets serve uploads through short-lived presigned GETs.
-  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(604800),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
@@ -55,8 +59,14 @@ export const envSchema = z.object({
   OTP_DEBUG_ECHO: z.enum(['true', 'false']).default('false'),
   // SMS delivery driver for OTP: console (dev), msg91, twilio
   SMS_PROVIDER: z.enum(['console', 'msg91', 'twilio']).default('console'),
-  SMS_MSG91_AUTH_KEY: z.string().optional(),
-  SMS_MSG91_SENDER_ID: z.string().optional(),
+  // H5: hard ceiling on OTP SMS sends per hour across all phones (cost / abuse
+  // guard). An error is logged and sends are refused once it is reached.
+  OTP_GLOBAL_HOURLY_CAP: z.coerce.number().int().min(1).default(500),
+  // MSG91 OTP API with a DLT-registered template (C1). The OTP code is passed
+  // to the template as its variable.
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  MSG91_SENDER_ID: z.string().optional(),
   SMS_TWILIO_ACCOUNT_SID: z.string().optional(),
   SMS_TWILIO_AUTH_TOKEN: z.string().optional(),
   SMS_TWILIO_FROM: z.string().optional(),
@@ -153,6 +163,9 @@ export const envSchema = z.object({
     'RAZORPAY_WEBHOOK_SECRET',
     'OTP_HASH_SECRET',
     'SMS_PROVIDER',
+    // H7: behind Railway's proxy every client would share one IP bucket (or
+    // spoof X-Forwarded-For) without an explicit hop count.
+    'TRUST_PROXY',
   ] as const) {
     if (!value[key]) {
       ctx.addIssue({
@@ -180,6 +193,31 @@ export const envSchema = z.object({
       path: ['SMS_PROVIDER'],
       message: 'SMS_PROVIDER must be a real provider (msg91|twilio) in production',
     });
+  }
+
+  if (value.TRUST_PROXY && /^true$/i.test(value.TRUST_PROXY.trim())) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['TRUST_PROXY'],
+      message:
+        'TRUST_PROXY=true trusts every hop and lets clients spoof X-Forwarded-For; use the number of proxy hops (Railway: 1)',
+    });
+  }
+
+  if (value.SMS_PROVIDER === 'msg91') {
+    for (const key of [
+      'MSG91_AUTH_KEY',
+      'MSG91_OTP_TEMPLATE_ID',
+      'MSG91_SENDER_ID',
+    ] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required in production when SMS_PROVIDER=msg91`,
+        });
+      }
+    }
   }
 
   // H1: the webhook signing secret must be independent of the API key secret

@@ -625,7 +625,9 @@ export function isValidISODate(value: string): boolean {
 export function prettyDate(value: string): string {
   if (!isValidISODate(value)) return value;
   const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  // Fixed locale: this text goes into the request providers read, so it must
+  // not depend on the customer's phone settings (matches the app's other en-IN formatting).
+  return new Date(year, month - 1, day).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

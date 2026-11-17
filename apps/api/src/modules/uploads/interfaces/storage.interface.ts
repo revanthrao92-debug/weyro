@@ -25,8 +25,10 @@ export interface PresignedDownloadUrlResult {
 }
 
 export interface FinalizeImageResult {
-  fileUrl: string;
+  /** The value to store and send back to the API — never a URL. */
   key: string;
+  /** Short-lived signed URL, only for showing the image right after upload. */
+  previewUrl: string;
 }
 
 export interface StorageService {

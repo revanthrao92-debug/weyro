@@ -1,11 +1,14 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +17,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+import { normalizePhone } from '@weyro/validation';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { buildSmsGateway, SmsGateway } from './sms.gateway';
@@ -28,6 +32,10 @@ const DUMMY_HASH =
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly smsGateway: SmsGateway;
+
+  /** H5: OTP send limits. */
+  private static readonly OTP_RESEND_COOLDOWN_SECONDS = 30;
+  private static readonly OTP_MAX_SENDS_PER_DAY = 5;
 
   /** M2: per-phone verify throttle (in-memory sliding window, per instance). */
   private static readonly VERIFY_WINDOW_MS = 60_000;
@@ -65,8 +73,51 @@ export class AuthService {
     return crypto.timingSafeEqual(a, b);
   }
 
+  /**
+   * H1: consume a `register`-purpose OTP for password sign-up. Same guarantees
+   * as verifyOtp: atomic attempt ceiling, constant-time hash compare, and the
+   * code can be used exactly once.
+   */
+  private async consumeRegisterOtp(phone: string, code: string): Promise<void> {
+    await this.assertPhoneVerifyAllowance(phone);
+
+    const otp = await this.prisma.oTP.findUnique({ where: { phone } });
+    if (
+      !otp ||
+      otp.verifiedAt ||
+      otp.purpose !== 'register' ||
+      otp.expiresAt < new Date()
+    ) {
+      throw new BadRequestException(
+        'Verify your phone number with a valid OTP before registering',
+      );
+    }
+
+    const gate = await this.prisma.oTP.updateMany({
+      where: { phone, verifiedAt: null, attempts: { lt: otp.maxAttempts } },
+      data: { attempts: { increment: 1 } },
+    });
+    if (gate.count === 0) {
+      await this.prisma.oTP.deleteMany({ where: { phone, verifiedAt: null } });
+      throw new BadRequestException('Maximum OTP verification attempts exceeded');
+    }
+
+    if (!this.otpMatches(phone, code, otp.code)) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    const claimed = await this.prisma.oTP.updateMany({
+      where: { phone, verifiedAt: null },
+      data: { verifiedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      throw new BadRequestException('OTP has already been used');
+    }
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
+    // dto.phone is already E.164 (shared phoneSchema).
     const phone = dto.phone.trim();
 
     if (
@@ -93,6 +144,11 @@ export class AuthService {
       );
     }
 
+    // H1: the caller must prove they own this phone before an account (and a
+    // password) can be bound to it — otherwise anyone could pre-register a
+    // victim's number and keep a live password/session on it.
+    await this.consumeRegisterOtp(phone, dto.otpCode);
+
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     const user = await this.prisma.user.create({
@@ -100,6 +156,7 @@ export class AuthService {
         email,
         phone,
         passwordHash,
+        phoneVerified: true,
         role: dto.role,
         customerProfile:
           dto.role === 'CUSTOMER' || dto.role === 'BOTH'
@@ -146,12 +203,17 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const rawTerm = dto.emailOrPhone || dto.email || '';
-    const term = rawTerm.trim().toLowerCase();
+    const rawTerm = (dto.emailOrPhone || dto.email || '').trim();
+    const term = rawTerm.toLowerCase();
+    // H3: a phone identifier is normalized to E.164 so 9876543210,
+    // 09876543210 and +91 98765 43210 all reach the same account.
+    const phoneTerm = rawTerm.includes('@')
+      ? rawTerm
+      : (normalizePhone(rawTerm) ?? rawTerm);
 
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: term }, { phone: rawTerm.trim() }],
+        OR: [{ email: term }, { phone: phoneTerm }],
       },
       include: {
         customerProfile: true,
@@ -163,7 +225,9 @@ export class AuthService {
     const hashToCompare = user ? user.passwordHash : DUMMY_HASH;
     const isPasswordValid = await bcrypt.compare(dto.password, hashToCompare);
 
-    if (!user || !isPasswordValid || !user.isActive) {
+    // H1: a password can only authenticate an account whose phone was proven
+    // via OTP. Legacy unverified rows must sign in with an OTP first.
+    if (!user || !isPasswordValid || !user.isActive || !user.phoneVerified) {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
@@ -290,29 +354,33 @@ export class AuthService {
   }
 
   /**
-   * Send a 6-digit OTP to the user's phone.
-   * In production this would integrate with an SMS gateway (Twilio, MSG91, etc.).
-   * For now, the code is stored in the DB and can be retrieved in test/dev.
+   * Send a 6-digit OTP to the user's phone through the configured SMS gateway.
+   * Only the HMAC hash of the code is stored.
    */
   async sendOtp(dto: SendOtpDto) {
     const phone = dto.phone.trim();
 
-    // Check if an OTP already exists and hasn't expired
-    const existing = await this.prisma.oTP.findUnique({
-      where: { phone },
-    });
-
-    if (existing && existing.expiresAt > new Date() && !existing.verifiedAt) {
-      // Resend not allowed within the same validity window
-      throw new BadRequestException(
-        'An OTP has already been sent to this number. Please wait for it to expire.',
-      );
-    }
+    // H5: per-phone cooldown / daily cap and the global hourly cap. A resend
+    // after the cooldown simply replaces the previous code.
+    await this.reserveOtpSend(phone);
 
     // Generate 6-digit code; store ONLY its HMAC hash (C1/C2 remediation)
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
     const codeHash = this.hashOtp(phone, code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // H5: deliver FIRST. The OTP row is only written once the SMS gateway
+    // accepted the message, so a failed send never leaves a live code behind.
+    try {
+      await this.smsGateway.sendOtp(phone, code);
+    } catch (error) {
+      this.logger.error(
+        `OTP delivery failed for ${phone.slice(0, 3)}******${phone.slice(-2)}: ${(error as Error).message}`,
+      );
+      throw new ServiceUnavailableException(
+        'We could not send the verification code right now. Please try again shortly.',
+      );
+    }
 
     await this.prisma.oTP.upsert({
       where: { phone },
@@ -331,13 +399,6 @@ export class AuthService {
       },
     });
 
-    // Deliver via SMS gateway. The gateway NEVER receives or logs the code
-    // itself; only a user-copyable dev channel (non-prod response) exposes it.
-    await this.smsGateway.send(
-      phone,
-      'Your Weyro verification code. It expires in 10 minutes.',
-    );
-
     return {
       status: 'sent',
       phone,
@@ -345,6 +406,103 @@ export class AuthService {
       // Dev-only: return the code so it can be tested without an SMS gateway
       ...(env.OTP_DEBUG_ECHO === 'true' ? { code } : {}),
     };
+  }
+
+  /**
+   * H5: reserve one OTP send for `phone`, or throw.
+   *  - 1 send per 30 s per phone (429)
+   *  - 5 sends per 24 h per phone (429)
+   *  - OTP_GLOBAL_HOURLY_CAP sends per hour overall (503, logged as an error)
+   * Uses Redis when it is ready (atomic Lua script), otherwise counts rows in
+   * `otp_sends` under a per-phone advisory lock.
+   */
+  private async reserveOtpSend(phone: string): Promise<void> {
+    const cap = env.OTP_GLOBAL_HOURLY_CAP;
+    const cooldown = AuthService.OTP_RESEND_COOLDOWN_SECONDS;
+    const dailyMax = AuthService.OTP_MAX_SENDS_PER_DAY;
+
+    let verdict: 'ok' | 'cooldown' | 'daily' | 'global' | null = null;
+
+    if (this.redis && this.redis.status === 'ready') {
+      const hourBucket = Math.floor(Date.now() / 3_600_000);
+      const script = `
+        if redis.call('EXISTS', KEYS[1]) == 1 then return 1 end
+        local g = tonumber(redis.call('GET', KEYS[3]) or '0')
+        if g >= tonumber(ARGV[5]) then return 3 end
+        local d = tonumber(redis.call('GET', KEYS[2]) or '0')
+        if d >= tonumber(ARGV[3]) then return 2 end
+        redis.call('SET', KEYS[1], '1', 'EX', ARGV[1])
+        if redis.call('INCR', KEYS[2]) == 1 then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
+        if redis.call('INCR', KEYS[3]) == 1 then redis.call('EXPIRE', KEYS[3], ARGV[4]) end
+        return 0
+      `;
+      try {
+        const result = Number(
+          await this.redis.eval(
+            script,
+            3,
+            `weyro:otp:send:cooldown:${phone}`,
+            `weyro:otp:send:daily:${phone}`,
+            `weyro:otp:send:global:${hourBucket}`,
+            String(cooldown),
+            '86400',
+            String(dailyMax),
+            '3660',
+            String(cap),
+          ),
+        );
+        verdict = (['ok', 'cooldown', 'daily', 'global'] as const)[result] ?? 'ok';
+      } catch (error) {
+        this.logger.warn(
+          `Redis OTP send limiter unavailable, using database counts: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    if (verdict === null) {
+      verdict = await this.prisma.$transaction(async (tx) => {
+        // Serialize concurrent sends for the same phone.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`otp-send:${phone}`}))`;
+        const now = Date.now();
+        const [recent, today, thisHour] = await Promise.all([
+          tx.otpSend.count({ where: { phone, createdAt: { gte: new Date(now - cooldown * 1000) } } }),
+          tx.otpSend.count({ where: { phone, createdAt: { gte: new Date(now - 24 * 3_600_000) } } }),
+          tx.otpSend.count({ where: { createdAt: { gte: new Date(now - 3_600_000) } } }),
+        ]);
+        if (recent > 0) return 'cooldown' as const;
+        if (thisHour >= cap) return 'global' as const;
+        if (today >= dailyMax) return 'daily' as const;
+        await tx.otpSend.create({ data: { phone } });
+        // Keep the log small: drop rows older than the longest window we use.
+        if (crypto.randomInt(0, 50) === 0) {
+          await tx.otpSend.deleteMany({
+            where: { createdAt: { lt: new Date(now - 48 * 3_600_000) } },
+          });
+        }
+        return 'ok' as const;
+      });
+    }
+
+    if (verdict === 'cooldown') {
+      throw new HttpException(
+        `Please wait ${cooldown} seconds before requesting another code.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (verdict === 'daily') {
+      throw new HttpException(
+        'Too many verification codes requested for this number. Try again tomorrow.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (verdict === 'global') {
+      this.logger.error(
+        `OTP global hourly cap (${cap}) reached — refusing new sends. Possible SMS pumping attack; investigate.`,
+      );
+      throw new ServiceUnavailableException(
+        'Verification codes are temporarily unavailable. Please try again later.',
+      );
+    }
   }
 
   /**
@@ -500,7 +658,6 @@ export class AuthService {
       // Auto-create a customer-profile user for OTP-based login
       user = await this.prisma.user.create({
         data: {
-          email: `${phone}@weyro.in`, // placeholder email; user can update later
           phone,
           passwordHash: '', // OTP-authenticated users have no password
           role: 'CUSTOMER',
@@ -517,12 +674,22 @@ export class AuthService {
           providerProfile: true,
         },
       });
-    } else {
-      // Mark phone as verified for existing users
-      await this.prisma.user.update({
-        where: { id: user!.id },
-        data: { phoneVerified: true },
-      });
+    } else if (!user!.phoneVerified) {
+      // H1: this phone was claimed by a password registration that never
+      // proved ownership (possible pre-takeover). The OTP holder is the real
+      // owner: drop the claimant's password and kill every session they hold.
+      const existing = user!;
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: existing.id },
+          data: { phoneVerified: true, passwordHash: '' },
+        }),
+        this.prisma.refreshToken.updateMany({
+          where: { userId: existing.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+      user = { ...existing, phoneVerified: true, passwordHash: '' };
     }
 
     const tokens = await this.generateTokenPair(user as any);
@@ -588,7 +755,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('No account found for this phone number');
+      // Same error as a wrong code: the response must not reveal whether an
+      // account exists for this phone number.
+      throw new BadRequestException('Invalid OTP code');
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
@@ -615,7 +784,7 @@ export class AuthService {
   private async generateTokenPair(
     user: {
       id: string;
-      email: string;
+      email: string | null;
       phone: string;
       role: any;
       customerProfile?: { id: string } | null;
@@ -626,7 +795,7 @@ export class AuthService {
   ) {
     const payload: AuthUserPayload = {
       sub: user.id,
-      email: user.email,
+      email: user.email ?? undefined,
       phone: user.phone,
       role: user.role,
       customerProfileId: user.customerProfile?.id,
@@ -690,7 +859,6 @@ export class AuthService {
     // exclusions for token/secret columns — kept explicit for future dates
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, refreshTokens, ...sanitized } = user;
-    return sanitized;
     return sanitized;
   }
 }

@@ -1,10 +1,48 @@
 import { z } from 'zod';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+/**
+ * H3: parse any user-typed phone (default region IN) and return E.164
+ * (e.g. +919876543210), or null when it is not a valid number.
+ * `9876543210`, `09876543210` and `+91 98765 43210` all map to the same value.
+ */
+export function normalizePhone(input: string): string | null {
+  const parsed = parsePhoneNumberFromString(input.trim(), 'IN');
+  if (!parsed || !parsed.isValid()) return null;
+  return parsed.number; // E.164
+}
+
+/**
+ * C4: canonical form of a vehicle registration number — uppercase with all
+ * whitespace removed ("ka 01 ab 1234" → "KA01AB1234"). Stored values are always
+ * normalized; uniqueness is per customer.
+ */
+export function normalizeRegistrationNumber(input: string): string {
+  return input.toUpperCase().replace(/\s+/g, '');
+}
+
+/** Shared phone field: validates with libphonenumber and outputs E.164. */
+export const phoneSchema = z
+  .string()
+  .trim()
+  .min(7)
+  .max(20)
+  .transform((value, ctx) => {
+    const normalized = normalizePhone(value);
+    if (!normalized) {
+      ctx.addIssue({ code: 'custom', message: 'Enter a valid phone number' });
+      return z.NEVER;
+    }
+    return normalized;
+  });
 
 // Auth validation
 export const RegisterSchema = z
   .object({
     email: z.string().email(),
-    phone: z.string().min(10).max(15),
+    phone: phoneSchema,
+    /** H1: OTP (purpose=register) proving the caller owns this phone. */
+    otpCode: z.string().length(6),
     password: z
       .string()
       .min(8)
@@ -238,6 +276,12 @@ export const UpdateBookingStatusSchema = z
     trackingNumber: z.string().optional(),
     carrierName: z.string().optional(),
     completionNotes: z.string().max(1000).optional(),
+    /**
+     * Admin-only: lets a booking move forward without a captured payment. The
+     * reason is stored in the audit log. Ignored for non-admins (they are
+     * refused instead).
+     */
+    overrideReason: z.string().trim().min(5).max(500).optional(),
   })
   .strict();
 
@@ -268,14 +312,14 @@ export const ReleasePaymentSchema = z
 // Phone OTP validation
 export const SendOtpSchema = z
   .object({
-    phone: z.string().min(10).max(15),
+    phone: phoneSchema,
     purpose: z.enum(['login', 'register', 'reset_password']).default('login'),
   })
   .strict();
 
 export const VerifyOtpSchema = z
   .object({
-    phone: z.string().min(10).max(15),
+    phone: phoneSchema,
     code: z.string().length(6),
     purpose: z.enum(['login', 'register', 'reset_password']).default('login'),
   })
@@ -284,7 +328,7 @@ export const VerifyOtpSchema = z
 // Password reset validation
 export const ResetPasswordSchema = z
   .object({
-    phone: z.string().min(10).max(15),
+    phone: phoneSchema,
     code: z.string().length(6),
     newPassword: z.string().min(8),
   })

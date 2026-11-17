@@ -5,9 +5,11 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { QuotationsService } from './quotations.service';
+import { BookingsService } from './bookings.service';
 
 describe('QuotationsService authorization and state regressions', () => {
   let service: QuotationsService;
+  let bookings: BookingsService;
   let mockPrisma: any;
   let mockNotifications: any;
 
@@ -40,6 +42,7 @@ describe('QuotationsService authorization and state regressions', () => {
     };
 
     service = new QuotationsService(mockPrisma, mockNotifications);
+    bookings = new BookingsService(mockPrisma, mockNotifications);
   });
 
   const owner = {
@@ -367,7 +370,7 @@ describe('QuotationsService authorization and state regressions', () => {
         }),
       );
 
-      const result = await service.updateLocation('bk-1', provider, {
+      const result = await bookings.updateLocation('bk-1', provider, {
         latitude: 12.9352,
         longitude: 77.6245,
       });
@@ -387,7 +390,7 @@ describe('QuotationsService authorization and state regressions', () => {
       });
 
       await expect(
-        service.updateLocation('bk-1', provider, {
+        bookings.updateLocation('bk-1', provider, {
           latitude: 12.9,
           longitude: 77.6,
         }),
@@ -408,7 +411,7 @@ describe('QuotationsService authorization and state regressions', () => {
         etaMinutes: 8,
       });
 
-      await expect(service.getTracking('bk-1', intruder)).rejects.toThrow(
+      await expect(bookings.getTracking('bk-1', intruder)).rejects.toThrow(
         ForbiddenException,
       );
     });

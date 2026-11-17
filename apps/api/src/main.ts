@@ -1,3 +1,5 @@
+// Must stay first: Sentry has to instrument modules loaded after it (M9).
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';

@@ -94,7 +94,7 @@ export function DriverGoLandingScreen() {
         <Feature
           icon={<ShieldCheck size={17} color={palette.textPrimary} strokeWidth={1.7} />}
           title="Start with a code"
-          detail="The driver enters your 4-digit code before the trip begins."
+          detail="The driver enters your 6-digit code before the trip begins."
         />
         <Feature
           icon={<Wallet size={17} color={palette.textPrimary} strokeWidth={1.7} />}

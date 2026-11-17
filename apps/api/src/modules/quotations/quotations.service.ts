@@ -1,37 +1,20 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { serializeBooking } from './booking-serializer';
+import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateQuotationDto, UpdateQuotationDto } from './dto/create-quotation.dto';
 import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
-import {
-  validateBookingTransition,
-  validateQuotationTransition,
-  validateServiceRequestTransition,
-} from '../../common/state-machines/state-machines';
+import { validateQuotationTransition, validateServiceRequestTransition } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  estimateTowingFare,
-  haversineDistanceKm,
-  PROVIDER_TYPE_CATEGORIES,
-  TOWING_TARIFF,
-} from '@weyro/api-contracts';
+import { estimateTowingFare, PROVIDER_TYPE_CATEGORIES, TOWING_TARIFF } from '@weyro/api-contracts';
 import {
   buildCursorWhere,
   decodeCursor,
   encodeCursor,
 } from '../../common/utils/cursor';
-import {
-  toPaymentSummary,
-  toPublicCustomer,
-  toPublicProvider,
-} from '../../common/serializers/public-provider';
+import { toPublicProvider } from '../../common/serializers/public-provider';
 
 @Injectable()
 export class QuotationsService {
@@ -361,7 +344,7 @@ export class QuotationsService {
     });
 
     if (existingBooking) {
-      return this.serializeBooking(existingBooking, user.role);
+      return serializeBooking(existingBooking, user.role);
     }
 
     // Validate state machine transitions
@@ -382,6 +365,20 @@ export class QuotationsService {
       ) {
         throw new ConflictException(
           'This provider is not currently verified for new work',
+        );
+      }
+
+      // H6: claim the REQUEST first. This conditional update is the single
+      // serialization point: when two quotes are accepted at once, exactly one
+      // transaction moves the request out of OPEN/QUOTES_RECEIVED; the other
+      // sees count 0 and is refused instead of creating a second booking.
+      const claimed = await tx.serviceRequest.updateMany({
+        where: { id: quote.requestId, status: { in: ['OPEN', 'QUOTES_RECEIVED'] } },
+        data: { status: 'ACCEPTED' },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'This request has already been accepted by another quotation',
         );
       }
 
@@ -407,16 +404,11 @@ export class QuotationsService {
         data: { status: 'REJECTED' },
       });
 
-      // Update service request status to ACCEPTED
-      await tx.serviceRequest.update({
-        where: { id: quote.requestId },
-        data: { status: 'ACCEPTED' },
-      });
-
       // Create Booking atomically
       const booking = await tx.booking.create({
         data: {
           quotationId: quote.id,
+          requestId: quote.requestId,
           customerId: quote.request.customerId,
           providerId: quote.providerId,
           status: 'CONFIRMED',
@@ -470,7 +462,7 @@ export class QuotationsService {
       // Non-blocking notification dispatch
     }
 
-    return this.serializeBooking(result, user.role);
+    return serializeBooking(result, user.role);
   }
 
   async getMyQuotations(
@@ -505,6 +497,9 @@ export class QuotationsService {
             urgency: true,
             address: true,
             createdAt: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            vehicleYear: true,
             vehicle: {
               select: {
                 make: true,
@@ -527,6 +522,8 @@ export class QuotationsService {
       request: item.request
         ? {
             ...item.request,
+            // C4: saved vehicle or the request's free-form make/model/year.
+            vehicle: resolveRequestVehicle(item.request),
             address:
               item.status === 'ACCEPTED'
                 ? item.request.address
@@ -683,479 +680,5 @@ export class QuotationsService {
     return parts.length >= 2
       ? parts[parts.length - 1]
       : 'Location shared after acceptance';
-  }
-
-  async getBooking(id: string, user: AuthUserPayload) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id },
-      include: {
-        customer: true,
-        provider: true,
-        quotation: {
-          include: { request: { include: { vehicle: true, media: true } } },
-        },
-        payments: true,
-        review: true,
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
-    }
-
-    const isCustomerOwner =
-      user.customerProfileId && booking.customerId === user.customerProfileId;
-    const isProviderOwner =
-      user.providerProfileId && booking.providerId === user.providerProfileId;
-
-    if (!isCustomerOwner && !isProviderOwner && user.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'You do not have permission to view this booking',
-      );
-    }
-
-    return this.serializeBooking(booking, user.role);
-  }
-
-  async getBookings(
-    user: AuthUserPayload,
-    cursor?: string,
-    limit: number = 20,
-    status?: string,
-  ) {
-    const where: any = {};
-    if (status) {
-      where.status = status;
-    }
-
-    if (user.role === 'ADMIN') {
-      // Admin sees all
-    } else if (user.customerProfileId && user.role === 'CUSTOMER') {
-      where.customerId = user.customerProfileId;
-    } else if (user.providerProfileId && user.role === 'PROVIDER') {
-      where.providerId = user.providerProfileId;
-    } else if (user.role === 'BOTH') {
-      where.OR = [
-        user.customerProfileId ? { customerId: user.customerProfileId } : undefined,
-        user.providerProfileId ? { providerId: user.providerProfileId } : undefined,
-      ].filter(Boolean);
-    } else {
-      where.id = 'none';
-    }
-
-    const boundedLimit = Math.min(50, Math.max(1, limit));
-    const cursorTuple = cursor ? decodeCursor(cursor) : null;
-
-    const items = await this.prisma.booking.findMany({
-      where: {
-        ...buildCursorWhere(cursorTuple),
-        ...where,
-      },
-      take: boundedLimit,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: {
-        customer: true,
-        provider: true,
-        quotation: {
-          include: { request: { include: { vehicle: true, media: true } } },
-        },
-        payments: true,
-        review: true,
-      },
-    });
-
-    return {
-      items: items.map((item) =>
-        this.serializeBooking(item, user.role),
-      ),
-      nextCursor:
-        items.length === boundedLimit
-          ? encodeCursor({
-              createdAt: items[items.length - 1].createdAt.toISOString(),
-              id: items[items.length - 1].id,
-            })
-          : null,
-    };
-  }
-
-  /**
-   * Cross-party booking payloads must never carry the other party's phone,
-   * exact address, KYC documents or gateway internals. Admins keep the full
-   * record for reconciliation.
-   */
-  private serializeBooking(booking: any, role: string) {
-    if (role === 'ADMIN') {
-      return booking;
-    }
-
-    const {
-      customer,
-      provider,
-      payments,
-      ...rest
-    } = booking;
-
-    const vehicle = booking.quotation?.request?.vehicle;
-    const safeVehicle = vehicle
-      ? {
-          make: vehicle.make,
-          model: vehicle.model,
-          year: vehicle.year,
-          fuelType: vehicle.fuelType,
-          transmission: vehicle.transmission,
-          color: vehicle.color,
-        }
-      : vehicle ?? null;
-
-    return {
-      ...rest,
-      ...(booking.quotation?.request
-        ? {
-            quotation: {
-              ...booking.quotation,
-              request: {
-                ...booking.quotation.request,
-                vehicle: safeVehicle,
-              },
-            },
-          }
-        : {}),
-      customer: customer ? toPublicCustomer(customer) : null,
-      provider: provider ? toPublicProvider(provider) : null,
-      payments: (payments ?? []).map(toPaymentSummary),
-    };
-  }
-
-  async updateStatus(
-    id: string,
-    user: AuthUserPayload,
-    newStatus: string,
-    metadata?: { trackingNumber?: string; carrierName?: string; completionNotes?: string },
-  ) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id },
-      include: {
-        payments: { orderBy: { createdAt: 'desc' } },
-        quotation: {
-          include: { request: true },
-        },
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
-    }
-
-    const isCustomerOwner =
-      user.customerProfileId && booking.customerId === user.customerProfileId;
-    const isProviderOwner =
-      user.providerProfileId && booking.providerId === user.providerProfileId;
-    const isAdmin = user.role === 'ADMIN';
-
-    if (!isCustomerOwner && !isProviderOwner && !isAdmin) {
-      throw new ForbiddenException('You do not have permission to update this booking');
-    }
-
-    // A BOTH account can own this booking on either side. The acting side must
-    // come from the ownership relation, not from the account's global role.
-    const actorRole: 'ADMIN' | 'PROVIDER' | 'CUSTOMER' = isAdmin
-      ? 'ADMIN'
-      : isProviderOwner
-        ? 'PROVIDER'
-        : 'CUSTOMER';
-
-    validateBookingTransition(booking.status, newStatus as any, actorRole);
-
-    const data: any = { status: newStatus as any };
-    if (metadata?.trackingNumber !== undefined) {
-      data.trackingNumber = metadata.trackingNumber;
-    }
-    if (metadata?.carrierName !== undefined) {
-      data.carrierName = metadata.carrierName;
-    }
-    if (metadata?.completionNotes !== undefined) {
-      data.completionNotes = metadata.completionNotes;
-    }
-    if (newStatus === 'IN_PROGRESS' && !booking.startedAt) {
-      data.startedAt = new Date();
-    }
-    if (newStatus === 'COMPLETED' && !booking.completedAt) {
-      data.completedAt = new Date();
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedBooking = await tx.booking.update({
-        where: { id },
-        data,
-        include: {
-          customer: true,
-          provider: true,
-          quotation: true,
-          payments: { orderBy: { createdAt: 'desc' } },
-        },
-      });
-
-      // Starting and completing a job must move the request through its own
-      // state machine (ACCEPTED -> IN_PROGRESS -> COMPLETED).
-      if (newStatus === 'IN_PROGRESS' && booking.quotation?.request) {
-        const request = booking.quotation.request;
-        if (request.status === 'ACCEPTED') {
-          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
-          await tx.serviceRequest.update({
-            where: { id: request.id },
-            data: { status: 'IN_PROGRESS' },
-          });
-        }
-      }
-
-      // If work is completed, transition ServiceRequest to COMPLETED as well
-      if (newStatus === 'COMPLETED' && booking.quotation?.request) {
-        const request = booking.quotation.request;
-        if (request.status === 'ACCEPTED') {
-          validateServiceRequestTransition('ACCEPTED', 'IN_PROGRESS', actorRole);
-          await tx.serviceRequest.update({
-            where: { id: request.id },
-            data: { status: 'IN_PROGRESS' },
-          });
-        }
-        validateServiceRequestTransition(
-          request.status === 'ACCEPTED' ? 'IN_PROGRESS' : request.status,
-          'COMPLETED',
-          actorRole,
-        );
-        await tx.serviceRequest.update({
-          where: { id: request.id },
-          data: { status: 'COMPLETED' },
-        });
-
-      }
-
-      return updatedBooking;
-    });
-
-    // Notify opposite party of booking status update
-    try {
-      const targetUserIds: string[] = [];
-      if (isCustomerOwner) {
-        const p = await this.prisma.providerProfile.findUnique({
-          where: { id: booking.providerId },
-          select: { userId: true },
-        });
-        if (p?.userId) targetUserIds.push(p.userId);
-      } else if (isProviderOwner) {
-        const c = await this.prisma.customerProfile.findUnique({
-          where: { id: booking.customerId },
-          select: { userId: true },
-        });
-        if (c?.userId) targetUserIds.push(c.userId);
-      } else {
-        const [c, p] = await Promise.all([
-          this.prisma.customerProfile.findUnique({
-            where: { id: booking.customerId },
-            select: { userId: true },
-          }),
-          this.prisma.providerProfile.findUnique({
-            where: { id: booking.providerId },
-            select: { userId: true },
-          }),
-        ]);
-        if (c?.userId) targetUserIds.push(c.userId);
-        if (p?.userId) targetUserIds.push(p.userId);
-      }
-
-      for (const targetUserId of targetUserIds) {
-        this.notifications
-          .sendPushNotification({
-            userId: targetUserId,
-            title: `Booking Update: ${newStatus}`,
-            body: `Booking #${booking.id.slice(0, 8)} status changed to ${newStatus}.`,
-            data: {
-              type: 'BOOKING_STATUS_CHANGED',
-              bookingId: booking.id,
-              status: newStatus,
-            },
-          })
-          .catch(() => {});
-      }
-    } catch {
-      // Non-blocking notification dispatch
-    }
-
-    return this.serializeBooking(updated, user.role);
-  }
-
-  async updateLocation(
-    bookingId: string,
-    user: AuthUserPayload,
-    input: { latitude: number; longitude: number; etaMinutes?: number },
-  ) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { quotation: { include: { request: true } } },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
-    }
-
-    const isProviderOwner =
-      user.providerProfileId && booking.providerId === user.providerProfileId;
-    const isAdmin = user.role === 'ADMIN';
-
-    if (!isProviderOwner && !isAdmin) {
-      throw new ForbiddenException(
-        'Only the assigned provider can share location for this booking',
-      );
-    }
-
-    if (
-      booking.status === 'COMPLETED' ||
-      booking.status === 'CANCELLED' ||
-      booking.status === 'DISPUTED'
-    ) {
-      throw new BadRequestException(
-        `Cannot share location for a ${booking.status.toLowerCase()} booking`,
-      );
-    }
-
-    const request = booking.quotation?.request;
-    let etaMinutes = input.etaMinutes;
-    if (etaMinutes === undefined && request) {
-      const isTowing = request.category === 'TOWING';
-      const headingToDropoff =
-        isTowing && booking.status === 'IN_PROGRESS';
-      const destination =
-        headingToDropoff &&
-        typeof request.dropoffLatitude === 'number' &&
-        typeof request.dropoffLongitude === 'number'
-          ? {
-              latitude: request.dropoffLatitude,
-              longitude: request.dropoffLongitude,
-            }
-          : { latitude: request.latitude, longitude: request.longitude };
-
-      // Assume 30 km/h average city speed for a conservative ETA.
-      const distanceKm = haversineDistanceKm(
-        { latitude: input.latitude, longitude: input.longitude },
-        destination,
-      );
-      etaMinutes = Math.max(1, Math.ceil((distanceKm / 30) * 60));
-    }
-
-    const updated = await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        providerLatitude: input.latitude,
-        providerLongitude: input.longitude,
-        providerLocationUpdatedAt: new Date(),
-        etaMinutes: etaMinutes ?? booking.etaMinutes,
-      },
-      select: {
-        id: true,
-        status: true,
-        providerLatitude: true,
-        providerLongitude: true,
-        providerLocationUpdatedAt: true,
-        etaMinutes: true,
-      },
-    });
-
-    return updated;
-  }
-
-  async getTracking(bookingId: string, user: AuthUserPayload) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: {
-        id: true,
-        status: true,
-        customerId: true,
-        providerId: true,
-        providerLatitude: true,
-        providerLongitude: true,
-        providerLocationUpdatedAt: true,
-        etaMinutes: true,
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
-    }
-
-    const canAccess =
-      user.role === 'ADMIN' ||
-      (user.customerProfileId && user.customerProfileId === booking.customerId) ||
-      (user.providerProfileId && user.providerProfileId === booking.providerId);
-
-    if (!canAccess) {
-      throw new ForbiddenException('You do not have access to this booking');
-    }
-
-    return {
-      bookingId: booking.id,
-      status: booking.status,
-      providerLatitude: booking.providerLatitude,
-      providerLongitude: booking.providerLongitude,
-      providerLocationUpdatedAt: booking.providerLocationUpdatedAt,
-      etaMinutes: booking.etaMinutes,
-    };
-  }
-
-  async addReview(
-    bookingId: string,
-    user: AuthUserPayload,
-    rating: number,
-    comment?: string,
-  ) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
-    }
-
-    if (
-      user.role !== 'ADMIN' &&
-      (!user.customerProfileId || booking.customerId !== user.customerProfileId)
-    ) {
-      throw new ForbiddenException('Only the booking customer can leave a review');
-    }
-
-    if (booking.status !== 'COMPLETED' && user.role !== 'ADMIN') {
-      throw new BadRequestException('Reviews can only be submitted for completed bookings');
-    }
-
-    return await this.prisma.$transaction(async (tx) => {
-      const review = await tx.review.create({
-        data: {
-          bookingId,
-          customerId: booking.customerId,
-          providerId: booking.providerId,
-          rating: Math.max(1, Math.min(5, Math.round(rating))),
-          comment,
-        },
-      });
-
-      // Recompute provider average rating and review count
-      const allReviews = await tx.review.findMany({
-        where: { providerId: booking.providerId, status: 'ACTIVE' },
-        select: { rating: true },
-      });
-
-      const totalReviews = allReviews.length;
-      const sum = allReviews.reduce((acc, r) => acc + r.rating, 0);
-      const avgRating = totalReviews > 0 ? Number((sum / totalReviews).toFixed(1)) : 0;
-
-      await tx.providerProfile.update({
-        where: { id: booking.providerId },
-        data: {
-          avgRating,
-          totalReviews,
-        },
-      });
-
-      return review;
-    });
   }
 }

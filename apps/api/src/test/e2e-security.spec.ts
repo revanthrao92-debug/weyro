@@ -6,6 +6,7 @@ import { AppModule } from '../app.module';
 import { env } from '../config/env.config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../modules/auth/auth.service';
+import { seedRegisterOtp } from './otp-helper';
 
 /**
  * Phase 1 security regressions — authentication, authorization, validation.
@@ -37,9 +38,12 @@ describe('Security foundations (Postgres)', () => {
     // Use the service directly so the suite doesn't exhaust the HTTP
     // registration throttle (5/min) — the endpoint itself is covered by the
     // validation test below.
+    const phone = `+919${String(Date.now() % 100000).padStart(5, '0')}${String(phoneSeq++).padStart(5, '0')}`;
+    const otpCode = await seedRegisterOtp(prisma, phone);
     const res = await authService.register({
       email: `sec-${tag}-${suffix}@example.com`,
-      phone: `+919${String(Date.now() % 100000).padStart(5, '0')}${String(phoneSeq++).padStart(5, '0')}`,
+      phone,
+      otpCode,
       password,
       role,
       firstName: 'Sec',
@@ -79,6 +83,39 @@ describe('Security foundations (Postgres)', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('H5: a second OTP send within 30s is refused, and the OTP row only exists after a successful send', async () => {
+    const phone = `+9191${String(Date.now()).slice(-8)}`;
+
+    const first = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(first.status).toBe(201);
+    expect(await prisma.oTP.count({ where: { phone } })).toBe(1);
+    expect(await prisma.otpSend.count({ where: { phone } })).toBe(1);
+
+    const second = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(second.status).toBe(429);
+    expect(await prisma.otpSend.count({ where: { phone } })).toBe(1); // refused sends are not logged
+
+    await prisma.otpSend.deleteMany({ where: { phone } });
+    await prisma.oTP.deleteMany({ where: { phone } });
+  });
+
+  it('H5: the 6th OTP send in 24h is refused (database limiter, real Postgres)', async () => {
+    const phone = `+9190${String(Date.now()).slice(-8)}`;
+    // Five earlier sends today, all outside the 30s cooldown.
+    await prisma.otpSend.createMany({
+      data: Array.from({ length: 5 }, (_, i) => ({
+        phone,
+        createdAt: new Date(Date.now() - (60 + i * 600) * 1000),
+      })),
+    });
+
+    const res = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+    expect(res.status).toBe(429);
+    expect(await prisma.oTP.count({ where: { phone } })).toBe(0);
+
+    await prisma.otpSend.deleteMany({ where: { phone } });
   });
 
   it('rejects a forged JWT signature', async () => {
@@ -144,6 +181,7 @@ describe('Security foundations (Postgres)', () => {
     const res = await http().post(`${API}/auth/register`).send({
       email: `extra-${suffix}@example.com`,
       phone: `+9193${suffix.slice(-8)}`,
+      otpCode: '123456',
       password,
       role: 'CUSTOMER',
       firstName: 'Extra',
@@ -157,6 +195,7 @@ describe('Security foundations (Postgres)', () => {
     const res = await http().post(`${API}/auth/register`).send({
       email: `no-business-${suffix}@example.com`,
       phone: `+9194${suffix.slice(-8)}`,
+      otpCode: '123456',
       password,
       role: 'PROVIDER',
       firstName: 'No',
@@ -171,6 +210,7 @@ describe('Security foundations (Postgres)', () => {
     const res = await http().post(`${API}/auth/register`).send({
       email: `weak-${suffix}@example.com`,
       phone: `+9195${suffix.slice(-8)}`,
+      otpCode: '123456',
       password: 'passwordonly',
       role: 'CUSTOMER',
       firstName: 'Weak',

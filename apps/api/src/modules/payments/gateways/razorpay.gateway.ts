@@ -110,7 +110,24 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     };
   }
 
-  verifyPaymentSignature(params: VerifyPaymentParams): boolean {    const { orderId, paymentId, signature } = params;
+  /** M4: capture an authorized payment for the server-side expected amount. */
+  async capturePayment(
+    paymentId: string,
+    amountInPaise: number,
+    currency: string,
+  ): Promise<{ id: string; order_id: string; amount: number; currency: string; status: string }> {
+    const payment = await this.instance.payments.capture(paymentId, amountInPaise, currency);
+    return {
+      id: payment.id,
+      order_id: payment.order_id,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      status: payment.status,
+    };
+  }
+
+  verifyPaymentSignature(params: VerifyPaymentParams): boolean {
+    const { orderId, paymentId, signature } = params;
     try {
       const generatedSignature = crypto
         .createHmac('sha256', this.keySecret)

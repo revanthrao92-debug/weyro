@@ -6,6 +6,8 @@ import {
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+import { normalizeRegistrationNumber } from '@weyro/validation';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import {
   CreateVehicleDto,
   UpdateAddressesDto,
@@ -37,9 +39,16 @@ export class CustomersService {
 
   async updateProfile(user: AuthUserPayload, dto: UpdateCustomerProfileDto) {
     const id = this.customerId(user);
+    // H4: an avatar must be a finalized upload owned by the caller (null clears it).
+    const [avatarKey] = dto.avatarUrl
+      ? await assertOwnedMediaKeys(this.prisma, user.sub, [dto.avatarUrl], MEDIA_FOLDERS_BY_USE.avatar)
+      : [];
     return this.prisma.customerProfile.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        ...(dto.avatarUrl === undefined ? {} : { avatarUrl: avatarKey ?? null }),
+      },
     });
   }
 
@@ -79,7 +88,7 @@ export class CustomersService {
       data: {
         customerId,
         ...dto,
-        registrationNumber: dto.registrationNumber.trim().toUpperCase(),
+        registrationNumber: normalizeRegistrationNumber(dto.registrationNumber),
       },
     });
   }
@@ -103,7 +112,7 @@ export class CustomersService {
       data: {
         ...dto,
         ...(dto.registrationNumber
-          ? { registrationNumber: dto.registrationNumber.trim().toUpperCase() }
+          ? { registrationNumber: normalizeRegistrationNumber(dto.registrationNumber) }
           : {}),
       },
     });

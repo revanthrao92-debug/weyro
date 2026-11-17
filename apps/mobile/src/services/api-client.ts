@@ -51,7 +51,7 @@ let tokenRefresher: TokenRefresher | null = null;
 let sessionExpiredHandler: SessionExpiredHandler | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
 
-/** Registered by the AuthProvider (which owns Supabase/token storage). */
+/** Registered by the AuthProvider (which owns the token refresh logic). */
 export function setTokenRefresher(fn: TokenRefresher | null) {
   tokenRefresher = fn;
 }
@@ -86,6 +86,9 @@ export async function refreshTokenSingleFlight(): Promise<string | null> {
   }
   return refreshInFlight;
 }
+
+/** Hard ceiling for any single API call. */
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   constructor(
@@ -123,17 +126,35 @@ export async function apiClient<T = any>(
     ? input.toString()
     : `${API_URL}${input.toString()}`;
 
+  // A request that never answers must not hang the UI (or a queued retry)
+  // forever: give up after REQUEST_TIMEOUT_MS.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Respect a caller-supplied signal as well.
+  const callerSignal = init?.signal;
+  const abortFromCaller = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
       headers,
+      signal: controller.signal,
     });
   } catch {
     throw new ApiError(
       0,
-      'Cannot reach Weyro servers. Check your connection and try again.',
+      controller.signal.aborted && !callerSignal?.aborted
+        ? 'The request timed out. Check your connection and try again.'
+        : 'Cannot reach Weyro servers. Check your connection and try again.',
     );
+  } finally {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
   }
 
   // H6: on 401 (except exempt auth endpoints), refresh once and retry once.

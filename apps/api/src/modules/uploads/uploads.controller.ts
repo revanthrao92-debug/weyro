@@ -27,6 +27,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { z } from 'zod';
+import { PrismaService } from '../../prisma/prisma.service';
 
 const UPLOAD_FOLDERS = [
   'damage-requests',
@@ -49,6 +50,7 @@ type PresignedDownloadQueryDto = z.infer<typeof presignedDownloadQuerySchema>;
 export class UploadsController {
   constructor(
     @Inject(STORAGE_SERVICE) private readonly storageService: StorageService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Throttle({ default: { limit: 20, ttl: 60000 } })
@@ -103,10 +105,20 @@ export class UploadsController {
       throw new ForbiddenException('You can only finalize your own uploads');
     }
 
-    return this.storageService.finalizeImage({
+    const finalized = await this.storageService.finalizeImage({
       key: dto.key,
       contentType: dto.contentType,
     });
+
+    // H4: remember that this key was uploaded AND passed validation, so other
+    // endpoints can accept it as a media reference.
+    await this.prisma.uploadedObject.upsert({
+      where: { key: finalized.key },
+      update: { finalizedAt: new Date() },
+      create: { key: finalized.key, ownerId: user.sub },
+    });
+
+    return finalized;
   }
 
   /**

@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -10,12 +11,15 @@ import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../types/auth-user-payload.type';
+import { SessionRevocationService } from '../auth/session-revocation.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
+    // Optional so the guard can still be built standalone (unit tests).
+    @Optional() private readonly revocation?: SessionRevocationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -50,6 +54,11 @@ export class JwtAuthGuard implements CanActivate {
         !['CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN'].includes(payload.role as string)
       ) {
         throw new UnauthorizedException('Invalid authentication token claims');
+      }
+
+      // M10: a suspended / deactivated user's still-valid access token is refused.
+      if (this.revocation && (await this.revocation.isRevoked(payload.sub, (payload as any).iat))) {
+        throw new UnauthorizedException('This account has been suspended');
       }
 
       (request as any).user = payload;

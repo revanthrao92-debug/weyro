@@ -11,13 +11,23 @@ describe('DamageRequestsService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
       },
       vehicle: {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
+        create: jest.fn(),
+      },
+      uploadedObject: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ key: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg' }]),
       },
       providerProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
+      quotation: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
       $queryRaw: jest.fn(),
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
@@ -30,7 +40,7 @@ describe('DamageRequestsService', () => {
       const mockCreated = {
         id: 'req-1',
         title: 'Bumper repair',
-        media: [{ url: 'https://img.com/1.jpg' }],
+        media: [{ url: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg' }],
         vehicle: { id: 'veh-1' },
       };
 
@@ -43,7 +53,7 @@ describe('DamageRequestsService', () => {
         address: 'MG Road, Bengaluru, Karnataka',
         latitude: 12.9716,
         longitude: 77.5946,
-        damagePhotos: ['https://img.com/1.jpg'],
+        damagePhotos: ['damage-requests/cust-1/1700000000000_ab12cd34.jpg'],
       } as any);
 
       expect(mockPrisma.serviceRequest.create).toHaveBeenCalledWith(
@@ -51,13 +61,95 @@ describe('DamageRequestsService', () => {
           data: expect.objectContaining({
             customerId: 'cust-1',
             media: {
-              create: [{ url: 'https://img.com/1.jpg', fileType: 'image/jpeg' }],
+              create: [{ url: 'damage-requests/cust-1/1700000000000_ab12cd34.jpg', fileType: 'image/jpeg' }],
             },
           }),
         }),
       );
 
-      expect(result.damagePhotos).toEqual(['https://img.com/1.jpg']);
+      expect(result.damagePhotos).toEqual(['damage-requests/cust-1/1700000000000_ab12cd34.jpg']);
+    });
+
+    it('H4: rejects signed URLs, foreign keys and un-finalized keys with 400', async () => {
+      const base = {
+        vehicleId: 'veh-1',
+        title: 'x',
+        description: 'long enough description',
+        address: 'MG Road, Bengaluru',
+        latitude: 12.9,
+        longitude: 77.5,
+      };
+      const bad = [
+        'https://evil.example.com/a.jpg',
+        'https://b.s3.ap-south-1.amazonaws.com/damage-requests/cust-1/1700000000000_ab12cd34.jpg?X-Amz-Signature=abc',
+        'damage-requests/someone-else/1700000000000_ab12cd34.jpg',
+        'avatars/cust-1/1700000000000_ab12cd34.jpg', // wrong folder for damage photos
+        'damage-requests/cust-1/../other/x.jpg',
+      ];
+      for (const value of bad) {
+        await expect(
+          service.create('cust-1', { ...base, damagePhotos: [value] } as any),
+        ).rejects.toThrow(/Media must be a key/);
+      }
+
+      // Well-formed and owned, but never finalized (no uploaded_objects row).
+      mockPrisma.uploadedObject.findMany.mockResolvedValueOnce([]);
+      await expect(
+        service.create('cust-1', {
+          ...base,
+          damagePhotos: ['damage-requests/cust-1/1700000000000_deadbeef.jpg'],
+        } as any),
+      ).rejects.toThrow(/not been finalized|not uploaded/);
+
+      expect(mockPrisma.serviceRequest.create).not.toHaveBeenCalled();
+    });
+
+    it('C4: without a saved vehicle it creates NO placeholder vehicle and keeps the typed details', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({
+        id: 'req-2',
+        media: [],
+        vehicle: null,
+        vehicleMake: 'Maruti',
+        vehicleModel: 'Swift',
+        vehicleYear: 2021,
+      });
+
+      const result: any = await service.create('cust-1', {
+        vehicleMake: ' Maruti ',
+        vehicleModel: 'Swift',
+        vehicleYear: 2021,
+        title: 'Bumper repair',
+        description: 'Cracked bumper description',
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+      } as any);
+
+      expect(mockPrisma.vehicle.create).not.toHaveBeenCalled();
+      expect(mockPrisma.vehicle.findFirst).not.toHaveBeenCalled();
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.vehicleId).toBeUndefined();
+      expect(data).toMatchObject({ vehicleMake: 'Maruti', vehicleModel: 'Swift', vehicleYear: 2021 });
+      // Serializer exposes make/model from the request's own columns.
+      expect(result.vehicle).toMatchObject({ make: 'Maruti', model: 'Swift', year: 2021 });
+    });
+
+    it('C4: with a saved vehicle the free-form columns stay empty', async () => {
+      mockPrisma.serviceRequest.create.mockResolvedValue({ id: 'req-3', media: [], vehicle: { id: 'veh-1', make: 'Honda', model: 'City', year: 2019 } });
+
+      await service.create('cust-1', {
+        vehicleId: 'veh-1',
+        vehicleMake: 'Ignored',
+        title: 'Bumper repair',
+        description: 'Cracked bumper description',
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+      } as any);
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.vehicleId).toBe('veh-1');
+      expect(data.vehicleMake).toBeUndefined();
     });
 
     it('tags roadside requests with the flat-rate estimate for their kind', async () => {
@@ -337,7 +429,11 @@ describe('DamageRequestsService authorization regressions', () => {
       serviceRequest: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
       },
+      quotation: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
       vehicle: {
         findFirst: jest.fn().mockResolvedValue({ id: 'veh-1' }),
       },
@@ -356,18 +452,14 @@ describe('DamageRequestsService authorization regressions', () => {
     providerProfileId: 'prov-1',
   };
 
-  it('scopes feed quotations to the calling provider', async () => {
+  it('C2: feed shows OPEN and QUOTES_RECEIVED requests the provider has not quoted yet', async () => {
     mockPrisma.serviceRequest.findMany.mockResolvedValue([]);
 
     await service.getBroadcastFeed({ providerId: 'prov-1' });
 
-    expect(mockPrisma.serviceRequest.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        include: expect.objectContaining({
-          quotations: { where: { providerId: 'prov-1' } },
-        }),
-      }),
-    );
+    const where = mockPrisma.serviceRequest.findMany.mock.calls[0][0].where;
+    expect(where.status).toEqual({ in: ['OPEN', 'QUOTES_RECEIVED'] });
+    expect(where.quotations).toEqual({ none: { providerId: 'prov-1' } });
   });
 
   it('hides competitors quotations from a provider request detail', async () => {
@@ -479,5 +571,38 @@ describe('DamageRequestsService authorization regressions', () => {
     await expect(
       service.findOne('req-tow', providerUser as any),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  describe('cancel (M2 – compare-and-set)', () => {
+    const owner = { sub: 'u1', role: 'CUSTOMER', customerProfileId: 'cust-1' } as any;
+    const openRequest = { id: 'req-1', customerId: 'cust-1', status: 'OPEN' };
+
+    it('cancels only a request that is still in the status it was validated in, and withdraws quotes', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue(openRequest);
+      mockPrisma.serviceRequest.findUniqueOrThrow.mockResolvedValue({ ...openRequest, status: 'CANCELLED', media: [] });
+
+      const result: any = await service.cancel('req-1', owner);
+
+      expect(mockPrisma.serviceRequest.updateMany).toHaveBeenCalledWith({
+        where: { id: 'req-1', status: 'OPEN' },
+        data: { status: 'CANCELLED' },
+      });
+      expect(mockPrisma.quotation.updateMany).toHaveBeenCalledWith({
+        where: { requestId: 'req-1', status: 'PENDING' },
+        data: { status: 'WITHDRAWN' },
+      });
+      expect(result.status).toBe('CANCELLED');
+    });
+
+    it('if the request was accepted meanwhile (0 rows) it is a 409 and quotes are untouched', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue(openRequest);
+      mockPrisma.serviceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.cancel('req-1', owner)).rejects.toMatchObject({
+        status: 409,
+        message: 'Request changed, refresh and try again',
+      });
+      expect(mockPrisma.quotation.updateMany).not.toHaveBeenCalled();
+    });
   });
 });

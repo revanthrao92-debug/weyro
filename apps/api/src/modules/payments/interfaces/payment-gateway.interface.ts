@@ -44,6 +44,15 @@ export interface PaymentGateway {
   refundPayment(params: RefundPaymentParams): Promise<RefundPaymentResult>;
   /** Fetch the real payment record from the gateway (server-to-server). */
   fetchPayment(paymentId: string): Promise<GatewayPaymentInfo>;
+  /**
+   * Capture an `authorized` payment for exactly `amountInPaise` (M4). Returns
+   * the payment as the gateway sees it afterwards.
+   */
+  capturePayment(
+    paymentId: string,
+    amountInPaise: number,
+    currency: string,
+  ): Promise<GatewayPaymentInfo>;
   /** Fetch every payment attempt for an order (used by reconciliation). */
   fetchOrderPayments?(orderId: string): Promise<GatewayPaymentInfo[]>;
   /** Find an existing refund so a timed-out retry does not refund twice. */

@@ -1,7 +1,7 @@
 {
   "name": "weyro",
   "version": "1.0.0",
-  "description": "Weyro monorepo — NestJS API backend",
+  "description": "Weyro monorepo \u2014 NestJS API backend",
   "private": true,
   "workspaces": [
     "apps/api",
@@ -23,42 +23,15 @@
     "build:packages": "npm run build -w @weyro/api-contracts && npm run build -w @weyro/validation && npm run build -w @weyro/database",
     "build:api": "npm run build -w @weyro/api",
     "build": "npm run build:packages && npm run build:api",
+    "lint": "npm run lint -w @weyro/api && npm run lint -w @weyro/mobile",
     "lint:api": "npm run lint -w @weyro/api",
     "test": "npm run test -w @weyro/api",
-    "typecheck": "echo \"Root workspace: no source files (checked via apps/* and packages/)\"",
+    "typecheck": "npm run typecheck:all",
     "typecheck:all": "npm run typecheck -w @weyro/api-contracts && npm run typecheck -w @weyro/validation && npm run typecheck -w @weyro/database && npm run typecheck -w @weyro/api",
     "db:migrate:deploy": "npm run db:migrate:deploy -w @weyro/database"
   },
   "overrides": {
     "multer": "2.5.0",
     "zod": "^4.6.7"
-  },
-  "dependencies": {
-    "@expo-google-fonts/sora": "^0.4.2",
-    "@nest-lab/throttler-storage-redis": "*",
-    "@nestjs/schedule": "*",
-    "@nestjs/throttler": "*",
-    "@nestjs/websockets": "*",
-    "@rn-primitives/portal": "^1.5.3",
-    "@socket.io/redis-adapter": "*",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "expo-font": "^58.0.11",
-    "expo-server-sdk": "*",
-    "helmet": "*",
-    "ioredis": "*",
-    "lucide-react-native": "^1.70.0",
-    "nativewind": "^4.2.7",
-    "pino": "*",
-    "pino-http": "*",
-    "pino-pretty": "*",
-    "razorpay": "*",
-    "react-native-svg": "^15.16.1",
-    "redis": "*",
-    "sharp": "*",
-    "socket.io": "*",
-    "tailwind-merge": "^3.7.0",
-    "tailwindcss": "^3.4.19",
-    "tailwindcss-animate": "^1.0.7"
   }
 }

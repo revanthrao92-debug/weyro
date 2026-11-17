@@ -61,6 +61,16 @@ export class MockPaymentGateway implements PaymentGateway {
     return false;
   }
 
+  async capturePayment(paymentId: string, amountInPaise: number, currency: string) {
+    return {
+      id: paymentId,
+      order_id: `order_mock_${paymentId}`,
+      amount: amountInPaise,
+      currency,
+      status: 'captured',
+    };
+  }
+
   async fetchPayment(paymentId: string) {
     // Generates a record consistent with any order; dev/test only.
     return {

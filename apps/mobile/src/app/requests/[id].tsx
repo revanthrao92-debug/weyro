@@ -198,7 +198,19 @@ export default function RequestDetailScreen() {
           <Text style={styles.sectionTitle}>Details</Text>
         </View>
         <Card>
-          <DetailRow label="Vehicle" value={[request.vehicle?.make, request.vehicle?.model, request.vehicle?.year].filter(Boolean).join(' ') || '—'} />
+          <DetailRow
+            label="Vehicle"
+            value={
+              // Saved vehicle, or the free-form details typed on the request.
+              [
+                request.vehicle?.make ?? request.vehicleMake,
+                request.vehicle?.model ?? request.vehicleModel,
+                request.vehicle?.year ?? request.vehicleYear,
+              ]
+                .filter(Boolean)
+                .join(' ') || '—'
+            }
+          />
           <DetailRow label="Description" value={request.description} />
           <DetailRow label="Address" value={request.address} last />
         </Card>

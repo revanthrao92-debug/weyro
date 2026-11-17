@@ -6,6 +6,7 @@ import {
 export class UpdateBookingStatusDto implements UpdateBookingStatusInput {
   static readonly schema = UpdateBookingStatusSchema;
 
+  overrideReason?: string;
   status!:
     | 'CONFIRMED'
     | 'PROVIDER_EN_ROUTE'

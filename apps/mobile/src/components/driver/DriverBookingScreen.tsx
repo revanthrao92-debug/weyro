@@ -222,19 +222,19 @@ export function DriverBookingScreen() {
           <>
             <SectionHead index="05" title="Start trip" />
             <Text style={styles.helper}>
-              Ask the customer for the 4-digit start code. It confirms the right
+              Ask the customer for the 6-digit start code. It confirms the right
               driver and vehicle before the trip begins.
             </Text>
             <TextInput
               value={otp}
               onChangeText={(value) => {
-                setOtp(value.replace(/\D/g, '').slice(0, 4));
+                setOtp(value.replace(/\D/g, '').slice(0, 6));
                 setError(null);
               }}
-              placeholder="4-digit code"
+              placeholder="6-digit code"
               placeholderTextColor={palette.textMuted}
               keyboardType="number-pad"
-              maxLength={4}
+              maxLength={6}
               accessibilityLabel="Start code"
               style={styles.otp}
             />
@@ -246,7 +246,8 @@ export function DriverBookingScreen() {
                   setOtp('');
                 })
               }
-              disabled={otp.length !== 4 || pending}
+              // 6 digits; 4 only for codes issued before the upgrade.
+              disabled={(otp.length !== 6 && otp.length !== 4) || pending}
               loading={verifyOtp.isPending}
             />
           </>

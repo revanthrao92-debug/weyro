@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, ApiError } from './api-client';
 
@@ -8,6 +9,11 @@ import { apiClient, ApiError } from './api-client';
  * Only explicitly queueable mutations (currently request creation) are stored.
  * Payments and other money movements must never enter this queue: the caller
  * is responsible for that policy, and this module rejects payment endpoints.
+ *
+ * The queue holds no secrets (endpoints, request bodies, retry state), so it
+ * lives in AsyncStorage. It used to be in SecureStore, which is meant for
+ * credentials and has a small per-value size limit that a long queue could
+ * silently exceed; `readRaw` migrates a leftover SecureStore copy once.
  */
 
 const STORAGE_KEY = 'weyro_offline_mutation_queue_v1';
@@ -58,7 +64,22 @@ async function readRaw(): Promise<string | null> {
         ? null
         : localStorage.getItem(STORAGE_KEY);
     }
-    return await SecureStore.getItemAsync(STORAGE_KEY);
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    if (stored !== null) return stored;
+    return await migrateLegacySecureStoreQueue();
+  } catch {
+    return null;
+  }
+}
+
+/** One-time move of a queue written by older app versions into AsyncStorage. */
+async function migrateLegacySecureStoreQueue(): Promise<string | null> {
+  try {
+    const legacy = await SecureStore.getItemAsync(STORAGE_KEY);
+    if (legacy === null) return null;
+    await AsyncStorage.setItem(STORAGE_KEY, legacy);
+    await SecureStore.deleteItemAsync(STORAGE_KEY);
+    return legacy;
   } catch {
     return null;
   }
@@ -72,7 +93,7 @@ async function writeRaw(value: string): Promise<void> {
       }
       return;
     }
-    await SecureStore.setItemAsync(STORAGE_KEY, value);
+    await AsyncStorage.setItem(STORAGE_KEY, value);
   } catch {
     // Storage unavailable — keep the in-memory copy so this session can retry.
   }
@@ -214,7 +235,8 @@ export async function clearOfflineQueue(): Promise<void> {
       if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
       return;
     }
-    await SecureStore.deleteItemAsync(STORAGE_KEY);
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    await SecureStore.deleteItemAsync(STORAGE_KEY).catch(() => undefined); // any legacy copy
   } catch {
     // Best effort — the in-memory queue is already empty.
   }

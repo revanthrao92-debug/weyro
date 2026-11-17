@@ -1,19 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-export interface NearbyProviderResult {
-  id: string;
-  businessName: string;
-  providerType: string;
-  phone: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  serviceRadiusKm: number;
-  avgRating: number;
-  totalReviews: number;
-  distanceKm: number;
-}
-
 export interface ProviderFeedItem {
   id: string;
   title: string;
@@ -37,98 +23,12 @@ export interface ProviderFeedItem {
  */
 export const ENABLE_POSTGIS_SQL = Prisma.sql`CREATE EXTENSION IF NOT EXISTS postgis;`;
 
-/**
- * Query nearby providers within a given radius (in kilometers) using PostGIS ST_DWithin
- * on the GiST-indexed geography column for sub-millisecond indexed spatial search.
- */
-export function getNearbyProvidersQuery(
-  lat: number,
-  lng: number,
-  radiusKm: number = 15,
-  providerType?: string,
-): Prisma.Sql {
-  const radiusMeters = radiusKm * 1000;
-  const pointGeog = Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
-
-  return Prisma.sql`
-    SELECT 
-      id,
-      "businessName",
-      "providerType",
-      phone,
-      address,
-      latitude,
-      longitude,
-      "serviceRadiusKm",
-      "avgRating",
-      "totalReviews",
-      ROUND(
-        (ST_Distance(
-          COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
-          ${pointGeog}
-        ) / 1000.0)::numeric,
-        2
-      )::float AS "distanceKm"
-    FROM provider_profiles
-    WHERE "verificationStatus" = 'VERIFIED'
-      AND "isAvailable" = true
-      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
-      AND ST_DWithin(
-        COALESCE(location, ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography),
-        ${pointGeog},
-        ${radiusMeters}
-      )
-    ORDER BY "distanceKm" ASC;
-  `;
-}
-
-/**
- * Haversine fallback query for standard PostgreSQL without PostGIS extension.
- */
-export function getNearbyProvidersHaversineQuery(
-  lat: number,
-  lng: number,
-  radiusKm: number = 15,
-  providerType?: string,
-): Prisma.Sql {
-  return Prisma.sql`
-    SELECT 
-      id,
-      "businessName",
-      "providerType",
-      phone,
-      address,
-      latitude,
-      longitude,
-      "serviceRadiusKm",
-      "avgRating",
-      "totalReviews",
-      ROUND(
-        (6371 * acos(
-          LEAST(1.0, GREATEST(-1.0,
-            cos(radians(${lat})) * cos(radians(latitude)) *
-            cos(radians(longitude) - radians(${lng})) +
-            sin(radians(${lat})) * sin(radians(latitude))
-          ))
-        ))::numeric,
-        2
-      )::float AS "distanceKm"
-    FROM provider_profiles
-    WHERE "verificationStatus" = 'VERIFIED'
-      AND "isAvailable" = true
-      ${providerType ? Prisma.sql`AND "providerType" = ${providerType}::"ProviderType"` : Prisma.empty}
-      AND (6371 * acos(
-        LEAST(1.0, GREATEST(-1.0,
-          cos(radians(${lat})) * cos(radians(latitude)) *
-          cos(radians(longitude) - radians(${lng})) +
-          sin(radians(${lat})) * sin(radians(latitude))
-        ))
-      )) <= ${radiusKm}
-    ORDER BY "distanceKm" ASC;
-  `;
-}
-
 export interface ProviderFeedQueryParams {
+  /**
+   * The calling provider. Requests this provider has already quoted are
+   * excluded so the feed only shows work they can still act on.
+   */
+  providerId?: string;
   providerLat?: number;
   providerLng?: number;
   radiusKm?: number;
@@ -140,9 +40,70 @@ export interface ProviderFeedQueryParams {
   /** Provider's maximum vehicle weight; omit when unrestricted. */
   maxVehicleWeightKg?: number;
   limit?: number;
-  cursorCreatedAt?: Date;
-  cursorId?: string;
+  /** Position after which to continue (see encodeFeedCursor). */
+  cursor?: FeedCursor;
 }
+
+/**
+ * M1: the feed is ordered by (urgency rank ASC, createdAt DESC, id DESC), so a
+ * page boundary must remember all three. A cursor with only (createdAt, id)
+ * skips or repeats rows whenever urgencies are mixed.
+ */
+export interface FeedCursor {
+  /** 1 = EMERGENCY, 2 = URGENT, 3 = everything else (see urgencyRank). */
+  urgencyRank: number;
+  createdAt: Date;
+  id: string;
+}
+
+/** Sort rank of an urgency: lower comes first in the feed. */
+export function urgencyRank(urgency: string | null | undefined): number {
+  switch (urgency) {
+    case 'EMERGENCY':
+      return 1;
+    case 'URGENT':
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+/** Opaque base64url(JSON) cursor for the last item of a page. */
+export function encodeFeedCursor(item: {
+  urgency?: string | null;
+  createdAt: Date | string;
+  id: string;
+}): string {
+  const createdAt = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt);
+  return Buffer.from(
+    JSON.stringify({ r: urgencyRank(item.urgency), c: createdAt.toISOString(), i: item.id }),
+  ).toString('base64url');
+}
+
+/** Returns null for anything that is not a well-formed feed cursor. */
+export function decodeFeedCursor(cursor: string): FeedCursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    const createdAt = new Date(parsed?.c);
+    if (
+      ![1, 2, 3].includes(parsed?.r) ||
+      typeof parsed?.i !== 'string' ||
+      parsed.i.length === 0 ||
+      Number.isNaN(createdAt.getTime())
+    ) {
+      return null;
+    }
+    return { urgencyRank: parsed.r, createdAt, id: parsed.i };
+  } catch {
+    return null;
+  }
+}
+
+const URGENCY_RANK_SQL = Prisma.sql`CASE sr."urgency"
+  WHEN 'EMERGENCY' THEN 1
+  WHEN 'URGENT' THEN 2
+  ELSE 3
+END`;
 
 /**
  * Returns incoming service requests for a provider's feed:
@@ -152,6 +113,7 @@ export interface ProviderFeedQueryParams {
  */
 export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sql {
   const {
+    providerId,
     providerLat,
     providerLng,
     radiusKm = 25,
@@ -160,8 +122,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     towingVehicleTypes,
     maxVehicleWeightKg,
     limit = 20,
-    cursorCreatedAt,
-    cursorId,
+    cursor,
   } = params;
 
   const boundedLimit = Math.min(50, Math.max(1, limit));
@@ -235,10 +196,18 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
           : Prisma.sql`0.0::float`
       } AS "distanceKm"
     FROM service_requests sr
-    WHERE sr.status = 'OPEN'
+    WHERE sr.status IN ('OPEN', 'QUOTES_RECEIVED')
       AND sr."isBroadcast" = true
       AND sr."deletedAt" IS NULL
       AND sr."expiresAt" > NOW()
+      ${
+        providerId
+          ? Prisma.sql`AND NOT EXISTS (
+              SELECT 1 FROM quotations q
+              WHERE q."requestId" = sr.id AND q."providerId" = ${providerId}
+            )`
+          : Prisma.empty
+      }
       ${categorySql}
       ${towingSql}
       ${weightSql}
@@ -252,19 +221,23 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
           : Prisma.empty
       }
       ${
-        cursorCreatedAt && cursorId
+        // Row-value comparison matching ORDER BY (rank ASC, createdAt DESC, id DESC):
+        // a row comes AFTER the cursor when its rank is higher, or the rank ties
+        // and (createdAt, id) is lower.
+        cursor
           ? Prisma.sql`AND (
-              sr."createdAt" < ${cursorCreatedAt}
-              OR (sr."createdAt" = ${cursorCreatedAt} AND sr.id < ${cursorId})
+              ${URGENCY_RANK_SQL} > ${cursor.urgencyRank}
+              OR (${URGENCY_RANK_SQL} = ${cursor.urgencyRank} AND sr."createdAt" < ${cursor.createdAt})
+              OR (
+                ${URGENCY_RANK_SQL} = ${cursor.urgencyRank}
+                AND sr."createdAt" = ${cursor.createdAt}
+                AND sr.id < ${cursor.id}
+              )
             )`
           : Prisma.empty
       }
-    ORDER BY 
-      CASE sr."urgency"
-        WHEN 'EMERGENCY' THEN 1
-        WHEN 'URGENT' THEN 2
-        ELSE 3
-      END ASC,
+    ORDER BY
+      ${URGENCY_RANK_SQL} ASC,
       sr."createdAt" DESC,
       sr.id DESC
     LIMIT ${boundedLimit};

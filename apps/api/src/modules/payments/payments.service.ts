@@ -108,10 +108,28 @@ export class PaymentsService {
       },
     });
 
-    await this.prisma.payment.update({
-      where: { id: payment.id },
+    // M6: two concurrent create-order calls both reach the gateway. Only the
+    // first to save wins (conditional update on gatewayOrderId IS NULL); the
+    // loser returns the winner's order, so the client never pays against an
+    // order the database no longer references.
+    const saved = await this.prisma.payment.updateMany({
+      where: { id: payment.id, gatewayOrderId: null },
       data: { gatewayOrderId: orderResult.orderId },
     });
+    if (saved.count === 0) {
+      const current = await this.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
+      this.logger.warn(
+        `create-order race on payment ${payment.id}: discarding gateway order ${orderResult.orderId}, using ${current.gatewayOrderId}`,
+      );
+      return {
+        orderId: current.gatewayOrderId as string,
+        amount: Number(current.amount),
+        currency: current.currency,
+        keyId: env.RAZORPAY_KEY_ID || 'rzp_test_mock',
+      };
+    }
 
     return {
       orderId: orderResult.orderId,
@@ -190,9 +208,24 @@ export class PaymentsService {
           'Gateway payment amount or order does not match this record',
         );
       }
-      if (!['captured', 'authorized'].includes(remote.status)) {
+      // M4: `authorized` is NOT paid. Capture it ourselves for exactly the
+      // amount we expect, and only settle once the gateway reports `captured`.
+      if (remote.status === 'authorized') {
+        try {
+          remote = await this.gateway.capturePayment(
+            dto.paymentId,
+            localMinor,
+            payment.currency,
+          );
+        } catch (err: any) {
+          throw new BadRequestException(
+            `Unable to capture the authorized payment: ${err?.message ?? 'capture failed'}`,
+          );
+        }
+      }
+      if (remote.status !== 'captured') {
         throw new BadRequestException(
-          `Gateway payment is not in a captured state (status: ${remote.status})`,
+          `Gateway payment is not captured (status: ${remote.status})`,
         );
       }
     }
@@ -253,60 +286,6 @@ export class PaymentsService {
     if (existingEvent) {
       this.logger.log(`Ignoring duplicate webhook event: ${eventId} (${eventType})`);
       return { status: 'ignored', reason: 'duplicate', eventId };
-    }
-
-    // Validate money fields before recording/processing the event
-    if (eventType === 'payment.captured') {
-      const entity = payload?.payload?.payment?.entity;
-      const orderId = entity?.order_id;
-
-      if (!orderId) {
-        throw new BadRequestException(
-          'Webhook payment entity is missing order_id',
-        );
-      }
-
-      const payment = await this.prisma.payment.findUnique({
-        where: { gatewayOrderId: orderId },
-      });
-
-      // Spare-part orders are a separate settlement track with the same
-      // gateway order namespace.
-      const sparePartOrder = payment
-        ? null
-        : await this.prisma.sparePartOrder.findUnique({
-            where: { gatewayOrderId: orderId },
-          });
-
-      if (payment) {
-        const expectedMinorUnits = Math.round(Number(payment.amount) * 100);
-        if (
-          Number(entity.amount) !== expectedMinorUnits ||
-          entity.currency !== payment.currency
-        ) {
-          this.logger.warn(
-            `Rejected webhook ${eventId}: amount/currency mismatch for payment ${payment.id}`,
-          );
-          throw new BadRequestException(
-            'Webhook amount or currency does not match the stored payment',
-          );
-        }
-      } else if (sparePartOrder) {
-        const expectedMinorUnits = Math.round(
-          Number(sparePartOrder.totalAmount) * 100,
-        );
-        if (
-          Number(entity.amount) !== expectedMinorUnits ||
-          entity.currency !== sparePartOrder.currency
-        ) {
-          this.logger.warn(
-            `Rejected webhook ${eventId}: amount/currency mismatch for spare part order ${sparePartOrder.id}`,
-          );
-          throw new BadRequestException(
-            'Webhook amount or currency does not match the stored order',
-          );
-        }
-      }
     }
 
     // STEP 4: amount/currency validation happens AFTER the event row is persisted.
@@ -403,28 +382,21 @@ export class PaymentsService {
 
           if (payment && payment.status !== 'CAPTURED') {
             validatePaymentTransition(payment.status, 'CAPTURED', 'SYSTEM');
-            // H3: conditional update inside a transaction — racing webhook
-            // duplicates (or a client verify) cannot double-apply capture.
-            await this.prisma.$transaction(async (tx) => {
-              const claimed = await tx.payment.updateMany({
-                where: {
-                  id: payment.id,
-                  status: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] as never },
-                },
-                data: {
-                  status: 'CAPTURED' as never,
-                  gatewayPaymentId: gatewayPaymentId || payment.gatewayPaymentId,
-                  paidAt: new Date(),
-                },
-              });
-              if (claimed.count === 0) {
-                this.logger.warn(
-                  `Webhook ${eventId}: payment ${payment.id} already transitioned concurrently — skipping capture`,
-                );
-                return;
-              }
-            });
-            this.logger.log(`Payment ${payment.id} transitioned to CAPTURED via webhook`);
+            // M5: the SAME idempotent claim /payments/verify uses. Racing
+            // webhook duplicates or a client verify cannot double-apply it.
+            const settled = await this.prisma.$transaction((tx) =>
+              settleBookingPayment(tx, { paymentId: payment.id }, {
+                gatewayPaymentId: gatewayPaymentId || payment.gatewayPaymentId || '',
+                gatewayOrderId: orderId,
+              }),
+            );
+            if (settled.applied) {
+              this.logger.log(`Payment ${payment.id} transitioned to CAPTURED via webhook`);
+            } else {
+              this.logger.warn(
+                `Webhook ${eventId}: payment ${payment.id} already transitioned concurrently — skipping capture`,
+              );
+            }
           }
 
           // Spare-part orders are settled by the same captured event when no
@@ -518,43 +490,12 @@ export class PaymentsService {
       }
 
       case 'refund.processed': {
-        const refundEntity = payload.payload?.refund?.entity;
-        const paymentEntityId = refundEntity?.payment_id;
-        if (paymentEntityId) {
-          const payment = await this.prisma.payment.findFirst({
-            where: { gatewayPaymentId: paymentEntityId },
-          });
+        await this.handleRefundProcessed(eventId, payload.payload?.refund?.entity);
+        break;
+      }
 
-          if (payment && payment.status === 'CAPTURED') {
-            const refundMinorUnits = Number(refundEntity?.amount);
-            const capturedMinorUnits = Math.round(Number(payment.amount) * 100);
-
-            if (
-              !Number.isFinite(refundMinorUnits) ||
-              refundMinorUnits > capturedMinorUnits ||
-              refundEntity?.currency !== payment.currency
-            ) {
-              this.logger.warn(
-                `Rejected refund ${eventId}: amount/currency mismatch for payment ${payment.id}`,
-              );
-              break;
-            }
-
-            if (refundMinorUnits < capturedMinorUnits) {
-              this.logger.warn(
-                `Partial refund ${eventId} for payment ${payment.id} (${refundMinorUnits}/${capturedMinorUnits}) — local status left CAPTURED`,
-              );
-              break;
-            }
-
-            validatePaymentTransition(payment.status, 'REFUNDED', 'SYSTEM');
-            await this.prisma.payment.update({
-              where: { id: payment.id },
-              data: { status: 'REFUNDED' },
-            });
-            this.logger.log(`Payment ${payment.id} transitioned to REFUNDED via webhook`);
-          }
-        }
+      case 'refund.failed': {
+        await this.handleRefundFailed(eventId, payload.payload?.refund?.entity);
         break;
       }
 
@@ -570,6 +511,225 @@ export class PaymentsService {
     }
 
     return { status: 'processed', eventId, eventType };
+  }
+
+  /**
+   * M3: refund a CAPTURED booking payment (e.g. the booking was cancelled
+   * after the customer paid). Records a Refund row, asks the gateway to
+   * refund, and leaves the payment in REFUND_PENDING until the
+   * `refund.processed` webhook confirms. If the gateway refuses, nothing left
+   * the account: the payment goes back to CAPTURED and the failure is logged
+   * and audited so support can follow up. Never throws.
+   */
+  async refundCapturedBookingPayment(
+    paymentId: string,
+    opts: { reason: string; actorId?: string; actorRole?: string },
+  ): Promise<{ status: 'REFUND_PENDING' | 'REFUNDED' | 'FAILED' | 'SKIPPED'; refundId?: string }> {
+    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment || payment.status !== 'CAPTURED') {
+      return { status: 'SKIPPED' };
+    }
+    const amountInPaise = Math.round(Number(payment.amount) * 100);
+
+    // Claim: only one caller may move CAPTURED -> REFUND_PENDING.
+    const refundRow = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'CAPTURED' },
+        data: { status: 'REFUND_PENDING' },
+      });
+      if (claimed.count === 0) return null;
+      return tx.refund.create({
+        data: {
+          paymentId: payment.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          reason: opts.reason,
+        },
+      });
+    });
+    if (!refundRow) return { status: 'SKIPPED' };
+
+    try {
+      if (!payment.gatewayPaymentId) {
+        throw new Error('payment has no gateway payment id');
+      }
+      // Reuse a refund a timed-out earlier attempt already created.
+      const existing = await this.gateway.findRefund?.(payment.gatewayPaymentId, amountInPaise);
+      const result =
+        existing ??
+        (await this.gateway.refundPayment({
+          paymentId: payment.gatewayPaymentId,
+          amountInPaise,
+          notes: { paymentId: payment.id, bookingId: payment.bookingId, reason: opts.reason },
+        }));
+
+      await this.prisma.refund.update({
+        where: { id: refundRow.id },
+        data: { gatewayRefundId: result.refundId },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: opts.actorId,
+          actorRole: opts.actorRole,
+          action: 'payment.refund_requested',
+          entityType: 'Payment',
+          entityId: payment.id,
+          newValues: { refundId: result.refundId, amount: Number(payment.amount), reason: opts.reason },
+        },
+      });
+      this.logger.log(
+        `Refund ${result.refundId} requested for payment ${payment.id} (${opts.reason}); awaiting webhook`,
+      );
+
+      // The mock gateway never sends webhooks, so confirm immediately in dev.
+      if (!this.gateway.supportsServerBinding()) {
+        await this.confirmRefund(refundRow.id, payment.id);
+        return { status: 'REFUNDED', refundId: refundRow.id };
+      }
+      return { status: 'REFUND_PENDING', refundId: refundRow.id };
+    } catch (error) {
+      const message = (error as Error).message;
+      await this.failRefund(refundRow.id, payment.id, message, opts);
+      return { status: 'FAILED', refundId: refundRow.id };
+    }
+  }
+
+  /** Refund confirmed: Refund PROCESSED, payment REFUND_PENDING -> REFUNDED. */
+  private async confirmRefund(refundId: string, paymentId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refund.updateMany({
+        where: { id: refundId, status: { in: ['PENDING', 'FAILED'] } },
+        data: { status: 'PROCESSED', failureReason: null },
+      });
+      await tx.payment.updateMany({
+        where: { id: paymentId, status: 'REFUND_PENDING' },
+        data: { status: 'REFUNDED' },
+      });
+    });
+  }
+
+  /** Refund failed: Refund FAILED, payment REFUND_PENDING -> CAPTURED, loud log + audit. */
+  private async failRefund(
+    refundId: string,
+    paymentId: string,
+    reason: string,
+    actor?: { actorId?: string; actorRole?: string },
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refund.updateMany({
+        where: { id: refundId, status: { not: 'PROCESSED' } },
+        data: { status: 'FAILED', failureReason: reason.slice(0, 500) },
+      });
+      await tx.payment.updateMany({
+        where: { id: paymentId, status: 'REFUND_PENDING' },
+        data: { status: 'CAPTURED' },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: actor?.actorId,
+          actorRole: actor?.actorRole,
+          action: 'payment.refund_failed',
+          entityType: 'Payment',
+          entityId: paymentId,
+          newValues: { refundId, reason: reason.slice(0, 500) },
+        },
+      });
+    });
+    this.logger.error(
+      `Refund ${refundId} for payment ${paymentId} FAILED (${reason}). The customer was NOT refunded — manual follow-up required.`,
+    );
+  }
+
+  /** `refund.processed` webhook: confirm our refund, or record one made outside the API. */
+  private async handleRefundProcessed(eventId: string, refundEntity: any): Promise<void> {
+    const gatewayRefundId: string | undefined = refundEntity?.id;
+    const gatewayPaymentId: string | undefined = refundEntity?.payment_id;
+    if (!gatewayPaymentId) return;
+
+    const payment = await this.prisma.payment.findFirst({ where: { gatewayPaymentId } });
+    if (!payment || !['CAPTURED', 'REFUND_PENDING'].includes(payment.status)) return;
+
+    const refundMinorUnits = Number(refundEntity?.amount);
+    const capturedMinorUnits = Math.round(Number(payment.amount) * 100);
+    if (
+      !Number.isFinite(refundMinorUnits) ||
+      refundMinorUnits > capturedMinorUnits ||
+      refundEntity?.currency !== payment.currency
+    ) {
+      this.logger.warn(
+        `Rejected refund ${eventId}: amount/currency mismatch for payment ${payment.id}`,
+      );
+      return;
+    }
+    if (refundMinorUnits < capturedMinorUnits) {
+      this.logger.warn(
+        `Partial refund ${eventId} for payment ${payment.id} (${refundMinorUnits}/${capturedMinorUnits}) — local status left ${payment.status}`,
+      );
+      return;
+    }
+
+    // Our own refund (matched by gateway id, else the open one for this payment)
+    // or one issued from the gateway dashboard (recorded now for the audit trail).
+    let refund =
+      (gatewayRefundId
+        ? await this.prisma.refund.findUnique({ where: { gatewayRefundId } })
+        : null) ??
+      (await this.prisma.refund.findFirst({
+        where: { paymentId: payment.id, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      }));
+    if (!refund) {
+      refund = await this.prisma.refund.create({
+        data: {
+          paymentId: payment.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          gatewayRefundId,
+          reason: 'gateway_dashboard',
+        },
+      });
+    } else if (gatewayRefundId && !refund.gatewayRefundId) {
+      await this.prisma.refund.update({
+        where: { id: refund.id },
+        data: { gatewayRefundId },
+      });
+    }
+
+    // CAPTURED -> REFUND_PENDING (dashboard refund) is a legal step on the way.
+    if (payment.status === 'CAPTURED') {
+      await this.prisma.payment.updateMany({
+        where: { id: payment.id, status: 'CAPTURED' },
+        data: { status: 'REFUND_PENDING' },
+      });
+    }
+    await this.confirmRefund(refund.id, payment.id);
+    this.logger.log(`Payment ${payment.id} transitioned to REFUNDED via webhook`);
+  }
+
+  /** `refund.failed` webhook: the customer was not refunded. */
+  private async handleRefundFailed(eventId: string, refundEntity: any): Promise<void> {
+    const gatewayRefundId: string | undefined = refundEntity?.id;
+    const gatewayPaymentId: string | undefined = refundEntity?.payment_id;
+
+    const refund =
+      (gatewayRefundId
+        ? await this.prisma.refund.findUnique({ where: { gatewayRefundId } })
+        : null) ??
+      (gatewayPaymentId
+        ? await this.prisma.refund.findFirst({
+            where: { payment: { gatewayPaymentId }, status: 'PENDING' },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null);
+    if (!refund) {
+      this.logger.warn(`Refund failure ${eventId} matches no known refund — ignoring`);
+      return;
+    }
+    await this.failRefund(
+      refund.id,
+      refund.paymentId,
+      refundEntity?.error_description || refundEntity?.status || 'refund.failed webhook',
+    );
   }
 
   /**

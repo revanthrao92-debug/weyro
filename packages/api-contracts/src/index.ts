@@ -3,7 +3,8 @@ export type UserRole = 'CUSTOMER' | 'PROVIDER' | 'BOTH' | 'ADMIN';
 
 export interface User {
   id: string;
-  email: string;
+  /** Null for accounts created by phone OTP that never added an email. */
+  email: string | null;
   phone: string;
   role: UserRole;
   emailVerified: boolean;
@@ -223,8 +224,13 @@ export type BroadcastScope = 'LOCAL_RADIUS' | 'BROADCAST_ALL';
 export interface ServiceRequest {
   id: string;
   customerId: string;
-  vehicleId: string;
-  vehicle?: Vehicle;
+  /** Null when the request used free-form vehicle details instead of a saved vehicle. */
+  vehicleId?: string | null;
+  vehicle?: Vehicle | null;
+  /** Free-form vehicle details for requests without a saved vehicle. */
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleYear?: number | null;
   category: ServiceCategory;
   title: string;
   description: string;
@@ -313,7 +319,14 @@ export interface SparePart {
 }
 
 // Payment
-export type PaymentStatus = 'PENDING' | 'AUTHORIZED' | 'CAPTURED' | 'RELEASED' | 'REFUNDED' | 'FAILED';
+export type PaymentStatus =
+  | 'PENDING'
+  | 'AUTHORIZED'
+  | 'CAPTURED'
+  | 'RELEASED'
+  | 'REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED';
 export type PaymentMethod = 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET';
 
 export interface Payment {
@@ -381,7 +394,7 @@ export interface EscrowLedgerEntry {
 }
 
 export interface AdminProviderDetail extends ProviderVerificationRecord {
-  email: string;
+  email: string | null;
   verificationDocuments?: Record<string, string> | null;
   verifiedAt?: string;
   counts: {
@@ -444,3 +457,4 @@ export interface NotificationItem {
   readAt?: string | null;
   createdAt: string;
 }
+export * from './sentry-scrub';

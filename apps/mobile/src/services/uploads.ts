@@ -3,9 +3,14 @@ import { apiClient } from './api-client';
 export type UploadFolder = 'damage-requests' | 'vehicles' | 'avatars' | 'spare-parts' | 'verification-documents';
 
 export interface UploadedImage {
+  /** Short-lived signed URL — display only, never send this to the API. */
   url: string;
+  /** Storage key — the only value that is ever sent to / stored by the API. */
   key: string;
 }
+
+/** Sentinel key for an image that was loaded from the API and is unchanged. */
+export const EXISTING_IMAGE_KEY = 'existing';
 
 /** Local file metadata from expo-image-picker (avoids re-deriving it). */
 export interface LocalImageMeta {
@@ -33,8 +38,9 @@ interface PresignResponse {
  * Upload a local image (file:// uri from expo-image-picker) to the backend:
  * presign -> PUT the bytes -> finalize.
  *
- * The returned URL is only ever the one the server finalized. A failed PUT
- * must fail the upload; there is no placeholder success path.
+ * Returns the storage `key` (what the API stores) plus a short-lived preview
+ * URL for display. A failed PUT must fail the upload; there is no placeholder
+ * success path.
  */
 export async function uploadImage(
   uri: string,
@@ -66,14 +72,14 @@ export async function uploadImage(
     throw new Error(`Photo upload failed (${put.status}). Try again.`);
   }
 
-  const finalized = await apiClient<{ fileUrl: string; key: string }>('/uploads/finalize', {
+  const finalized = await apiClient<{ previewUrl: string; key: string }>('/uploads/finalize', {
     method: 'POST',
     body: JSON.stringify({ key: presign.key, contentType }),
   });
 
-  if (!finalized.fileUrl) {
+  if (!finalized.key) {
     throw new Error('Photo upload could not be confirmed. Try again.');
   }
 
-  return { url: finalized.fileUrl, key: presign.key };
+  return { url: finalized.previewUrl, key: finalized.key };
 }

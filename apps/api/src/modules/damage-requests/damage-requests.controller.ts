@@ -57,7 +57,7 @@ export class DamageRequestsController {
         'Customer profile required to create service requests',
       );
     }
-    return this.service.create(user.customerProfileId || user.sub, dto);
+    return this.service.create(user.customerProfileId || user.sub, dto, user.sub);
   }
 
   @Get(['broadcast-feed', 'feed'])

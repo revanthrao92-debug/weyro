@@ -56,7 +56,7 @@ export default function CreateListingScreen() {
   const insets = useSafeAreaInsets();
 
   const handleSubmit = async () => {
-    const { name, partNumber, compatibleMakes, compatibleModels, condition, price, stockQuantity, imageUrl, description } = form;
+    const { name, partNumber, compatibleMakes, compatibleModels, condition, price, stockQuantity, description } = form;
     if (!name || !partNumber || !price || !stockQuantity) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -71,7 +71,8 @@ export default function CreateListingScreen() {
         condition: condition as any,
         price: parseFloat(price),
         stockQuantity: parseInt(stockQuantity, 10),
-        imageUrl: images[0]?.url || imageUrl || undefined,
+        // C3: send the uploaded file's key, never a URL.
+        imageUrl: images[0]?.key,
         description: description || undefined,
       });
       Alert.alert('Success', 'Part listed successfully');

@@ -17,7 +17,7 @@ export class CreateThreadDto implements z.infer<typeof createThreadSchema> {
 export const sendMessageSchema = z
   .object({
     content: z.string().min(1).max(2000),
-    mediaUrls: z.array(z.string().url()).default([]),
+    mediaUrls: z.array(z.string().min(1).max(1000)).max(4).default([]),
   })
   .strict();
 

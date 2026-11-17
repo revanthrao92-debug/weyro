@@ -23,7 +23,7 @@ Env validation refuses to boot in production with `SMS_PROVIDER=console`, so
 this must be wired before production auth works.
 
 Required:
-- MSG91 or Twilio account + credentials (`SMS_MSG91_*` or `SMS_TWILIO_*`).
+- MSG91 or Twilio account + credentials (`MSG91_*` or `SMS_TWILIO_*`).
 - Implement the real HTTP `send()` in the selected gateway (one file).
 - Test: send-otp → verify-otp → login, and reset-password via OTP.
 

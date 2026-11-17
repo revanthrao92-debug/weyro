@@ -84,14 +84,20 @@ async function main() {
 
   // 3. Create Customer Vehicle (Hyundai Creta)
   const vehicle = await prisma.vehicle.upsert({
-    where: { registrationNumber: 'KA-01-MJ-4021' },
-    update: { customerId: customerProfileId },
+    // Registration numbers are normalized (uppercase, no separators) and unique per customer.
+    where: {
+      customerId_registrationNumber: {
+        customerId: customerProfileId,
+        registrationNumber: 'KA01MJ4021',
+      },
+    },
+    update: {},
     create: {
       customerId: customerProfileId,
       make: 'Hyundai',
       model: 'Creta 1.5 SX',
       year: 2023,
-      registrationNumber: 'KA-01-MJ-4021',
+      registrationNumber: 'KA01MJ4021',
       fuelType: 'PETROL',
       color: 'Polar White',
     },
@@ -307,6 +313,7 @@ async function main() {
     const booking = await prisma.booking.create({
       data: {
         quotationId: quotation.id,
+        requestId: request.id,
         customerId: customerProfileId,
         providerId: provider1User.providerProfile!.id,
         status: 'CONFIRMED',

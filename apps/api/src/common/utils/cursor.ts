@@ -49,7 +49,17 @@ export function decodeCursor(cursor: string): CursorTuple | null {
 /**
  * Build a Prisma where clause for cursor-based pagination.
  * The cursor points to the last item of the previous page; we want items
- * strictly before it in (createdAt DESC, id DESC) order.
+ * strictly before it in (createdAt DESC, id DESC) order:
+ *
+ *   createdAt < cursor.createdAt
+ *   OR (createdAt = cursor.createdAt AND id < cursor.id)
+ *
+ * (The previous version AND-ed `createdAt < c` with `id < i`, which silently
+ * skipped every row that tied on createdAt, and every older row whose id
+ * happened to sort higher than the cursor's id.)
+ *
+ * The condition lives under `OR`; callers must not also set their own top-level
+ * `OR` on the same where clause.
  */
 export function buildCursorWhere<T extends { createdAt?: Date | string; id?: string }>(
   cursor: CursorTuple | null,
@@ -62,11 +72,9 @@ export function buildCursorWhere<T extends { createdAt?: Date | string; id?: str
   const cursorDate = new Date(cursor.createdAt);
 
   return {
-    [dateField]: {
-      lt: cursorDate,
-    },
-    id: {
-      lt: cursor.id,
-    },
+    OR: [
+      { [dateField]: { lt: cursorDate } },
+      { [dateField]: cursorDate, id: { lt: cursor.id } },
+    ],
   };
 }

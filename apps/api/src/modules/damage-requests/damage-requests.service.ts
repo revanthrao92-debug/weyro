@@ -1,7 +1,9 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   estimateTowingFare,
@@ -12,7 +14,15 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
-import { getProviderFeedQuery } from '@weyro/database';
+import {
+  decodeFeedCursor,
+  encodeFeedCursor,
+  getProviderFeedQuery,
+  urgencyRank,
+  type FeedCursor,
+} from '@weyro/database';
+import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
+import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
 import {
   buildCursorWhere,
   decodeCursor,
@@ -32,12 +42,20 @@ export class DamageRequestsService {
       : req.damagePhotos || [];
     return {
       ...req,
+      ...('vehicle' in req ? { vehicle: resolveRequestVehicle(req) } : {}),
       damagePhotos,
       quotationsCount: Array.isArray(req.quotations) ? req.quotations.length : 0,
     };
   }
 
-  async create(customerId: string, dto: CreateDamageRequestDto) {
+  async create(customerId: string, dto: CreateDamageRequestDto, ownerUserId?: string) {
+    // H4: photos must be finalized uploads owned by the caller.
+    const photoKeys = await assertOwnedMediaKeys(
+      this.prisma,
+      ownerUserId ?? customerId,
+      dto.mediaUrls?.length ? dto.mediaUrls : (dto.damagePhotos ?? []),
+      MEDIA_FOLDERS_BY_USE.damage,
+    );
     let vehicleId = dto.vehicleId;
     if (vehicleId) {
       const owned = await this.prisma.vehicle.findFirst({
@@ -49,29 +67,15 @@ export class DamageRequestsService {
       }
       vehicleId = owned.id;
     }
-    if (!vehicleId) {
-      const make = (dto as any).vehicleMake || 'Universal';
-      const model = (dto as any).vehicleModel || 'Standard';
-      const year = (dto as any).vehicleYear || new Date().getFullYear();
-
-      let vehicle = await this.prisma.vehicle.findFirst({
-        where: { customerId, make, model },
-      });
-
-      if (!vehicle) {
-        vehicle = await this.prisma.vehicle.create({
-          data: {
-            customerId,
-            make,
-            model,
-            year,
-            registrationNumber: `IND-${Math.floor(1000 + Math.random() * 9000)}`,
-            fuelType: 'PETROL',
-          },
-        });
-      }
-      vehicleId = vehicle.id;
-    }
+    // C4: no placeholder vehicles. Without a saved vehicle, the request keeps
+    // the free-form make/model/year the customer typed.
+    const freeForm = vehicleId
+      ? {}
+      : {
+          vehicleMake: dto.vehicleMake?.trim() || undefined,
+          vehicleModel: dto.vehicleModel?.trim() || undefined,
+          vehicleYear: dto.vehicleYear || undefined,
+        };
 
     const rawCategory = (dto.category as any) || 'REPAIR';
     const category =
@@ -112,6 +116,7 @@ export class DamageRequestsService {
       data: {
         customerId,
         vehicleId,
+        ...freeForm,
         category,
         title: dto.title,
         description: dto.description,
@@ -133,15 +138,12 @@ export class DamageRequestsService {
         roadsideKind,
         estimatedFare,
         expiresAt,
-        media:
-          (dto.mediaUrls?.length || dto.damagePhotos?.length)
-            ? {
-                create: (dto.mediaUrls?.length ? dto.mediaUrls : dto.damagePhotos!).map((url) => ({
-                  url,
-                  fileType: 'image/jpeg',
-                })),
-              }
-            : undefined,
+        media: photoKeys.length
+          ? {
+              // C3: persist object keys only; URLs are signed when read.
+              create: photoKeys.map((key) => ({ url: key, fileType: 'image/jpeg' })),
+            }
+          : undefined,
       },
       include: {
         media: true,
@@ -221,6 +223,46 @@ export class DamageRequestsService {
     };
   }
 
+  /**
+   * M1: resolve the page position. New cursors are base64url JSON
+   * (urgency rank, createdAt, id). A bare request id from an older app build is
+   * still honoured by looking the row up once.
+   */
+  private async resolveFeedCursor(raw?: string): Promise<FeedCursor | undefined> {
+    if (!raw) return undefined;
+    const decoded = decodeFeedCursor(raw);
+    if (decoded) return decoded;
+
+    const legacy = await this.prisma.serviceRequest.findUnique({
+      where: { id: raw },
+      select: { id: true, urgency: true, createdAt: true },
+    });
+    if (!legacy) throw new BadRequestException('Invalid cursor');
+    return {
+      urgencyRank: urgencyRank(legacy.urgency),
+      createdAt: legacy.createdAt,
+      id: legacy.id,
+    };
+  }
+
+  /**
+   * Prisma form of the SQL tuple comparison: rows strictly AFTER the cursor in
+   * (urgency rank ASC, createdAt DESC, id DESC) order. The enum is declared
+   * NORMAL < URGENT < EMERGENCY, so "lower severity" = later in the feed.
+   */
+  private feedCursorWhere(cursor: FeedCursor) {
+    const bySeverity = ['EMERGENCY', 'URGENT', 'NORMAL'] as const; // rank 1, 2, 3
+    const same = bySeverity[cursor.urgencyRank - 1];
+    const later = bySeverity.slice(cursor.urgencyRank);
+    return {
+      OR: [
+        ...(later.length ? [{ urgency: { in: [...later] } }] : []),
+        { urgency: same, createdAt: { lt: cursor.createdAt } },
+        { urgency: same, createdAt: cursor.createdAt, id: { lt: cursor.id } },
+      ],
+    };
+  }
+
   async cancel(id: string, user: AuthUserPayload) {
     const request = await this.prisma.serviceRequest.findUnique({
       where: { id },
@@ -240,16 +282,22 @@ export class DamageRequestsService {
 
     validateServiceRequestTransition(request.status, 'CANCELLED', user.role);
 
-    const [updated] = await this.prisma.$transaction([
-      this.prisma.serviceRequest.update({
-        where: { id },
+    // M2: compare-and-set — if the request was accepted (or cancelled) while we
+    // were validating, cancel nothing and tell the caller to refresh.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.serviceRequest.updateMany({
+        where: { id, status: request.status },
         data: { status: 'CANCELLED' },
-      }),
-      this.prisma.quotation.updateMany({
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('Request changed, refresh and try again');
+      }
+      await tx.quotation.updateMany({
         where: { requestId: id, status: 'PENDING' },
         data: { status: 'WITHDRAWN' },
-      }),
-    ]);
+      });
+      return tx.serviceRequest.findUniqueOrThrow({ where: { id } });
+    });
 
     return this.formatRequest(updated);
   }
@@ -302,6 +350,8 @@ export class DamageRequestsService {
         : undefined;
     const maxVehicleWeightKg = provider?.maxVehicleWeightKg ?? undefined;
 
+    const feedCursor = await this.resolveFeedCursor(params.cursor);
+
     // Never trust caller-supplied coordinates: use the provider's registered
     // location so a provider cannot scan another city's targeted requests.
     const providerLat = provider?.latitude ?? params.providerLat;
@@ -311,15 +361,8 @@ export class DamageRequestsService {
       typeof providerLat === 'number' &&
       typeof providerLng === 'number'
     ) {
-      let cursorItem: { createdAt: Date; id: string } | null = null;
-      if (params.cursor) {
-        cursorItem = await this.prisma.serviceRequest.findUnique({
-          where: { id: params.cursor },
-          select: { createdAt: true, id: true },
-        });
-      }
-
       const query = getProviderFeedQuery({
+        providerId: params.providerId,
         providerLat,
         providerLng,
         radiusKm: params.radiusKm || 25,
@@ -327,8 +370,7 @@ export class DamageRequestsService {
         towingVehicleTypes,
         maxVehicleWeightKg,
         limit: boundedLimit,
-        cursorCreatedAt: cursorItem?.createdAt,
-        cursorId: cursorItem?.id,
+        cursor: feedCursor,
       });
 
       const rawResults = await this.prisma.$queryRaw<any[]>(query);
@@ -348,18 +390,21 @@ export class DamageRequestsService {
 
       return {
         items,
-        nextCursor: items.length === boundedLimit ? items[items.length - 1].id : null,
+        nextCursor:
+          items.length === boundedLimit ? encodeFeedCursor(items[items.length - 1]) : null,
       };
     }
 
-    const cursorTuple = params.cursor ? decodeCursor(params.cursor) : null;
-
     const where: any = {
-      ...buildCursorWhere(cursorTuple),
-      status: 'OPEN',
+      // C2: a request stays visible to other providers after the first quote.
+      status: { in: ['OPEN', 'QUOTES_RECEIVED'] },
       isBroadcast: true,
       expiresAt: { gt: new Date() },
     };
+    // Hide requests this provider has already quoted.
+    if (params.providerId) {
+      where.quotations = { none: { providerId: params.providerId } };
+    }
     if (categories) {
       where.category = { in: categories };
     }
@@ -370,16 +415,17 @@ export class DamageRequestsService {
         { towingVehicleType: { in: towingVehicleTypes } },
       ];
     }
+    const and: any[] = [];
     if (typeof maxVehicleWeightKg === 'number') {
-      where.AND = [
-        {
-          OR: [
-            { vehicleWeightKg: null },
-            { vehicleWeightKg: { lte: maxVehicleWeightKg } },
-          ],
-        },
-      ];
+      and.push({
+        OR: [
+          { vehicleWeightKg: null },
+          { vehicleWeightKg: { lte: maxVehicleWeightKg } },
+        ],
+      });
     }
+    if (feedCursor) and.push(this.feedCursorWhere(feedCursor));
+    if (and.length > 0) where.AND = and;
 
     const requests = await this.prisma.serviceRequest.findMany({
       where,
@@ -403,9 +449,6 @@ export class DamageRequestsService {
             avatarUrl: true,
           },
         },
-        quotations: params.providerId
-          ? { where: { providerId: params.providerId } }
-          : false,
       },
       orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       take: boundedLimit,
@@ -429,12 +472,7 @@ export class DamageRequestsService {
     return {
       items,
       nextCursor:
-        items.length === boundedLimit
-          ? encodeCursor({
-              createdAt: items[items.length - 1].createdAt.toISOString(),
-              id: items[items.length - 1].id,
-            })
-          : null,
+        items.length === boundedLimit ? encodeFeedCursor(items[items.length - 1]) : null,
     };
   }
 
@@ -553,14 +591,16 @@ export class DamageRequestsService {
       lastName: found.customer.lastName,
       avatarUrl: found.customer.avatarUrl,
     };
-    const sanitizedVehicle = found.vehicle
+    // C4: saved vehicle or the request's own free-form make/model/year.
+    const resolvedVehicle = resolveRequestVehicle(found);
+    const sanitizedVehicle = resolvedVehicle
       ? {
-          make: found.vehicle.make,
-          model: found.vehicle.model,
-          year: found.vehicle.year,
-          fuelType: found.vehicle.fuelType,
-          transmission: found.vehicle.transmission,
-          color: found.vehicle.color,
+          make: resolvedVehicle.make,
+          model: resolvedVehicle.model,
+          year: resolvedVehicle.year,
+          fuelType: resolvedVehicle.fuelType,
+          transmission: resolvedVehicle.transmission,
+          color: resolvedVehicle.color,
         }
       : null;
 
@@ -595,7 +635,7 @@ export class DamageRequestsService {
       };
     }
 
-    return { ...found, quotations };
+    return { ...found, vehicle: resolvedVehicle, quotations };
   }
 
   private maskDetailAddress(fullAddress: string): string {

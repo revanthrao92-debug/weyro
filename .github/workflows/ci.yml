@@ -61,6 +61,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The apps import @weyro/* from their built dist/, so build them first
+      # (this also runs `prisma generate`). Typecheck/tests fail without it.
+      - name: Build workspace packages
+        run: npm run build:packages
+
       - name: Apply Prisma migrations + seed
         run: |
           cd packages/database && npx prisma generate
@@ -80,8 +85,12 @@ jobs:
       - name: Unit tests + coverage (thresholds enforced)
         run: cd apps/api && npx jest --coverage --silent
 
-      - name: Integration + E2E suites (real Postgres)
-        run: cd apps/api && npx jest --config jest.config.js --testPathPattern 'src/test' --runInBand --silent
+      - name: Integration suite
+        run: cd apps/api && npx jest --testPathPatterns 'src/test/integration' --runInBand --silent
+
+      # The default Jest config ignores e2e-*.spec.ts; they need their own config.
+      - name: E2E suites (real Postgres)
+        run: cd apps/api && npx jest --config jest-e2e.config.js --runInBand --silent
 
       - name: Dependency audit gate (critical only for now)
         run: npm audit --audit-level=critical
@@ -101,6 +110,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: .
+
+      # The app imports @weyro/api-contracts from its built dist/.
+      - name: Build shared packages
+        run: npm run build -w @weyro/api-contracts
+        working-directory: .
 
       - name: Typecheck
         run: npx tsc --noEmit
