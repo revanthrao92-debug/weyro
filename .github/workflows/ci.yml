@@ -86,7 +86,7 @@ jobs:
         run: cd apps/api && npx jest --coverage --silent
 
       - name: Integration suite
-        run: cd apps/api && npx jest --testPathPattern 'src/test/integration' --runInBand --silent
+        run: cd apps/api && npx jest --testPathPatterns 'src/test/integration' --runInBand --silent
 
       # The default Jest config ignores e2e-*.spec.ts; they need their own config.
       - name: E2E suites (real Postgres)
