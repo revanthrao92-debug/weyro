@@ -15,11 +15,14 @@ import { initSentry } from '@/lib/sentry';
 // Registers the background location task at module scope (required by Expo Router + TaskManager).
 import '@/services/background-location';
 import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
+import { shouldRetryQuery } from '@/services/api-client';
 
 // M9: crash reporting (off unless EXPO_PUBLIC_SENTRY_DSN is set).
 initSentry();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: shouldRetryQuery } },
+});
 
 export default function RootLayout() {
   // Registers the display face used by typography.display (Sora 600).

@@ -9,6 +9,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
 } from '@/components/ui';
 import { formatDate, titleize } from '@/utils/format';
 import {
@@ -18,6 +19,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -41,7 +43,8 @@ function statusLabel(status: string) {
 
 export default function EscrowScreen() {
   const [filter, setFilter] = useState<Filter>('ALL');
-  const { data, isLoading } = useAdminEscrow();
+  const { data, isLoading, isError, refetch } = useAdminEscrow();
+  const refreshControl = useRefreshControl(refetch);
   const entries = useMemo(() => data ?? [], [data]);
 
   const visible = useMemo(
@@ -65,6 +68,7 @@ export default function EscrowScreen() {
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.paymentId ?? item.bookingId}
         contentContainerStyle={styles.body}
@@ -106,7 +110,9 @@ export default function EscrowScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Landmark size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No payments yet' : 'Nothing here'}

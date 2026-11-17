@@ -18,6 +18,7 @@ import {
   PressableScale,
   Skeleton,
   EmptyState,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
@@ -45,7 +46,7 @@ export default function MessagesThreadScreen() {
   const id = threadId ?? '';
 
   const { data: threadsData } = useChatThreads();
-  const { data, isLoading } = useChatMessages(id);
+  const { data, isLoading, isError, refetch } = useChatMessages(id);
   const sendMessage = useSendChatMessage(id);
   const markRead = useMarkThreadRead(id);
 
@@ -106,6 +107,8 @@ export default function MessagesThreadScreen() {
               <Skeleton key={i} width={i % 2 ? '55%' : '70%'} height={40} style={{ marginTop: 12 }} />
             ))}
           </View>
+        ) : isError && !data ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
         ) : (
           <FlatList
             ref={listRef}

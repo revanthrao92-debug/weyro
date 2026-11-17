@@ -10,6 +10,7 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
@@ -20,6 +21,7 @@ import {
 } from '@/theme';
 import { useChatThreads } from '@/hooks/useChatThreads';
 import { useAuth } from '@/hooks/useAuth';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const timeLabel = (iso?: string) =>
   iso
@@ -30,7 +32,8 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
   const router = useRouter();
   const { role } = useAuth();
   const [query, setQuery] = useState('');
-  const { data, isLoading } = useChatThreads();
+  const { data, isLoading, isError, refetch } = useChatThreads();
+  const refreshControl = useRefreshControl(refetch);
 
   const allThreads = data?.items ?? [];
   const threads = allThreads.filter((t) => {
@@ -46,6 +49,7 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
   return (
     <ScreenContainer chrome="dark" safeBottom>
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : threads}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -93,7 +97,9 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <View style={styles.empty}>
               <EmptyState
                 icon={<MessageCircle size={26} color={palette.textMuted} strokeWidth={1.7} />}

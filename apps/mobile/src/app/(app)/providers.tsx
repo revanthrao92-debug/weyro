@@ -24,6 +24,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
 } from '@/components/ui';
 import { formatDate, labelize } from '@/utils/format';
 import {
@@ -33,6 +34,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ALL', 'PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'] as const;
 
@@ -52,15 +54,17 @@ function statusTone(status: string): StatusTone {
 export default function ProvidersScreen() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('PENDING');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { data, isLoading } = useAdminProviders(
+  const { data, isLoading, isError, refetch } = useAdminProviders(
     filter === 'ALL' ? undefined : filter,
   );
+  const refreshControl = useRefreshControl(refetch);
   const providers = data?.items ?? [];
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Providers" subtitle="Verification and onboarding" />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : providers}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -95,7 +99,9 @@ export default function ProvidersScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<UserRound size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No providers yet' : 'Nothing here'}

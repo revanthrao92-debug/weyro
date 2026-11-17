@@ -19,6 +19,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
 } from '@/components/ui';
 import { formatDate, titleize } from '@/utils/format';
 import {
@@ -28,6 +29,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const ORDER_FILTERS = ['ALL', 'PAID', 'PENDING', 'REFUNDED'] as const;
 const JOB_FILTERS = ['ALL', 'ACTIVE', 'DISPUTED', 'COMPLETED', 'CANCELLED'] as const;
@@ -64,6 +66,8 @@ export default function OperationsScreen() {
 
   const ordersQuery = useAdminOrders();
   const bookingsQuery = useAdminBookings();
+  const ordersRefresh = useRefreshControl(ordersQuery.refetch);
+  const bookingsRefresh = useRefreshControl(bookingsQuery.refetch);
   const refundOrder = useAdminRefundOrder();
   const refundBooking = useAdminRefundBooking();
   const updateBooking = useUpdateBookingStatus();
@@ -139,6 +143,7 @@ export default function OperationsScreen() {
 
       {segment === 'orders' ? (
         <FlatList
+          refreshControl={ordersRefresh}
           data={ordersQuery.isLoading ? [] : orders}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.body}
@@ -172,7 +177,9 @@ export default function OperationsScreen() {
             </View>
           }
           ListEmptyComponent={
-            ordersQuery.isLoading ? undefined : (
+            ordersQuery.isLoading ? undefined : ordersQuery.isError ? (
+              <ErrorState message="Check your connection and try again." onRetry={() => void ordersQuery.refetch()} />
+            ) : (
               <EmptyState
                 icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
                 title="No orders here"
@@ -190,6 +197,7 @@ export default function OperationsScreen() {
         />
       ) : (
         <FlatList
+          refreshControl={bookingsRefresh}
           data={bookingsQuery.isLoading ? [] : bookings}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.body}
@@ -217,7 +225,9 @@ export default function OperationsScreen() {
             </View>
           }
           ListEmptyComponent={
-            bookingsQuery.isLoading ? undefined : (
+            bookingsQuery.isLoading ? undefined : bookingsQuery.isError ? (
+              <ErrorState message="Check your connection and try again." onRetry={() => void bookingsQuery.refetch()} />
+            ) : (
               <EmptyState
                 icon={<Wrench size={26} color={palette.textMuted} strokeWidth={1.7} />}
                 title="No jobs here"

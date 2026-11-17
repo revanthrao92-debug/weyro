@@ -20,12 +20,14 @@ import {
   Avatar,
   EmptyState,
   Skeleton,
+  ErrorState,
 } from '@/components/ui';
 import { palette, spacing } from '@/theme';
+import { isNotFound } from '@/services/api-client';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useCustomerProfile();
+  const { data: profile, isLoading, isError, error, refetch } = useCustomerProfile();
   const updateProfile = useUpdateCustomerProfile();
   const [firstName, setFirstName] = useState(profile?.firstName ?? '');
   const [lastName, setLastName] = useState(profile?.lastName ?? '');
@@ -94,7 +96,11 @@ export default function CustomerProfileScreen() {
     return (
       <ScreenContainer chrome="dark" padded={false}>
         <AppHeader title="Profile" />
-        <EmptyState title="No profile found" message="Your profile will appear here." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="No profile found" message="Your profile will appear here." />
+        )}
       </ScreenContainer>
     );
   }

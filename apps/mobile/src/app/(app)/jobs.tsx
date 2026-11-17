@@ -13,6 +13,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
 } from '@/components/ui';
 import {
   fontFamilyMono,
@@ -22,6 +23,7 @@ import {
   type StatusTone,
 } from '@/theme';
 import { formatDate, titleize } from '@/utils/format';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ACTIVE', 'TODAY', 'COMPLETED', 'CANCELLED', 'ALL'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -73,7 +75,8 @@ export default function MechanicJobsScreen() {
       ? 'Assigned roadside calls'
       : 'Assigned workshop work';
   const [filter, setFilter] = useState<Filter>('ACTIVE');
-  const { data, isLoading } = useBookings();
+  const { data, isLoading, isError, refetch } = useBookings();
+  const refreshControl = useRefreshControl(refetch);
   const bookings = useMemo(() => data?.items ?? [], [data?.items]);
 
   const visible = useMemo(() => {
@@ -117,6 +120,7 @@ export default function MechanicJobsScreen() {
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Jobs" subtitle={subtitle} />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -162,7 +166,9 @@ export default function MechanicJobsScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Wrench size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No jobs yet' : 'Nothing here'}

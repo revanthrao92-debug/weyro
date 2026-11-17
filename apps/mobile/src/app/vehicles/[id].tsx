@@ -8,6 +8,7 @@ import {
   Skeleton,
   EmptyState,
   SectionHead,
+  ErrorState,
 } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
 import {
@@ -20,11 +21,12 @@ import {
 } from '@/theme';
 import { carPhotoFor } from '@/lib/photos';
 import { formatDate, labelize } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: vehicles, isLoading } = useVehicles();
+  const { data: vehicles, isLoading, isError, error, refetch } = useVehicles();
 
   const vehicle = (vehicles?.items ?? []).find((v) => v.id === id);
 
@@ -42,7 +44,11 @@ export default function VehicleDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <EmptyState title="Vehicle not found" message="This vehicle may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Vehicle not found" message="This vehicle may have been removed." />
+        )}
       </ScreenContainer>
     );
   }

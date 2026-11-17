@@ -33,6 +33,7 @@ import {
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
 
 type RequestParams = { id: string };
 
@@ -40,7 +41,7 @@ export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
   const { role, providerProfile } = useAuth();
-  const { data: request, isLoading } = useRequest(id || '');
+  const { data: request, isLoading, isError, error, refetch } = useRequest(id || '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
@@ -90,7 +91,11 @@ export default function RequestDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <ErrorState title="Request not found" message="This request may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <ErrorState title="Request not found" message="This request may have been removed." />
+        )}
       </ScreenContainer>
     );
   }

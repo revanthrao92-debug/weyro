@@ -10,6 +10,7 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  ErrorState,
 } from '@/components/ui';
 import {
   StatusTone,
@@ -20,6 +21,7 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { formatDate, labelize } from '@/utils/format';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'];
 
@@ -77,7 +79,8 @@ function RequestRow({
 export default function MyRequestsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading } = useMyRequests();
+  const { data, isLoading, isError, refetch } = useMyRequests();
+  const refreshControl = useRefreshControl(refetch);
 
   const all = data?.items ?? [];
   const requests = statusFilter
@@ -89,7 +92,11 @@ export default function MyRequestsScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         <Text style={styles.eyebrow}>Requests</Text>
         <Text style={styles.title}>Your requests</Text>
         <Text style={styles.summary}>
@@ -110,6 +117,8 @@ export default function MyRequestsScreen() {
               </View>
             ))}
           </View>
+        ) : isError ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
         ) : all.length === 0 ? (
           <View style={styles.empty}>
             <EmptyState

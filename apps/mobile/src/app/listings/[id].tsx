@@ -23,9 +23,11 @@ import {
   AppHeader,
   Skeleton,
   BackButton,
+  ErrorState,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
 
 type ListingParams = { id: string };
 
@@ -33,7 +35,7 @@ const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams<ListingParams>();
-  const { data: part, isLoading } = useSparePart(id || '');
+  const { data: part, isLoading, isError, error, refetch } = useSparePart(id || '');
 
   if (isLoading) {
     return (
@@ -52,7 +54,11 @@ export default function EditListingScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" />
-        <EmptyState title="Part not found" message="This part may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Part not found" message="This part may have been removed." />
+        )}
       </ScreenContainer>
     );
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Text, View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
@@ -11,10 +11,11 @@ import {
   Car,
   Filter,
 } from 'lucide-react-native';
-import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale } from '@/components/ui';
+import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale, ErrorState } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { Image } from 'expo-image';
 import { photo, photoForCategory } from '@/lib/photos';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const CATEGORIES = [
   { label: 'Engine', Icon: Wrench },
@@ -29,7 +30,14 @@ export default function ShopScreen() {
   const [search, setSearch] = useState('');
   const [make, setMake] = useState('');
   const router = useRouter();
-  const { data, isLoading } = useParts({ search, make });
+  // Search after typing pauses, not on every keystroke.
+  const [query, setQuery] = useState({ search, make });
+  useEffect(() => {
+    const t = setTimeout(() => setQuery({ search: search.trim(), make: make.trim() }), 300);
+    return () => clearTimeout(t);
+  }, [search, make]);
+  const { data, isLoading, isError, refetch } = useParts(query);
+  const refreshControl = useRefreshControl(refetch);
 
   const parts = data?.items ?? [];
 
@@ -120,7 +128,9 @@ export default function ShopScreen() {
         </View>
       </FilterBar>
 
-      {parts.length === 0 ? (
+      {isError && !data ? (
+        <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+      ) : parts.length === 0 ? (
         <EmptyState
           icon={<Package size={28} color={palette.textMuted} />}
           title="No parts found"
@@ -128,6 +138,7 @@ export default function ShopScreen() {
         />
       ) : (
         <FlatList
+          refreshControl={refreshControl}
           data={parts}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
