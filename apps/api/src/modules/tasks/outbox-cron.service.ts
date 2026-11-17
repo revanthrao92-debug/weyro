@@ -4,8 +4,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { OutboxService } from '../notifications/outbox.service';
 
 /**
- * STEP 5 — Outbox worker. Every minute (bounded batch):
- * drains due outbox rows through the NotificationsService deliverer.
+ * STEP 5 — Outbox worker. Every minute, drains until the backlog is empty
+ * (time-boxed) through the NotificationsService deliverer. Replica-safe.
  * Sent stamps + retry backoff live inside OutboxService.drain itself.
  */
 @Injectable()
@@ -31,7 +31,7 @@ export class OutboxCronService {
   async drain(): Promise<void> {
     if (!this.outbox) return;
     try {
-      const delivered = await this.outbox.drain(25);
+      const delivered = await this.outbox.drain();
       if (delivered > 0) {
         this.logger.log(`Outbox drained: ${delivered} event(s) delivered`);
       }

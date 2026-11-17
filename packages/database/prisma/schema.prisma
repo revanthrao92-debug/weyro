@@ -863,3 +863,13 @@ model OutboxEvent {
   @@index([type])
   @@map("outbox_events")
 }
+
+/// Lease lock for scheduled jobs, so only one API replica runs a job at a time.
+/// A row per job; a crashed holder's lease expires and another replica takes over.
+model JobLock {
+  name      String   @id
+  owner     String
+  expiresAt DateTime
+
+  @@map("job_locks")
+}
