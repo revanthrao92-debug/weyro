@@ -1,28 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-export interface ProviderFeedItem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  urgency: string;
-  status: string;
-  isBroadcast: boolean;
-  damagePhotos: string[];
-  fulfillmentType: string | null;
-  address: string;
-  latitude: number;
-  longitude: number;
-  expiresAt: Date;
-  createdAt: Date;
-  distanceKm: number;
-}
-
-/**
- * SQL migration statement to enable PostGIS.
- */
-export const ENABLE_POSTGIS_SQL = Prisma.sql`CREATE EXTENSION IF NOT EXISTS postgis;`;
-
 export interface ProviderFeedQueryParams {
   /**
    * The calling provider. Requests this provider has already quoted are

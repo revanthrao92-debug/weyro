@@ -75,7 +75,7 @@ export async function refreshTokenSingleFlight(): Promise<string | null> {
   }
   if (!refreshInFlight) {
     refreshInFlight = tokenRefresher()
-      .catch((err) => {
+      .catch(() => {
         // Refresh failed → the session is unrecoverable. Surface once.
         void sessionExpiredHandler?.();
         return null as string | null;

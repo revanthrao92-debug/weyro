@@ -186,7 +186,7 @@ export default function FinancialsScreen() {
                 strokeWidth={StyleSheet.hairlineWidth}
               />
             ))}
-            {chart.bars.map((bar, index) => {
+            {chart.bars.map((bar) => {
               const isSelected = selectedBucket?.date === bar.bucket.date;
               return (
                 <Rect

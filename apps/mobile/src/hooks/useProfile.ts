@@ -157,7 +157,7 @@ export function useUpdateVehicle() {
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     },
   });

@@ -12,7 +12,6 @@ export interface SectionCardProps {
   /** Optional count rendered as a badge next to the title. */
   count?: number;
   actionLabel?: string;
-  onAction?: () => void;
   /** Tap on the header — usually opens the section's list screen. */
   onPress?: () => void;
   style?: ViewStyle | ViewStyle[];
@@ -29,7 +28,6 @@ export function SectionCard({
   icon: Icon,
   count,
   actionLabel,
-  onAction,
   onPress,
   style,
   children,
