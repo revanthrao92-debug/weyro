@@ -23,15 +23,16 @@ TRUST_PROXY=1
 
 ## Region
 
-The API replicas run in **Singapore** (`asia-southeast1-eqsg3a` in
-`.railway/railway.ts`), the closest Railway region to India. **The database must live in the same region.** Moving only the
-API adds a cross-region round trip to every query, which is slower than staying
-put. When you move the API, also:
+The database (Supabase) is in **Mumbai**. Railway has no India region; its closest is
+**Singapore** (`asia-southeast1-eqsg3a` in `.railway/railway.ts`), so the API runs there.
 
-1. Create the Postgres (and Redis) instance in the Singapore region.
-2. Restore the data (`pg_dump` / `pg_restore`) during a maintenance window.
-3. Point `DATABASE_URL`, `DIRECT_URL` and `REDIS_URL` at the new instances.
-4. Run `npm run db:migrate:deploy` against the new database.
+- Singapore → Mumbai is roughly 60 ms per database round trip, versus roughly 250 ms+
+  from the US West region the API used before. Every request makes several queries, so
+  this matters more than the distance to users.
+- **Do not move the database to Singapore**: Mumbai keeps user data in India.
+- Best long-term option: run the API in Mumbai too (e.g. AWS `ap-south-1` or Google
+  Cloud `asia-south1`), next to the database. Queries then take a few milliseconds.
+- Keep Redis next to the API (Singapore on Railway).
 
 ## Payments
 
