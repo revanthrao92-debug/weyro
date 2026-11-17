@@ -76,6 +76,24 @@ If Supabase's pooler is in transaction mode, use the pooled URL for `DATABASE_UR
 4. Run one API replica at first. Add replicas only after confirming `REDIS_URL` is connected.
 5. Verify `GET /api/v1/ready` returns 200 and the login smoke test passes.
 
+## Staging
+
+Test schema, auth and payment changes on staging before merging to `main` (merging deploys to production and runs migrations on the production database).
+
+1. **Database:** a separate Supabase project in Mumbai with PostGIS enabled. Never point staging at the production database. Run `npm run db:migrate:deploy` against it; the demo seed (`ALLOW_DEMO_SEED=true`) is allowed here only.
+2. **Railway:** add a `staging` environment to the project with its own Redis. Set the API service source to the branch under test so nothing needs merging.
+3. **Variables:** never copy production secrets. Use new `JWT_*` secrets and `OTP_HASH_SECRET`, `TRUST_PROXY=1`, staging `DATABASE_URL`/`DIRECT_URL`, Razorpay **test** keys and a test webhook secret, and a separate private bucket.
+4. **SMS:** `NODE_ENV=production` refuses the console SMS driver. Until a real provider is set up, run staging with `NODE_ENV=development` and `OTP_DEBUG_ECHO=true`, then do one production-mode boot check before merging.
+5. **Mobile:** `eas build --profile staging` builds against `https://weyro-api-staging.up.railway.app/api/v1`; update that URL in `apps/mobile/eas.json` if Railway assigns a different domain. The `preview` profile points at **production**, so don't test with it.
+
+Before merging to production, check for duplicate active bookings (the one-active-booking migration refuses to run if any exist):
+
+```sql
+SELECT q."requestId", count(*) FROM bookings b
+JOIN quotations q ON q.id = b."quotationId"
+WHERE b.status <> 'CANCELLED' GROUP BY 1 HAVING count(*) > 1;
+```
+
 ## Scaling
 
 - API is stateless (JWT), so replicas are safe once Redis is connected.
