@@ -141,11 +141,15 @@ describe('offline mutation queue', () => {
         { id: 'q_old', idempotencyKey: 'k', endpoint: '/damage-requests', method: 'POST', body: {}, createdAt: new Date().toISOString(), attempts: 0, nextAttemptAt: new Date().toISOString(), status: 'PENDING' },
       ]);
       // Everything below comes from the SAME (fresh) registry as the queue module.
+      // require() is deliberate: after jest.resetModules() it returns the fresh
+      // registry's modules, and this Jest setup has no ESM dynamic import().
+      /* eslint-disable @typescript-eslint/no-require-imports */
       const freshSecure = require('expo-secure-store');
       const freshAsync = require('@react-native-async-storage/async-storage').default;
       await freshSecure.setItemAsync(KEY, legacy);
 
       const fresh = require('../src/services/offline-queue');
+      /* eslint-enable @typescript-eslint/no-require-imports */
       const items = await fresh.listQueuedMutations();
 
       expect(items.map((item: { id: string }) => item.id)).toEqual(['q_old']);

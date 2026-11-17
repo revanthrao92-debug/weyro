@@ -2,6 +2,15 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { ApiError, apiClient } from '../src/services/api-client';
+// jest hoists the jest.mock calls below above these imports, so the module-scope
+// TaskManager.defineTask call in the service is captured by the mock.
+import {
+  JOB_LOCATION_TASK,
+  getActiveJobId,
+  requestJobLocationPermissions,
+  startJobLocationUpdates,
+  stopJobLocationUpdates,
+} from '../src/services/background-location';
 
 type TaskExecutor = (body: { data?: unknown; error?: unknown }) => Promise<void>;
 let taskExecutor: TaskExecutor;
@@ -30,15 +39,6 @@ jest.mock('../src/services/api-client', () => {
   const actual = jest.requireActual('../src/services/api-client');
   return { ...actual, apiClient: jest.fn() };
 });
-
-// Import AFTER the mocks so the module-scope defineTask call is captured.
-import {
-  JOB_LOCATION_TASK,
-  getActiveJobId,
-  requestJobLocationPermissions,
-  startJobLocationUpdates,
-  stopJobLocationUpdates,
-} from '../src/services/background-location';
 
 const loc = Location as unknown as Record<string, jest.Mock>;
 const mockedApi = apiClient as jest.MockedFunction<typeof apiClient>;
