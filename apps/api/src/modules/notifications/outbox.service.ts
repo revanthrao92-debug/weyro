@@ -82,7 +82,7 @@ export class OutboxService {
    * due or `budgetMs` has passed, so a backlog clears in one run instead of
    * one batch per minute. Safe to run on every replica at once (see `claim`).
    */
-  async drain(batchSize = 50, budgetMs = 45_000): Promise<number> {
+  async drain(batchSize = 50, budgetMs = 8_000): Promise<number> {
     if (!this.deliverer) {
       this.logger.warn('Outbox drain skipped — no deliverer registered yet.');
       return 0;

@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import { env } from './config/env.config';
 import { PinoLogger } from './common/logger/pino.logger';
 import { httpSerializers } from './common/logger/http-serializers';
+import { RedisIoAdapter } from './common/redis/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -20,6 +21,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
+
+  // Chat and live tracking broadcast across replicas through Redis. Without
+  // REDIS_URL (single instance, dev) the default in-memory adapter is used.
+  if (env.REDIS_URL) {
+    app.useWebSocketAdapter(new RedisIoAdapter(app, env.REDIS_URL));
+  }
 
   // Behind a load balancer Express only sees the proxy socket. Without this,
   // the per-IP throttler would bucket every user under one address.

@@ -4,7 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { OutboxService } from '../notifications/outbox.service';
 
 /**
- * STEP 5 — Outbox worker. Every minute, drains until the backlog is empty
+ * STEP 5 — Outbox worker. Every 10 s, drains until the backlog is empty
  * (time-boxed) through the NotificationsService deliverer. Replica-safe.
  * Sent stamps + retry backoff live inside OutboxService.drain itself.
  */
@@ -27,11 +27,12 @@ export class OutboxCronService {
     }
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async drain(): Promise<void> {
     if (!this.outbox) return;
     try {
-      const delivered = await this.outbox.drain();
+      // Budget under the 10 s tick, so runs on one replica don't pile up.
+      const delivered = await this.outbox.drain(50, 8_000);
       if (delivered > 0) {
         this.logger.log(`Outbox drained: ${delivered} event(s) delivered`);
       }
