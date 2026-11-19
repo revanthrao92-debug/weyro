@@ -2,6 +2,12 @@ import { Global, Module, Provider } from '@nestjs/common';
 import Redis from 'ioredis';
 import { env } from '../../config/env.config';
 import { CacheService } from './cache.service';
+import { REDIS_CLIENT } from './redis.constants';
+
+// Re-exported for callers that still import the token from this module. New
+// code should import from `./redis.constants` so it never joins the
+// module ↔ CacheService require cycle (see that file for the full story).
+export { REDIS_CLIENT };
 
 /**
  * RedisModule — centralised Redis infrastructure.
@@ -15,8 +21,6 @@ import { CacheService } from './cache.service';
  * to the caller's default (Postgres remains the source of truth). The app
  * never crashes because Redis is down.
  */
-export const REDIS_CLIENT = 'REDIS_CLIENT';
-
 const redisProvider: Provider = {
   provide: REDIS_CLIENT,
   useFactory: (): Redis => {

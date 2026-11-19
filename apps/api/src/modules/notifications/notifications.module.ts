@@ -4,7 +4,7 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { OutboxService, OUTBOX_DELIVERER } from './outbox.service';
 import { NotificationQueue } from '../../common/redis/notification.queue';
-import { REDIS_CLIENT } from '../../common/redis/redis.module';
+import { REDIS_CLIENT } from '../../common/redis/redis.constants';
 
 @Module({
   controllers: [NotificationsController],

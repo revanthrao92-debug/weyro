@@ -22,7 +22,7 @@ import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { buildSmsGateway, SmsGateway } from './sms.gateway';
 import type Redis from 'ioredis';
-import { REDIS_CLIENT } from '../../common/redis/redis.module';
+import { REDIS_CLIENT } from '../../common/redis/redis.constants';
 
 // Pre-computed bcrypt hash for constant-time comparison when user does not exist
 const DUMMY_HASH =

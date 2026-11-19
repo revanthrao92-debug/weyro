@@ -105,7 +105,10 @@ async function bootstrap() {
         }
         return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       },
-      customLogLevel: (res: any, err: any) => {
+      // pino-http calls this as (req, res, err). Naming the first argument
+      // `res` made `res.statusCode` undefined and `err` the always-truthy
+      // response object, so every 200 was logged at level "error".
+      customLogLevel: (_req: any, res: any, err: any) => {
         if (res.statusCode >= 500 || err) return 'error';
         if (res.statusCode >= 400) return 'warn';
         return 'info';
