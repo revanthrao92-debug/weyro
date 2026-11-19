@@ -694,6 +694,55 @@ describe('AuthService – OTP security hardening', () => {
         expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
       });
 
+      it('mirrors an allowed send into otp_sends, and a failed mirror does not block the SMS', async () => {
+        const { svc } = withRedis(0);
+        await svc.sendOtp({ phone, purpose: 'login' } as never);
+        expect(mockPrisma.otpSend.create).toHaveBeenCalledWith({ data: { phone } });
+
+        mockPrisma.otpSend.create.mockRejectedValueOnce(new Error('db down'));
+        const { svc: svc2 } = withRedis(0);
+        jest
+          .spyOn((svc2 as unknown as { logger: { error: unknown } }).logger, 'error')
+          .mockImplementation(() => undefined);
+        await expect(svc2.sendOtp({ phone, purpose: 'login' } as never)).resolves.toMatchObject({ status: 'sent' });
+      });
+
+      it('restores a fresh daily counter from otp_sends and refuses when the cap is already used', async () => {
+        const redis = {
+          status: 'ready',
+          eval: jest.fn().mockResolvedValue(4),
+          set: jest.fn(),
+          decr: jest.fn(),
+          del: jest.fn(),
+        };
+        const svc = new AuthService(mockPrisma, mockJwt, redis as never);
+        mockPrisma.otpSend.count.mockResolvedValueOnce(5);
+        await expect(svc.sendOtp({ phone, purpose: 'login' } as never)).rejects.toMatchObject({ status: 429 });
+        expect(redis.set).toHaveBeenCalledWith(`weyro:otp:send:daily:${phone}`, '6', 'EX', 86400);
+        expect(redis.decr).toHaveBeenCalledWith(expect.stringMatching(/^weyro:otp:send:global:\d+$/));
+        expect(redis.del).toHaveBeenCalledWith(`weyro:otp:send:cooldown:${phone}`);
+        expect(mockPrisma.otpSend.create).not.toHaveBeenCalled();
+        expect(mockPrisma.oTP.upsert).not.toHaveBeenCalled();
+      });
+
+      it('prunes otp_sends rows older than 48 h in Redis mode too', async () => {
+        const nodeCrypto = jest.requireActual<typeof import('crypto')>('crypto');
+        const realRandomInt = nodeCrypto.randomInt;
+        const spy = jest
+          .spyOn(nodeCrypto, 'randomInt')
+          .mockImplementation(((min: number, max: number) =>
+            min === 0 && max === 50 ? 0 : realRandomInt(min, max)) as never);
+        try {
+          const { svc } = withRedis(0);
+          await svc.sendOtp({ phone, purpose: 'login' } as never);
+          expect(mockPrisma.otpSend.deleteMany).toHaveBeenCalledWith({
+            where: { createdAt: { lt: expect.any(Date) } },
+          });
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
       it('falls back to database counts when Redis errors', async () => {
         const redis = { status: 'ready', eval: jest.fn().mockRejectedValue(new Error('ECONNRESET')) };
         const svc = new AuthService(mockPrisma, mockJwt, redis as never);
