@@ -29,6 +29,8 @@ export class NotificationQueue implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationQueue.name);
   private queue: Queue<NotificationJobData> | null = null;
   private worker: Worker<NotificationJobData> | null = null;
+  // BullMQ never closes a connection it was given, so we close these ourselves.
+  private readonly ownConnections: Redis[] = [];
   private readonly handler?: (data: NotificationJobData) => Promise<void>;
 
   constructor(
@@ -49,6 +51,9 @@ export class NotificationQueue implements OnModuleDestroy {
         maxRetriesPerRequest: null,
       });
 
+      const workerConnection = bqConnection.duplicate();
+      this.ownConnections.push(bqConnection, workerConnection);
+
       this.queue = new Queue<NotificationJobData>(NOTIFICATION_QUEUE, {
         connection: bqConnection,
         defaultJobOptions: {
@@ -66,7 +71,7 @@ export class NotificationQueue implements OnModuleDestroy {
             await this.handler(job.data);
           }
         },
-        { connection: bqConnection.duplicate() },
+        { connection: workerConnection },
       );
 
       this.worker.on('failed', (job, err) => {
@@ -98,5 +103,6 @@ export class NotificationQueue implements OnModuleDestroy {
   async onModuleDestroy() {
     if (this.worker) await this.worker.close();
     if (this.queue) await this.queue.close();
+    await Promise.all(this.ownConnections.map((c) => c.quit().catch(() => c.disconnect())));
   }
 }

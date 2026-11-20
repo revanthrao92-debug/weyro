@@ -1,4 +1,4 @@
-import { Global, Module, Provider } from '@nestjs/common';
+import { Global, Inject, Module, OnApplicationShutdown, Provider } from '@nestjs/common';
 import Redis from 'ioredis';
 import { env } from '../../config/env.config';
 import { CacheService } from './cache.service';
@@ -55,4 +55,16 @@ const redisProvider: Provider = {
   providers: [redisProvider, CacheService],
   exports: [CacheService, redisProvider],
 })
-export class RedisModule {}
+export class RedisModule implements OnApplicationShutdown {
+  constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {}
+
+  // Runs after every onModuleDestroy hook, so nothing still needs the client.
+  // An open socket would otherwise keep the process alive after SIGTERM.
+  async onApplicationShutdown(): Promise<void> {
+    if (this.client.status === 'ready') {
+      await this.client.quit().catch(() => this.client.disconnect());
+    } else {
+      this.client.disconnect(); // lazy (no REDIS_URL) or reconnecting: never dial
+    }
+  }
+}
