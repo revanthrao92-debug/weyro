@@ -52,7 +52,7 @@ export default function MessagesThreadScreen() {
 
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<ChatMessage>>(null);
-  const marked = useRef(false);
+  const markedCount = useRef(0);
 
   const thread = (threadsData?.items ?? []).find((t) => t.id === id);
   const title =
@@ -63,10 +63,12 @@ export default function MessagesThreadScreen() {
 
   const messages = data?.items ?? [];
 
+  // Re-mark whenever polling brings in new messages from the other party.
   useEffect(() => {
-    if (!id || marked.current || messages.length === 0) return;
-    marked.current = true;
-    if (messages.some((m) => !m.readAt)) {
+    if (!id || messages.length <= markedCount.current) return;
+    markedCount.current = messages.length;
+    const myRole = role === 'PROVIDER' ? 'PROVIDER' : 'CUSTOMER';
+    if (messages.some((m) => !m.readAt && m.senderRole !== myRole)) {
       markRead.mutate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

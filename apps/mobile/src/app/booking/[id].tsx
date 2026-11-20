@@ -129,7 +129,7 @@ export default function BookingDetailScreen() {
             <SectionHead title="Provider" />
             <View style={styles.spec}>
               <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Garage</Text>
+                <Text style={styles.specLabel}>Provider</Text>
                 <Text style={styles.specValue}>{booking.provider.businessName}</Text>
               </View>
               <View style={[styles.specRow, styles.divider]}>
