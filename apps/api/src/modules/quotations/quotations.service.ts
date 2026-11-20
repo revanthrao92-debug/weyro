@@ -424,6 +424,24 @@ export class QuotationsService {
         },
       });
 
+      // Open the customer <-> provider chat for this job. The app has no
+      // "start chat" button; its Messages screen says chats open on accept.
+      await tx.thread.upsert({
+        where: {
+          customerId_providerId_requestId: {
+            customerId: quote.request.customerId,
+            providerId: quote.providerId,
+            requestId: quote.requestId,
+          },
+        },
+        create: {
+          customerId: quote.request.customerId,
+          providerId: quote.providerId,
+          requestId: quote.requestId,
+        },
+        update: {},
+      });
+
       // Create initial Payment record in PENDING
       await tx.payment.create({
         data: {
