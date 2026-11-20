@@ -16,6 +16,7 @@ import {
   Button,
   ScreenContainer,
   AppHeader,
+  BackButton,
   Card,
   Avatar,
   EmptyState,
@@ -77,7 +78,7 @@ export default function CustomerProfileScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" />
+        <AppHeader left={<BackButton />} title="Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={18} />
           <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
@@ -95,7 +96,7 @@ export default function CustomerProfileScreen() {
   if (!profile) {
     return (
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" />
+        <AppHeader left={<BackButton />} title="Profile" />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
         ) : (
@@ -111,7 +112,7 @@ export default function CustomerProfileScreen() {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" subtitle="Manage your personal information" />
+        <AppHeader left={<BackButton />} title="Profile" subtitle="Manage your personal information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.avatarCard}>
             <View style={styles.avatarRow}>

@@ -1,5 +1,4 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackButton,
@@ -9,6 +8,7 @@ import {
   EmptyState,
   SectionHead,
   ErrorState,
+  VehiclePhoto,
 } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
 import {
@@ -19,7 +19,6 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
 import { formatDate, labelize } from '@/utils/format';
 import { isNotFound } from '@/services/api-client';
 
@@ -64,12 +63,7 @@ export default function VehicleDetailScreen() {
           <View style={styles.spacer} />
         </View>
 
-        <Image
-          source={{ uri: carPhotoFor(vehicle.make, vehicle.model) }}
-          style={styles.hero}
-          contentFit="cover"
-          transition={150}
-        />
+        <VehiclePhoto make={vehicle.make} model={vehicle.model} style={styles.hero} iconSize={40} />
         <Text style={styles.title}>
           {vehicle.make} {vehicle.model}
         </Text>

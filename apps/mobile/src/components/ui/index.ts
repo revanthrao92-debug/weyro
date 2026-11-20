@@ -17,6 +17,7 @@ export { AppHeader } from './AppHeader';
 export type { AppHeaderProps } from './AppHeader';
 
 export { BackButton } from './BackButton';
+export { VehiclePhoto } from './VehiclePhoto';
 export type { BackButtonProps } from './BackButton';
 
 export { FilterBar } from './FilterBar';

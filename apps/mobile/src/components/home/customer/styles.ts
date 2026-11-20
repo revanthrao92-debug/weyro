@@ -138,7 +138,18 @@ export const styles = StyleSheet.create({
   },
   locationPress: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   locationText: { ...typography.caption, color: palette.textSecondary, flexShrink: 1 },
-  sos: { fontFamily: fontFamilyMono, fontSize: 11, color: palette.accent, letterSpacing: 0.4 },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 32,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.accent,
+    backgroundColor: palette.accentSoftBg,
+  },
+  sos: { fontFamily: fontFamilyMono, fontSize: 12, fontWeight: '600', color: palette.accent, letterSpacing: 0.6 },
 
   index: {
     borderTopWidth: StyleSheet.hairlineWidth,

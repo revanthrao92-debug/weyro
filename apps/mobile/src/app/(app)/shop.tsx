@@ -10,11 +10,11 @@ import {
   Zap,
   Car,
   Filter,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale, ErrorState } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { Image } from 'expo-image';
-import { photo, photoForCategory } from '@/lib/photos';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const CATEGORIES = [
@@ -168,12 +168,22 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
       scaleTo={0.98}
     >
       <View style={styles.cardContent}>
-        <Image
-          source={{ uri: part.imageUrl || photo(photoForCategory(part.category)) }}
-          style={styles.partPhoto}
-          contentFit="cover"
-          transition={120}
-        />
+        {part.imageUrl ? (
+          <Image
+            source={{ uri: part.imageUrl }}
+            style={styles.partPhoto}
+            contentFit="cover"
+            transition={120}
+          />
+        ) : (
+          <View style={[styles.partPhoto, styles.partPhotoEmpty]}>
+            {part.kind === 'PACKAGE' ? (
+              <ClipboardCheck size={24} color={palette.textMuted} strokeWidth={1.6} />
+            ) : (
+              <Package size={24} color={palette.textMuted} strokeWidth={1.6} />
+            )}
+          </View>
+        )}
         <View style={styles.info}>
           <Text style={styles.partName}>{part.name}</Text>
           <Text style={styles.partNumber}>{part.partNumber}</Text>
@@ -288,6 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: palette.surfaceAlt,
   },
+  partPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1 },
   partName: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
   partNumber: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },

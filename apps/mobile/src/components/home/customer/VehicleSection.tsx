@@ -1,9 +1,7 @@
 import { Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { ChevronRight } from 'lucide-react-native';
-import { PressableScale, SectionHead as Head } from '@/components/ui';
+import { PressableScale, SectionHead as Head, VehiclePhoto } from '@/components/ui';
 import { palette } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
 
 import type { useRouter } from 'expo-router';
 import type { Vehicle } from '@/hooks/useProfile';
@@ -31,12 +29,7 @@ export function VehicleSection({ router, vehicle, vehicles }: {
           scaleTo={0.99}
           style={styles.vehicleRow}
         >
-          <Image
-            source={{ uri: carPhotoFor(vehicle.make, vehicle.model) }}
-            style={styles.vehicleThumb}
-            contentFit="cover"
-            transition={150}
-          />
+          <VehiclePhoto make={vehicle.make} model={vehicle.model} style={styles.vehicleThumb} />
           <View style={styles.vehicleText}>
             <Text style={styles.vehicleName} numberOfLines={1}>
               {vehicle.make} {vehicle.model}

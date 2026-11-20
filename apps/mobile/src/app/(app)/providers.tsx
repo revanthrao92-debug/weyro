@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   View,
+  ScrollView,
 } from 'react-native';
 import { FileCheck2, UserRound } from 'lucide-react-native';
 import {
@@ -71,7 +72,11 @@ export default function ProvidersScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
@@ -87,7 +92,7 @@ export default function ProvidersScreen() {
                   }}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeleton}>
@@ -276,7 +281,6 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },

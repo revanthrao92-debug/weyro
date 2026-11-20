@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Landmark } from 'lucide-react-native';
 import { useAdminEscrow, type EscrowEntry } from '@/hooks/useAdmin';
 import {
@@ -89,7 +89,11 @@ export default function EscrowScreen() {
                 <Text style={styles.summaryLabel}>Refunded</Text>
               </View>
             </View>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
@@ -98,7 +102,7 @@ export default function EscrowScreen() {
                   onPress={() => setFilter(item)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeleton}>
@@ -176,7 +180,6 @@ const styles = StyleSheet.create({
   summaryLabel: { ...typography.label, color: palette.textMuted },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -269,7 +269,11 @@ function DealerOrders() {
                   : `${toFulfill} to fulfill · ₹${revenue.toLocaleString('en-IN')} paid`
               }
             />
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {DEALER_FILTERS.map((item) => (
                 <Chip
                   key={item.key}
@@ -278,7 +282,7 @@ function DealerOrders() {
                   onPress={() => setFilter(item.key)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={[styles.row, i > 0 && styles.divider]}>
@@ -330,7 +334,6 @@ const styles = StyleSheet.create({
   backRow: { marginBottom: spacing.sm },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },

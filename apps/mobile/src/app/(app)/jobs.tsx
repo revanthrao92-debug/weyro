@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Wrench } from 'lucide-react-native';
 import { useBookings, type Booking } from '@/hooks/useBookings';
@@ -141,7 +141,11 @@ export default function MechanicJobsScreen() {
                 <Text style={styles.statLabel}>Completed</Text>
               </View>
             </View>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
@@ -154,7 +158,7 @@ export default function MechanicJobsScreen() {
                   onPress={() => setFilter(item)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <Card key={i} style={styles.skeletonCard}>
@@ -257,7 +261,6 @@ const styles = StyleSheet.create({
   statLabel: { ...typography.label, color: palette.textMuted },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMyRequests, type ServiceRequest } from '@/hooks/useRequests';
 import {
+  BackButton,
   ScreenContainer,
   PressableScale,
   Chip,
@@ -97,6 +98,7 @@ export default function MyRequestsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl}
       >
+        <BackButton />
         <Text style={styles.eyebrow}>Requests</Text>
         <Text style={styles.title}>Your requests</Text>
         <Text style={styles.summary}>
@@ -134,7 +136,11 @@ export default function MyRequestsScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.filterRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
               {FILTERS.map((s) => (
                 <Chip
                   key={s}
@@ -145,7 +151,7 @@ export default function MyRequestsScreen() {
                   }
                 />
               ))}
-            </View>
+            </ScrollView>
 
             {requests.length === 0 ? (
               <View style={styles.empty}>
@@ -200,7 +206,6 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },

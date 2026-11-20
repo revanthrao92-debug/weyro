@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader,
+  BackButton,
   Button,
   Card,
   ScreenContainer,
@@ -25,6 +26,7 @@ export default function VerificationDocumentsScreen() {
   const [uploading, setUploading] = useState(false);
 
   const status = profile.data?.verificationStatus ?? 'PENDING';
+  const isVerified = status === 'VERIFIED';
   const canSubmit = registration.length > 0 && ownerId.length > 0;
 
   const handleSubmit = async () => {
@@ -56,6 +58,7 @@ export default function VerificationDocumentsScreen() {
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
       <AppHeader
+        left={<BackButton />}
         title="Verification"
         subtitle="Business documents for marketplace approval"
       />
@@ -67,43 +70,48 @@ export default function VerificationDocumentsScreen() {
           <Text style={styles.statusLabel}>Current status</Text>
           <Text style={styles.statusValue}>{status.replace(/_/g, ' ')}</Text>
           <Text style={styles.help}>
-            Verification is reviewed by Weyro. Only verified providers can
-            receive production marketplace work.
+            {isVerified
+              ? 'Your business is verified. You can receive marketplace work. Nothing more to upload.'
+              : 'Verification is reviewed by Weyro. Only verified providers can receive production marketplace work.'}
           </Text>
         </Card>
 
-        <SectionHead index="01" title="Business registration" />
-        <Text style={styles.help}>
-          GST certificate, trade licence or shop registration.
-        </Text>
-        <PhotoPicker
-          images={registration}
-          onChange={setRegistration}
-          max={1}
-          folder="verification-documents"
-          onUploadingChange={setUploading}
-          helper="One clear photo or scan."
-        />
+        {!isVerified && (
+          <>
+            <SectionHead index="01" title="Business registration" />
+            <Text style={styles.help}>
+              GST certificate, trade licence or shop registration.
+            </Text>
+            <PhotoPicker
+              images={registration}
+              onChange={setRegistration}
+              max={1}
+              folder="verification-documents"
+              onUploadingChange={setUploading}
+              helper="One clear photo or scan."
+            />
 
-        <SectionHead index="02" title="Owner ID" />
-        <Text style={styles.help}>
-          Government-issued photo ID of the business owner.
-        </Text>
-        <PhotoPicker
-          images={ownerId}
-          onChange={setOwnerId}
-          max={1}
-          folder="verification-documents"
-          onUploadingChange={setUploading}
-          helper="One clear photo or scan."
-        />
+            <SectionHead index="02" title="Owner ID" />
+            <Text style={styles.help}>
+              Government-issued photo ID of the business owner.
+            </Text>
+            <PhotoPicker
+              images={ownerId}
+              onChange={setOwnerId}
+              max={1}
+              folder="verification-documents"
+              onUploadingChange={setUploading}
+              helper="One clear photo or scan."
+            />
 
-        <Button
-          title={submit.isPending ? 'Submitting…' : 'Submit for review'}
-          onPress={handleSubmit}
-          disabled={!canSubmit || uploading || submit.isPending}
-          style={styles.submit}
-        />
+            <Button
+              title={submit.isPending ? 'Submitting…' : 'Submit for review'}
+              onPress={handleSubmit}
+              disabled={!canSubmit || uploading || submit.isPending}
+              style={styles.submit}
+            />
+          </>
+        )}
       </ScrollView>
     </ScreenContainer>
   );

@@ -92,10 +92,11 @@ export function useUpdateCustomerProfile() {
   });
 }
 
-export function useAddresses() {
+export function useAddresses(enabled = true) {
   return useQuery({
     queryKey: ['addresses'],
     queryFn: async () => apiClient<{ addresses: SavedAddress[] }>('/customers/me/addresses'),
+    enabled,
   });
 }
 
@@ -116,10 +117,11 @@ export function useReplaceAddresses() {
   });
 }
 
-export function useVehicles() {
+export function useVehicles(enabled = true) {
   return useQuery({
     queryKey: ['vehicles'],
     queryFn: async () => apiClient<{ items: Vehicle[] }>('/customers/me/vehicles'),
+    enabled,
   });
 }
 
