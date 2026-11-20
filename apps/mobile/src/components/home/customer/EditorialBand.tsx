@@ -9,7 +9,7 @@ export function EditorialBand() {
       {/* Editorial image band — one owned photo, one line */}
       <View style={styles.bandFull}>
         <Image
-          source={require('../../../assets/images/hero-secondary.jpg')}
+          source={require('../../../../assets/images/hero-secondary.jpg')}
           style={styles.bandImage}
           contentFit="cover"
           transition={200}

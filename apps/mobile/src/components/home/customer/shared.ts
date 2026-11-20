@@ -34,7 +34,7 @@ export function bookingTone(status: string): StatusTone {
   }
 }
 
-export const HERO_IMAGE = require('../../../assets/images/hero-primary.jpg');
+export const HERO_IMAGE = require('../../../../assets/images/hero-primary.jpg');
 // Workshop band: Unsplash (photo-1615906655593-ad0386982a0f), cropped + graded
 // locally; Unsplash license allows commercial use without attribution.
 
