@@ -1,11 +1,15 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import Redis from 'ioredis';
-import { REDIS_CLIENT } from './redis.module';
+import { REDIS_CLIENT } from './redis.constants';
 
 /**
  * CacheService — typed Redis cache with JSON serialisation + TTL.
  * Every operation catches Redis errors and falls back to the default
  * (Postgres remains the source of truth — Redis outage never blocks the API).
+ *
+ * Only touches the client when it is `ready`. Without REDIS_URL the injected
+ * client is lazy, and any command would make it dial 127.0.0.1:6379 and retry
+ * forever (log spam in production, a socket that keeps the process alive).
  */
 
 export const CACHE_PREFIX = 'weyro:cache:';
@@ -20,7 +24,7 @@ export class CacheService {
 
   /** GET a cached value (parsed). Returns null on miss / Redis down. */
   async get<T>(key: string): Promise<T | null> {
-    if (!this.redis) return null;
+    if (this.redis?.status !== 'ready') return null;
     try {
       const raw = await this.redis.get(CACHE_PREFIX + key);
       if (!raw) return null;
@@ -33,7 +37,7 @@ export class CacheService {
 
   /** SET a value with TTL seconds. Swallows errors (best-effort). */
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-    if (!this.redis) return;
+    if (this.redis?.status !== 'ready') return;
     try {
       await this.redis.set(CACHE_PREFIX + key, JSON.stringify(value), 'EX', ttlSeconds);
     } catch (err: any) {
@@ -43,7 +47,7 @@ export class CacheService {
 
   /** DELETE one or more keys (cache invalidation after mutations). */
   async del(...keys: string[]): Promise<void> {
-    if (!this.redis || keys.length === 0) return;
+    if (this.redis?.status !== 'ready' || keys.length === 0) return;
     try {
       await this.redis.del(...keys.map((k) => CACHE_PREFIX + k));
     } catch (err: any) {
@@ -53,7 +57,7 @@ export class CacheService {
 
   /** Invalidate all keys matching a pattern (e.g. "providers:*"). */
   async delPattern(pattern: string): Promise<void> {
-    if (!this.redis) return;
+    if (this.redis?.status !== 'ready') return;
     try {
       const keys = await this.redis.keys(CACHE_PREFIX + pattern);
       if (keys.length > 0) {
@@ -80,7 +84,7 @@ export class CacheService {
 
   /** Health probe. */
   async ping(): Promise<boolean> {
-    if (!this.redis) return false;
+    if (this.redis?.status !== 'ready') return false;
     try {
       const res = await this.redis.ping();
       return res === 'PONG';

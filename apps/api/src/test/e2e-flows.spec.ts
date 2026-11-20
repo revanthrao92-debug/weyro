@@ -347,6 +347,21 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(payment.status).toBe('PENDING');
     });
 
+    it('opens a chat thread for the job that both sides can see', async () => {
+      const [customerThreads, garageThreads] = await Promise.all([
+        http().get(`${API}/chat/threads`).set('Authorization', `Bearer ${customer.accessToken}`),
+        http().get(`${API}/chat/threads`).set('Authorization', `Bearer ${garage.accessToken}`),
+      ]);
+      expect(customerThreads.status).toBe(200);
+      expect(garageThreads.status).toBe(200);
+      const forRequest = (body: any) =>
+        (Array.isArray(body) ? body : body.items).filter(
+          (t: { requestId: string | null }) => t.requestId === requestId,
+        );
+      expect(forRequest(customerThreads.body)).toHaveLength(1);
+      expect(forRequest(garageThreads.body)).toHaveLength(1);
+    });
+
     it('lists the booking for the customer', async () => {
       const res = await http()
         .get(`${API}/bookings`)

@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { ChevronRight, MapPin } from 'lucide-react-native';
+import { ChevronRight, MapPin, Siren } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui';
 import { palette } from '@/theme';
 
@@ -32,9 +32,12 @@ export function LocationRow({ router, address, setLocationOpen }: {
         <PressableScale
           onPress={() => router.push('/sos')}
           accessibilityRole="button"
-          accessibilityLabel="Roadside help"
+          accessibilityLabel="SOS, roadside help"
           scaleTo={0.95}
+          hitSlop={8}
+          style={styles.sosButton}
         >
+          <Siren size={14} color={palette.accent} strokeWidth={2} />
           <Text style={styles.sos}>SOS</Text>
         </PressableScale>
       </View>

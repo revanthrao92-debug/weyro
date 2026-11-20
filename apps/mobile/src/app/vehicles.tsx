@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
   View,
@@ -28,6 +27,7 @@ import {
   Chip,
   BackButton,
   PressableScale,
+  VehiclePhoto,
 } from '@/components/ui';
 import {
   palette,
@@ -37,7 +37,6 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
 import { titleize as labelize } from '@/utils/format';
 
@@ -288,12 +287,7 @@ function VehicleItem({
         scaleTo={0.99}
         style={styles.itemMain}
       >
-        <Image
-          source={{ uri: carPhotoFor(item.make, item.model) }}
-          style={styles.thumb}
-          contentFit="cover"
-          transition={150}
-        />
+        <VehiclePhoto make={item.make} model={item.model} style={styles.thumb} />
         <View style={styles.itemContent}>
           <Text style={styles.itemTitle} numberOfLines={1}>
             {item.make} {item.model}
@@ -375,8 +369,8 @@ const styles = StyleSheet.create({
   },
   itemMeta: { ...typography.label, color: palette.textMuted, marginTop: 2 },
   removeButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

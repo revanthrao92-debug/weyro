@@ -262,6 +262,16 @@ export class BookingsService {
 
       }
 
+      // Public "jobs completed" count on provider profiles. completedAt is only
+      // unset on the first completion, so DISPUTED -> COMPLETED doesn't recount.
+      // shortcut: a completed job later cancelled via DISPUTED stays counted; decrement there if admins start doing that.
+      if (newStatus === 'COMPLETED' && !booking.completedAt) {
+        await tx.providerProfile.update({
+          where: { id: booking.providerId },
+          data: { completedJobs: { increment: 1 } },
+        });
+      }
+
       return updatedBooking;
     });
 

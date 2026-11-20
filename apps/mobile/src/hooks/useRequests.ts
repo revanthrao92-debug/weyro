@@ -194,8 +194,9 @@ export function useCancelRequest() {
         method: 'POST',
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
     },
   });
 }
@@ -235,6 +236,9 @@ export function useCreateQuotation() {
       queryClient.invalidateQueries({
         queryKey: ['quotations', variables.requestId],
       });
+      // The request screen decides "form or your quote" from myQuotations.
+      queryClient.invalidateQueries({ queryKey: ['myQuotations'] });
+      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
     },
   });
 }
@@ -256,15 +260,22 @@ export function useAcceptQuotation() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      // Accepting moves the request to ACCEPTED and rejects the other quotes.
+      queryClient.invalidateQueries({ queryKey: ['request'] });
+      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 }
 
-export function useMyQuotations(params?: { cursor?: string; limit?: number; status?: string }) {
+export function useMyQuotations(
+  params?: { cursor?: string; limit?: number; status?: string },
+  enabled = true,
+) {
   return useQuery({
     queryKey: ['myQuotations', params],
+    enabled,
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.cursor) qs.set('cursor', params.cursor);

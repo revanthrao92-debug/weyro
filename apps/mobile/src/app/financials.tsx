@@ -14,7 +14,7 @@ import {
   Svg,
   Text as SvgText,
 } from 'react-native-svg';
-import { BackButton, AppHeader, Chip, ScreenContainer, Skeleton } from '@/components/ui';
+import { BackButton, AppHeader, Chip, ScreenContainer, Skeleton, ErrorState } from '@/components/ui';
 import { useProviderAnalytics, type AnalyticsBucket } from '@/hooks/useProviderAnalytics';
 import {
   fontFamilyMono,
@@ -22,6 +22,7 @@ import {
   spacing,
   typography,
 } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const RANGES = [7, 30, 90] as const;
 const METRICS = [
@@ -43,7 +44,8 @@ export default function FinancialsScreen() {
   const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('net');
   const [selected, setSelected] = useState<AnalyticsBucket | null>(null);
   const [chartWidth, setChartWidth] = useState(320);
-  const { data, isLoading } = useProviderAnalytics(days);
+  const { data, isLoading, isError, refetch } = useProviderAnalytics(days);
+  const refreshControl = useRefreshControl(refetch);
 
   const buckets = useMemo(() => data?.buckets ?? [], [data?.buckets]);
   const forecast = data?.forecast;
@@ -132,10 +134,23 @@ export default function FinancialsScreen() {
     );
   }
 
+  if (isError && !data) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <AppHeader left={<BackButton />} title="Financials" subtitle="Sales and forecast" />
+        <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+      </ScreenContainer>
+    );
+  }
+
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader left={<BackButton />} title="Financials" subtitle="Sales and forecast" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         <View style={styles.rangeRow}>
           {RANGES.map((range) => (
             <Chip
@@ -186,7 +201,7 @@ export default function FinancialsScreen() {
                 strokeWidth={StyleSheet.hairlineWidth}
               />
             ))}
-            {chart.bars.map((bar, index) => {
+            {chart.bars.map((bar) => {
               const isSelected = selectedBucket?.date === bar.bucket.date;
               return (
                 <Rect

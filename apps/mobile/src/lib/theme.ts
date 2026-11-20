@@ -31,35 +31,6 @@ const COLORS = {
   notification: 'hsl(7 68% 61%)',
 } as const;
 
-const LIGHT_TOKENS = {
-  // Both themes resolve dark: Weyro ships single-mode dark (three-colour identity).
-  background: COLORS.background,
-  foreground: COLORS.text,
-  card: COLORS.card,
-  cardForeground: COLORS.text,
-  popover: COLORS.card,
-  popoverForeground: COLORS.text,
-  primary: COLORS.primary,
-  primaryForeground: 'hsl(210 11% 7%)',
-  secondary: 'hsl(216 10% 10%)',
-  secondaryForeground: COLORS.text,
-  muted: 'hsl(216 10% 10%)',
-  mutedForeground: 'hsl(212 5% 52%)',
-  accent: 'hsl(216 10% 10%)',
-  accentForeground: COLORS.text,
-  destructive: COLORS.notification,
-  destructiveForeground: 'hsl(210 11% 7%)',
-  border: COLORS.border,
-  input: COLORS.border,
-  ring: COLORS.primary,
-  radius: '0.875rem',
-} as const;
-
-export const THEME = {
-  light: LIGHT_TOKENS,
-  dark: LIGHT_TOKENS, // single-mode app — a real dark theme would live here
-} as const;
-
 export const NAV_THEME: Record<'light' | 'dark', Theme> = {
   light: {
     ...DefaultTheme,

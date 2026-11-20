@@ -247,6 +247,22 @@ describe('PaymentReconcileService', () => {
     );
   });
 
+  it('marks FAILED on Razorpay\'s real "id does not exist" reply (400, after gateway normalization)', async () => {
+    prisma.payment.findMany.mockResolvedValue([seedRow()]);
+    gatewayFetch.mockRejectedValue(
+      Object.assign(new Error('The id provided does not exist'), {
+        statusCode: 400,
+        code: 'BAD_REQUEST_ERROR',
+      }),
+    );
+
+    await reconcile.reconcile();
+
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
+    );
+  });
+
   it('leaves rows as-is when the gateway says still pending on its side', async () => {
     prisma.payment.findMany.mockResolvedValue([seedRow()]);
     gatewayFetch.mockResolvedValue({

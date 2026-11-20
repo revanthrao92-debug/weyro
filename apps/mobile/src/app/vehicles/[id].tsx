@@ -1,5 +1,4 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackButton,
@@ -8,6 +7,8 @@ import {
   Skeleton,
   EmptyState,
   SectionHead,
+  ErrorState,
+  VehiclePhoto,
 } from '@/components/ui';
 import { useVehicles } from '@/hooks/useProfile';
 import {
@@ -18,13 +19,13 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
-import { carPhotoFor } from '@/lib/photos';
 import { formatDate, labelize } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: vehicles, isLoading } = useVehicles();
+  const { data: vehicles, isLoading, isError, error, refetch } = useVehicles();
 
   const vehicle = (vehicles?.items ?? []).find((v) => v.id === id);
 
@@ -42,7 +43,11 @@ export default function VehicleDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <EmptyState title="Vehicle not found" message="This vehicle may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Vehicle not found" message="This vehicle may have been removed." />
+        )}
       </ScreenContainer>
     );
   }
@@ -58,12 +63,7 @@ export default function VehicleDetailScreen() {
           <View style={styles.spacer} />
         </View>
 
-        <Image
-          source={{ uri: carPhotoFor(vehicle.make, vehicle.model) }}
-          style={styles.hero}
-          contentFit="cover"
-          transition={150}
-        />
+        <VehiclePhoto make={vehicle.make} model={vehicle.model} style={styles.hero} iconSize={40} />
         <Text style={styles.title}>
           {vehicle.make} {vehicle.model}
         </Text>

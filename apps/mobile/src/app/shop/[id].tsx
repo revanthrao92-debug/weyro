@@ -13,6 +13,7 @@ import {
   StatusPill,
   Skeleton,
   EmptyState,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
@@ -22,13 +23,14 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
+import { isNotFound } from '@/services/api-client';
 
 type PartParams = { id: string };
 
 export default function PartDetailScreen() {
   const { id } = useLocalSearchParams<PartParams>();
   const router = useRouter();
-  const { data: part, isLoading } = useSparePart(id || '');
+  const { data: part, isLoading, isError, error, refetch } = useSparePart(id || '');
   const createOrder = useCreateSparePartOrder();
   const [ordering, setOrdering] = useState(false);
   const [shippingName, setShippingName] = useState('');
@@ -53,7 +55,11 @@ export default function PartDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <EmptyState title="Part not found" message="This part may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Part not found" message="This part may have been removed." />
+        )}
       </ScreenContainer>
     );
   }

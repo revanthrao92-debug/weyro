@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import * as crypto from 'crypto';
+import { inspect } from 'util';
 import { captureServerError } from '../observability/sentry';
 
 @Catch()
@@ -73,6 +74,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       const res = exception.getResponse();
       if (status >= 500) {
         captureServerError(exception, { requestId, method: request.method, path: request.url });
+        // Without this a 5xx HttpException left no trace when Sentry is off.
+        this.logger.error(
+          `[Request ${requestId}] ${exception.name} ${status}: ${exception.message} on ${request.method} ${request.url}`,
+          exception.stack,
+        );
         errorName = 'Internal Server Error';
         message = 'An unexpected error occurred';
       } else if (typeof res === 'object' && res !== null) {
@@ -90,6 +96,13 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         exception.stack,
       );
       message = 'An unexpected error occurred';
+    } else {
+      // Non-Error throwables (a library rejecting with a plain object) used to
+      // become a silent 500: no log line and no Sentry event.
+      captureServerError(exception, { requestId, method: request.method, path: request.url });
+      this.logger.error(
+        `[Request ${requestId}] Non-Error thrown on ${request.method} ${request.url}: ${inspect(exception, { depth: 4 })}`,
+      );
     }
 
     response.status(status).json({

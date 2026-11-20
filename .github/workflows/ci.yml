@@ -31,6 +31,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+      # For the Redis-backed e2e (TEST_REDIS_URL / REDIS_URL below).
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
       DATABASE_URL: postgresql://weyro:weyro_ci_password@localhost:5432/weyro_db?schema=public
@@ -89,7 +99,19 @@ jobs:
         run: cd apps/api && npx jest --testPathPatterns 'src/test/integration' --runInBand --silent
 
       # The default Jest config ignores e2e-*.spec.ts; they need their own config.
-      - name: E2E suites (real Postgres)
+      - name: E2E suites (real Postgres, Redis)
+        env:
+          TEST_REDIS_URL: redis://localhost:6379
+        run: cd apps/api && npx jest --config jest-e2e.config.js --runInBand --silent
+
+      # Production runs with REDIS_URL set (OTP limiter, throttler, BullMQ,
+      # socket.io adapter all switch to Redis). No --forceExit: a Redis
+      # connection left open at shutdown fails this step by timing out.
+      - name: E2E suites with REDIS_URL (production configuration)
+        timeout-minutes: 10
+        env:
+          TEST_REDIS_URL: redis://localhost:6379
+          REDIS_URL: redis://localhost:6379
         run: cd apps/api && npx jest --config jest-e2e.config.js --runInBand --silent
 
       - name: Dependency audit gate (critical only for now)

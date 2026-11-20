@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Landmark } from 'lucide-react-native';
 import { useAdminEscrow, type EscrowEntry } from '@/hooks/useAdmin';
 import {
@@ -9,6 +9,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
 } from '@/components/ui';
 import { formatDate, titleize } from '@/utils/format';
 import {
@@ -18,6 +19,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -41,7 +43,8 @@ function statusLabel(status: string) {
 
 export default function EscrowScreen() {
   const [filter, setFilter] = useState<Filter>('ALL');
-  const { data, isLoading } = useAdminEscrow();
+  const { data, isLoading, isError, refetch } = useAdminEscrow();
+  const refreshControl = useRefreshControl(refetch);
   const entries = useMemo(() => data ?? [], [data]);
 
   const visible = useMemo(
@@ -65,6 +68,7 @@ export default function EscrowScreen() {
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.paymentId ?? item.bookingId}
         contentContainerStyle={styles.body}
@@ -85,7 +89,11 @@ export default function EscrowScreen() {
                 <Text style={styles.summaryLabel}>Refunded</Text>
               </View>
             </View>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
@@ -94,7 +102,7 @@ export default function EscrowScreen() {
                   onPress={() => setFilter(item)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeleton}>
@@ -106,7 +114,9 @@ export default function EscrowScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Landmark size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No payments yet' : 'Nothing here'}
@@ -170,7 +180,6 @@ const styles = StyleSheet.create({
   summaryLabel: { ...typography.label, color: palette.textMuted },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },

@@ -16,16 +16,19 @@ import {
   Button,
   ScreenContainer,
   AppHeader,
+  BackButton,
   Card,
   Avatar,
   EmptyState,
   Skeleton,
+  ErrorState,
 } from '@/components/ui';
 import { palette, spacing } from '@/theme';
+import { isNotFound } from '@/services/api-client';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useCustomerProfile();
+  const { data: profile, isLoading, isError, error, refetch } = useCustomerProfile();
   const updateProfile = useUpdateCustomerProfile();
   const [firstName, setFirstName] = useState(profile?.firstName ?? '');
   const [lastName, setLastName] = useState(profile?.lastName ?? '');
@@ -75,7 +78,7 @@ export default function CustomerProfileScreen() {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" />
+        <AppHeader left={<BackButton />} title="Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={18} />
           <Skeleton width="100%" height={14} style={{ marginTop: spacing.sm }} />
@@ -93,8 +96,12 @@ export default function CustomerProfileScreen() {
   if (!profile) {
     return (
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" />
-        <EmptyState title="No profile found" message="Your profile will appear here." />
+        <AppHeader left={<BackButton />} title="Profile" />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="No profile found" message="Your profile will appear here." />
+        )}
       </ScreenContainer>
     );
   }
@@ -105,7 +112,7 @@ export default function CustomerProfileScreen() {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" padded={false}>
-        <AppHeader title="Profile" subtitle="Manage your personal information" />
+        <AppHeader left={<BackButton />} title="Profile" subtitle="Manage your personal information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.avatarCard}>
             <View style={styles.avatarRow}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AppHeader,
+  BackButton,
   Button,
   Card,
   EmptyState,
@@ -43,6 +44,7 @@ export default function PendingActionsScreen() {
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
       <AppHeader
+        left={<BackButton />}
         title="Pending actions"
         subtitle="Saved on this device until the server confirms them"
       />

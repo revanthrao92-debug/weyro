@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service';
-import { REDIS_CLIENT } from '../redis/redis.module';
+import { REDIS_CLIENT } from '../redis/redis.constants';
 import { env } from '../../config/env.config';
 
 /** How long the no-Redis fallback trusts a user's `isActive` before re-reading it. */

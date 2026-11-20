@@ -8,19 +8,6 @@ import {
  * public provider pages. Never widen this to the full provider row: it
  * contains phone, exact address, KYC documents and internal audit fields.
  */
-export const PUBLIC_PROVIDER_SELECT = {
-  id: true,
-  businessName: true,
-  providerType: true,
-  description: true,
-  serviceRadiusKm: true,
-  verificationStatus: true,
-  avgRating: true,
-  totalReviews: true,
-  completedJobs: true,
-  isAvailable: true,
-} as const;
-
 export interface PublicProviderSource {
   id: string;
   businessName: string;
@@ -53,13 +40,6 @@ export function toPublicProvider<T extends PublicProviderSource>(provider: T) {
     }),
   };
 }
-
-export const PUBLIC_CUSTOMER_SELECT = {
-  id: true,
-  firstName: true,
-  lastName: true,
-  avatarUrl: true,
-} as const;
 
 export function toPublicCustomer(customer: {
   id: string;

@@ -67,13 +67,30 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     });
   }
 
+  /**
+   * The SDK rejects with a plain { statusCode, error: { code, description } }
+   * object, so callers logged "[object Object]" and could not classify it
+   * (e.g. reconcile's isNotFound never matched "The id provided does not exist").
+   */
+  private call<T>(request: Promise<T>): Promise<T> {
+    return request.catch((err: any) => {
+      if (err instanceof Error) throw err;
+      const error = new Error(
+        err?.error?.description || err?.error?.reason || `Razorpay request failed (${err?.statusCode ?? 'no status'})`,
+      ) as Error & { statusCode?: number; code?: string };
+      error.statusCode = err?.statusCode;
+      error.code = err?.error?.code;
+      throw error;
+    });
+  }
+
   async createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
-    const order = await this.instance.orders.create({
+    const order = await this.call(this.instance.orders.create({
       amount: params.amountInPaise,
       currency: params.currency,
       receipt: params.receipt,
       notes: params.notes,
-    });
+    }));
 
     return {
       orderId: order.id,
@@ -100,7 +117,7 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     currency: string;
     status: string;
   }> {
-    const payment = await this.instance.payments.fetch(paymentId);
+    const payment = await this.call(this.instance.payments.fetch(paymentId));
     return {
       id: payment.id,
       order_id: payment.order_id,
@@ -116,7 +133,7 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     amountInPaise: number,
     currency: string,
   ): Promise<{ id: string; order_id: string; amount: number; currency: string; status: string }> {
-    const payment = await this.instance.payments.capture(paymentId, amountInPaise, currency);
+    const payment = await this.call(this.instance.payments.capture(paymentId, amountInPaise, currency));
     return {
       id: payment.id,
       order_id: payment.order_id,
@@ -179,7 +196,7 @@ export class RazorpayPaymentGateway implements PaymentGateway {
       status: string;
     }[]
   > {
-    const result = await this.instance.orders.fetchPayments(orderId);
+    const result = await this.call(this.instance.orders.fetchPayments(orderId));
     return (result.items ?? []).map((payment: any) => ({
       id: payment.id,
       order_id: payment.order_id,
@@ -193,7 +210,7 @@ export class RazorpayPaymentGateway implements PaymentGateway {
     paymentId: string,
     amountInPaise?: number,
   ): Promise<RefundPaymentResult | null> {
-    const result = await this.instance.payments.fetchMultipleRefund(paymentId);
+    const result = await this.call(this.instance.payments.fetchMultipleRefund(paymentId));
     const existing = (result.items ?? []).find(
       (refund: any) =>
         amountInPaise === undefined || Number(refund.amount) === amountInPaise,
@@ -206,10 +223,10 @@ export class RazorpayPaymentGateway implements PaymentGateway {
   }
 
   async refundPayment(params: RefundPaymentParams): Promise<RefundPaymentResult> {
-    const refund = await this.instance.payments.refund(params.paymentId, {
+    const refund = await this.call(this.instance.payments.refund(params.paymentId, {
       amount: params.amountInPaise,
       notes: params.notes,
-    });
+    }));
 
     return {
       refundId: refund.id,

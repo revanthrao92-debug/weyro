@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,6 +17,7 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
@@ -27,6 +28,7 @@ import {
   type StatusTone,
 } from '@/theme';
 import { formatDate, titleize } from '@/utils/format';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 function orderTone(status: string): StatusTone {
   switch (status) {
@@ -141,13 +143,15 @@ function OrdersHeader({
 
 export function CustomerOrders({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
-  const { data, isLoading } = useMyOrders();
+  const { data, isLoading, isError, refetch } = useMyOrders();
+  const refreshControl = useRefreshControl(refetch);
   const orders = data ?? [];
   const open = orders.filter((o) => o.status === 'PENDING').length;
 
   return (
     <ScreenContainer chrome="dark" safeBottom>
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : orders}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -180,7 +184,9 @@ export function CustomerOrders({ pushed = false }: { pushed?: boolean } = {}) {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title="No part orders yet"
@@ -216,7 +222,8 @@ const DEALER_FILTERS = [
 function DealerOrders() {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof DEALER_FILTERS)[number]['key']>('ALL');
-  const { data, isLoading } = useDealerOrders({ limit: 50 });
+  const { data, isLoading, isError, refetch } = useDealerOrders({ limit: 50 });
+  const refreshControl = useRefreshControl(refetch);
   const orders = data?.items ?? [];
 
   const visible = orders.filter((order) => {
@@ -247,6 +254,7 @@ function DealerOrders() {
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -261,7 +269,11 @@ function DealerOrders() {
                   : `${toFulfill} to fulfill · ₹${revenue.toLocaleString('en-IN')} paid`
               }
             />
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {DEALER_FILTERS.map((item) => (
                 <Chip
                   key={item.key}
@@ -270,7 +282,7 @@ function DealerOrders() {
                   onPress={() => setFilter(item.key)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={[styles.row, i > 0 && styles.divider]}>
@@ -284,7 +296,9 @@ function DealerOrders() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No orders yet' : 'Nothing here'}
@@ -320,7 +334,6 @@ const styles = StyleSheet.create({
   backRow: { marginBottom: spacing.sm },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },

@@ -31,6 +31,7 @@ export type Booking = {
   quotation?: {
     id: string;
     totalCost: number;
+    deliveryMethod?: string | null;
     etaDescription: string;
     warrantyDays: number;
     notes: string | null;

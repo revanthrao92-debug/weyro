@@ -29,7 +29,7 @@ export function humanizeKey(s: string): string {
 
 /** 'QUOTES_RECEIVED' → 'Quotes received' */
 export function titleize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
 /** 'SPARE_PART' → 'Spare_part' (original listings variant: case only, keeps underscores) */

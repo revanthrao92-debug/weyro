@@ -3,7 +3,6 @@ import {
   Pressable,
   PressableProps,
   StyleProp,
-  StyleSheet,
   ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -96,8 +95,3 @@ export function PressableScale({
     </AnimatedPressable>
   );
 }
-
-/** Style helper for screens that need the same pressed feel on a plain View. */
-export const motionStyles = StyleSheet.create({
-  fill: { flex: 1 },
-});

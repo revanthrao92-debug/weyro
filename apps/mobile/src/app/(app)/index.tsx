@@ -41,8 +41,10 @@ export default function HomeScreen() {
 
   const requestsQuery = useMyRequests();
   const bookingsQuery = useBookings();
-  const vehiclesQuery = useVehicles();
-  const addressesQuery = useAddresses();
+  // The customers/me endpoints only allow CUSTOMER and BOTH; other roles get 403.
+  const isCustomer = role === 'CUSTOMER' || role === 'BOTH';
+  const vehiclesQuery = useVehicles(isCustomer);
+  const addressesQuery = useAddresses(isCustomer);
   const replaceAddresses = useReplaceAddresses();
   const [locationOpen, setLocationOpen] = useState(false);
   const partsQuery = useParts({ limit: 8 });
@@ -52,11 +54,12 @@ export default function HomeScreen() {
     await Promise.all([
       requestsQuery.refetch(),
       bookingsQuery.refetch(),
-      vehiclesQuery.refetch(),
+      // refetch() ignores `enabled`, so gate it here too.
+      isCustomer ? vehiclesQuery.refetch() : undefined,
       refetchNotifications(),
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isCustomer]);
 
   useFocusEffect(
     useCallback(() => {

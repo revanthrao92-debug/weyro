@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
 
 export type SparePart = {
@@ -113,6 +113,8 @@ export function useParts(params?: {
 }) {
   return useQuery({
     queryKey: ['parts', params],
+    // Keep showing the last results while a new search loads (no skeleton flash).
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.search) qs.set('search', params.search);

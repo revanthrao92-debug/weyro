@@ -9,9 +9,6 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
-import Redis from 'ioredis';
-import { env as appEnv } from '../../config/env.config';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
@@ -72,20 +69,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   afterInit(server: Server) {
+    // Cross-replica broadcast comes from RedisIoAdapter (main.ts), not here.
     this.server = server;
-    // STEP 7 — when REDIS_URL is set, publish/broadcast works across
-    // replicas via the socket.io-redis adapter. Without it (single
-    // instance dev/test), the in-memory adapter stays.
-    if (appEnv.REDIS_URL) {
-      try {
-        const pub = new Redis(appEnv.REDIS_URL);
-        const sub = pub.duplicate();
-        server.adapter(createAdapter(pub, sub));
-        this.logger.log('socket.io redis adapter initialized');
-      } catch (err: any) {
-        this.logger.error(`socket.io redis adapter failed: ${err?.message}`);
-      }
-    }
   }
 
   async handleConnection(client: Socket) {
