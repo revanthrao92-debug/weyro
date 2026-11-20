@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +18,7 @@ import {
   Skeleton,
   EmptyState,
   BackButton,
+  ButtonRow,
   FadeSlideIn,
   SectionHead,
 } from '@/components/ui';
@@ -39,6 +41,7 @@ export default function BookingDetailScreen() {
   const { data: booking, isLoading, isError } = useBooking(id || '');
   const updateStatus = useUpdateBookingStatus();
   const { role } = useAuth();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
 
   if (isLoading) {
@@ -82,6 +85,24 @@ export default function BookingDetailScreen() {
       default: return null;
     }
   })();
+
+  // The API lets the customer cancel until work starts (CONFIRMED / PROVIDER_EN_ROUTE).
+  const canCustomerCancel =
+    !isProvider && (booking.status === 'CONFIRMED' || booking.status === 'PROVIDER_EN_ROUTE');
+
+  const handleCancel = async () => {
+    try {
+      await updateStatus.mutateAsync({
+        id: booking.id,
+        status: 'CANCELLED',
+        trackingNumber: undefined,
+        carrierName: undefined,
+      });
+      setConfirmingCancel(false);
+    } catch (e: any) {
+      Alert.alert('Failed', e.message || 'Unable to cancel booking');
+    }
+  };
 
   const handleUpdateStatus = async () => {
     if (!nextStatus) return;
@@ -191,6 +212,37 @@ export default function BookingDetailScreen() {
               onPress={handleUpdateStatus}
               variant="primary"
             />
+          </View>
+        ) : null}
+
+        {canCustomerCancel ? (
+          <View style={styles.actions}>
+            {confirmingCancel ? (
+              <>
+                <Text style={styles.note}>Cancel this booking? This can&apos;t be undone.</Text>
+                <ButtonRow>
+                  <Button
+                    title="Keep booking"
+                    variant="secondary"
+                    onPress={() => setConfirmingCancel(false)}
+                    style={styles.flex}
+                  />
+                  <Button
+                    title="Cancel booking"
+                    variant="destructive"
+                    loading={updateStatus.isPending}
+                    onPress={() => void handleCancel()}
+                    style={styles.flex}
+                  />
+                </ButtonRow>
+              </>
+            ) : (
+              <Button
+                title="Cancel booking"
+                variant="destructive"
+                onPress={() => setConfirmingCancel(true)}
+              />
+            )}
           </View>
         ) : null}
       </ScrollView>
@@ -343,6 +395,7 @@ const mapCard = StyleSheet.create({
 
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   topBar: {
     flexDirection: 'row',
