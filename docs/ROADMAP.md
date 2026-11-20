@@ -68,3 +68,5 @@ Details live in `AUDIT.md` (findings and fixes), `DEPLOY_RAILWAY.md` (deploy ste
 3. Whether accepting a quote should ask for confirmation.
 4. Whether to backfill `completedJobs`.
 5. When to set up staging.
+6. What happens to a request when its booking is cancelled: reopen it for new quotes, or close it.
+   Today it stays ACCEPTED forever (the request state machine has no exit from ACCEPTED).
