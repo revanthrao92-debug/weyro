@@ -140,16 +140,21 @@ export default function MechanicJobDetailScreen() {
         request.vehicle.year ? ` ${request.vehicle.year}` : ''
       }`
     : 'Vehicle';
-  const stepIndex = STEPS.indexOf(booking.status);
   const payment = booking.payment ?? booking.payments?.[0];
   const category = request?.category ?? '';
   const isTowing = category === 'TOWING';
   const isRoadside = category === 'ROADSIDE';
+  // Drop-off repairs ('PICKUP' in the quote composer): the customer brings the
+  // vehicle in, so there is no "on the way" leg (the API allows CONFIRMED -> IN_PROGRESS).
+  const isDropOff =
+    !isTowing && !isRoadside && booking.quotation?.deliveryMethod === 'PICKUP';
+  const steps = isDropOff ? STEPS.filter((s) => s !== 'PROVIDER_EN_ROUTE') : STEPS;
+  const stepIndex = steps.indexOf(booking.status);
   const STEP_LABEL = isTowing
     ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
     : isRoadside
       ? ['Confirmed', 'On the way', 'On site', 'Completed']
-      : STEPS.map(statusLabel);
+      : steps.map(statusLabel);
   const canShareLocation =
     ['PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(booking.status) &&
     (isTowing || isRoadside);
@@ -217,7 +222,9 @@ export default function MechanicJobDetailScreen() {
   };
 
   const onPrimary = () => {
-    if (booking.status === 'CONFIRMED') return void advance('PROVIDER_EN_ROUTE');
+    if (booking.status === 'CONFIRMED') {
+      return void advance(isDropOff ? 'IN_PROGRESS' : 'PROVIDER_EN_ROUTE');
+    }
     if (booking.status === 'PROVIDER_EN_ROUTE') return void advance('IN_PROGRESS');
     if (booking.status === 'IN_PROGRESS') {
       Alert.alert(
@@ -236,7 +243,9 @@ export default function MechanicJobDetailScreen() {
 
   const primaryLabel =
     booking.status === 'CONFIRMED'
-      ? 'On my way'
+      ? isDropOff
+        ? 'Start job'
+        : 'On my way'
       : booking.status === 'PROVIDER_EN_ROUTE'
         ? isTowing
           ? 'Start tow'
@@ -292,7 +301,7 @@ export default function MechanicJobDetailScreen() {
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Progress</Text>
           <View style={styles.steps}>
-            {STEPS.map((step, index) => {
+            {steps.map((step, index) => {
               const done = stepIndex >= index && stepIndex >= 0;
               return (
                 <View key={step} style={styles.step}>
@@ -398,14 +407,14 @@ export default function MechanicJobDetailScreen() {
             <Row label="Distance" value={`${request.towingDistanceKm} km`} />
           ) : null}
           {request?.address ? (
-            <Row label="Pickup" value={request.address} />
+            <Row label={isDropOff ? 'Customer address' : 'Pickup'} value={request.address} />
           ) : null}
           {isTowing && request?.dropoffAddress ? (
             <Row label="Dropoff" value={request.dropoffAddress} />
           ) : null}
           {request?.address ? (
             <Button
-              title="Pickup in maps"
+              title={isDropOff ? 'Address in maps' : 'Pickup in maps'}
               variant="secondary"
               onPress={() =>
                 void Linking.openURL(

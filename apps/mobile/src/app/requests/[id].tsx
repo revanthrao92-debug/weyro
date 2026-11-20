@@ -40,14 +40,18 @@ type RequestParams = { id: string };
 export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
-  const { role, providerProfile } = useAuth();
+  const { role, providerProfile, customerProfile } = useAuth();
   const { data: request, isLoading, isError, error, refetch } = useRequest(id || '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
-  const { data: myQuotesData } = useMyQuotations({ limit: 50 });
+  // /quotations/my is provider-only; customers would get a 403.
+  const { data: myQuotesData } = useMyQuotations(
+    { limit: 50 },
+    role === 'PROVIDER' || role === 'BOTH',
+  );
   const [editingQuote, setEditingQuote] = useState(false);
 
   // Checkpoint 3: providers get the quote form; customers keep Accept.
@@ -100,7 +104,10 @@ export default function RequestDetailScreen() {
     );
   }
 
-  const canCancel = request.status === 'OPEN' || request.status === 'QUOTES_RECEIVED';
+  // Only the customer who posted it may cancel or accept (the API enforces the same).
+  const isOwner = !!customerProfile && request.customerId === customerProfile.id;
+  const canCancel =
+    isOwner && (request.status === 'OPEN' || request.status === 'QUOTES_RECEIVED');
 
   const handleCancel = async () => {
     const confirmed = await new Promise<boolean>((resolve) => {
@@ -174,7 +181,7 @@ export default function RequestDetailScreen() {
         ) : null}
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Dealer responses</Text>
+          <Text style={styles.sectionTitle}>{isOwner ? 'Quotes' : 'Your quote'}</Text>
           <Text style={styles.sectionCount}>{quotes.length}</Text>
         </View>
 
@@ -184,7 +191,14 @@ export default function RequestDetailScreen() {
           </Card>
         ) : quotes.length === 0 ? (
           <Card>
-            <EmptyState title="No quotes yet" message="Dealers nearby will respond here." />
+            <EmptyState
+              title="No quotes yet"
+              message={
+                isOwner
+                  ? 'Providers nearby will respond here.'
+                  : 'Send your price below.'
+              }
+            />
           </Card>
         ) : (
           <FlatList
@@ -193,7 +207,7 @@ export default function RequestDetailScreen() {
             scrollEnabled={false}
             renderItem={({ item, index }) => (
               <FadeSlideIn delay={index * 60}>
-                <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
+                <QuoteCard quote={item} onAccept={handleAccept} canAccept={isOwner} />
               </FadeSlideIn>
             )}
           />

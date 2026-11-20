@@ -9,6 +9,7 @@ import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/f
 import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
 import { useLocalSearchParams } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
+import { useAuth } from '@/hooks/useAuth';
 import {
   ScreenContainer,
   Button,
@@ -37,6 +38,7 @@ export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<BookingDetailParams>();
   const { data: booking, isLoading, isError } = useBooking(id || '');
   const updateStatus = useUpdateBookingStatus();
+  const { role } = useAuth();
 
 
   if (isLoading) {
@@ -63,14 +65,18 @@ export default function BookingDetailScreen() {
     );
   }
 
+  // Status moves are provider actions (the API rejects them from customers).
+  const isProvider = role === 'PROVIDER' || role === 'BOTH';
+  const isDropOff = booking.quotation?.deliveryMethod === 'PICKUP';
   const canUpdate =
-    booking.status === 'CONFIRMED' ||
+    isProvider &&
+    (booking.status === 'CONFIRMED' ||
     booking.status === 'PROVIDER_EN_ROUTE' ||
-    booking.status === 'IN_PROGRESS';
+    booking.status === 'IN_PROGRESS');
 
   const nextStatus = (() => {
     switch (booking.status) {
-      case 'CONFIRMED': return 'PROVIDER_EN_ROUTE';
+      case 'CONFIRMED': return isDropOff ? 'IN_PROGRESS' : 'PROVIDER_EN_ROUTE';
       case 'PROVIDER_EN_ROUTE': return 'IN_PROGRESS';
       case 'IN_PROGRESS': return 'COMPLETED';
       default: return null;
@@ -108,7 +114,7 @@ export default function BookingDetailScreen() {
 
         <SectionHead title="Progress" />
         <BookingTimeline booking={booking} />
-        {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
+        {!isDropOff && booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
           <>
             <RouteMapCard />
             <Text style={styles.note}>
@@ -175,7 +181,9 @@ export default function BookingDetailScreen() {
             <Button
               title={
                 booking.status === 'CONFIRMED'
-                  ? 'Mark en route'
+                  ? isDropOff
+                    ? 'Mark in progress'
+                    : 'Mark en route'
                   : booking.status === 'PROVIDER_EN_ROUTE'
                     ? 'Mark in progress'
                     : 'Mark completed'
@@ -192,7 +200,12 @@ export default function BookingDetailScreen() {
 
 
 const BookingTimeline = ({ booking }: { booking: any }) => {
-  const steps = TIMELINE.map((t) => ({ ...t, active: booking.status === t.key }));
+  // Drop-off repairs have no en-route leg (see app/job/[id].tsx).
+  const enRoute = booking.quotation?.deliveryMethod !== 'PICKUP';
+  const steps = TIMELINE.filter((t) => enRoute || t.key !== 'PROVIDER_EN_ROUTE').map((t) => ({
+    ...t,
+    active: booking.status === t.key,
+  }));
   // "done" = everything before the current status index in the flow order
   const flowOrder = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
   const currentIndex = flowOrder.indexOf(booking.status as string);
@@ -202,7 +215,7 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
   }, {});
   const timestamps: Record<string, string | undefined> = {
     CONFIRMED: booking.createdAt,
-    IN_PROGRESS: booking.providerLocationUpdatedAt ?? booking.updatedAt,
+    IN_PROGRESS: booking.startedAt,
     PROVIDER_EN_ROUTE: booking.providerLocationUpdatedAt,
     COMPLETED: booking.completedAt ?? (booking.status === 'COMPLETED' ? booking.updatedAt : undefined),
   };
