@@ -1,14 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import { Animated, Easing, StyleSheet, View, ViewStyle } from 'react-native';
 import { palette, spacing, radii } from '@/theme';
 
 export interface SkeletonProps {
@@ -19,8 +10,9 @@ export interface SkeletonProps {
 }
 
 /**
- * Loading placeholder with a light band sweeping across it (UI thread).
- * Static under Reduce Motion.
+ * Shimmer placeholder. Subtle opacity-only pulse using React Native's built-in
+ * Animated API (no extra animation dependency, no babel plugin required).
+ * Motion is purposeful and gentle — a calm "loading" cue, not a distraction.
  */
 export function Skeleton({
   width = '100%',
@@ -28,30 +20,40 @@ export function Skeleton({
   radius = radii.sm,
   style,
 }: SkeletonProps) {
-  const reduced = useReducedMotion();
-  const [w, setW] = useState(0);
-  const x = useSharedValue(0);
+  const [opacity] = useState(() => new Animated.Value(0.4));
 
   useEffect(() => {
-    if (reduced || w === 0) return;
-    x.value = 0;
-    x.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }), -1);
-    return () => cancelAnimation(x);
-  }, [reduced, w, x]);
-
-  const band = useAnimatedStyle(() => ({
-    transform: [{ translateX: -w * 0.6 + x.value * w * 1.6 }],
-  }));
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
 
   return (
-    <View
+    <Animated.View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      onLayout={(e) => setW(e.nativeEvent.layout.width)}
-      style={[styles.base, { width, height, borderRadius: radius }, style]}
-    >
-      {reduced ? null : <Animated.View style={[styles.band, { width: w * 0.6 }, band]} />}
-    </View>
+      style={[
+        styles.base,
+        { width, height, borderRadius: radius },
+        { opacity },
+        style,
+      ]}
+    />
   );
 }
 
@@ -70,11 +72,6 @@ export function SkeletonBlock({ lines = 3 }: { lines?: number }) {
 const styles = StyleSheet.create({
   base: {
     backgroundColor: palette.surfaceAlt,
-    overflow: 'hidden',
-  },
-  band: {
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
   },
   block: {
     paddingVertical: spacing.sm,

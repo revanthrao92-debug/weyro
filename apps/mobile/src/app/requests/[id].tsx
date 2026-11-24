@@ -5,12 +5,10 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
 import { haptics } from '@/lib/haptics';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
-import { quoteMarkersFor } from '@/utils/quotes';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -34,7 +32,6 @@ import {
   BackButton,
   FadeSlideIn,
   FlashBorder,
-  CountUp,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
@@ -46,7 +43,6 @@ export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
   const { role, providerProfile, customerProfile } = useAuth();
-  const { width: windowWidth } = useWindowDimensions();
   const focused = useIsFocused();
   const { data: request, isLoading, isError, error, refetch } = useRequest(id || '', focused);
   // The owner sees new quotes arrive while the request is open and in front.
@@ -89,8 +85,6 @@ export default function RequestDetailScreen() {
   const fareEstimate = Number(request?.towingEstimatedFare ?? 0);
 
   const quotes = quotesData?.items ?? [];
-  const quoteMarkers = quoteMarkersFor(quotes);
-  const quoteCardW = Math.min(windowWidth - 64, 400);
   const myQuote = (myQuotesData?.items ?? []).find(
     (quote) => quote.requestId === id,
   );
@@ -221,37 +215,21 @@ export default function RequestDetailScreen() {
             />
           </Card>
         ) : (
-          <>
-            {quotes.length > 1 ? (
-              <Text style={styles.swipeHint}>Swipe to compare {quotes.length} quotes</Text>
-            ) : null}
-            <FlatList
-              data={quotes}
-              keyExtractor={(item) => item.id}
-              horizontal={quotes.length > 1}
-              scrollEnabled={quotes.length > 1}
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={quotes.length > 1 ? quoteCardW + spacing.md : undefined}
-              decelerationRate="fast"
-              contentContainerStyle={quotes.length > 1 ? { gap: spacing.md, paddingRight: spacing.lg } : undefined}
-              renderItem={({ item, index }) => {
-                const fresh = baselineQuoteIds !== null && !baselineQuoteIds.has(item.id);
-                return (
-                  <FadeSlideIn delay={index * 60} style={quotes.length > 1 ? { width: quoteCardW } : undefined}>
-                    <FlashBorder active={fresh} radius={radii.md}>
-                      <QuoteCard
-                        quote={item}
-                        onAccept={handleAccept}
-                        canAccept={isOwner}
-                        marker={quoteMarkers[item.id]}
-                        fresh={fresh}
-                      />
-                    </FlashBorder>
-                  </FadeSlideIn>
-                );
-              }}
-            />
-          </>
+          <FlatList
+            data={quotes}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            renderItem={({ item, index }) => (
+              <FadeSlideIn delay={index * 60}>
+                <FlashBorder
+                  active={baselineQuoteIds !== null && !baselineQuoteIds.has(item.id)}
+                  radius={radii.md}
+                >
+                  <QuoteCard quote={item} onAccept={handleAccept} canAccept={isOwner} />
+                </FlashBorder>
+              </FadeSlideIn>
+            )}
+          />
         )}
 
         <View style={styles.sectionHead}>
@@ -357,14 +335,10 @@ function QuoteCard({
   quote,
   onAccept,
   canAccept,
-  marker,
-  fresh = false,
 }: {
   quote: any;
   onAccept: (q: any) => void;
   canAccept?: boolean;
-  marker?: string;
-  fresh?: boolean;
 }) {
   const provider = quote.provider;
   const name = provider?.businessName || 'Garage';
@@ -387,15 +361,7 @@ function QuoteCard({
             <Text style={styles.dealerMeta}>{jobs} jobs done</Text>
           </View>
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <CountUp
-            value={Number(quote.totalCost)}
-            animate={fresh}
-            format={(n) => `₹${n.toLocaleString('en-IN')}`}
-            style={styles.dealerAmount}
-          />
-          {marker ? <StatusPill label={marker} tone="info" /> : null}
-        </View>
+        <Text style={styles.dealerAmount}>₹{quote.totalCost.toLocaleString()}</Text>
       </View>
 
       <View style={styles.dealerTags}>
@@ -462,7 +428,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
-  sectionTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  sectionTitle: {
+    ...typography.label,
+    color: palette.textSecondary,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
   sectionCount: { ...typography.label, color: palette.accent },
   detailRow: {
     flexDirection: 'row',
@@ -503,11 +474,10 @@ const styles = StyleSheet.create({
   },
   dealerIdentity: { flex: 1 },
   dealerName: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
-  dealerMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
+  dealerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 },
   dealerRating: { ...typography.label, color: palette.textPrimary, fontWeight: '700' },
   dealerMeta: { ...typography.label, color: palette.textSecondary },
   dealerAmount: { ...typography.heading, color: palette.textPrimary },
-  swipeHint: { ...typography.caption, color: palette.textMuted, marginBottom: spacing.sm },
   dealerTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',

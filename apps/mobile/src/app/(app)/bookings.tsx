@@ -59,13 +59,8 @@ function BookingRow({
           {value ? ` · ${value}` : ''}
         </Text>
         <Text style={styles.rowTitle} numberOfLines={1}>
-          {booking.quotation?.request?.title ?? booking.provider?.businessName ?? 'Booking'}
+          {booking.provider?.businessName ?? 'Booking'}
         </Text>
-        {booking.quotation?.request?.title && booking.provider?.businessName ? (
-          <Text style={styles.rowMeta} numberOfLines={1}>
-            {booking.provider.businessName}
-          </Text>
-        ) : null}
         {booking.payment ? (
           <Text style={styles.rowMeta} numberOfLines={1}>
             Payment {labelize(booking.payment.status).toLowerCase()}
@@ -74,7 +69,11 @@ function BookingRow({
       </View>
       <StatusPill
         label={labelize(booking.status)}
-        tone={bookingStatusTone(booking.status)}
+        tone={
+          booking.status === 'CONFIRMED' || booking.status === 'PROVIDER_EN_ROUTE'
+            ? 'neutral'
+            : bookingStatusTone(booking.status)
+        }
       />
     </PressableScale>
   );

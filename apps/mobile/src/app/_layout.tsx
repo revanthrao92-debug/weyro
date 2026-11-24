@@ -113,7 +113,7 @@ function AuthRouter() {
   return (
     <View style={styles.root}>
       <ThemeProvider value={NAV_THEME.light}>
-        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack>
