@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 4,
-    backgroundColor: palette.textPrimary,
+    backgroundColor: palette.primaryButton,
   },
-  buttonText: { ...typography.bodyMedium, color: palette.canvas },
+  buttonText: { ...typography.bodyMedium, color: palette.onPrimaryButton },
 });

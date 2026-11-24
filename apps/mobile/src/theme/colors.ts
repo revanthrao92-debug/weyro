@@ -79,6 +79,9 @@ const darkPalette = {
   onSos: '#101214',
   sosSoftBg: 'rgba(255, 90, 31, 0.12)',
   sosIcon: '#FF5A1F',
+  // Main button: light-on-dark in dark (the original look)
+  primaryButton: '#F5F5F3',
+  onPrimaryButton: '#101214',
 
   // Utility
   overlay: 'rgba(16, 18, 20, 0.75)',
@@ -127,6 +130,9 @@ const lightPalette = {
   onSos: '#1F2427',
   sosSoftBg: 'rgba(242, 194, 48, 0.28)',
   sosIcon: '#1F2427', // yellow on white is too faint for an icon
+  // Main button: sign green in light, matching Home
+  primaryButton: '#0E5A43',
+  onPrimaryButton: '#FFFFFF',
 
   // Functional only — destructive / error
   danger: '#B42318',

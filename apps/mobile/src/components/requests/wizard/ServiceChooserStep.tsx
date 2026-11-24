@@ -18,9 +18,6 @@ export function ServiceChooserStep({ startService }: { startService: (category: 
               scaleTo={0.99}
               style={[styles.serviceRow, index > 0 && styles.divider]}
             >
-              <Text style={styles.serviceIndex}>
-                {String(index + 1).padStart(2, '0')}
-              </Text>
               <View style={styles.serviceText}>
                 <Text style={styles.serviceLabel}>{service.label}</Text>
                 <Text style={styles.serviceDetail}>{service.detail}</Text>

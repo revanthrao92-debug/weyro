@@ -26,8 +26,6 @@ export const styles = StyleSheet.create({
   eyebrow: {
     ...typography.label,
     color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
   },
   progress: {
     paddingHorizontal: spacing.lg,

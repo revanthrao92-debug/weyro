@@ -270,7 +270,7 @@ export default function LoginScreen() {
               </Text>
               <ArrowRight
                 size={18}
-                color={palette.canvas}
+                color={palette.onPrimaryButton}
                 strokeWidth={2}
               />
             </PressableScale>
@@ -442,15 +442,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     height: 48,
     borderRadius: 4,
-    backgroundColor: palette.textPrimary,
+    backgroundColor: palette.primaryButton,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.textPrimary,
+    borderColor: palette.primaryButton,
     marginTop: spacing.xs,
   },
   loginBtnDisabled: { opacity: 0.45 },
   loginText: {
     ...typography.bodyMedium,
-    color: palette.canvas,
+    color: palette.onPrimaryButton,
   },
   footerRow: {
     flexDirection: 'row',

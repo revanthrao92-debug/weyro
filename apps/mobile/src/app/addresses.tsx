@@ -208,8 +208,6 @@ const styles = StyleSheet.create({
   addTitle: {
     ...typography.label,
     color: palette.textMuted,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
   saveButton: { marginTop: spacing.xs },
   listHeader: {

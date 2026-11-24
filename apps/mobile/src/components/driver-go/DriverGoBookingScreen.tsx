@@ -841,8 +841,6 @@ const styles = StyleSheet.create({
   policyTitle: {
     ...typography.label,
     color: palette.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   policyBody: {
     ...typography.caption,

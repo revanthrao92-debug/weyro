@@ -188,8 +188,6 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: palette.accent,
     marginTop: spacing.lg,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
   },
   title: {
     ...typography.title,

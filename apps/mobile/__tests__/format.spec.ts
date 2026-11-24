@@ -1,9 +1,13 @@
-import { bookingStatusTone, titleize } from '../src/utils/format';
+import { bookingStatusTone, labelize, titleize } from '../src/utils/format';
 
 describe('titleize', () => {
   it('replaces every underscore, not just the first', () => {
     expect(titleize('PROVIDER_EN_ROUTE')).toBe('Provider en route');
     expect(titleize('HELD_IN_ESCROW')).toBe('Held in escrow');
+  });
+
+  it('labelize uses the same sentence case', () => {
+    expect(labelize('QUOTES_RECEIVED')).toBe('Quotes received');
   });
 });
 
