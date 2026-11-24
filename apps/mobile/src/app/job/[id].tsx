@@ -30,6 +30,7 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  PopIn,
 } from '@/components/ui';
 import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
 import {
@@ -59,6 +60,9 @@ export default function MechanicJobDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: booking, isLoading, isError } = useBooking(id ?? '');
+  // Status seen on open; the progress dot only animates for a change after that.
+  const [firstStatus, setFirstStatus] = useState<string>();
+  if (booking && firstStatus === undefined) setFirstStatus(booking.status);
   const updateStatus = useUpdateBookingStatus();
   const updateLocation = useUpdateBookingLocation();
   const [notes, setNotes] = useState('');
@@ -298,7 +302,13 @@ export default function MechanicJobDetailScreen() {
               const done = stepIndex >= index && stepIndex >= 0;
               return (
                 <View key={step} style={styles.step}>
-                  <View style={[styles.dot, done && styles.dotDone]} />
+                  {index === stepIndex ? (
+                    <PopIn key={booking.status} play={firstStatus !== undefined && booking.status !== firstStatus}>
+                      <View style={[styles.dot, styles.dotDone]} />
+                    </PopIn>
+                  ) : (
+                    <View style={[styles.dot, done && styles.dotDone]} />
+                  )}
                   <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
                     {STEP_LABEL[index]}
                   </Text>

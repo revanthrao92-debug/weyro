@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import { ChevronRight, MapPin, Siren } from 'lucide-react-native';
-import { PressableScale } from '@/components/ui';
-import { palette } from '@/theme';
+import { PressableScale, Pulse } from '@/components/ui';
+import { palette, radii } from '@/theme';
 
 import type { useRouter } from 'expo-router';
 import type { SavedAddress } from '@/hooks/useProfile';
@@ -29,6 +29,7 @@ export function LocationRow({ router, address, setLocationOpen }: {
           </Text>
           <ChevronRight size={14} color={palette.textMuted} strokeWidth={1.8} />
         </PressableScale>
+        <Pulse radius={radii.md}>
         <PressableScale
           onPress={() => router.push('/sos')}
           accessibilityRole="button"
@@ -40,6 +41,7 @@ export function LocationRow({ router, address, setLocationOpen }: {
           <Siren size={14} color={palette.accent} strokeWidth={2} />
           <Text style={styles.sos}>SOS</Text>
         </PressableScale>
+        </Pulse>
       </View>
     </>
   );

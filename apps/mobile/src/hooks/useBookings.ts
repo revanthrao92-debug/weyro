@@ -72,8 +72,8 @@ export type Booking = {
     totalReviews: number;
     completedJobs: number;
     isAvailable: boolean;
+    // Non-null only for verified, available providers (customers never get verificationStatus).
     badge: string | null;
-    verificationStatus?: string;
   };
 };
 
@@ -92,6 +92,11 @@ export function useBooking(id: string) {
     queryKey: ['booking', id],
     queryFn: async () => apiClient<Booking>(`/bookings/${id}`),
     enabled: !!id,
+    // Live-ish status for the other party while the job is moving.
+    refetchInterval: (query) =>
+      ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(query.state.data?.status ?? '')
+        ? 15_000
+        : false,
   });
 }
 

@@ -61,7 +61,7 @@ export { AdSlot } from './AdSlot';
 export type { AdSlotProps } from './AdSlot';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
 
-export { FadeSlideIn, PressableScale } from './Motion';
+export { FadeSlideIn, FlashBorder, PopIn, PressableScale, Pulse } from './Motion';
 export { MetallicEdge, SideFade, Surface } from './Metallic';
 export type { MetallicEdgeProps, SideFadeProps, SurfaceProps } from './Metallic';
 export { Section } from './Section';

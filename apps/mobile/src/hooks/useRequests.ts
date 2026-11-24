@@ -202,9 +202,10 @@ export function useCancelRequest() {
 }
 
 /** Quotations */
-export function useRequestQuotations(requestId: string) {
+export function useRequestQuotations(requestId: string, poll = false) {
   return useQuery({
     queryKey: ['quotations', requestId],
+    refetchInterval: poll ? 15_000 : false,
     queryFn: async () =>
       apiClient<{ items: Quotation[]; nextCursor?: string | null }>(
         `/damage-requests/${requestId}/quotations`

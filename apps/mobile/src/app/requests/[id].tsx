@@ -30,6 +30,7 @@ import {
   EmptyState,
   BackButton,
   FadeSlideIn,
+  FlashBorder,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
@@ -42,7 +43,17 @@ export default function RequestDetailScreen() {
   const { id } = useLocalSearchParams<RequestParams>();
   const { role, providerProfile, customerProfile } = useAuth();
   const { data: request, isLoading, isError, error, refetch } = useRequest(id || '');
-  const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
+  // The owner sees new quotes arrive while the request is still open to quotes.
+  const pollQuotes =
+    !!customerProfile &&
+    request?.customerId === customerProfile.id &&
+    ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+  const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(
+    id || '',
+    pollQuotes,
+  );
+  // Quotes sent after this screen opened get a one-time highlight.
+  const [openedAt] = useState(() => Date.now());
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
   const createQuotation = useCreateQuotation();
@@ -132,12 +143,11 @@ export default function RequestDetailScreen() {
 
   const handleAccept = async (quotation: any) => {
     try {
-      await acceptQuotation.mutateAsync({
+      const booking = (await acceptQuotation.mutateAsync({
         quotationId: quotation.id,
         data: {},
-      });
-      Alert.alert('Success', 'Quotation accepted. Booking created!');
-      router.replace(`/bookings`);
+      })) as { id?: string };
+      router.replace(booking?.id ? `/booking/${booking.id}?confirmed=1` : '/bookings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to accept quotation');
     }
@@ -207,7 +217,12 @@ export default function RequestDetailScreen() {
             scrollEnabled={false}
             renderItem={({ item, index }) => (
               <FadeSlideIn delay={index * 60}>
-                <QuoteCard quote={item} onAccept={handleAccept} canAccept={isOwner} />
+                <FlashBorder
+                  active={new Date(item.createdAt).getTime() > openedAt}
+                  radius={radii.md}
+                >
+                  <QuoteCard quote={item} onAccept={handleAccept} canAccept={isOwner} />
+                </FlashBorder>
               </FadeSlideIn>
             )}
           />
@@ -335,13 +350,9 @@ function QuoteCard({
           <Text style={styles.dealerAvatarText}>{initial}</Text>
         </View>
         <View style={styles.dealerIdentity}>
-          <View style={styles.dealerNameRow}>
-            <Text style={styles.dealerName} numberOfLines={1}>{name}</Text>
-            {provider?.verificationStatus === 'VERIFIED' ? (
-              <StatusPill label="Verified" tone="success" />
-            ) : null}
-          </View>
+          <Text style={styles.dealerName} numberOfLines={2}>{name}</Text>
           <View style={styles.dealerMetaRow}>
+            {provider?.badge ? <StatusPill label="Verified" tone="success" /> : null}
             {rating ? <Text style={styles.dealerRating}>★ {rating}</Text> : null}
             <Text style={styles.dealerMeta}>{jobs} jobs done</Text>
           </View>
@@ -459,7 +470,6 @@ const styles = StyleSheet.create({
   },
   dealerIdentity: { flex: 1 },
   dealerName: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
-  dealerNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   dealerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 },
   dealerRating: { ...typography.label, color: palette.textPrimary, fontWeight: '700' },
   dealerMeta: { ...typography.label, color: palette.textSecondary },

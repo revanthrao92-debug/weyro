@@ -9,6 +9,7 @@ import {
 import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
 import { useLocalSearchParams } from 'expo-router';
+import { CheckCircle2 } from 'lucide-react-native';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -19,6 +20,7 @@ import {
   EmptyState,
   BackButton,
   ButtonRow,
+  PopIn,
   FadeSlideIn,
   SectionHead,
 } from '@/components/ui';
@@ -31,13 +33,13 @@ const TIMELINE: { key: string; label: string }[] = [
   { key: 'COMPLETED', label: 'Completed' },
 ];
 
-type BookingDetailParams = { id: string };
+type BookingDetailParams = { id: string; confirmed?: string };
 
 
 
 
 export default function BookingDetailScreen() {
-  const { id } = useLocalSearchParams<BookingDetailParams>();
+  const { id, confirmed } = useLocalSearchParams<BookingDetailParams>();
   const { data: booking, isLoading, isError } = useBooking(id || '');
   const updateStatus = useUpdateBookingStatus();
   const { role } = useAuth();
@@ -133,6 +135,17 @@ export default function BookingDetailScreen() {
           <Text style={styles.date}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
         </View>
 
+        {confirmed === '1' && booking.status === 'CONFIRMED' ? (
+          <View style={styles.confirmedBanner} accessibilityRole="alert">
+            <PopIn>
+              <CheckCircle2 size={28} color={palette.statusDone} strokeWidth={2} />
+            </PopIn>
+            <Text style={styles.confirmedText}>
+              Booking confirmed with {booking.provider?.businessName ?? 'your provider'}
+            </Text>
+          </View>
+        ) : null}
+
         <SectionHead title="Progress" />
         <BookingTimeline booking={booking} />
         {!isDropOff && booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
@@ -152,7 +165,7 @@ export default function BookingDetailScreen() {
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Provider</Text>
                 <View style={styles.providerValue}>
-                  {booking.provider.verificationStatus === 'VERIFIED' ? (
+                  {booking.provider.badge ? (
                     <StatusPill label="Verified" tone="success" />
                   ) : null}
                   <Text style={styles.specValue}>{booking.provider.businessName}</Text>
@@ -257,6 +270,8 @@ export default function BookingDetailScreen() {
 
 
 const BookingTimeline = ({ booking }: { booking: any }) => {
+  // Status seen on open; only a later change (polled) animates the active dot.
+  const [firstStatus] = useState<string>(booking.status);
   // Drop-off repairs have no en-route leg (see app/job/[id].tsx).
   const enRoute = booking.quotation?.deliveryMethod !== 'PICKUP';
   const steps = TIMELINE.filter((t) => enRoute || t.key !== 'PROVIDER_EN_ROUTE').map((t) => ({
@@ -288,7 +303,13 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
           <FadeSlideIn key={step.key} delay={i * 70}>
             <View style={tlm.row}>
               <View style={{ alignItems: 'center' }}>
-                <View style={[tlm.dot, done && tlm.dotDone, active && tlm.dotActive]} />
+                {active ? (
+                  <PopIn key={booking.status} play={booking.status !== firstStatus}>
+                    <View style={[tlm.dot, done && tlm.dotDone, tlm.dotActive]} />
+                  </PopIn>
+                ) : (
+                  <View style={[tlm.dot, done && tlm.dotDone]} />
+                )}
                 {!isLast && steps.length > 1 && (
                   <View style={[tlm.line, done && tlm.lineDone]} />
                 )}
@@ -401,6 +422,16 @@ const mapCard = StyleSheet.create({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  confirmedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.statusDoneSoftBg,
+  },
+  confirmedText: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
   providerValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
   specMuted: { color: palette.textSecondary, fontWeight: '400' },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
