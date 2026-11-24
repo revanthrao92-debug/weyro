@@ -19,7 +19,6 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { formatDate, labelize } from '@/utils/format';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
@@ -198,8 +197,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
@@ -230,8 +228,7 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowKicker: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },

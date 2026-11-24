@@ -21,7 +21,7 @@ import {
   BackButton,
 } from '@/components/ui';
 import { LocationField, LocationPicker, type PickedLocation } from '@/maps';
-import { palette, spacing, radii, typography, fontFamilyMono } from '@/theme';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export default function AddressesScreen() {
   const { data, isLoading, refetch } = useAddresses();
@@ -220,8 +220,7 @@ const styles = StyleSheet.create({
   },
   listTitle: { ...typography.heading, color: palette.textPrimary },
   listCount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
   },
   list: { paddingBottom: spacing.xxl },
@@ -240,6 +239,6 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     marginTop: 3,
   },
-  removeButton: { paddingVertical: 8, paddingHorizontal: 4 },
+  removeButton: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   removeText: { ...typography.label, color: palette.danger },
 });

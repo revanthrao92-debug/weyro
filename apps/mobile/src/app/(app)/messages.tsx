@@ -17,7 +17,6 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { useChatThreads } from '@/hooks/useChatThreads';
 import { useAuth } from '@/hooks/useAuth';
@@ -182,8 +181,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
@@ -199,6 +197,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    minHeight: 44,
     ...typography.caption,
     color: palette.textPrimary,
     paddingVertical: 0,
@@ -216,18 +215,16 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   context: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
     marginBottom: 2,
   },
   name: { ...typography.bodyMedium, color: palette.textPrimary },
   preview: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
   meta: { alignItems: 'flex-end', gap: 4 },
-  time: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  time: { fontSize: 12, color: palette.textMuted },
   unread: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.onAccent,
     backgroundColor: palette.accent,
     minWidth: 18,

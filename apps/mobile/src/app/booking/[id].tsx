@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
-import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
+import { palette, spacing, typography, radii, displayFamily } from '@/theme';
 import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { CheckCircle2 } from 'lucide-react-native';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
-  date: { fontFamily: fontFamilyMono, fontSize: 11, color: palette.textMuted },
+  date: { fontSize: 12, color: palette.textMuted },
   note: {
     ...typography.label,
     color: palette.textMuted,

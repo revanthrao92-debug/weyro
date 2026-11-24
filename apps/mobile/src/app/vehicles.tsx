@@ -35,7 +35,6 @@ import {
   radii,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
 import { titleize as labelize } from '@/utils/format';
@@ -139,6 +138,7 @@ export default function VehiclesScreen() {
             accessibilityRole="button"
             accessibilityLabel="Add vehicle"
             scaleTo={0.95}
+            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}
           >
             <Text style={styles.addLink}>Add</Text>
           </PressableScale>
@@ -333,8 +333,7 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
@@ -362,8 +361,7 @@ const styles = StyleSheet.create({
   itemContent: { flex: 1 },
   itemTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   itemReg: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textSecondary,
     marginTop: 3,
   },

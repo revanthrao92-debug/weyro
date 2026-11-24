@@ -13,7 +13,7 @@ import {
   type DraftContext,
   type ServiceConfig,
 } from './serviceRequestConfig';
-import { fontFamilyMono, palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export type RequestReviewProps = {
   config: ServiceConfig;
@@ -197,8 +197,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   subtitle: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },

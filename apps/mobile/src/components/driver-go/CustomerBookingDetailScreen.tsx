@@ -339,8 +339,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   subtitle: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
@@ -375,13 +374,11 @@ const styles = StyleSheet.create({
   driverName: { ...typography.bodyMedium, color: palette.textPrimary },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   rating: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textPrimary,
   },
   driverMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
   },
   row: {
@@ -425,7 +422,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { ...typography.bodyMedium, color: palette.textPrimary },
   totalValue: {
-    fontFamily: fontFamilyMono,
     fontSize: 22,
     color: palette.textPrimary,
   },

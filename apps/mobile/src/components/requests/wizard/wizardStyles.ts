@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 import {
   displayFamily,
-  fontFamilyMono,
   palette,
   radii,
   spacing,
@@ -44,10 +43,8 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   progressStep: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
-    letterSpacing: 0.6,
   },
   progressLabel: {
     ...typography.label,
@@ -91,8 +88,7 @@ export const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   serviceIndex: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   serviceText: { flex: 1 },

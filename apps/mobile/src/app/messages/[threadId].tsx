@@ -26,7 +26,6 @@ import {
   spacing,
   radii,
   typography,
-  fontFamilyMono,
 } from '@/theme';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -209,8 +208,7 @@ const styles = StyleSheet.create({
   },
   messageText: { ...typography.body, color: palette.textPrimary },
   time: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 4,
     alignSelf: 'flex-end',

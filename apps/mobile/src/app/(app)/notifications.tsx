@@ -13,7 +13,6 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
@@ -53,6 +52,7 @@ export default function NotificationsScreen({ pushed = false }: { pushed?: boole
                   accessibilityRole="button"
                   accessibilityLabel={`Mark all as read, ${unreadCount} unread`}
                   scaleTo={0.95}
+                  style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}
                 >
                   <Text style={styles.markAll}>
                     {isMarkingAllAsRead ? 'Marking…' : 'Mark all read'}
@@ -154,8 +154,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
@@ -182,8 +181,7 @@ const styles = StyleSheet.create({
   rowTitleUnread: { ...typography.captionMedium, color: palette.textPrimary },
   rowBody: { ...typography.label, color: palette.textMuted, marginTop: 2 },
   date: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 2,
   },

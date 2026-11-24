@@ -15,7 +15,6 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { bookingStatusTone, formatDate, labelize } from '@/utils/format';
 
@@ -193,8 +192,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
@@ -220,8 +218,7 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowKicker: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },

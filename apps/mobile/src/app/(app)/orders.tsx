@@ -24,7 +24,6 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
   type StatusTone,
 } from '@/theme';
 import { formatDate, titleize } from '@/utils/format';
@@ -347,8 +346,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
@@ -365,12 +363,11 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   rowText: { flex: 1 },
-  rowKicker: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  rowKicker: { fontSize: 12, color: palette.textMuted },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },
   rowMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
   rowRight: { alignItems: 'flex-end', gap: 4 },
   rowPrice: {
-    fontFamily: fontFamilyMono,
     fontSize: 13,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],

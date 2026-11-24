@@ -288,12 +288,11 @@ const styles = StyleSheet.create({
   },
   partNumber: {
     fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 4,
   },
   price: {
-    fontFamily: fontFamilyMono,
     fontSize: 22,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],
@@ -339,8 +338,8 @@ const styles = StyleSheet.create({
   orderLabel: { ...typography.caption, color: palette.textSecondary },
   quantity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   qtyButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: palette.border,
@@ -350,7 +349,7 @@ const styles = StyleSheet.create({
   },
   qtyDisabled: { opacity: 0.4 },
   qtyButtonText: { ...typography.heading, color: palette.textPrimary },
-  qtyValue: { fontFamily: fontFamilyMono, fontSize: 16, color: palette.textPrimary },
+  qtyValue: { fontSize: 16, color: palette.textPrimary },
   totalRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,7 +361,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   total: {
-    fontFamily: fontFamilyMono,
     fontSize: 20,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],

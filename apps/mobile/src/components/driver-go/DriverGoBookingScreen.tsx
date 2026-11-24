@@ -40,7 +40,6 @@ import {
 import { jobWhen, money } from '@/components/driver/driverFormat';
 import {
   displayFamily,
-  fontFamilyMono,
   palette,
   radii,
   spacing,
@@ -657,8 +656,7 @@ const styles = StyleSheet.create({
     borderBottomColor: palette.border,
   },
   progressStep: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
     marginBottom: spacing.sm,
   },
@@ -743,8 +741,7 @@ const styles = StyleSheet.create({
   vehicleText: { flex: 1 },
   vehicleTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   vehicleMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 2,
   },
@@ -779,13 +776,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rating: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textPrimary,
   },
-  meta: { fontFamily: fontFamilyMono, fontSize: 9, color: palette.textMuted },
+  meta: { fontSize: 12, color: palette.textMuted },
   quote: {
-    fontFamily: fontFamilyMono,
     fontSize: 14,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],
@@ -833,7 +828,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { ...typography.bodyMedium, color: palette.textPrimary },
   totalValue: {
-    fontFamily: fontFamilyMono,
     fontSize: 22,
     color: palette.textPrimary,
   },
