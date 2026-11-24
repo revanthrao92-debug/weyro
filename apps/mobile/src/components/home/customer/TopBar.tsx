@@ -7,10 +7,12 @@ import type { useRouter } from 'expo-router';
 import type { useAuth } from '@/hooks/useAuth';
 import { styles } from './styles';
 
-export function TopBar({ router, user, unreadCount }: {
+export function TopBar({ router, user, unreadCount, initial }: {
   router: ReturnType<typeof useRouter>;
   user: ReturnType<typeof useAuth>['user'];
   unreadCount: number;
+  /** Avatar letter; defaults to the customer's first name. */
+  initial?: string;
 }) {
   return (
     <>
@@ -39,7 +41,7 @@ export function TopBar({ router, user, unreadCount }: {
             style={styles.avatar}
           >
             <Text style={styles.avatarText}>
-              {(user?.customerProfile?.firstName?.[0] || 'W').toUpperCase()}
+              {(initial || user?.customerProfile?.firstName?.[0] || 'W').toUpperCase()}
             </Text>
           </PressableScale>
         </View>

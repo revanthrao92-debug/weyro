@@ -12,6 +12,8 @@ function run(effect: () => Promise<void>) {
 }
 
 export const haptics = {
+  /** Faint tick: finger moving to the next day on a chart. */
+  tick: () => run(() => Haptics.selectionAsync()),
   /** Light tap: sending a message. */
   tap: () => run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
   /** Heavy: SOS. */

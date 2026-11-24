@@ -34,8 +34,10 @@ export type ProviderAnalytics = {
         horizonDays: number;
         slopePerDay: number;
         projectedTotal: number;
+        projectedLow: number;
+        projectedHigh: number;
         trend: 'UP' | 'DOWN' | 'FLAT';
-        points: { date: string; value: number }[];
+        points: { date: string; value: number; low: number; high: number }[];
       }
     | { available: false; reason: string };
 };
