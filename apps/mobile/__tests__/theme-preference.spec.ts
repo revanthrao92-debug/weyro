@@ -1,14 +1,14 @@
-import { resolveColorScheme } from '../src/theme/preference';
+import { parseThemePreference, resolveColorScheme } from '../src/theme/preference';
 
-describe('resolveColorScheme', () => {
-  it('uses an explicit choice as is', () => {
-    expect(resolveColorScheme('light', 'dark')).toBe('light');
-    expect(resolveColorScheme('dark', 'light')).toBe('dark');
+describe('appearance preference', () => {
+  it('keeps an explicit Light or Dark choice', () => {
+    expect(parseThemePreference('light')).toBe('light');
+    expect(parseThemePreference('dark')).toBe('dark');
+    expect(resolveColorScheme('light')).toBe('light');
   });
 
-  it('follows the phone for "system", and stays dark when the phone says nothing', () => {
-    expect(resolveColorScheme('system', 'light')).toBe('light');
-    expect(resolveColorScheme('system', 'dark')).toBe('dark');
-    expect(resolveColorScheme('system', null)).toBe('dark');
+  it('falls back to dark when nothing is saved or an old "system" value is saved', () => {
+    expect(parseThemePreference(null)).toBe('dark');
+    expect(parseThemePreference('system')).toBe('dark');
   });
 });

@@ -1,33 +1,33 @@
-import { Appearance, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 /**
- * Appearance choice (Profile -> Appearance). Read synchronously at startup so
- * every StyleSheet is created with the right colours; changing it restarts
- * the app (screens build their styles once, at load).
+ * Appearance choice (Profile -> Appearance: Light / Dark). Read synchronously
+ * at startup so every StyleSheet is created with the right colours; changing
+ * it restarts the app (screens build their styles once, at load).
  */
-export type ThemePreference = 'system' | 'light' | 'dark';
-export type ColorSchemeName = 'light' | 'dark';
+export type ThemePreference = 'light' | 'dark';
+export type ColorSchemeName = ThemePreference;
 
 const KEY = 'weyro_theme';
 
+/** Saved choice, or dark (the original look) when nothing valid is saved, e.g. an old "system". */
 export function readThemePreference(): ThemePreference {
   try {
     const value =
       Platform.OS === 'web' ? globalThis.localStorage?.getItem(KEY) : SecureStore.getItem(KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return parseThemePreference(value);
   } catch {
-    return 'system';
+    return 'dark';
   }
 }
 
-/** "System" follows the phone; anything unknown stays dark (the original look). */
-export function resolveColorScheme(
-  preference: ThemePreference,
-  system: string | null | undefined = Appearance.getColorScheme(),
-): ColorSchemeName {
-  if (preference !== 'system') return preference;
-  return system === 'light' ? 'light' : 'dark';
+export function parseThemePreference(value: string | null | undefined): ThemePreference {
+  return value === 'light' ? 'light' : 'dark';
+}
+
+export function resolveColorScheme(preference: ThemePreference): ColorSchemeName {
+  return preference;
 }
 
 export async function saveThemePreference(preference: ThemePreference): Promise<void> {
