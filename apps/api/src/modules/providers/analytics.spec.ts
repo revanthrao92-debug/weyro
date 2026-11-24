@@ -97,4 +97,21 @@ describe('analytics', () => {
     expect(forecast.trend).toBe('DOWN');
     expect(forecast.points.every((point) => point.value >= 0)).toBe(true);
   });
+
+  it('gives a likely range around each forecast day and the total', () => {
+    const orders = Array.from({ length: 30 }, (_, index) =>
+      order(index % 2 === 0 ? 800 : 1200, 29 - index),
+    );
+    const forecast = forecastNetSales(buildDailyBuckets(orders, 30, now), { horizonDays: 14 });
+
+    expect(forecast.available).toBe(true);
+    if (!forecast.available) return;
+    for (const point of forecast.points) {
+      expect(point.low).toBeGreaterThanOrEqual(0);
+      expect(point.low).toBeLessThan(point.value);
+      expect(point.high).toBeGreaterThan(point.value);
+    }
+    expect(forecast.projectedLow).toBeLessThan(forecast.projectedTotal);
+    expect(forecast.projectedHigh).toBeGreaterThan(forecast.projectedTotal);
+  });
 });

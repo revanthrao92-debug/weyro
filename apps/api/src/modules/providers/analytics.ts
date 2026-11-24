@@ -13,7 +13,8 @@ export type DailyBucket = {
   orders: number;
 };
 
-export type ForecastPoint = { date: string; value: number };
+/** low/high: the likely range for that day (about 8 days in 10 land inside it). */
+export type ForecastPoint = { date: string; value: number; low: number; high: number };
 
 export type Forecast =
   | {
@@ -21,6 +22,8 @@ export type Forecast =
       horizonDays: number;
       slopePerDay: number;
       projectedTotal: number;
+      projectedLow: number;
+      projectedHigh: number;
       trend: 'UP' | 'DOWN' | 'FLAT';
       points: ForecastPoint[];
     }
@@ -124,6 +127,12 @@ export function forecastNetSales(
 
   const slope = denominator === 0 ? 0 : numerator / denominator;
   const intercept = meanY - slope * meanX;
+  // Spread of past days around the trend line; 1.28 sd covers ~80% of a normal spread.
+  const residualSd = Math.sqrt(
+    buckets.reduce((sum, bucket, index) => sum + (bucket.net - (intercept + slope * index)) ** 2, 0) /
+      Math.max(1, n - 2),
+  );
+  const halfBand = 1.28 * residualSd;
 
   const lastDate = new Date(`${buckets[buckets.length - 1].date}T00:00:00.000Z`);
   const points: ForecastPoint[] = [];
@@ -132,10 +141,14 @@ export function forecastNetSales(
     points.push({
       date: dayKey(addDays(lastDate, step)),
       value: round(value),
+      low: round(Math.max(0, value - halfBand)),
+      high: round(value + halfBand),
     });
   }
 
   const projectedTotal = round(points.reduce((sum, point) => sum + point.value, 0));
+  // A sum of h noisy days spreads by sqrt(h), not h: daily bands added up would overstate it.
+  const totalHalfBand = halfBand * Math.sqrt(horizonDays);
   const trend = slope > 1 ? 'UP' : slope < -1 ? 'DOWN' : 'FLAT';
 
   return {
@@ -143,6 +156,8 @@ export function forecastNetSales(
     horizonDays,
     slopePerDay: round(slope),
     projectedTotal,
+    projectedLow: round(Math.max(0, projectedTotal - totalHalfBand)),
+    projectedHigh: round(projectedTotal + totalHalfBand),
     trend,
     points,
   };
