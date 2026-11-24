@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { haptics } from '@/lib/haptics';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -147,6 +148,7 @@ export default function RequestDetailScreen() {
         quotationId: quotation.id,
         data: {},
       })) as { id?: string };
+      haptics.success();
       router.replace(booking?.id ? `/booking/${booking.id}?confirmed=1` : '/bookings');
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to accept quotation');

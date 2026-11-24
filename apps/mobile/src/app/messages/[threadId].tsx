@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
   Alert,
   FlatList,
@@ -80,6 +81,7 @@ export default function MessagesThreadScreen() {
     setText('');
     try {
       await sendMessage.mutateAsync(content);
+      haptics.tap();
     } catch (e: any) {
       setText(content);
       Alert.alert('Message not sent', e?.message ?? 'Try again');

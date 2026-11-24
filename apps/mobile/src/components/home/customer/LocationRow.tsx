@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { haptics } from '@/lib/haptics';
 import { ChevronRight, MapPin, Siren } from 'lucide-react-native';
 import { PressableScale, Pulse } from '@/components/ui';
 import { palette, radii } from '@/theme';
@@ -31,7 +32,10 @@ export function LocationRow({ router, address, setLocationOpen }: {
         </PressableScale>
         <Pulse radius={radii.md}>
         <PressableScale
-          onPress={() => router.push('/sos')}
+          onPress={() => {
+            haptics.heavy();
+            router.push('/sos');
+          }}
           accessibilityRole="button"
           accessibilityLabel="SOS, roadside help"
           scaleTo={0.95}

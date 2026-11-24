@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
   View,
   Text,
@@ -100,6 +101,7 @@ export default function BookingDetailScreen() {
         trackingNumber: undefined,
         carrierName: undefined,
       });
+      haptics.warning();
       setConfirmingCancel(false);
     } catch (e: any) {
       Alert.alert('Failed', e.message || 'Unable to cancel booking');

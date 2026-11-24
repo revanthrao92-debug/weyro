@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
   Alert,
   Linking,
@@ -163,6 +164,8 @@ export default function MechanicJobDetailScreen() {
         status,
         ...(withNotes && notes.trim() ? { completionNotes: notes.trim() } : {}),
       });
+      if (status === 'CANCELLED') haptics.warning();
+      else haptics.success();
       if (['COMPLETED', 'CANCELLED'].includes(status)) stopSharing();
     } catch (e: any) {
       Alert.alert('Failed', e?.message || 'Could not update the job.');
