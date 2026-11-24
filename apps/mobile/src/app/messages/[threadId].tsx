@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useIsFocused } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -47,7 +47,7 @@ export default function MessagesThreadScreen() {
   const id = threadId ?? '';
 
   const { data: threadsData } = useChatThreads();
-  const { data, isLoading, isError, refetch } = useChatMessages(id);
+  const { data, isLoading, isError, refetch } = useChatMessages(id, useIsFocused());
   const sendMessage = useSendChatMessage(id);
   const markRead = useMarkThreadRead(id);
 
@@ -80,8 +80,8 @@ export default function MessagesThreadScreen() {
     if (!content || sendMessage.isPending) return;
     setText('');
     try {
-      await sendMessage.mutateAsync(content);
       haptics.tap();
+      await sendMessage.mutateAsync(content);
     } catch (e: any) {
       setText(content);
       Alert.alert('Message not sent', e?.message ?? 'Try again');

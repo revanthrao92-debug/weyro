@@ -146,11 +146,15 @@ export function useBroadcastFeed(params?: {
   });
 }
 
-export function useRequest(id: string) {
+export function useRequest(id: string, live = false) {
   return useQuery({
     queryKey: ['request', id],
     queryFn: async () => apiClient<ServiceRequest>(`/damage-requests/${id}`),
     enabled: !!id,
+    // While open to quotes and on screen; stops by itself once the request
+    // is accepted/cancelled/expired elsewhere.
+    refetchInterval: (query) =>
+      live && ['OPEN', 'QUOTES_RECEIVED'].includes(query.state.data?.status ?? '') ? 15_000 : false,
   });
 }
 

@@ -28,6 +28,9 @@ export function toPublicProvider<T extends PublicProviderSource>(provider: T) {
     providerType: provider.providerType,
     description: provider.description ?? null,
     serviceRadiusKm: provider.serviceRadiusKm ?? null,
+    // Public trust signal (the app shows "Verified"); `badge` is a rating tier
+    // and is null for newly verified providers, so it can't stand in for this.
+    verificationStatus: provider.verificationStatus,
     avgRating: provider.avgRating,
     totalReviews: provider.totalReviews,
     completedJobs: provider.completedJobs,

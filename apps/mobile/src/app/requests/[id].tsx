@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { haptics } from '@/lib/haptics';
 import { useState } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -43,18 +43,21 @@ export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
   const { role, providerProfile, customerProfile } = useAuth();
-  const { data: request, isLoading, isError, error, refetch } = useRequest(id || '');
-  // The owner sees new quotes arrive while the request is still open to quotes.
-  const pollQuotes =
-    !!customerProfile &&
-    request?.customerId === customerProfile.id &&
-    ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+  const focused = useIsFocused();
+  const { data: request, isLoading, isError, error, refetch } = useRequest(id || '', focused);
+  // The owner sees new quotes arrive while the request is open and in front.
+  const isOwnerOfRequest = !!customerProfile && request?.customerId === customerProfile.id;
+  const openToQuotes = ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
   const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(
     id || '',
-    pollQuotes,
+    focused && isOwnerOfRequest && openToQuotes,
   );
-  // Quotes sent after this screen opened get a one-time highlight.
-  const [openedAt] = useState(() => Date.now());
+  // Quotes present on first load are the baseline; later arrivals get a one-time
+  // highlight (ID-based, so phone/server clock skew can't misfire it).
+  const [baselineQuoteIds, setBaselineQuoteIds] = useState<Set<string> | null>(null);
+  if (baselineQuoteIds === null && quotesData) {
+    setBaselineQuoteIds(new Set(quotesData.items.map((q) => q.id)));
+  }
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
   const createQuotation = useCreateQuotation();
@@ -117,9 +120,8 @@ export default function RequestDetailScreen() {
   }
 
   // Only the customer who posted it may cancel or accept (the API enforces the same).
-  const isOwner = !!customerProfile && request.customerId === customerProfile.id;
-  const canCancel =
-    isOwner && (request.status === 'OPEN' || request.status === 'QUOTES_RECEIVED');
+  const isOwner = isOwnerOfRequest;
+  const canCancel = isOwner && openToQuotes;
 
   const handleCancel = async () => {
     const confirmed = await new Promise<boolean>((resolve) => {
@@ -220,7 +222,7 @@ export default function RequestDetailScreen() {
             renderItem={({ item, index }) => (
               <FadeSlideIn delay={index * 60}>
                 <FlashBorder
-                  active={new Date(item.createdAt).getTime() > openedAt}
+                  active={baselineQuoteIds !== null && !baselineQuoteIds.has(item.id)}
                   radius={radii.md}
                 >
                   <QuoteCard quote={item} onAccept={handleAccept} canAccept={isOwner} />
@@ -354,7 +356,7 @@ function QuoteCard({
         <View style={styles.dealerIdentity}>
           <Text style={styles.dealerName} numberOfLines={2}>{name}</Text>
           <View style={styles.dealerMetaRow}>
-            {provider?.badge ? <StatusPill label="Verified" tone="success" /> : null}
+            {provider?.verificationStatus === 'VERIFIED' ? <StatusPill label="Verified" tone="success" /> : null}
             {rating ? <Text style={styles.dealerRating}>★ {rating}</Text> : null}
             <Text style={styles.dealerMeta}>{jobs} jobs done</Text>
           </View>

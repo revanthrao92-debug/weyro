@@ -35,9 +35,12 @@ describe('haptics', () => {
     expect(mockNotify).not.toHaveBeenCalled();
   });
 
-  it('never throws when the device rejects', async () => {
-    mockImpact.mockRejectedValue(new Error('no haptic engine'));
-    expect(() => haptics.tap()).not.toThrow();
-    await Promise.resolve();
+  it('swallows a device rejection instead of leaving it unhandled', async () => {
+    const rejection = Promise.reject(new Error('no haptic engine'));
+    const caught = jest.spyOn(rejection, 'catch');
+    mockImpact.mockReturnValue(rejection);
+    haptics.tap();
+    expect(caught).toHaveBeenCalled();
+    await rejection.catch(() => undefined);
   });
 });

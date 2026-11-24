@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { haptics } from '@/lib/haptics';
 import {
   View,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { CheckCircle2 } from 'lucide-react-native';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,7 +41,14 @@ type BookingDetailParams = { id: string; confirmed?: string };
 
 export default function BookingDetailScreen() {
   const { id, confirmed } = useLocalSearchParams<BookingDetailParams>();
-  const { data: booking, isLoading, isError } = useBooking(id || '');
+  const router = useRouter();
+  // One-time banner: remember it for this visit, then drop the param so coming
+  // back later (or a re-render) doesn't announce "just confirmed" again.
+  const [justConfirmed] = useState(confirmed === '1');
+  useEffect(() => {
+    if (confirmed === '1') router.setParams({ confirmed: undefined });
+  }, [confirmed, router]);
+  const { data: booking, isLoading, isError } = useBooking(id || '', useIsFocused());
   const updateStatus = useUpdateBookingStatus();
   const { role } = useAuth();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -137,7 +144,7 @@ export default function BookingDetailScreen() {
           <Text style={styles.date}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
         </View>
 
-        {confirmed === '1' && booking.status === 'CONFIRMED' ? (
+        {justConfirmed && booking.status === 'CONFIRMED' ? (
           <View style={styles.confirmedBanner} accessibilityRole="alert">
             <PopIn>
               <CheckCircle2 size={28} color={palette.statusDone} strokeWidth={2} />
@@ -167,7 +174,7 @@ export default function BookingDetailScreen() {
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Provider</Text>
                 <View style={styles.providerValue}>
-                  {booking.provider.badge ? (
+                  {booking.provider.verificationStatus === 'VERIFIED' ? (
                     <StatusPill label="Verified" tone="success" />
                   ) : null}
                   <Text style={styles.specValue}>{booking.provider.businessName}</Text>

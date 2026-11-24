@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   FadeInDown,
   useAnimatedStyle,
@@ -124,6 +125,8 @@ export function Pulse({
   useEffect(() => {
     if (reducedMotion) return;
     t.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) }), -1);
+    // Stop the endless loop on unmount or when Reduce Motion turns on.
+    return () => cancelAnimation(t);
   }, [reducedMotion, t]);
 
   const ring = useAnimatedStyle(() => ({

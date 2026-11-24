@@ -62,10 +62,10 @@ export const palette = {
   statusDone: '#4CC38A', // completed / verified
   statusDoneSoftBg: 'rgba(76, 195, 138, 0.14)',
   // Legacy status tokens
-  success: '#A7ADB4',
-  successSoftBg: '#1D2024',
-  warning: '#FF5A1F',
-  warningSoftBg: 'rgba(255, 90, 31, 0.12)',
+  success: '#4CC38A', // = statusDone
+  successSoftBg: 'rgba(76, 195, 138, 0.14)',
+  warning: '#F2B441', // = statusProgress
+  warningSoftBg: 'rgba(242, 180, 65, 0.14)',
   onSuccess: '#101214',
   onWarning: '#101214',
 

@@ -44,6 +44,13 @@ describe('public serializers', () => {
     expect(result).not.toHaveProperty('auditorNotes');
   });
 
+  it('exposes verification separately from the rating badge', () => {
+    // A newly verified garage has no tier badge yet but must still read as verified.
+    const result = toPublicProvider({ ...provider, completedJobs: 3, avgRating: 0 });
+    expect(result.badge).toBeNull();
+    expect(result.verificationStatus).toBe('VERIFIED');
+  });
+
   it('never exposes saved addresses or contact data on customers', () => {
     const result = toPublicCustomer({
       id: 'cust-1',

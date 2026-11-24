@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useIsFocused } from 'expo-router';
 import * as Location from 'expo-location';
 import {
   getActiveJobId,
@@ -60,7 +60,7 @@ function statusLabel(status: string) {
 export default function MechanicJobDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: booking, isLoading, isError } = useBooking(id ?? '');
+  const { data: booking, isLoading, isError } = useBooking(id ?? '', useIsFocused());
   // Status seen on open; the progress dot only animates for a change after that.
   const [firstStatus, setFirstStatus] = useState<string>();
   if (booking && firstStatus === undefined) setFirstStatus(booking.status);
