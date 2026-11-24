@@ -92,7 +92,7 @@ export default function MyRequestsScreen() {
   ).length;
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
+    <ScreenContainer chrome="header" safeBottom>
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}

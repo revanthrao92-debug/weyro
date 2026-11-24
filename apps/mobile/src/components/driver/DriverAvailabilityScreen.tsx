@@ -180,7 +180,7 @@ export function DriverAvailabilityScreen() {
   const query = useDriverAvailability();
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <View style={styles.topBar}>
         <BackButton />
         <Text style={styles.eyebrow}>AVAILABILITY</Text>

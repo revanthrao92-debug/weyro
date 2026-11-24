@@ -15,9 +15,9 @@ export interface ButtonProps {
 
 const VARIANTS = {
   primary: {
-    backgroundColor: palette.textPrimary,
-    textColor: palette.canvas,
-    borderColor: palette.textPrimary,
+    backgroundColor: palette.accent,
+    textColor: palette.onAccent,
+    borderColor: palette.accent,
   },
   secondary: {
     backgroundColor: palette.transparent,
@@ -27,7 +27,7 @@ const VARIANTS = {
   destructive: {
     backgroundColor: palette.transparent,
     textColor: palette.danger,
-    borderColor: palette.dangerSoftBg,
+    borderColor: palette.danger,
   },
 } as const;
 

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
@@ -7,13 +7,11 @@ import { DriverDashboard } from '@/components/driver/DriverDashboard';
 import { DealerDashboard } from '@/components/dealer/DealerDashboard';
 import { MechanicDashboard } from '@/components/mechanic/MechanicDashboard';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useAddresses, useReplaceAddresses, useVehicles } from '@/hooks/useProfile';
-import { useParts } from '@/hooks/useParts';
+import { CustomerHome } from '@/components/home/CustomerHome';
 import { useNotifications } from '@/hooks/useNotifications';
-import { ScreenContainer, AdSlot } from '@/components/ui';
 import { LocationPicker, type PickedLocation } from '@/maps';
 
 /**
@@ -21,19 +19,6 @@ import { LocationPicker, type PickedLocation } from '@/maps';
  * index, and live status rows. Quiet chrome, one accent, mono figures.
  */
 
-import { styles } from '@/components/home/customer/styles';
-import { TopBar } from '@/components/home/customer/TopBar';
-import { Hero } from '@/components/home/customer/Hero';
-import { LocationRow } from '@/components/home/customer/LocationRow';
-import { WorkshopBand } from '@/components/home/customer/WorkshopBand';
-import { VehicleSection } from '@/components/home/customer/VehicleSection';
-import { LiveStatusSection } from '@/components/home/customer/LiveStatusSection';
-import { PartsRail } from '@/components/home/customer/PartsRail';
-import { PackagesSection } from '@/components/home/customer/PackagesSection';
-import { EditorialBand } from '@/components/home/customer/EditorialBand';
-import { HistoryRail } from '@/components/home/customer/HistoryRail';
-import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
-import { Footer } from '@/components/home/customer/Footer';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -47,7 +32,6 @@ export default function HomeScreen() {
   const addressesQuery = useAddresses(isCustomer);
   const replaceAddresses = useReplaceAddresses();
   const [locationOpen, setLocationOpen] = useState(false);
-  const partsQuery = useParts({ limit: 8 });
   const { unreadCount, refetch: refetchNotifications } = useNotifications();
 
   const refetchAll = useCallback(async () => {
@@ -69,7 +53,6 @@ export default function HomeScreen() {
 
   const requests = requestsQuery.data?.items ?? [];
   const vehicles = vehiclesQuery.data?.items ?? [];
-  const parts = (partsQuery.data?.items ?? []).slice(0, 4);
   const address = addressesQuery.data?.addresses?.[0];
   const homeLocation: PickedLocation | null = address
     ? {
@@ -106,10 +89,6 @@ export default function HomeScreen() {
   const nextBooking = (bookingsQuery.data?.items ?? []).find(
     (b) => b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
   );
-  const historyBookings = (bookingsQuery.data?.items ?? [])
-    .filter((b) => b.status === 'COMPLETED' || b.status === 'CANCELLED')
-    .slice(0, 6);
-  const loading = requestsQuery.isLoading || bookingsQuery.isLoading;
 
   if (role === 'ADMIN') {
     return <AdminDashboard />;
@@ -136,44 +115,18 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer chrome="dark" padded={false} safeBottom>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        showsVerticalScrollIndicator={false}
-      >
-        <TopBar router={router} user={user} unreadCount={unreadCount} />
-
-        <Hero router={router} />
-
-        <View style={styles.body}>
-          <LocationRow router={router} address={address} setLocationOpen={setLocationOpen} />
-
-          <HomeServiceSections />
-
-          <WorkshopBand />
-
-          <VehicleSection router={router} vehicle={vehicle} vehicles={vehicles} />
-
-          <LiveStatusSection router={router} requests={requests} nextBooking={nextBooking} loading={loading} />
-
-          {/* Dedicated ad space — one per screen, labelled, never in the hero */}
-          <AdSlot placement="home-sponsored" />
-
-          <PartsRail router={router} parts={parts} />
-
-          <PackagesSection router={router} />
-
-          <EditorialBand />
-
-          <HistoryRail router={router} historyBookings={historyBookings} />
-
-          <AssuranceSection />
-
-          <Footer router={router} />
-
-        </View>
-      </ScrollView>
-
+    <>
+      <CustomerHome
+        router={router}
+        firstName={user?.customerProfile?.firstName}
+        vehicle={vehicle}
+        nextBooking={nextBooking}
+        requests={requests}
+        unreadCount={unreadCount}
+        onRefresh={refetchAll}
+        locationLabel={address?.title === 'Home' ? address.address : address?.title || address?.address}
+        onLocationPress={() => setLocationOpen(true)}
+      />
       <LocationPicker
         visible={locationOpen}
         title="Set your location"
@@ -186,6 +139,6 @@ export default function HomeScreen() {
           void saveHomeLocation(next);
         }}
       />
-    </ScreenContainer>
+    </>
   );
 }

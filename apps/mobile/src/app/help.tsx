@@ -46,7 +46,7 @@ export default function HelpScreen() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
+    <ScreenContainer chrome="header" safeBottom>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

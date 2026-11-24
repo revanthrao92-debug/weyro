@@ -56,7 +56,7 @@ export default function VerificationDocumentsScreen() {
   };
 
   return (
-    <ScreenContainer chrome="dark" padded={false} safeBottom>
+    <ScreenContainer chrome="header" padded={false} safeBottom>
       <AppHeader
         left={<BackButton />}
         title="Verification"

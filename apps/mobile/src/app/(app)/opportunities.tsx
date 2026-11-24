@@ -47,7 +47,7 @@ export default function ProviderRequestsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader title="Requests" subtitle={subtitle} />
         <View style={styles.body}>
           {[0, 1, 2].map((i) => (
@@ -63,7 +63,7 @@ export default function ProviderRequestsScreen() {
   }
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <AppHeader title="Requests" subtitle={subtitle} />
       {requests.length === 0 ? (
         <EmptyState

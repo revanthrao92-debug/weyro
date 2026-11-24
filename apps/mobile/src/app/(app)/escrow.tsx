@@ -65,7 +65,7 @@ export default function EscrowScreen() {
   }, [entries]);
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
         refreshControl={refreshControl}

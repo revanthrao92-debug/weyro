@@ -78,7 +78,7 @@ export default function AddressesScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader left={<BackButton />} title="Saved addresses" />
         {[0, 1, 2].map((i) => (
           <Card key={i} style={styles.skeletonCard}>
@@ -96,7 +96,7 @@ export default function AddressesScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader
           left={<BackButton />}
           title="Saved addresses"

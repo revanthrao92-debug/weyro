@@ -42,7 +42,7 @@ export default function PendingActionsScreen() {
   };
 
   return (
-    <ScreenContainer chrome="dark" padded={false} safeBottom>
+    <ScreenContainer chrome="header" padded={false} safeBottom>
       <AppHeader
         left={<BackButton />}
         title="Pending actions"

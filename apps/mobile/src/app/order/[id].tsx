@@ -63,7 +63,7 @@ export default function OrderDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader left={<BackButton />} title="Order" subtitle="Loading" />
         <View style={styles.body}>
           <Skeleton width="100%" height={110} />
@@ -75,7 +75,7 @@ export default function OrderDetailScreen() {
 
   if (isError || !order) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader left={<BackButton />} title="Order" />
         <EmptyState
           title="Order unavailable"
@@ -138,7 +138,7 @@ export default function OrderDetailScreen() {
   };
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />
@@ -321,7 +321,7 @@ function CustomerOrderView({ order }: { order: SparePartOrder }) {
     .join(', ');
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

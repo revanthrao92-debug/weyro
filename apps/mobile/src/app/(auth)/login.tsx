@@ -267,7 +267,7 @@ export default function LoginScreen() {
               </Text>
               <ArrowRight
                 size={18}
-                color={palette.canvas}
+                color={palette.onAccent}
                 strokeWidth={2}
               />
             </PressableScale>
@@ -320,21 +320,21 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: displayFamily,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
     fontSize: 24,
     marginBottom: spacing.xl,
   },
   headline: {
     fontFamily: displayFamily,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
     fontSize: 30,
     lineHeight: 36,
     letterSpacing: -0.4,
   },
-  headlineAccent: { color: palette.accent },
+  headlineAccent: { color: palette.onPhoto },
   subline: {
     ...typography.caption,
-    color: palette.textSecondary,
+    color: palette.onPhotoMuted,
     marginTop: spacing.sm,
     maxWidth: 300,
   },
@@ -439,15 +439,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     height: 48,
     borderRadius: 4,
-    backgroundColor: palette.textPrimary,
+    backgroundColor: palette.accent,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.textPrimary,
+    borderColor: palette.accent,
     marginTop: spacing.xs,
   },
   loginBtnDisabled: { opacity: 0.45 },
   loginText: {
     ...typography.bodyMedium,
-    color: palette.canvas,
+    color: palette.onAccent,
   },
   footerRow: {
     flexDirection: 'row',

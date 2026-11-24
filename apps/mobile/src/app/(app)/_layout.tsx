@@ -1,5 +1,11 @@
-import { ReactElement } from 'react';
-import type { ColorValue } from 'react-native';
+import { ReactElement, useEffect } from 'react';
+import { View, type ColorValue } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import {
   Activity,
@@ -23,16 +29,42 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
-import { palette, fontFamilyMedium } from '@/theme';
+import { palette, fontFamilyMedium, springs } from '@/theme';
 
 /**
  * Premium line icons for the tab bar (lucide — already a dependency via
  * RNR; cross-platform via react-native-svg). Thin 1.75 strokes for a
  * refined look; color comes from the navigator's active/inactive tints.
  */
+/**
+ * Tab icon with a soft accent pill that springs open on the active tab and
+ * closes on the one you left, so selection visibly moves between tabs.
+ */
 const tabIcon = (IconCmp: LucideIcon) => {
-  function TabIcon({ color, size }: { color: ColorValue; size: number }) {
-    return <IconCmp color={color as string} size={size} strokeWidth={1.75} />;
+  function TabIcon({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
+    const reduced = useReducedMotion();
+    const v = useSharedValue(focused ? 1 : 0);
+    useEffect(() => {
+      v.value = reduced ? (focused ? 1 : 0) : withSpring(focused ? 1 : 0, springs.press);
+    }, [focused, reduced, v]);
+    const pill = useAnimatedStyle(() => ({
+      opacity: v.value,
+      transform: [{ scaleX: 0.5 + 0.5 * v.value }],
+    }));
+    const icon = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * v.value }] }));
+    return (
+      <View style={{ width: 56, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+        <Animated.View
+          style={[
+            { position: 'absolute', width: 56, height: 30, borderRadius: 15, backgroundColor: palette.accentSoftBg },
+            pill,
+          ]}
+        />
+        <Animated.View style={icon}>
+          <IconCmp color={color as string} size={size} strokeWidth={focused ? 2.1 : 1.75} />
+        </Animated.View>
+      </View>
+    );
   }
   return TabIcon;
 };
@@ -188,9 +220,9 @@ export default function AppLayout() {
         tabBarInactiveTintColor: palette.textMuted,
         tabBarStyle: {
           backgroundColor: palette.surface,
-          borderTopColor: palette.borderStrong,
+          borderTopColor: palette.border,
           borderTopWidth: 1,
-          height: 58 + insets.bottom,
+          height: 62 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 6,
         },

@@ -78,7 +78,7 @@ export function DriverProfileScreen() {
     .toUpperCase();
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
+    <ScreenContainer chrome="header" safeBottom>
       <AppHeader title="Profile" subtitle="Driver account" />
       <ScrollView
         contentContainerStyle={styles.body}

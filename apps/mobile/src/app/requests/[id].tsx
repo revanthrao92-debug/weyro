@@ -91,7 +91,7 @@ export default function RequestDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>Request</Text>
@@ -108,7 +108,7 @@ export default function RequestDetailScreen() {
 
   if (!request) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <BackButton />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -160,7 +160,7 @@ export default function RequestDetailScreen() {
   const photos = request.damagePhotos?.length ? request.damagePhotos : request.mediaUrls;
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

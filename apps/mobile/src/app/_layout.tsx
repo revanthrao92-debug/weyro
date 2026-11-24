@@ -36,7 +36,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           {/* Light is the app's active theme (see global.css). */}
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <ErrorBoundary>
             <AuthRouter />
           </ErrorBoundary>

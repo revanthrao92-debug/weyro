@@ -89,7 +89,7 @@ export default function ProviderDashboard() {
       ];
 
   return (
-    <ScreenContainer chrome="dark" padded={false} safeBottom>
+    <ScreenContainer chrome="header" padded={false} safeBottom>
       <View style={styles.hero}>
         <AppHeader
           logo={require('../../../assets/images/weyro-logo.png')}
@@ -259,17 +259,17 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...typography.body,
-    color: palette.onHeader,
+    color: palette.onPhoto,
   },
   greetingName: {
     ...typography.display,
-    color: palette.onHeader,
+    color: palette.onPhoto,
     fontWeight: '700',
     marginTop: 2,
   },
   heroTagline: {
     ...typography.caption,
-    color: palette.onHeaderMuted,
+    color: palette.onPhotoMuted,
     marginTop: spacing.xs,
   },
   body: {

@@ -39,7 +39,7 @@ export default function EditListingScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScreenContainer chrome="header" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
@@ -52,7 +52,7 @@ export default function EditListingScreen() {
 
   if (!part) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScreenContainer chrome="header" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -136,7 +136,7 @@ function ListingForm({ part }: { part: SparePart }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScreenContainer chrome="header" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title="Edit Listing" subtitle="Update part details" />
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View>

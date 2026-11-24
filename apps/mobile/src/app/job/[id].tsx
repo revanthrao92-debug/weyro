@@ -105,7 +105,7 @@ export default function MechanicJobDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader left={<BackButton />} title="Job" subtitle="Loading" />
         <View style={styles.body}>
           <Skeleton width="100%" height={110} />
@@ -117,7 +117,7 @@ export default function MechanicJobDetailScreen() {
 
   if (isError || !booking) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader left={<BackButton />} title="Job" />
         <EmptyState
           title="Job unavailable"
@@ -259,7 +259,7 @@ export default function MechanicJobDetailScreen() {
           : null;
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

@@ -192,7 +192,7 @@ export function DriverGoBookingScreen() {
 
   if (booking) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <View style={styles.success}>
           <CheckCircle2 size={42} color={palette.accent} strokeWidth={1.6} />
           <Text style={styles.successTitle}>Driver requested</Text>
@@ -218,7 +218,7 @@ export function DriverGoBookingScreen() {
   }
 
   return (
-    <ScreenContainer chrome="dark" padded={false} safeBottom>
+    <ScreenContainer chrome="header" padded={false} safeBottom>
       <View style={styles.topBar}>
         <Pressable
           onPress={back}

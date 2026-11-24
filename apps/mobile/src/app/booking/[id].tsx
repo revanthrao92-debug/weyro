@@ -56,7 +56,7 @@ export default function BookingDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <BackButton />
         <Skeleton width="55%" height={26} style={{ marginTop: spacing.md }} />
         {[0, 1, 2, 3].map((i) => (
@@ -68,7 +68,7 @@ export default function BookingDetailScreen() {
 
   if (isError || !booking) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <BackButton />
         <EmptyState
           title="Booking not found"
@@ -130,7 +130,7 @@ export default function BookingDetailScreen() {
   };
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

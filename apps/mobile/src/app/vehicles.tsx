@@ -115,7 +115,7 @@ export default function VehiclesScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <BackButton />
         <Skeleton width="55%" height={30} style={{ marginTop: spacing.md }} />
         {[0, 1, 2].map((i) => (
@@ -130,7 +130,7 @@ export default function VehiclesScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>Garage</Text>

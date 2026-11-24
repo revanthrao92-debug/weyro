@@ -12,43 +12,33 @@
    */
   :root {
     /* THREE-COLOUR SYSTEM — mirrors src/theme/colors.ts. Dark-only. */
-    --background: 210 11% 7%; /* #101214 deep */
-    --foreground: 60 8% 96%; /* #F5F5F3 text */
-    --card: 214 11% 13%; /* #1D2024 elevated */
-    --card-foreground: 60 8% 96%;
-    --popover: 214 11% 12%;
-    --popover-foreground: 60 8% 96%;
-
-    /* Performance orange — actions only */
-    --primary: 17 100% 56%; /* #FF5A1F */
-    --primary-foreground: 210 11% 7%; /* deep label */
-    --primary-pressed: 16 81% 49%; /* #E24E18 */
+    --background: 90 12% 97%; /* #F7F8F6 */
+    --foreground: 202 11% 14%; /* #1F2427 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 202 11% 14%; /* #1F2427 */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 202 11% 14%; /* #1F2427 */
+    --primary: 162 73% 20%; /* #0E5A43 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --primary-pressed: 162 75% 16%; /* #0A4634 */
 
     /* Inset / muted — graphite shade + titanium 80% */
-    --secondary: 216 10% 10%; /* #17191C graphite inset */
-    --secondary-foreground: 60 8% 96%;
-    --muted: 216 10% 10%;
-    --muted-foreground: 212 5% 52%; /* #7E838A titanium ~72% (AA) */
+    --secondary: 100 9% 94%; /* #EEF0ED */
+    --secondary-foreground: 202 11% 14%; /* #1F2427 */
+    --muted: 100 9% 94%; /* #EEF0ED */
+    --muted-foreground: 203 7% 38%; /* #5B6368 */
 
-    --accent: 216 10% 10%;
-    --accent-foreground: 60 8% 96%;
-
-    /* Functional red — destructive/error only */
-    --destructive: 7 68% 61%; /* #E06455 */
-    --destructive-foreground: 210 11% 7%;
-
-    /* Lines — titanium 18% / 30% */
-    --border: 210 7% 18%; /* #2B2E31 */
-    --border-strong: 206 5% 25%; /* #3D4144 */
-    --input: 210 7% 18%;
-    --ring: 17 100% 56%;
-
-    /* Chrome — graphite */
-    --header: 210 11% 7%;
-    --on-header: 60 8% 96%;
-    --on-header-muted: 212 8% 68%;
-
-    /* Geometry — rounded-md = 12px */
+    --accent: 100 9% 94%; /* #EEF0ED */
+    --accent-foreground: 202 11% 14%; /* #1F2427 */
+    --destructive: 4 76% 40%; /* #B42318 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 108 7% 86%; /* #D9DDD8 */
+    --border-strong: 120 5% 76%; /* #BFC5BF */
+    --input: 108 7% 86%; /* #D9DDD8 */
+    --ring: 162 73% 20%; /* #0E5A43 */
+    --header: 90 12% 97%; /* #F7F8F6 */
+    --on-header: 202 11% 14%; /* #1F2427 */
+    --on-header-muted: 203 7% 38%; /* #5B6368 */
     --radius: 0.875rem;
   }
 }

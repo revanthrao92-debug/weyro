@@ -77,7 +77,7 @@ export function DriverBookingScreen() {
 
   if (jobQuery.isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScreenContainer chrome="header" safeBottom padded={false}>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>JOB</Text>
@@ -94,7 +94,7 @@ export function DriverBookingScreen() {
 
   if (jobQuery.isError || !jobQuery.data) {
     return (
-      <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScreenContainer chrome="header" safeBottom padded={false}>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>JOB</Text>
@@ -132,7 +132,7 @@ export function DriverBookingScreen() {
     });
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <View style={styles.topBar}>
         <BackButton />
         <Text style={styles.eyebrow}>JOB</Text>

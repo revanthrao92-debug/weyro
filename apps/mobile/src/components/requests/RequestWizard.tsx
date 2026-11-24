@@ -250,7 +250,7 @@ export function RequestWizard() {
 
   if (submitted) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <View style={styles.success}>
           <CheckCircle2 size={42} color={palette.accent} strokeWidth={1.6} />
           <Text style={styles.successTitle}>
@@ -296,7 +296,7 @@ export function RequestWizard() {
     step === 1 ? 'Continue' : step === 2 ? 'Review request' : 'Submit request';
 
   return (
-    <ScreenContainer chrome="dark" padded={false}>
+    <ScreenContainer chrome="header" padded={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}

@@ -92,7 +92,7 @@ export function DealerProfileScreen() {
 
   if (profileQuery.isLoading) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader title="Profile" subtitle="Dealer account" />
         <View style={styles.body}>
           <Skeleton width="100%" height={80} />
@@ -104,7 +104,7 @@ export function DealerProfileScreen() {
 
   if (profileQuery.isError || !profile) {
     return (
-      <ScreenContainer chrome="dark" safeBottom>
+      <ScreenContainer chrome="header" safeBottom>
         <AppHeader title="Profile" subtitle="Dealer account" />
         <EmptyState
           title="Profile unavailable"
@@ -143,7 +143,7 @@ export function DealerProfileScreen() {
   };
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
+    <ScreenContainer chrome="header" safeBottom>
       <AppHeader title="Profile" subtitle="Dealer account" />
       <ScrollView
         contentContainerStyle={styles.body}

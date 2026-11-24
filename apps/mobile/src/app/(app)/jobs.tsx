@@ -110,7 +110,7 @@ export default function MechanicJobsScreen() {
   const completed = bookings.filter((b) => b.status === 'COMPLETED').length;
 
   return (
-    <ScreenContainer chrome="dark" safeBottom padded={false}>
+    <ScreenContainer chrome="header" safeBottom padded={false}>
       <AppHeader title="Jobs" subtitle={subtitle} />
       <FlatList
         refreshControl={refreshControl}
