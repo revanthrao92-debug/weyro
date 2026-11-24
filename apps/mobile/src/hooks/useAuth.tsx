@@ -55,7 +55,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * AuthProvider's `refresh` (context consumers) and the api-client's
  * single-flight interceptor use the same implementation.
  */
-async function performTokenRefresh(): Promise<{
+export async function performTokenRefresh(): Promise<{
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
@@ -76,6 +76,9 @@ async function performTokenRefresh(): Promise<{
 
   await tokenStorage.setAccessToken(res.accessToken);
   await tokenStorage.setRefreshToken(res.refreshToken);
+  // The api-client reads its in-memory copy first; without this the retried
+  // request still sent the expired token and the user was logged out.
+  setAccessToken(res.accessToken);
   return res;
 }
 

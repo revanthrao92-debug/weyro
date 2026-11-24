@@ -78,7 +78,9 @@ function AuthRouter() {
     const inAuthGroup = segments[0] === '(auth)';
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && (inAuthGroup || (segments as string[]).length === 0)) {
+      // Also leave the blank start page: opening the app while already logged
+      // in lands there, and nothing else moves you on.
       router.replace('/(app)');
     }
   }, [isAuthenticated, isLoading, router, segments]);
