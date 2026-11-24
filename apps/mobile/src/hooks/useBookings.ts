@@ -73,6 +73,7 @@ export type Booking = {
     completedJobs: number;
     isAvailable: boolean;
     badge: string | null;
+    verificationStatus?: string;
   };
 };
 

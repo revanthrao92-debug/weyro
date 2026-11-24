@@ -151,13 +151,18 @@ export default function BookingDetailScreen() {
             <View style={styles.spec}>
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Provider</Text>
-                <Text style={styles.specValue}>{booking.provider.businessName}</Text>
+                <View style={styles.providerValue}>
+                  {booking.provider.verificationStatus === 'VERIFIED' ? (
+                    <StatusPill label="Verified" tone="success" />
+                  ) : null}
+                  <Text style={styles.specValue}>{booking.provider.businessName}</Text>
+                </View>
               </View>
               <View style={[styles.specRow, styles.divider]}>
                 <Text style={styles.specLabel}>Rating</Text>
                 <Text style={styles.specValue}>
-                  {Number(booking.provider.avgRating ?? 0).toFixed(1)} ·{' '}
-                  {booking.provider.totalReviews} reviews
+                  ★ {Number(booking.provider.avgRating ?? 0).toFixed(1)}{' '}
+                  <Text style={styles.specMuted}>({booking.provider.totalReviews} reviews)</Text>
                 </Text>
               </View>
               <View style={[styles.specRow, styles.divider]}>
@@ -396,6 +401,8 @@ const mapCard = StyleSheet.create({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  providerValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
+  specMuted: { color: palette.textSecondary, fontWeight: '400' },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   topBar: {
     flexDirection: 'row',

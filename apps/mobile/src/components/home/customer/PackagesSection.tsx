@@ -11,7 +11,7 @@ export function PackagesSection({ router }: {
   return (
     <>
       {/* Packages */}
-      <Head index="05" title="Packages" />
+      <Head title="Packages" />
       <View style={styles.index}>
         {PACKAGES.map((pkg, i) => (
           <PressableScale

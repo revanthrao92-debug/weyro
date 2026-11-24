@@ -137,7 +137,7 @@ export function CustomerBookingDetailScreen() {
           </Text>
         ) : null}
 
-        <SectionHead index="01" title="Driver" />
+        <SectionHead title="Driver" />
         <View style={styles.driverRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
@@ -163,7 +163,7 @@ export function CustomerBookingDetailScreen() {
           </View>
         </View>
 
-        <SectionHead index="02" title="Trip" />
+        <SectionHead title="Trip" />
         <Row label="Pickup" value={booking.pickupAddress} />
         <Row
           label="Start"
@@ -181,7 +181,7 @@ export function CustomerBookingDetailScreen() {
 
         {booking.status === 'ARRIVED' ? (
           <>
-            <SectionHead index="03" title="Start code" />
+            <SectionHead title="Start code" />
             <Text style={styles.helper}>
               Share this 6-digit code with the driver. It confirms the right
               driver and starts the trip.
@@ -233,7 +233,6 @@ export function CustomerBookingDetailScreen() {
         ) : null}
 
         <SectionHead
-          index={booking.status === 'ARRIVED' ? '04' : '03'}
           title="Fare"
         />
         <View style={styles.totalRow}>

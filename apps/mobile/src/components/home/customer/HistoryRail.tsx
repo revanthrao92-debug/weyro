@@ -14,7 +14,6 @@ export function HistoryRail({ router, historyBookings }: {
     <>
       {/* History — second horizontal rail */}
       <Head
-        index="06"
         title="History"
         action="Bookings"
         onAction={() => router.push('/bookings')}

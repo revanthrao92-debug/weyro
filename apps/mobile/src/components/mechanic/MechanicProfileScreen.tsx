@@ -263,7 +263,7 @@ export function MechanicProfileScreen() {
           </View>
         </View>
 
-        <SectionHead index="01" title={isTowing || isRoadside ? 'Business' : 'Workshop'} />
+        <SectionHead title={isTowing || isRoadside ? 'Business' : 'Workshop'} />
         <Row label="Phone" value={profile.phone} />
         <Row label="Address" value={profile.address} />
         <Row label="Service radius" value={`${profile.serviceRadiusKm} km`} />
@@ -289,7 +289,7 @@ export function MechanicProfileScreen() {
           }
         />
 
-        <SectionHead index="02" title="Manage" />
+        <SectionHead title="Manage" />
         <Action
           icon={<FileCheck2 size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Verification documents"

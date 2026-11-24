@@ -17,7 +17,6 @@ export function PartsRail({ router, parts }: {
     <>
       {/* Parts — always visible so the section rhythm never skips */}
       <Head
-        index="04"
         title="Spare parts"
         action="Shop"
         onAction={() => router.push('/shop')}

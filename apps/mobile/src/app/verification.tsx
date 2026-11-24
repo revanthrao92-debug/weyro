@@ -78,7 +78,7 @@ export default function VerificationDocumentsScreen() {
 
         {!isVerified && (
           <>
-            <SectionHead index="01" title="Business registration" />
+            <SectionHead title="Business registration" />
             <Text style={styles.help}>
               GST certificate, trade licence or shop registration.
             </Text>
@@ -91,7 +91,7 @@ export default function VerificationDocumentsScreen() {
               helper="One clear photo or scan."
             />
 
-            <SectionHead index="02" title="Owner ID" />
+            <SectionHead title="Owner ID" />
             <Text style={styles.help}>
               Government-issued photo ID of the business owner.
             </Text>

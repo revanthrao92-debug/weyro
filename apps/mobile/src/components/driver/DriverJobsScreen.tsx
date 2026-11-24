@@ -64,7 +64,7 @@ export function DriverJobsScreen() {
           <>
             {requested.length > 0 ? (
               <>
-                <SectionHead index="01" title="New requests" />
+                <SectionHead title="New requests" />
                 {requested.map((job) => (
                   <DriverJobCard
                     key={job.id}
@@ -78,7 +78,6 @@ export function DriverJobsScreen() {
             {active.length > 0 ? (
               <>
                 <SectionHead
-                  index={requested.length > 0 ? '02' : '01'}
                   title="Active"
                 />
                 {active.map((job) => (
@@ -94,13 +93,6 @@ export function DriverJobsScreen() {
             {finished.length > 0 ? (
               <>
                 <SectionHead
-                  index={
-                    requested.length > 0 && active.length > 0
-                      ? '03'
-                      : requested.length > 0 || active.length > 0
-                        ? '02'
-                        : '01'
-                  }
                   title="History"
                 />
                 {finished.map((job) => (

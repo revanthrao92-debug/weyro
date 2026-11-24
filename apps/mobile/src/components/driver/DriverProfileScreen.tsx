@@ -133,7 +133,7 @@ export function DriverProfileScreen() {
               </View>
             </View>
 
-            <SectionHead index="01" title="Driver details" />
+            <SectionHead title="Driver details" />
             <Row label="Experience" value={`${me.driver.experienceYears} years`} />
             <Row
               label="Transmissions"
@@ -158,7 +158,7 @@ export function DriverProfileScreen() {
               }
             />
 
-            <SectionHead index="02" title="Account" />
+            <SectionHead title="Account" />
             <Action
               icon={<CalendarClock size={17} color={palette.textPrimary} strokeWidth={1.8} />}
               label="Availability"

@@ -20,7 +20,6 @@ export function LiveStatusSection({ router, requests, nextBooking, loading }: {
     <>
       {/* Live status */}
       <Head
-        index="03"
         title="Status"
         action="All requests"
         onAction={() => router.push('/requests/my')}

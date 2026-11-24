@@ -322,7 +322,7 @@ function QuoteCard({
   canAccept?: boolean;
 }) {
   const provider = quote.provider;
-  const name = provider?.businessName || 'Verified garage';
+  const name = provider?.businessName || 'Garage';
   const initial = name.charAt(0).toUpperCase();
   const rating = provider?.avgRating ? provider.avgRating.toFixed(1) : null;
   const jobs = provider?.completedJobs ?? 0;
@@ -335,10 +335,16 @@ function QuoteCard({
           <Text style={styles.dealerAvatarText}>{initial}</Text>
         </View>
         <View style={styles.dealerIdentity}>
-          <Text style={styles.dealerName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.dealerMeta}>
-            {rating ? `★ ${rating}  ·  ` : ''}{jobs} jobs completed
-          </Text>
+          <View style={styles.dealerNameRow}>
+            <Text style={styles.dealerName} numberOfLines={1}>{name}</Text>
+            {provider?.verificationStatus === 'VERIFIED' ? (
+              <StatusPill label="Verified" tone="success" />
+            ) : null}
+          </View>
+          <View style={styles.dealerMetaRow}>
+            {rating ? <Text style={styles.dealerRating}>★ {rating}</Text> : null}
+            <Text style={styles.dealerMeta}>{jobs} jobs done</Text>
+          </View>
         </View>
         <Text style={styles.dealerAmount}>₹{quote.totalCost.toLocaleString()}</Text>
       </View>
@@ -452,8 +458,11 @@ const styles = StyleSheet.create({
     color: palette.accent,
   },
   dealerIdentity: { flex: 1 },
-  dealerName: { ...typography.bodyMedium, color: palette.textPrimary },
-  dealerMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
+  dealerName: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
+  dealerNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  dealerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 },
+  dealerRating: { ...typography.label, color: palette.textPrimary, fontWeight: '700' },
+  dealerMeta: { ...typography.label, color: palette.textSecondary },
   dealerAmount: { ...typography.heading, color: palette.textPrimary },
   dealerTags: {
     flexDirection: 'row',

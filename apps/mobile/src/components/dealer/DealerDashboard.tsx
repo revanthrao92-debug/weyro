@@ -317,7 +317,7 @@ export function DealerDashboard() {
           </View>
         </View>
 
-        <SectionHead index="01" title="Needs attention" />
+        <SectionHead title="Needs attention" />
         {attention.length === 0 ? (
           <Text style={styles.emptyLine}>All clear. Nothing needs action.</Text>
         ) : (
@@ -338,7 +338,6 @@ export function DealerDashboard() {
         )}
 
         <SectionHead
-          index="02"
           title="Recent orders"
           action={data.recentOrders.length > 0 ? 'View all' : undefined}
           onAction={() => router.push('/orders')}
@@ -372,7 +371,6 @@ export function DealerDashboard() {
         )}
 
         <SectionHead
-          index="03"
           title="Recent quotes"
           action={data.recentQuotes.length > 0 ? 'View all' : undefined}
           onAction={() => router.push('/my-quotes')}
@@ -403,7 +401,7 @@ export function DealerDashboard() {
           ))
         )}
 
-        <SectionHead index="04" title="Manage" />
+        <SectionHead title="Manage" />
         <ActionRow
           icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"

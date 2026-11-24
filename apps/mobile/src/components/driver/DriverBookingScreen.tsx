@@ -157,7 +157,7 @@ export function DriverBookingScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <SectionHead index="01" title="Customer" />
+        <SectionHead title="Customer" />
         <View style={styles.personRow}>
           <View style={styles.avatar}>
             <UserRound size={20} color={palette.textPrimary} strokeWidth={1.7} />
@@ -173,14 +173,14 @@ export function DriverBookingScreen() {
           </View>
         </View>
 
-        <SectionHead index="02" title="Vehicle" />
+        <SectionHead title="Vehicle" />
         <Row label="Vehicle" value={vehicleLabel(job)} />
         <Row
           label="Transmission"
           value={job.vehicle?.transmission ?? job.transmission ?? 'Not specified'}
         />
 
-        <SectionHead index="03" title="Route" />
+        <SectionHead title="Route" />
         <View style={styles.placeRow}>
           <View style={styles.placeIcon}>
             <MapPin size={14} color={palette.accent} strokeWidth={2} />
@@ -213,14 +213,14 @@ export function DriverBookingScreen() {
         ) : null}
         {job.notes ? <Row label="Notes" value={job.notes} /> : null}
 
-        <SectionHead index="04" title="Earnings" />
+        <SectionHead title="Earnings" />
         <Row label="Customer pays" value={money(job.totalAmount)} />
         <Row label="Platform fee" value={money(job.platformFee)} />
         <Row label="You earn" value={money(job.driverEarning)} />
 
         {job.status === 'ARRIVED' ? (
           <>
-            <SectionHead index="05" title="Start trip" />
+            <SectionHead title="Start trip" />
             <Text style={styles.helper}>
               Ask the customer for the 6-digit start code. It confirms the right
               driver and vehicle before the trip begins.

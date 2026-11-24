@@ -140,7 +140,7 @@ export default function BookingsScreen() {
         ) : (
           <>
             {upcoming.length > 0 ? (
-              <SectionHead index="01" title="Upcoming" />
+              <SectionHead title="Upcoming" />
             ) : null}
             {upcoming.length > 0 ? (
               <View style={styles.list}>
@@ -156,7 +156,7 @@ export default function BookingsScreen() {
             ) : null}
 
             {past.length > 0 ? (
-              <SectionHead index={upcoming.length > 0 ? '02' : '01'} title="Past" />
+              <SectionHead title="Past" />
             ) : null}
             {past.length > 0 ? (
               <View style={styles.list}>

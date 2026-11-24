@@ -61,7 +61,7 @@ export function DriverEarningsScreen() {
               weekly by the Weyro team during the pilot.
             </Text>
 
-            <SectionHead index="01" title="Completed trips" />
+            <SectionHead title="Completed trips" />
             {data.trips.length === 0 ? (
               <EmptyState
                 title="No completed trips yet"

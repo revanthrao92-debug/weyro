@@ -229,7 +229,6 @@ export function DriverDashboard() {
         </View>
 
         <SectionHead
-          index="01"
           title="Next job"
           action="All jobs"
           onAction={() => router.push('/driver-jobs')}
@@ -252,7 +251,7 @@ export function DriverDashboard() {
           />
         )}
 
-        <SectionHead index="02" title="Manage" />
+        <SectionHead title="Manage" />
         <View style={styles.manage}>
           <ManageRow
             icon={<CalendarClock size={17} color={palette.textPrimary} strokeWidth={1.8} />}

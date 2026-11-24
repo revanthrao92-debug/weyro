@@ -211,7 +211,7 @@ export function DealerProfileScreen() {
           </View>
         </View>
 
-        <SectionHead index="01" title="Business" />
+        <SectionHead title="Business" />
         <Row label="Phone" value={profile.phone} />
         <Row label="Address" value={profile.address} />
         <Row label="Service radius" value={`${profile.serviceRadiusKm} km`} />
@@ -227,7 +227,7 @@ export function DealerProfileScreen() {
           }
         />
 
-        <SectionHead index="02" title="Manage" />
+        <SectionHead title="Manage" />
         <Action
           icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Requests"

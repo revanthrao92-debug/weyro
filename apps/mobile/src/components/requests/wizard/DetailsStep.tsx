@@ -17,7 +17,7 @@ export function DetailsStep({ config, values, errors, setValue, photos, setPhoto
 }) {
   return (
     <>
-      <SectionHead index="01" title={config.detailsTitle} />
+      <SectionHead title={config.detailsTitle} />
       {config.fields.map((field) => (
         <FieldBlock
           key={field.key}
@@ -30,7 +30,7 @@ export function DetailsStep({ config, values, errors, setValue, photos, setPhoto
 
       {config.photos ? (
         <>
-          <SectionHead index="02" title={config.photos.label} />
+          <SectionHead title={config.photos.label} />
           <PhotoPicker
             images={photos}
             onChange={setPhotos}

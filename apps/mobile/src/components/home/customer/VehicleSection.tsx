@@ -16,7 +16,6 @@ export function VehicleSection({ router, vehicle, vehicles }: {
     <>
       {/* Vehicle */}
       <Head
-        index="02"
         title="Your vehicle"
         action={vehicles.length ? 'All vehicles' : undefined}
         onAction={() => router.push('/vehicles')}

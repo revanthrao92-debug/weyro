@@ -15,7 +15,7 @@ export function DispatchSection({ config, urgency, setUrgency, setFormError, isB
 }) {
   return (
     <>
-      <SectionHead index="03" title="Dispatch" />
+      <SectionHead title="Dispatch" />
       {config.urgencyMode === 'select' ? (
         <>
           <Text style={styles.fieldLabel}>Urgency</Text>

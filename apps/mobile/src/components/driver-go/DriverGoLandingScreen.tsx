@@ -80,7 +80,7 @@ export function DriverGoLandingScreen() {
           />
         </View>
 
-        <SectionHead index="01" title="How it works" />
+        <SectionHead title="How it works" />
         <Feature
           icon={<CalendarClock size={17} color={palette.textPrimary} strokeWidth={1.7} />}
           title="Pick your time"

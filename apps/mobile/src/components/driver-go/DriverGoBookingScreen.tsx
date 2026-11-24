@@ -265,7 +265,7 @@ export function DriverGoBookingScreen() {
               </View>
             ) : null}
 
-            <SectionHead index="01" title="Pickup" />
+            <SectionHead title="Pickup" />
             <LocationField
               label="Pickup point"
               value={effectivePickup}
@@ -274,7 +274,7 @@ export function DriverGoBookingScreen() {
               hint="The driver comes to this address."
             />
 
-            <SectionHead index="02" title="Vehicle" />
+            <SectionHead title="Vehicle" />
             {vehiclesQuery.isLoading ? (
               <Skeleton width="100%" height={70} />
             ) : vehicles.length === 0 ? (
@@ -329,7 +329,7 @@ export function DriverGoBookingScreen() {
               })
             )}
 
-            <SectionHead index="03" title="When" />
+            <SectionHead title="When" />
             <Text style={styles.label}>Engagement</Text>
             <View style={styles.chipWrap}>
               <Chip
@@ -548,7 +548,7 @@ export function DriverGoBookingScreen() {
               </View>
             ) : null}
 
-            <SectionHead index="01" title="Trip" />
+            <SectionHead title="Trip" />
             <View style={styles.summary}>
               <SummaryRow label="Driver" value={selected.name} />
               <SummaryRow label="Pickup" value={effectivePickup.address} />
@@ -568,7 +568,7 @@ export function DriverGoBookingScreen() {
               {notes.trim() ? <SummaryRow label="Notes" value={notes.trim()} /> : null}
             </View>
 
-            <SectionHead index="02" title="Fare" />
+            <SectionHead title="Fare" />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{money(selected.quote)}</Text>

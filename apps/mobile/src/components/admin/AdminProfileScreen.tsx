@@ -80,7 +80,7 @@ export function AdminProfileScreen() {
           </Text>
         </View>
 
-        <SectionHead index="01" title="Operations" />
+        <SectionHead title="Operations" />
         <Action
           icon={<ShieldCheck size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Providers"
@@ -111,7 +111,7 @@ export function AdminProfileScreen() {
           onPress={() => router.push('/alerts')}
         />
 
-        <SectionHead index="02" title="Account" />
+        <SectionHead title="Account" />
         <Action
           icon={<LifeBuoy size={17} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Contact support"

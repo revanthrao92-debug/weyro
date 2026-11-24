@@ -37,7 +37,7 @@ export function HomeServiceSections() {
 
   return (
     <View>
-      <SectionHead index="01" title="Services" />
+      <SectionHead title="Services" />
 
       <View style={styles.primaryList}>
         {PRIMARY_SERVICES.map((service) => (
