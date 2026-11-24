@@ -52,14 +52,14 @@ export function bookingStatusTone(status: string): StatusTone {
   switch (status) {
     case 'CONFIRMED':
     case 'PROVIDER_EN_ROUTE':
-    case 'IN_PROGRESS':
       return 'info';
+    case 'IN_PROGRESS':
+      return 'progress';
     case 'COMPLETED':
       return 'success';
     case 'CANCELLED':
-      return 'danger';
     case 'DISPUTED':
-      return 'warning';
+      return 'danger';
     default:
       return 'neutral';
   }

@@ -31,13 +31,12 @@ import {
   Skeleton,
   StatusPill,
 } from '@/components/ui';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
   spacing,
   typography,
-  type StatusTone,
 } from '@/theme';
 
 const STEPS = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
@@ -55,12 +54,6 @@ function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? titleize(status);
 }
 
-function tone(status: string): StatusTone {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
-  if (status === 'CANCELLED' || status === 'DISPUTED') return 'danger';
-  return 'neutral';
-}
 
 export default function MechanicJobDetailScreen() {
   const router = useRouter();
@@ -281,7 +274,7 @@ export default function MechanicJobDetailScreen() {
                     : 'In progress'
                 : statusLabel(booking.status)
             }
-            tone={tone(booking.status)}
+            tone={bookingStatusTone(booking.status)}
           />
           <Text style={styles.meta}>
             #{booking.id.slice(0, 8).toUpperCase()} · {titleize(request?.category ?? 'SERVICE')}

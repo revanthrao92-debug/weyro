@@ -8,7 +8,9 @@
  *
  * Everything else is a tint/shade of those three (graphite raised/inset,
  * titanium opacity steps, orange pressed/tint). One functional red exists
- * only for destructive/error states — never decoratively.
+ * only for destructive/error states — never decoratively. Booking/job status
+ * has its own three colours (blue active, amber in progress, green done) so a
+ * status is readable at a glance; orange stays reserved for actions.
  *
  * Legacy token names are kept where screens still reference them, so the
  * palette can change without touching component APIs.
@@ -52,7 +54,14 @@ export const palette = {
   dangerSoftBg: 'rgba(224, 100, 85, 0.12)',
   onDanger: '#101214',
 
-  // Status tokens (no green/amber — status is carried by label + orange/titanium)
+  // Job status (AA ≥ 5:1 on canvas, surface and their soft fills)
+  statusActive: '#6CA6F0', // confirmed / on the way
+  statusActiveSoftBg: 'rgba(108, 166, 240, 0.14)',
+  statusProgress: '#F2B441', // in progress / attention
+  statusProgressSoftBg: 'rgba(242, 180, 65, 0.14)',
+  statusDone: '#4CC38A', // completed / verified
+  statusDoneSoftBg: 'rgba(76, 195, 138, 0.14)',
+  // Legacy status tokens
   success: '#A7ADB4',
   successSoftBg: '#1D2024',
   warning: '#FF5A1F',
@@ -71,9 +80,10 @@ export type ColorToken = keyof typeof palette;
 /** Map a high-level semantic role to a concrete colour for status pills. */
 export const statusColors = {
   neutral: { fg: palette.textSecondary, bg: palette.surfaceAlt },
-  info: { fg: palette.accent, bg: palette.accentSoftBg },
-  success: { fg: palette.textPrimary, bg: palette.surfaceAlt },
-  warning: { fg: palette.accent, bg: palette.accentSoftBg },
+  info: { fg: palette.statusActive, bg: palette.statusActiveSoftBg },
+  progress: { fg: palette.statusProgress, bg: palette.statusProgressSoftBg },
+  success: { fg: palette.statusDone, bg: palette.statusDoneSoftBg },
+  warning: { fg: palette.statusProgress, bg: palette.statusProgressSoftBg },
   danger: { fg: palette.danger, bg: palette.dangerSoftBg },
 } as const;
 

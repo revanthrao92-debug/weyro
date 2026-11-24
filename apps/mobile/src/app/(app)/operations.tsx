@@ -21,7 +21,7 @@ import {
   StatusPill,
   ErrorState,
 } from '@/components/ui';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
@@ -42,12 +42,6 @@ function orderTone(status: string): StatusTone {
   return 'warning';
 }
 
-function jobTone(status: string): StatusTone {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'DISPUTED' || status === 'CANCELLED') return 'danger';
-  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
-  return 'neutral';
-}
 
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
@@ -373,7 +367,7 @@ function BookingRow({
           <Text style={styles.amount}>
             ₹{Number(booking.totalCost).toLocaleString('en-IN')}
           </Text>
-          <StatusPill label={statusLabel(booking.status)} tone={jobTone(booking.status)} />
+          <StatusPill label={statusLabel(booking.status)} tone={bookingStatusTone(booking.status)} />
         </View>
       </PressableScale>
 

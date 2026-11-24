@@ -20,20 +20,13 @@ import {
   palette,
   spacing,
   typography,
-  type StatusTone,
 } from '@/theme';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ACTIVE', 'TODAY', 'COMPLETED', 'CANCELLED', 'ALL'] as const;
 type Filter = (typeof FILTERS)[number];
 
-function statusTone(status: string): StatusTone {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
-  if (status === 'CANCELLED' || status === 'DISPUTED') return 'danger';
-  return 'neutral';
-}
 
 const STATUS_LABEL: Record<string, string> = {
   CONFIRMED: 'Confirmed',
@@ -221,7 +214,7 @@ function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void })
         </Text>
         <StatusPill
           label={statusLabel(booking.status, request?.category)}
-          tone={statusTone(booking.status)}
+          tone={bookingStatusTone(booking.status)}
         />
       </View>
       <Text style={styles.title} numberOfLines={1}>
