@@ -1,7 +1,7 @@
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { palette, spacing } from '@/theme';
+import { palette, spacing, radii } from '@/theme';
 
 export interface ScreenContainerProps {
   children: ReactNode;
@@ -67,14 +67,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
-    borderRadius: 8,
+    borderRadius: radii.lg,
     padding: spacing.lg,
   },
   rail: {
     backgroundColor: palette.surfaceAlt,
     borderLeftWidth: 2,
     borderLeftColor: palette.accent,
-    borderRadius: 6,
+    borderRadius: radii.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },

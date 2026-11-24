@@ -9,7 +9,8 @@ import { PortalHost } from '@rn-primitives/portal';
 import { useAuth , AuthProvider } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
-import { palette } from '@/theme';
+import { colorSchemeName, palette } from '@/theme';
+import { colorScheme as nativewindScheme } from 'nativewind';
 import { flushOfflineQueue } from '@/services/offline-queue';
 import { initSentry } from '@/lib/sentry';
 // Registers the background location task at module scope (required by Expo Router + TaskManager).
@@ -18,6 +19,10 @@ import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
 import { shouldRetryQuery } from '@/services/api-client';
 import * as Notifications from 'expo-notifications';
 import { notificationHref } from '@/lib/notificationHref';
+
+// RN Reusables components read CSS variables: match the chosen theme (see theme/preference).
+// Skipped during the web build's server render (no window there); phones always have one.
+if (typeof window !== 'undefined') nativewindScheme.set(colorSchemeName);
 
 // M9: crash reporting (off unless EXPO_PUBLIC_SENTRY_DSN is set).
 initSentry();
@@ -36,7 +41,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           {/* Light is the app's active theme (see global.css). */}
-          <StatusBar style="light" />
+          <StatusBar style={colorSchemeName === 'light' ? 'dark' : 'light'} />
           <ErrorBoundary>
             <AuthRouter />
           </ErrorBoundary>
@@ -114,7 +119,7 @@ function AuthRouter() {
 
   return (
     <View style={styles.root}>
-      <ThemeProvider value={NAV_THEME.light}>
+      <ThemeProvider value={NAV_THEME[colorSchemeName]}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />

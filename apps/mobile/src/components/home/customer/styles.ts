@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
   },
   heroMeta: {
     ...typography.label,
-    color: palette.textSecondary,
+    color: palette.onPhotoMuted,
     marginBottom: spacing.sm,
   },
   heroTitle: {
@@ -91,11 +91,11 @@ export const styles = StyleSheet.create({
     fontSize: 38,
     lineHeight: 41,
     letterSpacing: -1,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
   },
   heroSub: {
     ...typography.caption,
-    color: palette.textSecondary,
+    color: palette.onPhotoMuted,
     marginTop: spacing.sm,
     maxWidth: 300,
   },
@@ -120,11 +120,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
+    borderColor: palette.onPhotoMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryCtaText: { ...typography.captionMedium, color: palette.textPrimary },
+  secondaryCtaText: { ...typography.captionMedium, color: palette.onPhoto },
 
   body: { paddingHorizontal: spacing.lg },
   locationRow: {
@@ -273,9 +273,9 @@ export const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 27,
     letterSpacing: -0.3,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
   },
-  bandMeta: { ...typography.label, color: palette.textSecondary, marginTop: 4 },
+  bandMeta: { ...typography.label, color: palette.onPhotoMuted, marginTop: 4 },
   assurance: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,

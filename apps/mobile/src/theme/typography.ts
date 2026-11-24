@@ -57,6 +57,13 @@ export const typography = {
     lineHeight: 26,
     fontWeight: fontWeight.semibold,
   },
+  /** Section heading: bigger than the list items under it. */
+  section: {
+    fontFamily: fontFamilyMedium,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: fontWeight.semibold,
+  },
   body: {
     fontFamily,
     fontSize: 16,

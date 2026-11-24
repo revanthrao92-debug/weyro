@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { reloadAppAsync } from 'expo';
 import { useRouter } from 'expo-router';
 import {
   Bell,
@@ -18,6 +19,7 @@ import { DealerProfileScreen } from '@/components/dealer/DealerProfileScreen';
 import { MechanicProfileScreen } from '@/components/mechanic/MechanicProfileScreen';
 import { AdminProfileScreen } from '@/components/admin/AdminProfileScreen';
 import {
+  Chip,
   ScreenContainer,
   ListItem,
   PressableScale,
@@ -30,7 +32,24 @@ import {
   radii,
   typography,
   displayFamily,
+  themePreference,
+  saveThemePreference,
+  type ThemePreference,
 } from '@/theme';
+
+const APPEARANCE: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+/** Save the choice and restart: screens build their colours once, at load. */
+async function chooseAppearance(next: ThemePreference) {
+  if (next === themePreference) return;
+  await saveThemePreference(next);
+  if (Platform.OS === 'web') globalThis.location?.reload();
+  else await reloadAppAsync();
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -180,6 +199,20 @@ export default function ProfileScreen() {
         </View>
 
         <SectionHead title="Settings" />
+        <View style={styles.appearance}>
+          <Text style={styles.appearanceLabel}>Appearance</Text>
+          <View style={styles.appearanceChips}>
+            {APPEARANCE.map((option) => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={themePreference === option.value}
+                accessibilityLabel={`Appearance: ${option.label}`}
+                onPress={() => void chooseAppearance(option.value)}
+              />
+            ))}
+          </View>
+        </View>
         <View style={styles.list}>
           <ListItem
             bare
@@ -275,6 +308,9 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   tileLabel: { ...typography.label, color: palette.textSecondary },
+  appearance: { paddingVertical: spacing.sm, gap: spacing.sm },
+  appearanceLabel: { ...typography.bodyMedium, color: palette.textPrimary },
+  appearanceChips: { flexDirection: 'row', gap: spacing.sm },
   list: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,

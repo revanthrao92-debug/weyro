@@ -11,7 +11,39 @@
    * (the single source of truth for the StyleSheet layer) — keep in sync.
    */
   :root {
-    /* THREE-COLOUR SYSTEM — mirrors src/theme/colors.ts. Dark-only. */
+    /* Light theme (default variables) — mirrors lightPalette in src/theme/colors.ts */
+    --background: 90 12% 97%; /* #F7F8F6 */
+    --foreground: 202 11% 14%; /* #1F2427 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 202 11% 14%; /* #1F2427 */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 202 11% 14%; /* #1F2427 */
+    --primary: 162 73% 20%; /* #0E5A43 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --primary-pressed: 162 75% 16%; /* #0A4634 */
+
+    /* Inset / muted — graphite shade + titanium 80% */
+    --secondary: 100 9% 94%; /* #EEF0ED */
+    --secondary-foreground: 202 11% 14%; /* #1F2427 */
+    --muted: 100 9% 94%; /* #EEF0ED */
+    --muted-foreground: 203 7% 38%; /* #5B6368 */
+
+    --accent: 100 9% 94%; /* #EEF0ED */
+    --accent-foreground: 202 11% 14%; /* #1F2427 */
+    --destructive: 4 76% 40%; /* #B42318 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 108 7% 86%; /* #D9DDD8 */
+    --border-strong: 120 5% 76%; /* #BFC5BF */
+    --input: 108 7% 86%; /* #D9DDD8 */
+    --ring: 162 73% 20%; /* #0E5A43 */
+    --header: 90 12% 97%; /* #F7F8F6 */
+    --on-header: 202 11% 14%; /* #1F2427 */
+    --on-header-muted: 203 7% 38%; /* #5B6368 */
+    --radius: 0.875rem;
+  }
+
+  .dark:root {
+    /* Dark theme — mirrors darkPalette in src/theme/colors.ts */
     --background: 210 11% 7%; /* #101214 deep */
     --foreground: 60 8% 96%; /* #F5F5F3 text */
     --card: 214 11% 13%; /* #1D2024 elevated */
