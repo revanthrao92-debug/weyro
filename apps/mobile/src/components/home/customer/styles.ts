@@ -3,7 +3,6 @@ import { palette, spacing, typography, displayFamily } from '@/theme';
 
 export const styles = StyleSheet.create({
   adGap: { marginTop: spacing.xxl },
-  verifiedLine: { ...typography.caption, color: palette.textMuted, textAlign: 'center', marginTop: spacing.xxl },
   page: { paddingBottom: 104 },
   topBar: {
     flexDirection: 'row',

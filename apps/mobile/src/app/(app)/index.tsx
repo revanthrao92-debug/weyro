@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +28,9 @@ import { LiveStatusSection } from '@/components/home/customer/LiveStatusSection'
 import { CarHero } from '@/components/home/customer/CarHero';
 import { NeedTiles } from '@/components/home/customer/NeedTiles';
 import { PopularRow } from '@/components/home/customer/PopularRow';
+import { RecentJobs } from '@/components/home/customer/RecentJobs';
+import { WorkshopBand } from '@/components/home/customer/WorkshopBand';
+import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -169,7 +172,12 @@ export default function HomeScreen() {
           {/* 5. Things you can buy, in one row */}
           <PopularRow router={router} parts={parts} />
 
-          <Text style={styles.verifiedLine}>All garages on Weyro are verified before they can quote.</Text>
+          {/* 6. Why Weyro is safe: the trust photo and three lines */}
+          <WorkshopBand />
+          <AssuranceSection />
+
+          {/* 7. Your recent finished jobs */}
+          <RecentJobs router={router} bookings={bookingsQuery.data?.items ?? []} />
         </View>
       </Animated.ScrollView>
 
