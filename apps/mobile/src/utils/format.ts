@@ -7,7 +7,7 @@ import { StatusTone } from '@/theme';
  * behaviors existed across screens — kept as three explicitly named helpers
  * (behavior is NOT silently unified — diffs stay intentional):
  *
- *   - `labelize`    : 'QUOTES_RECEIVED' → 'Quotes Received' (title-case words)
+ *   - `labelize`    : alias of titleize (sentence case)
  *   - `humanizeKey` : 'QUOTES_RECEIVED' → 'quotes received' (space, low-key)
  *   - `titleize`    : 'QUOTES_RECEIVED' → 'Quotes received' (first-upper)
  *
@@ -15,12 +15,8 @@ import { StatusTone } from '@/theme';
  */
 
 /** 'QUOTES_RECEIVED' → 'Quotes Received' */
-export function labelize(value: string): string {
-  return value
-    .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
-}
+/** Alias of titleize: 'PROVIDER_EN_ROUTE' -> 'Provider en route' (sentence case everywhere). */
+export const labelize = (value: string): string => titleize(value);
 
 /** 'QUOTES_RECEIVED' → 'quotes received' */
 export function humanizeKey(s: string): string {

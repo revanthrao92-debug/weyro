@@ -75,15 +75,6 @@ export const ADDITIONAL_SERVICES: HomeService[] = [
   },
 ];
 
-/** Existing one-tap emergency kinds, unchanged routes. */
-export const SOS_KINDS = ['Battery', 'Tyre', 'Fuel', 'Tow'] as const;
-
-export type SosKind = (typeof SOS_KINDS)[number];
-
 export function requestRoute(category: HomeServiceCategory): string {
   return `/requests/create?category=${category}`;
-}
-
-export function sosRoute(kind: SosKind): string {
-  return `/sos?kind=${kind === 'Tow' ? 'TOW' : kind.toUpperCase()}`;
 }

@@ -30,7 +30,6 @@ import { VehicleSection } from '@/components/home/customer/VehicleSection';
 import { LiveStatusSection } from '@/components/home/customer/LiveStatusSection';
 import { PartsRail } from '@/components/home/customer/PartsRail';
 import { PackagesSection } from '@/components/home/customer/PackagesSection';
-import { EditorialBand } from '@/components/home/customer/EditorialBand';
 import { HistoryRail } from '@/components/home/customer/HistoryRail';
 import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
 import { Footer } from '@/components/home/customer/Footer';
@@ -109,7 +108,6 @@ export default function HomeScreen() {
   const historyBookings = (bookingsQuery.data?.items ?? [])
     .filter((b) => b.status === 'COMPLETED' || b.status === 'CANCELLED')
     .slice(0, 6);
-  const loading = requestsQuery.isLoading || bookingsQuery.isLoading;
 
   if (role === 'ADMIN') {
     return <AdminDashboard />;
@@ -148,28 +146,28 @@ export default function HomeScreen() {
         <View style={styles.body}>
           <LocationRow router={router} address={address} setLocationOpen={setLocationOpen} />
 
-          <HomeServiceSections />
-
-          <WorkshopBand />
+          {/* Personal first: the job in progress, then the car */}
+          <LiveStatusSection router={router} requests={requests} nextBooking={nextBooking} />
 
           <VehicleSection router={router} vehicle={vehicle} vehicles={vehicles} />
 
-          <LiveStatusSection router={router} requests={requests} nextBooking={nextBooking} loading={loading} />
-
-          {/* Dedicated ad space — one per screen, labelled, never in the hero */}
-          <AdSlot placement="home-sponsored" />
+          <HomeServiceSections />
 
           <PartsRail router={router} parts={parts} />
 
           <PackagesSection router={router} />
 
-          <EditorialBand />
+          {/* Dedicated ad space — one per screen, labelled, never in the hero */}
+          <AdSlot placement="home-sponsored" />
 
-          <HistoryRail router={router} historyBookings={historyBookings} />
+          {/* One trust block: the photo band, then the assurance lines */}
+          <WorkshopBand />
 
           <AssuranceSection />
 
-          <Footer router={router} />
+          <HistoryRail router={router} historyBookings={historyBookings} />
+
+          <Footer />
 
         </View>
       </ScrollView>

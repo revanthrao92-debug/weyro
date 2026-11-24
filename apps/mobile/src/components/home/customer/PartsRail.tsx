@@ -68,7 +68,6 @@ export function PartsRail({ router, parts }: {
                 <Text style={styles.railTitle} numberOfLines={2}>
                   {part.name}
                 </Text>
-                <Text style={styles.railMeta}>{part.partNumber}</Text>
                 <Text style={styles.railPrice}>
                   ₹{Number(part.price).toLocaleString('en-IN')}
                 </Text>

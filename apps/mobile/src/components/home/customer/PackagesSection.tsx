@@ -26,7 +26,6 @@ export function PackagesSection({ router }: {
             scaleTo={0.99}
             style={[styles.indexRow, i > 0 && styles.rowDivider]}
           >
-            <Text style={styles.indexNumber}>P{i + 1}</Text>
             <View style={styles.indexText}>
               <Text style={styles.indexLabel}>{pkg.title}</Text>
               <Text style={styles.indexDetail}>{pkg.detail}</Text>

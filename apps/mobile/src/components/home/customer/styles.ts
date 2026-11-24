@@ -53,7 +53,7 @@ export const styles = StyleSheet.create({
   avatarText: { ...typography.label, color: palette.textSecondary },
 
   hero: {
-    height: 420,
+    height: 300,
     marginHorizontal: spacing.lg,
     borderRadius: radii.lg,
     overflow: 'hidden',
@@ -166,12 +166,6 @@ export const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  indexNumber: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
-    color: palette.textMuted,
-    width: 20,
-  },
   indexText: { flex: 1 },
   indexLabel: { ...typography.bodyMedium, color: palette.textPrimary },
   indexDetail: { ...typography.label, color: palette.textMuted, marginTop: 2 },
@@ -212,12 +206,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: palette.border,
   },
   addVehicleText: { ...typography.caption, color: palette.textSecondary, flex: 1 },
-  empty: { ...typography.caption, color: palette.textMuted, paddingVertical: spacing.md },
 
-  statusList: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-  },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -228,24 +217,6 @@ export const styles = StyleSheet.create({
   statusTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   statusMeta: { ...typography.label, color: palette.textMuted, marginTop: 2 },
 
-  partRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  partMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
-    color: palette.textMuted,
-    marginTop: 2,
-  },
-  partPrice: {
-    fontFamily: fontFamilyMono,
-    fontSize: 13,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
   rail: { gap: spacing.sm, paddingRight: spacing.lg },
   railCard: {
     width: 172,
@@ -256,20 +227,18 @@ export const styles = StyleSheet.create({
   railImage: { width: '100%', height: 72, backgroundColor: palette.surfaceAlt },
   railBody: { padding: spacing.md, minHeight: 112, gap: 4 },
   railKicker: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   railTitle: { ...typography.captionMedium, color: palette.textPrimary, marginTop: 6 },
   railMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 4,
   },
   railPrice: {
-    fontFamily: fontFamilyMono,
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '600',
     color: palette.textPrimary,
     marginTop: 8,
     fontVariant: ['tabular-nums'],
@@ -322,29 +291,6 @@ export const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  footerBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  footerWordmark: {
-    fontFamily: displayFamily,
-    fontSize: 18,
-    lineHeight: 20,
-    letterSpacing: -0.3,
-    color: palette.textPrimary,
-  },
-  footerMark: { width: 4, height: 4, backgroundColor: palette.accent, marginTop: 8 },
-  footerTagline: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginTop: spacing.xs,
-    maxWidth: 280,
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.lg,
-    rowGap: spacing.sm,
-  },
-  footerLinkCell: { width: '50%', paddingVertical: 2 },
-  footerLink: { ...typography.caption, color: palette.textPrimary },
   footerSupport: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,7 +303,6 @@ export const styles = StyleSheet.create({
   },
   footerSupportLabel: { ...typography.label, color: palette.textMuted },
   footerSupportLink: {
-    fontFamily: fontFamilyMono,
     fontSize: 12,
     color: palette.textSecondary,
   },

@@ -49,16 +49,6 @@ export const PART_CATEGORIES = [
   { label: 'Electrical', detail: 'Bulbs, relays, wiring', Icon: Zap },
 ];
 
-export const FOOTER_LINKS = [
-  { label: 'Post request', route: '/requests/create' },
-  { label: 'Shop', route: '/shop' },
-  { label: 'Bookings', route: '/bookings' },
-  { label: 'Vehicles', route: '/vehicles' },
-  { label: 'Messages', route: '/messages' },
-  { label: 'Roadside', route: '/sos' },
-  { label: 'Help', route: '/help' },
-  { label: 'Profile', route: '/profile' },
-];
 
 export const PACKAGES = [
   { title: 'Standard service', detail: 'Oil, filters, 30-point check', category: 'MAINTENANCE' },
