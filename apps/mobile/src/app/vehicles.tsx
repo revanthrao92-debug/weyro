@@ -28,13 +28,13 @@ import {
   BackButton,
   PressableScale,
   VehiclePhoto,
+  PageHeader,
 } from '@/components/ui';
 import {
   palette,
   spacing,
   radii,
   typography,
-  displayFamily,
 } from '@/theme';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
 import { titleize as labelize } from '@/utils/format';
@@ -130,23 +130,12 @@ export default function VehiclesScreen() {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" safeBottom>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>Garage</Text>
-          <PressableScale
-            onPress={() => setShowAdd(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Add vehicle"
-            scaleTo={0.95}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}
-          >
-            <Text style={styles.addLink}>Add</Text>
-          </PressableScale>
-        </View>
-        <Text style={styles.title}>Vehicles</Text>
-        <Text style={styles.summary}>
-          {vehicles.length === 0 ? 'No vehicles saved' : `${vehicles.length} saved`}
-        </Text>
+        <PageHeader
+          back
+          title="Vehicles"
+          subtitle={vehicles.length === 0 ? 'No vehicles saved' : `${vehicles.length} saved`}
+          action={{ label: 'Add', accessibilityLabel: 'Add vehicle', onPress: () => setShowAdd(true) }}
+        />
 
         {vehicles.length === 0 ? (
           <EmptyState
@@ -317,27 +306,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.canvas },
   list: { paddingBottom: spacing.xxl },
   skeletonItem: { marginBottom: spacing.md },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  eyebrow: { ...typography.label, color: palette.textMuted },
-  addLink: { ...typography.captionMedium, color: palette.accent },
-  title: {
-    fontFamily: displayFamily,
-    fontSize: 32,
-    lineHeight: 36,
-    letterSpacing: -0.6,
-    color: palette.textPrimary,
-  },
-  summary: {
-    fontSize: 12,
-    color: palette.textMuted,
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,10 +339,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fabBtn: {
-    alignSelf: 'flex-start',
-    minWidth: 140,
   },
   modalKeyboard: {
     flex: 1,
@@ -410,18 +374,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  fuelOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceAlt,
-  },
-  fuelOptionSelected: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
-  },
-  fuelText: { ...typography.captionMedium, color: palette.textPrimary },
-  modalActions: { gap: spacing.md },
 });

@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
-import { palette, spacing, typography, radii, displayFamily } from '@/theme';
+import { palette, spacing, typography, radii } from '@/theme';
 import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +24,7 @@ import {
   PopIn,
   FadeSlideIn,
   SectionHead,
+  PageHeader,
 } from '@/components/ui';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
@@ -132,17 +133,14 @@ export default function BookingDetailScreen() {
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.topLabel}>Booking</Text>
-          <View style={styles.spacer} />
-        </View>
-
-        <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
-        <View style={styles.metaRow}>
-          <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
-          <Text style={styles.date}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
-        </View>
+        <PageHeader back title={booking.quotation?.request?.title ?? 'Booking'}>
+          <View style={styles.metaRow}>
+            <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
+            <Text style={styles.date}>
+              Booking #{booking.id.slice(0, 8)}, {new Date(booking.createdAt).toLocaleDateString()}
+            </Text>
+          </View>
+        </PageHeader>
 
         {justConfirmed && booking.status === 'CONFIRMED' ? (
           <View style={styles.confirmedBanner} accessibilityRole="alert">
@@ -441,22 +439,7 @@ const styles = StyleSheet.create({
   confirmedText: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
   providerValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
   specMuted: { color: palette.textSecondary, fontWeight: '400' },
-  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  topLabel: { ...typography.label, color: palette.textMuted },
-  spacer: { width: 44 },
-  title: {
-    fontFamily: displayFamily,
-    fontSize: 30,
-    lineHeight: 34,
-    letterSpacing: -0.5,
-    color: palette.textPrimary,
-  },
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

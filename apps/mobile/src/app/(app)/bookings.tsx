@@ -9,12 +9,12 @@ import {
   StatusPill,
   Skeleton,
   Button,
+  PageHeader,
 } from '@/components/ui';
 import {
   palette,
   spacing,
   typography,
-  displayFamily,
 } from '@/theme';
 import { bookingStatusTone, formatDate, labelize } from '@/utils/format';
 
@@ -103,13 +103,12 @@ export default function BookingsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.textSecondary} />
         }
       >
-        <Text style={styles.eyebrow}>Activity</Text>
-        <Text style={styles.title}>Bookings</Text>
-        <Text style={styles.summary}>
-          {bookings.length === 0
-            ? 'No bookings yet'
-            : `${upcoming.length} active · ${past.length} past`}
-        </Text>
+        <PageHeader
+          title="Bookings"
+          subtitle={
+            bookings.length === 0 ? 'No bookings yet' : `${upcoming.length} active, ${past.length} past`
+          }
+        />
 
         {isLoading ? (
           <View style={styles.loading}>
@@ -179,24 +178,6 @@ export default function BookingsScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
-  eyebrow: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.3,
-  },
-  title: {
-    fontFamily: displayFamily,
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: -0.6,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-  },
-  summary: {
-    fontSize: 12,
-    color: palette.textMuted,
-    marginTop: spacing.xs,
-  },
   loading: {
     marginTop: spacing.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
