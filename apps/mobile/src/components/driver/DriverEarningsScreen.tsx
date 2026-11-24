@@ -32,7 +32,7 @@ export function DriverEarningsScreen() {
   const data = query.data;
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader title="Earnings" subtitle="Driver Go payouts" />
       <ScrollView
         contentContainerStyle={styles.body}

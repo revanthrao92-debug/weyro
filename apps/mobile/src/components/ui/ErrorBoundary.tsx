@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 4,
-    backgroundColor: palette.accent,
+    backgroundColor: palette.textPrimary,
   },
-  buttonText: { ...typography.bodyMedium, color: palette.onAccent },
+  buttonText: { ...typography.bodyMedium, color: palette.canvas },
 });

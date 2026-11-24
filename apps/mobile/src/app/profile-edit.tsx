@@ -77,7 +77,7 @@ export default function CustomerProfileScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader left={<BackButton />} title="Profile" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={18} />
@@ -95,7 +95,7 @@ export default function CustomerProfileScreen() {
 
   if (!profile) {
     return (
-      <ScreenContainer chrome="header" padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader left={<BackButton />} title="Profile" />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -111,7 +111,7 @@ export default function CustomerProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScreenContainer chrome="header" padded={false}>
+      <ScreenContainer chrome="dark" padded={false}>
         <AppHeader left={<BackButton />} title="Profile" subtitle="Manage your personal information" />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.avatarCard}>

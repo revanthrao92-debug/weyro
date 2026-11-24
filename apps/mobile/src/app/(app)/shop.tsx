@@ -43,7 +43,7 @@ export default function ShopScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header">
+      <ScreenContainer chrome="dark">
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Spare parts</Text>
           <Text style={styles.title}>Find the right part</Text>
@@ -60,7 +60,7 @@ export default function ShopScreen() {
   }
 
   return (
-    <ScreenContainer chrome="header">
+    <ScreenContainer chrome="dark">
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Spare parts</Text>
         <Text style={styles.title}>Find the right part</Text>

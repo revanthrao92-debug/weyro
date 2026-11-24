@@ -119,7 +119,7 @@ export default function OperationsScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Operations" subtitle="Orders, jobs and disputes" />
 
       <View style={styles.segment}>

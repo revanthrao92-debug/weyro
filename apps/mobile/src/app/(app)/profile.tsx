@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Account</Text>
         <Text style={styles.title}>Profile</Text>

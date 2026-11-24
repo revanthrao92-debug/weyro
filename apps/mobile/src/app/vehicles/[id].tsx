@@ -31,7 +31,7 @@ export default function VehicleDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
         <Skeleton width="55%" height={28} style={{ marginTop: spacing.md }} />
         <Skeleton width="100%" height={200} style={{ marginTop: spacing.lg }} />
@@ -41,7 +41,7 @@ export default function VehicleDetailScreen() {
 
   if (!vehicle) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -55,7 +55,7 @@ export default function VehicleDetailScreen() {
   const serviceTitle = `Service for ${vehicle.make} ${vehicle.model}`;
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

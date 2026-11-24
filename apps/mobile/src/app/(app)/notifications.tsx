@@ -36,7 +36,7 @@ export default function NotificationsScreen({ pushed = false }: { pushed?: boole
   } = useNotifications();
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}

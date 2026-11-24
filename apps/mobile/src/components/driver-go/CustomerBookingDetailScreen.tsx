@@ -56,7 +56,7 @@ export function CustomerBookingDetailScreen() {
 
   if (query.isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>BOOKING</Text>
@@ -72,7 +72,7 @@ export function CustomerBookingDetailScreen() {
 
   if (query.isError || !query.data) {
     return (
-      <ScreenContainer chrome="header" safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <View style={styles.topBar}>
           <BackButton />
           <Text style={styles.eyebrow}>BOOKING</Text>
@@ -105,7 +105,7 @@ export function CustomerBookingDetailScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <View style={styles.topBar}>
         <BackButton />
         <Text style={styles.eyebrow}>BOOKING</Text>

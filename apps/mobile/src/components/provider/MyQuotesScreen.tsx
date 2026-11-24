@@ -59,7 +59,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader
           left={pushed ? <BackButton /> : undefined}
           title="Quotes"
@@ -79,7 +79,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
   }
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader
         left={pushed ? <BackButton /> : undefined}
         title="Quotes"

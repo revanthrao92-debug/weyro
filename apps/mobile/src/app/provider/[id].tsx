@@ -35,7 +35,7 @@ export default function ProviderProfilePublicScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Provider" />
         <Card style={styles.skeletonCard}>
           <Skeleton width="100%" height={20} />
@@ -48,7 +48,7 @@ export default function ProviderProfilePublicScreen() {
 
   if (!provider) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Provider" />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -68,7 +68,7 @@ export default function ProviderProfilePublicScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <ScreenContainer chrome="header" safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader left={<BackButton />} title={provider.businessName} subtitle={provider.providerType} />
         <ScrollView contentContainerStyle={styles.body}>
           <Card style={styles.headerCard}>

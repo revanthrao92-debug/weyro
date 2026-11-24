@@ -63,7 +63,7 @@ export function AdminProfileScreen() {
   const { user, logout } = useAuth();
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader title="Profile" subtitle="Admin account" />
       <ScrollView
         contentContainerStyle={styles.body}

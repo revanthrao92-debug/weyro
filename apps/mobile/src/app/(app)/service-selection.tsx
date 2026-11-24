@@ -100,7 +100,7 @@ export default function ServiceSelectionScreen() {
   const router = useRouter();
 
   return (
-    <ScreenContainer chrome="header" padded={false}>
+    <ScreenContainer chrome="dark" padded={false}>
       <AppHeader
         title="Request a Service"
         subtitle="Choose a service to get started."

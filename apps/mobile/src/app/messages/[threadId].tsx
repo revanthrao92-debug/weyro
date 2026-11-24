@@ -93,7 +93,7 @@ export default function MessagesThreadScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
-      <ScreenContainer chrome="header" padded={false} safeBottom>
+      <ScreenContainer chrome="dark" padded={false} safeBottom>
         <View style={styles.topBar}>
           <BackButton />
           <View style={styles.topText}>

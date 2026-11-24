@@ -33,7 +33,7 @@ export function DriverJobsScreen() {
   );
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader title="Jobs" subtitle="Driver Go requests and trips" />
       <ScrollView
         contentContainerStyle={styles.body}

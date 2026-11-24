@@ -42,7 +42,7 @@ export default function PartDetailScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
         <Skeleton width="70%" height={24} style={{ marginTop: spacing.md }} />
         <Skeleton width="100%" height={180} style={{ marginTop: spacing.lg }} />
@@ -53,7 +53,7 @@ export default function PartDetailScreen() {
 
   if (!part) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
         {isError && !isNotFound(error) ? (
           <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
@@ -105,7 +105,7 @@ export default function PartDetailScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton />

@@ -123,7 +123,7 @@ export default function FinancialsScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Financials" subtitle="Sales and forecast" />
         <View style={styles.body}>
           <Skeleton width="100%" height={110} />
@@ -136,7 +136,7 @@ export default function FinancialsScreen() {
 
   if (isError && !data) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Financials" subtitle="Sales and forecast" />
         <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
       </ScreenContainer>
@@ -144,7 +144,7 @@ export default function FinancialsScreen() {
   }
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader left={<BackButton />} title="Financials" subtitle="Sales and forecast" />
       <ScrollView
         contentContainerStyle={styles.body}

@@ -149,7 +149,7 @@ export function CustomerOrders({ pushed = false }: { pushed?: boolean } = {}) {
   const open = orders.filter((o) => o.status === 'PENDING').length;
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <FlatList
         refreshControl={refreshControl}
         data={isLoading ? [] : orders}
@@ -252,7 +252,7 @@ function DealerOrders() {
     .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <FlatList
         refreshControl={refreshControl}
         data={isLoading ? [] : visible}

@@ -62,7 +62,7 @@ export default function ProvidersScreen() {
   const providers = data?.items ?? [];
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Providers" subtitle="Verification and onboarding" />
       <FlatList
         refreshControl={refreshControl}

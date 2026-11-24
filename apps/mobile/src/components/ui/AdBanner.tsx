@@ -153,17 +153,17 @@ const styles = StyleSheet.create({
   sponsoredRow: { marginBottom: spacing.xs },
   sponsored: {
     ...typography.label,
-    color: palette.onPhotoMuted,
+    color: palette.onHeaderMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   headline: {
     ...typography.heading,
-    color: palette.onPhoto,
+    color: palette.onHeader,
   },
   subtext: {
     ...typography.caption,
-    color: palette.onPhotoMuted,
+    color: palette.onHeaderMuted,
   },
   ctaPill: {
     backgroundColor: palette.accent,

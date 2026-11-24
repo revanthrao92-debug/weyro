@@ -48,7 +48,7 @@ export function DriverGoLandingScreen() {
   const router = useRouter();
 
   return (
-    <ScreenContainer chrome="header" padded={false} safeBottom>
+    <ScreenContainer chrome="dark" padded={false} safeBottom>
       <View style={styles.topBar}>
         <BackButton />
         <Text style={styles.eyebrow}>DRIVER GO</Text>

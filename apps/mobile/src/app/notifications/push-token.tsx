@@ -70,7 +70,7 @@ export default function PushTokenScreen() {
   }, [user]);
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader left={<BackButton />} title="Push Notifications" subtitle="Manage device notifications" />
       <Card style={styles.card}>
         <ListItem

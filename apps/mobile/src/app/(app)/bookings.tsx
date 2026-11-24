@@ -95,7 +95,7 @@ export default function BookingsScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" padded={false} safeBottom>
+    <ScreenContainer chrome="dark" padded={false} safeBottom>
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}

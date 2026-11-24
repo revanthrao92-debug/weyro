@@ -87,7 +87,7 @@ export default function MyListingsScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Listings" subtitle="Price, stock and visibility" />
       <FlatList
         data={isLoading ? [] : visible}

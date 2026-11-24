@@ -54,7 +54,7 @@ export default function ActivityScreen() {
   );
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Activity" subtitle="Platform audit trail" />
       <FlatList
         data={isLoading ? [] : visible}

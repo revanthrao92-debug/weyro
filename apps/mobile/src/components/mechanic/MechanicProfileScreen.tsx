@@ -116,7 +116,7 @@ export function MechanicProfileScreen() {
 
   if (profileQuery.isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader title="Profile" subtitle="Account" />
         <View style={styles.body}>
           <Skeleton width="100%" height={80} />
@@ -128,7 +128,7 @@ export function MechanicProfileScreen() {
 
   if (profileQuery.isError || !profile) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader title="Profile" subtitle="Account" />
         <EmptyState
           title="Profile unavailable"
@@ -185,7 +185,7 @@ export function MechanicProfileScreen() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader title="Profile" subtitle={accountLabel} />
       <ScrollView
         contentContainerStyle={styles.body}

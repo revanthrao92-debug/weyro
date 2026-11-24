@@ -121,7 +121,7 @@ export function MechanicDashboard() {
 
   if (query.isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <View style={styles.body}>
           <Skeleton width="60%" height={30} />
           <Skeleton width="100%" height={92} style={{ marginTop: spacing.lg }} />
@@ -133,7 +133,7 @@ export function MechanicDashboard() {
 
   if (query.isError || !query.data) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <View style={styles.body}>
           <EmptyState
             title="Dashboard unavailable"
@@ -231,7 +231,7 @@ export function MechanicDashboard() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}

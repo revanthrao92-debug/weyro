@@ -12,11 +12,11 @@ export interface ScreenContainerProps {
   /**
    * Color of the top safe-area strip behind the status bar.
    * Must match the screen header so the chrome reads as one unbroken bar:
-   *  - 'header'  header colour (default AppHeader)
-   *  - 'surface' surface colour (light AppHeader variant)
-   *  - 'none'    canvas colour (screens with no edge-to-edge header)
+   *  - 'dark'  navy chrome (dark AppHeader, Home hero)
+   *  - 'light' white chrome (light AppHeader)
+   *  - 'none'  canvas color (screens with no edge-to-edge header)
    */
-  chrome?: 'header' | 'surface' | 'none';
+  chrome?: 'dark' | 'light' | 'none';
   style?: ViewStyle | ViewStyle[];
 }
 
@@ -36,7 +36,7 @@ export function ScreenContainer({
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
   const chromeColor =
-    chrome === 'header' ? palette.header : chrome === 'surface' ? palette.surface : palette.canvas;
+    chrome === 'dark' ? palette.header : chrome === 'light' ? palette.surface : palette.canvas;
   return (
     <View
       style={[styles.root, { backgroundColor: chromeColor, paddingTop: insets.top }]}

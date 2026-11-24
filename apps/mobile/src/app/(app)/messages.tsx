@@ -47,7 +47,7 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
   const unread = allThreads.reduce((sum, t) => sum + (t.unreadCount ?? 0), 0);
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <FlatList
         refreshControl={refreshControl}
         data={isLoading ? [] : threads}

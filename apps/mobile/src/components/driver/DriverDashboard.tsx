@@ -92,7 +92,7 @@ export function DriverDashboard() {
 
   if (meQuery.isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader title="Driver Go" subtitle="Loading your day" />
         <View style={styles.body}>
           <Skeleton width="55%" height={28} />
@@ -105,7 +105,7 @@ export function DriverDashboard() {
 
   if (meQuery.isError || !meQuery.data) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader title="Driver Go" subtitle="Driver account" />
         <EmptyState
           title="Driver profile unavailable"
@@ -156,7 +156,7 @@ export function DriverDashboard() {
   };
 
   return (
-    <ScreenContainer chrome="header" safeBottom>
+    <ScreenContainer chrome="dark" safeBottom>
       <AppHeader title="Driver Go" subtitle={me.businessName} />
       <ScrollView
         contentContainerStyle={styles.body}

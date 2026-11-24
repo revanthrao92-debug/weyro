@@ -60,7 +60,7 @@ export function AdminDashboard() {
 
   if (overview.isLoading) {
     return (
-      <ScreenContainer chrome="header" safeBottom padded={false}>
+      <ScreenContainer chrome="dark" safeBottom padded={false}>
         <AppHeader title="Overview" subtitle="Platform operations" />
         <View style={styles.body}>
           <Skeleton width="100%" height={110} />
@@ -73,7 +73,7 @@ export function AdminDashboard() {
 
   if (overview.isError || !overview.data) {
     return (
-      <ScreenContainer chrome="header" safeBottom>
+      <ScreenContainer chrome="dark" safeBottom>
         <AppHeader title="Overview" subtitle="Platform operations" />
         <EmptyState
           title="Overview unavailable"
@@ -109,7 +109,7 @@ export function AdminDashboard() {
       : Math.round((data.acceptedQuotations / data.totalQuotations) * 100);
 
   return (
-    <ScreenContainer chrome="header" safeBottom padded={false}>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
