@@ -77,6 +77,8 @@ const darkPalette = {
   onPhotoMuted: '#E3E6E8',
   sos: '#FF5A1F',
   onSos: '#101214',
+  sosSoftBg: 'rgba(255, 90, 31, 0.12)',
+  sosIcon: '#FF5A1F',
 
   // Utility
   overlay: 'rgba(16, 18, 20, 0.75)',
@@ -123,6 +125,8 @@ const lightPalette = {
   // Reflective yellow — SOS / urgent only
   sos: '#F2C230',
   onSos: '#1F2427',
+  sosSoftBg: 'rgba(242, 194, 48, 0.28)',
+  sosIcon: '#1F2427', // yellow on white is too faint for an icon
 
   // Functional only — destructive / error
   danger: '#B42318',

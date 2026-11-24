@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { palette, spacing, radii, typography, fontFamilyMono } from '@/theme';
+import { palette, spacing, radii, typography } from '@/theme';
 
 export interface AdSlotProps {
   /** Reserved height in pt (standard banner ≈ 100). */
@@ -23,39 +23,25 @@ export function AdSlot({ height = 100, placement = 'home-sponsored' }: AdSlotPro
       accessibilityLabel="Advertising space, reserved for a sponsored placement"
       testID={`ad-slot-${placement}`}
     >
-      <Text style={styles.label}>Ad space</Text>
-      <Text style={styles.note}>Reserved for a sponsored placement</Text>
-      <Text style={styles.meta}>320 × 100</Text>
+      <Text style={styles.label}>Sponsored</Text>
+      <View style={styles.body}>
+        <Text style={styles.note}>Your ad here</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: {
-    marginTop: spacing.xl,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: palette.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceAlt,
+    padding: spacing.md,
   },
-  label: {
-    ...typography.label,
-    color: palette.textSecondary,
-    letterSpacing: 0.6,
-  },
-  note: {
-    ...typography.label,
-    color: palette.textMuted,
-  },
-  meta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
-    color: palette.textMuted,
-    marginTop: 2,
-  },
+  label: { ...typography.label, color: palette.textMuted },
+  body: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  note: { ...typography.caption, color: palette.textMuted },
 });
 
 export default AdSlot;

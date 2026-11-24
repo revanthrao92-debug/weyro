@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import ProviderDashboard from '@/components/dashboard/ProviderDashboard';
@@ -7,13 +8,13 @@ import { DriverDashboard } from '@/components/driver/DriverDashboard';
 import { DealerDashboard } from '@/components/dealer/DealerDashboard';
 import { MechanicDashboard } from '@/components/mechanic/MechanicDashboard';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { HomeServiceSections } from '@/components/home/HomeServiceSections';
 import { useMyRequests } from '@/hooks/useRequests';
 import { useBookings } from '@/hooks/useBookings';
 import { useAddresses, useReplaceAddresses, useVehicles } from '@/hooks/useProfile';
 import { useParts } from '@/hooks/useParts';
 import { useNotifications } from '@/hooks/useNotifications';
-import { ScreenContainer, AdSlot } from '@/components/ui';
+import { ScreenContainer, AdSlot, FadeSlideIn } from '@/components/ui';
+import { stagger } from '@/theme';
 import { LocationPicker, type PickedLocation } from '@/maps';
 
 /**
@@ -23,16 +24,10 @@ import { LocationPicker, type PickedLocation } from '@/maps';
 
 import { styles } from '@/components/home/customer/styles';
 import { TopBar } from '@/components/home/customer/TopBar';
-import { Hero } from '@/components/home/customer/Hero';
-import { LocationRow } from '@/components/home/customer/LocationRow';
-import { WorkshopBand } from '@/components/home/customer/WorkshopBand';
-import { VehicleSection } from '@/components/home/customer/VehicleSection';
 import { LiveStatusSection } from '@/components/home/customer/LiveStatusSection';
-import { PartsRail } from '@/components/home/customer/PartsRail';
-import { PackagesSection } from '@/components/home/customer/PackagesSection';
-import { HistoryRail } from '@/components/home/customer/HistoryRail';
-import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
-import { Footer } from '@/components/home/customer/Footer';
+import { CarHero } from '@/components/home/customer/CarHero';
+import { NeedTiles } from '@/components/home/customer/NeedTiles';
+import { PopularRow } from '@/components/home/customer/PopularRow';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -46,6 +41,10 @@ export default function HomeScreen() {
   const addressesQuery = useAddresses(isCustomer);
   const replaceAddresses = useReplaceAddresses();
   const [locationOpen, setLocationOpen] = useState(false);
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
   const partsQuery = useParts({ limit: 8 });
   const { unreadCount, refetch: refetchNotifications } = useNotifications();
 
@@ -105,9 +104,6 @@ export default function HomeScreen() {
   const nextBooking = (bookingsQuery.data?.items ?? []).find(
     (b) => b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
   );
-  const historyBookings = (bookingsQuery.data?.items ?? [])
-    .filter((b) => b.status === 'COMPLETED' || b.status === 'CANCELLED')
-    .slice(0, 6);
 
   if (role === 'ADMIN') {
     return <AdminDashboard />;
@@ -135,42 +131,47 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
       >
         <TopBar router={router} user={user} unreadCount={unreadCount} />
 
-        <Hero router={router} />
+        {/* 1. Your car (with the one main action) */}
+        <FadeSlideIn delay={stagger(0)}>
+          <CarHero
+            router={router}
+            vehicle={vehicle}
+            scrollY={scrollY}
+            locationLabel={address?.title === 'Home' ? address.address : address?.title || address?.address}
+            onLocationPress={() => setLocationOpen(true)}
+          />
+        </FadeSlideIn>
 
         <View style={styles.body}>
-          <LocationRow router={router} address={address} setLocationOpen={setLocationOpen} />
+          {/* 2. Your job: only when something is moving */}
+          <FadeSlideIn delay={stagger(1)}>
+            <LiveStatusSection router={router} requests={requests} nextBooking={nextBooking} />
+          </FadeSlideIn>
 
-          {/* Personal first: the job in progress, then the car */}
-          <LiveStatusSection router={router} requests={requests} nextBooking={nextBooking} />
+          {/* 3. What do you need? */}
+          <FadeSlideIn delay={stagger(2)}>
+            <NeedTiles router={router} />
+          </FadeSlideIn>
 
-          <VehicleSection router={router} vehicle={vehicle} vehicles={vehicles} />
+          {/* 4. The one dedicated ad space, right after your own things */}
+          <View style={styles.adGap}>
+            <AdSlot placement="home-sponsored" height={120} />
+          </View>
 
-          <HomeServiceSections />
+          {/* 5. Things you can buy, in one row */}
+          <PopularRow router={router} parts={parts} />
 
-          <PartsRail router={router} parts={parts} />
-
-          <PackagesSection router={router} />
-
-          {/* Dedicated ad space — one per screen, labelled, never in the hero */}
-          <AdSlot placement="home-sponsored" />
-
-          {/* One trust block: the photo band, then the assurance lines */}
-          <WorkshopBand />
-
-          <AssuranceSection />
-
-          <HistoryRail router={router} historyBookings={historyBookings} />
-
-          <Footer />
-
+          <Text style={styles.verifiedLine}>All garages on Weyro are verified before they can quote.</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <LocationPicker
         visible={locationOpen}

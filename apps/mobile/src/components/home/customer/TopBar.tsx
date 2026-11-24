@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { Bell, Search } from 'lucide-react-native';
+import { Bell } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui';
 import { palette } from '@/theme';
 
@@ -22,22 +22,13 @@ export function TopBar({ router, user, unreadCount }: {
         </View>
         <View style={styles.topActions}>
           <PressableScale
-            onPress={() => router.push('/shop')}
-            accessibilityRole="button"
-            accessibilityLabel="Search parts"
-            scaleTo={0.9}
-            style={styles.iconButton}
-          >
-            <Search size={17} color={palette.textSecondary} strokeWidth={1.8} />
-          </PressableScale>
-          <PressableScale
             onPress={() => router.push('/alerts')}
             accessibilityRole="button"
             accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
             scaleTo={0.9}
             style={styles.iconButton}
           >
-            <Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />
+            <Bell size={20} color={palette.textSecondary} strokeWidth={1.8} />
             {unreadCount > 0 ? <View style={styles.unreadDot} /> : null}
           </PressableScale>
           <PressableScale

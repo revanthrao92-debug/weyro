@@ -9,6 +9,8 @@ import {
   Section,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
+import { WorkshopBand } from '@/components/home/customer/WorkshopBand';
+import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
 
 const FAQS = [
   {
@@ -58,6 +60,10 @@ export default function HelpScreen() {
         <Text style={styles.subtitle}>
           Quick answers, and shortcuts to everything you have booked.
         </Text>
+
+        {/* Why Weyro is safe to use (moved here from Home to keep Home short) */}
+        <WorkshopBand />
+        <AssuranceSection />
 
         <Section eyebrow="Shortcuts" title="Your activity">
           <View style={styles.links}>

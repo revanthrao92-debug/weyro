@@ -1,4 +1,3 @@
-import { BatteryCharging, Cog, Disc3, Filter, Settings2, Zap } from 'lucide-react-native';
 import { StatusTone } from '@/theme';
 
 export function requestTone(status: string): StatusTone {
@@ -17,22 +16,6 @@ export function requestTone(status: string): StatusTone {
   }
 }
 
-export function bookingTone(status: string): StatusTone {
-  switch (status) {
-    case 'CONFIRMED':
-    case 'PROVIDER_EN_ROUTE':
-      return 'info';
-    case 'IN_PROGRESS':
-      return 'warning';
-    case 'COMPLETED':
-      return 'success';
-    case 'CANCELLED':
-    case 'DISPUTED':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
-}
 
 export const HERO_IMAGE = require('../../../../assets/images/hero-primary.jpg');
 // Workshop band: Unsplash (photo-1615906655593-ad0386982a0f), cropped + graded
@@ -40,14 +23,6 @@ export const HERO_IMAGE = require('../../../../assets/images/hero-primary.jpg');
 
 
 /** Shop navigation categories — used when the catalogue has no listings yet. */
-export const PART_CATEGORIES = [
-  { label: 'Brakes', detail: 'Pads, discs, fluid', Icon: Disc3 },
-  { label: 'Filters', detail: 'Oil, air, cabin', Icon: Filter },
-  { label: 'Batteries', detail: 'Start-stop, EFB, AGM', Icon: BatteryCharging },
-  { label: 'Suspension', detail: 'Shocks, bushes, links', Icon: Settings2 },
-  { label: 'Engine', detail: 'Belts, sensors, gaskets', Icon: Cog },
-  { label: 'Electrical', detail: 'Bulbs, relays, wiring', Icon: Zap },
-];
 
 
 export const PACKAGES = [
