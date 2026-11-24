@@ -15,11 +15,9 @@ import { StatusTone } from '@/theme';
  */
 
 /** 'QUOTES_RECEIVED' → 'Quotes Received' */
+/** 'PROVIDER_EN_ROUTE' -> 'Provider en route' (sentence case, like the rest of the UI). */
 export function labelize(value: string): string {
-  return value
-    .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
+  return titleize(value);
 }
 
 /** 'QUOTES_RECEIVED' → 'quotes received' */

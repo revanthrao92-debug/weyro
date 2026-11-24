@@ -10,7 +10,6 @@ import {
 import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
 import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
 import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
-import { CheckCircle2 } from 'lucide-react-native';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -21,6 +20,7 @@ import {
   EmptyState,
   BackButton,
   ButtonRow,
+  DrawCheck,
   PopIn,
   FadeSlideIn,
   SectionHead,
@@ -146,9 +146,7 @@ export default function BookingDetailScreen() {
 
         {justConfirmed && booking.status === 'CONFIRMED' ? (
           <View style={styles.confirmedBanner} accessibilityRole="alert">
-            <PopIn>
-              <CheckCircle2 size={28} color={palette.statusDone} strokeWidth={2} />
-            </PopIn>
+            <DrawCheck size={28} color={palette.statusDone} />
             <Text style={styles.confirmedText}>
               Booking confirmed with {booking.provider?.businessName ?? 'your provider'}
             </Text>

@@ -1,9 +1,11 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   Pressable,
   PressableProps,
   StyleProp,
   StyleSheet,
+  Text,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
@@ -205,4 +207,36 @@ export function FlashBorder({
       />
     </View>
   );
+}
+
+/** A number that counts up from 0 once when `animate` (e.g. a price that just arrived). */
+export function CountUp({
+  value,
+  animate,
+  format = (n: number) => n.toLocaleString('en-IN'),
+  style,
+}: {
+  value: number;
+  animate: boolean;
+  format?: (n: number) => string;
+  style?: StyleProp<TextStyle>;
+}) {
+  const reducedMotion = useReducedMotion();
+  const play = animate && !reducedMotion;
+  const [shown, setShown] = useState(play ? 0 : value);
+
+  useEffect(() => {
+    if (!play) return;
+    const start = Date.now();
+    let frame = 0;
+    const tick = () => {
+      const p = Math.min(1, (Date.now() - start) / 700);
+      setShown(Math.round(value * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [play, value]);
+
+  return <Text style={style}>{format(play ? shown : value)}</Text>;
 }
