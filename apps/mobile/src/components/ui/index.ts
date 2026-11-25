@@ -71,3 +71,5 @@ export { SectionHead } from './SectionHead';
 export type { SectionHeadProps } from './SectionHead';
 export type { SectionProps } from './Section';
 export type { FadeSlideInProps, PressableScaleProps } from './Motion';
+export { AppearancePicker } from './AppearancePicker';
+export { SwitchRow } from './SwitchRow';

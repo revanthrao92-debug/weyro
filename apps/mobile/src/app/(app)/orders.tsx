@@ -345,7 +345,7 @@ function DealerOrders() {
     orders.length === 0 && !isLoading
       ? 'No orders yet'
       : [
-          todo.length === 0 ? 'Nothing to pack' : `${todo.length} to do`,
+          todo.length === 0 ? 'Nothing to do' : `${todo.length} to do`,
           paidTotal !== undefined ? `${money(Math.round(paidTotal))} paid in total` : null,
         ]
           .filter(Boolean)

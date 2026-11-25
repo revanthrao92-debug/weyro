@@ -1,4 +1,4 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BarChart3,
@@ -19,6 +19,7 @@ import {
   SectionHead,
   Skeleton,
   StatusPill,
+  SwitchRow,
 } from '@/components/ui';
 import { TopBar } from '@/components/home/customer/TopBar';
 import { EarningsChart } from './EarningsChart';
@@ -191,31 +192,18 @@ export function DealerDashboard() {
 
           <FadeSlideIn delay={stagger(1)}>
             <View style={styles.card}>
-              <View style={styles.availabilityRow}>
-                <View style={styles.availabilityText}>
-                  <Text style={styles.cardTitle}>
-                    {data.provider.isAvailable ? 'Accepting orders' : 'Shop closed'}
-                  </Text>
-                  <Text style={styles.cardDetail}>
-                    {data.provider.isAvailable
-                      ? 'Customers can buy your active listings.'
-                      : 'Your listings stay visible but cannot be ordered.'}
-                  </Text>
-                </View>
-                {updateProfile.isPending ? (
-                  <ActivityIndicator color={palette.accent} />
-                ) : (
-                  <Switch
-                    value={data.provider.isAvailable}
-                    onValueChange={() => void toggleAvailability()}
-                    trackColor={{ true: palette.accent, false: palette.borderStrong }}
-                    thumbColor="#FFFFFF"
-                    // web-only prop (react-native-web defaults it to teal), missing from the RN types
-                    {...({ activeThumbColor: '#FFFFFF' } as object)}
-                    accessibilityLabel="Accepting orders"
-                  />
-                )}
-              </View>
+              <SwitchRow
+                title={data.provider.isAvailable ? 'Accepting orders' : 'Shop closed'}
+                detail={
+                  data.provider.isAvailable
+                    ? 'Customers can buy your active listings.'
+                    : 'Your listings stay visible but cannot be ordered.'
+                }
+                value={data.provider.isAvailable}
+                onToggle={() => void toggleAvailability()}
+                busy={updateProfile.isPending}
+                accessibilityLabel="Accepting orders"
+              />
               {!verified ? (
                 <Text style={styles.notice}>
                   Your account is {data.provider.verificationStatus.toLowerCase()}. You cannot accept orders until
@@ -442,8 +430,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   cardAfterHead: { marginTop: 0 },
-  availabilityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
-  availabilityText: { flex: 1 },
   cardTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   cardDetail: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
   notice: { ...typography.caption, color: palette.warning, marginTop: spacing.sm },

@@ -238,6 +238,21 @@ export class SparePartsService {
     });
   }
 
+  async findMineOne(providerId: string | undefined, role: string, id: string) {
+    const part = await this.prisma.sparePart.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        // Owner only (admins may open any); another dealer's part reads as not found.
+        ...(role === 'ADMIN' && !providerId ? {} : { providerId: providerId ?? 'none' }),
+      },
+    });
+    if (!part) {
+      throw new NotFoundException(`Spare part with ID ${id} not found`);
+    }
+    return part;
+  }
+
   async findMine(
     providerId: string | undefined,
     role: string,

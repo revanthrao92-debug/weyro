@@ -17,8 +17,7 @@ import {
   Input,
   Button,
   Chip,
-  AppHeader,
-  BackButton,
+  PageHeader,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
@@ -89,12 +88,8 @@ export default function CreateListingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { paddingTop: insets.top }]}
     >
-      <AppHeader
-        title="List a Part"
-        subtitle="Add a new spare part to your inventory"
-        left={<BackButton />}
-      />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <PageHeader back title="Add a part" subtitle="It shows in the shop as soon as you save." />
         <View>
           <Input
             label="Part name"
@@ -127,7 +122,7 @@ export default function CreateListingScreen() {
             {CONDITIONS.map((c) => (
               <Chip
                 key={c}
-                label={labelize(c)}
+                label={c === 'OEM' ? 'OEM' : labelize(c)}
                 selected={form.condition === c}
                 onPress={() => setForm({ ...form, condition: c })}
               />

@@ -182,6 +182,7 @@ export function useUpdateSparePart() {
         queryClient.invalidateQueries({ queryKey: ['myParts'] }),
         queryClient.invalidateQueries({ queryKey: ['parts'] }),
         queryClient.invalidateQueries({ queryKey: ['part', variables.id] }),
+        queryClient.invalidateQueries({ queryKey: ['myPart', variables.id] }),
       ]),
   });
 }
@@ -207,6 +208,15 @@ export function useSparePart(id: string) {
   return useQuery({
     queryKey: ['part', id],
     queryFn: async () => apiClient<SparePart>(`/spare-parts/${id}`),
+    enabled: !!id,
+  });
+}
+
+/** One of the dealer's own parts, for the edit screen: real stock, and hidden listings too. */
+export function useMySparePart(id: string) {
+  return useQuery({
+    queryKey: ['myPart', id],
+    queryFn: async () => apiClient<SparePart>(`/spare-parts/mine/${id}`),
     enabled: !!id,
   });
 }

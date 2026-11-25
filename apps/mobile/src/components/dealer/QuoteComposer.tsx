@@ -131,7 +131,7 @@ export function QuoteComposer({
                 ? 'Price this call'
                 : 'Price this job'}
         </Text>
-        {mode === 'parts' ? <StatusPill label={condition} tone="info" /> : null}
+        {mode === 'parts' ? <StatusPill label={condition === 'OEM' ? 'OEM' : condition.charAt(0) + condition.slice(1).toLowerCase()} tone="info" /> : null}
       </View>
 
       {!isTowing ? (
@@ -173,7 +173,7 @@ export function QuoteComposer({
             {CONDITIONS.map((c) => (
               <Chip
                 key={c}
-                label={c}
+                label={c === 'OEM' ? 'OEM' : c.charAt(0) + c.slice(1).toLowerCase()}
                 selected={condition === c}
                 onPress={() => setCondition(c)}
               />

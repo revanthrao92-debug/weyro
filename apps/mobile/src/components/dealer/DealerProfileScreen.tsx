@@ -1,45 +1,23 @@
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BarChart3, Bell, ChevronRight, LifeBuoy, LogOut, MessageCircle, Star } from 'lucide-react-native';
 import {
-  Bell,
-  ChevronRight,
-  LifeBuoy,
-  LogOut,
-  MessageCircle,
-  Package,
-  Radar,
-  Tag,
-} from 'lucide-react-native';
-import {
-  AppHeader,
-  EmptyState,
+  AppearancePicker,
+  ErrorState,
+  PageHeader,
   PressableScale,
   ScreenContainer,
   SectionHead,
   Skeleton,
+  StatusPill,
 } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { useProviderProfile, useUpdateProviderProfile } from '@/hooks/useProfile';
-import { useProviderDashboard } from '@/hooks/useProviderDashboard';
-import {
-  displayFamily,
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-} from '@/theme';
+import { useProviderProfile } from '@/hooks/useProfile';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, !last && styles.rowDivider]}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue}>{value}</Text>
     </View>
@@ -60,44 +38,40 @@ function Action({
   danger?: boolean;
 }) {
   return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      scaleTo={0.99}
-      style={styles.action}
-    >
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} scaleTo={0.99} style={styles.action}>
       <View style={styles.actionIcon}>{icon}</View>
       <View style={styles.actionText}>
-        <Text style={[styles.actionLabel, danger && styles.actionDanger]}>
-          {label}
-        </Text>
+        <Text style={[styles.actionLabel, danger && styles.actionDanger]}>{label}</Text>
         {detail ? <Text style={styles.actionDetail}>{detail}</Text> : null}
       </View>
-      <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
+      {danger ? null : <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />}
     </PressableScale>
   );
 }
 
+const VERIFICATION: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' }> = {
+  VERIFIED: { label: 'Verified', tone: 'success' },
+  PENDING: { label: 'Awaiting approval', tone: 'warning' },
+  REJECTED: { label: 'Not approved', tone: 'danger' },
+  SUSPENDED: { label: 'Suspended', tone: 'danger' },
+};
+
+/**
+ * Dealer account and settings. The shop on/off switch, counts and work links live on the
+ * Dashboard and tab bar, so this screen is only who you are, your details and settings.
+ */
 export function DealerProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const profileQuery = useProviderProfile();
-  const dashboardQuery = useProviderDashboard();
-  const updateProfile = useUpdateProviderProfile();
-  const [error, setError] = useState<string | null>(null);
-
   const profile = profileQuery.data;
-  const dashboard = dashboardQuery.data;
 
   if (profileQuery.isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader title="Profile" subtitle="Dealer account" />
-        <View style={styles.body}>
-          <Skeleton width="100%" height={80} />
-          <Skeleton width="100%" height={140} style={{ marginTop: spacing.md }} />
-        </View>
+        <PageHeader title="Profile" />
+        <Skeleton width="100%" height={96} />
+        <Skeleton width="100%" height={180} style={{ marginTop: spacing.md }} />
       </ScreenContainer>
     );
   }
@@ -105,284 +79,125 @@ export function DealerProfileScreen() {
   if (profileQuery.isError || !profile) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader title="Profile" subtitle="Dealer account" />
-        <EmptyState
-          title="Profile unavailable"
-          message="Check your connection and try again."
-          action={
-            <PressableScale
-              onPress={() => void profileQuery.refetch()}
-              accessibilityRole="button"
-              accessibilityLabel="Retry"
-              style={styles.retry}
-              scaleTo={0.97}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </PressableScale>
-          }
-        />
+        <PageHeader title="Profile" />
+        <ErrorState title="Profile unavailable" message="Check your connection and try again." onRetry={() => void profileQuery.refetch()} />
       </ScreenContainer>
     );
   }
 
-  const verified = profile.verificationStatus === 'VERIFIED';
   const name = profile.businessName || user?.email?.split('@')[0] || 'Dealer';
-
-  const toggleAvailability = async () => {
-    if (!verified) {
-      setError('Verification must be approved before accepting orders.');
-      return;
-    }
-    setError(null);
-    try {
-      await updateProfile.mutateAsync({ isAvailable: !profile.isAvailable });
-      await Promise.all([profileQuery.refetch(), dashboardQuery.refetch()]);
-    } catch (e: any) {
-      setError(e?.message || 'Could not update availability.');
-    }
-  };
+  const verification = VERIFICATION[profile.verificationStatus] ?? VERIFICATION.PENDING;
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader title="Profile" subtitle="Dealer account" />
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.eyebrow}>Dealer</Text>
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.meta}>
-          {profile.providerType === 'PARTS_DEALER'
-            ? 'Parts dealer'
-            : profile.providerType}{' '}
-          · {profile.verificationStatus.toLowerCase()}
-        </Text>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <PageHeader title="Profile" />
 
-        <PressableScale
-          onPress={() => void toggleAvailability()}
-          disabled={updateProfile.isPending}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: profile.isAvailable }}
-          accessibilityLabel="Accepting orders"
-          scaleTo={0.99}
-          style={[styles.availability, profile.isAvailable && styles.availabilityOn]}
-        >
-          <View style={styles.availabilityText}>
-            <Text style={styles.availabilityTitle}>
-              {profile.isAvailable ? 'Accepting orders' : 'Shop closed'}
-            </Text>
-            <Text style={styles.availabilityDetail}>
-              {profile.isAvailable
-                ? 'Customers can buy your active listings.'
-                : 'Listings remain visible but orders are closed.'}
-            </Text>
+        <View style={styles.shop}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{name[0]?.toUpperCase()}</Text>
           </View>
-          {updateProfile.isPending ? (
-            <ActivityIndicator color={palette.accent} />
-          ) : (
-            <View style={[styles.toggle, profile.isAvailable && styles.toggleOn]}>
-              <Text
-                style={[
-                  styles.toggleText,
-                  profile.isAvailable && styles.toggleTextOn,
-                ]}
-              >
-                {profile.isAvailable ? 'On' : 'Off'}
-              </Text>
+          <View style={styles.shopText}>
+            <Text style={styles.shopName}>{name}</Text>
+            <View style={styles.shopMeta}>
+              <Text style={styles.metaText}>Parts dealer</Text>
+              <StatusPill label={verification.label} tone={verification.tone} />
+              {profile.avgRating > 0 ? (
+                <View style={styles.rating} accessible accessibilityLabel={`Rated ${profile.avgRating.toFixed(1)}`}>
+                  <Star size={14} color={palette.textSecondary} fill={palette.textSecondary} strokeWidth={1.5} />
+                  <Text style={styles.metaText}>
+                    {profile.avgRating.toFixed(1)} ({profile.totalReviews})
+                  </Text>
+                </View>
+              ) : null}
             </View>
-          )}
-        </PressableScale>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{profile.counts?.listings ?? 0}</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{dashboard?.counts.pendingOrders ?? 0}</Text>
-            <Text style={styles.statLabel}>To fulfill</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              {profile.avgRating > 0 ? profile.avgRating.toFixed(1) : '—'}
-            </Text>
-            <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
+        {profile.verificationStatus !== 'VERIFIED' ? (
+          <Text style={styles.notice}>
+            {profile.verificationStatus === 'PENDING'
+              ? 'Weyro is checking your documents. You can sell once you are approved.'
+              : 'Your account is not active for selling. Contact support for help.'}
+          </Text>
+        ) : null}
 
-        <SectionHead title="Business" />
+        <SectionHead title="Business details" />
         <Row label="Phone" value={profile.phone} />
         <Row label="Address" value={profile.address} />
-        <Row label="Service radius" value={`${profile.serviceRadiusKm} km`} />
-        <Row label="Email" value={profile.email ?? user?.email ?? '—'} />
-        <Row
-          label="Verification"
-          value={
-            verified
-              ? 'Verified'
-              : profile.verificationStatus === 'PENDING'
-                ? 'Awaiting approval'
-                : profile.verificationStatus
-          }
-        />
+        <Row label="Service area" value={`${profile.serviceRadiusKm} km around your shop`} />
+        <Row label="Email" value={profile.email ?? user?.email ?? 'Not given'} last />
+        <Text style={styles.hint}>To change these, contact support.</Text>
 
-        <SectionHead title="Manage" />
+        <SectionHead title="Settings" />
+        <AppearancePicker />
+
+        <SectionHead title="More" />
         <Action
-          icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Requests"
-          detail="Open spare-part requests"
-          onPress={() => router.push('/opportunities')}
+          icon={<BarChart3 size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Earnings and forecast"
+          onPress={() => router.push('/financials')}
         />
         <Action
-          icon={<Package size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Orders"
-          detail="Fulfill paid orders"
-          onPress={() => router.push('/orders')}
-        />
-        <Action
-          icon={<Tag size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Listings"
-          detail="Price, stock and visibility"
-          onPress={() => router.push('/my-listings')}
-        />
-        <Action
-          icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          icon={<MessageCircle size={20} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Messages"
           onPress={() => router.push('/inbox')}
         />
+        <Action icon={<Bell size={20} color={palette.textSecondary} strokeWidth={1.8} />} label="Alerts" onPress={() => router.push('/alerts')} />
         <Action
-          icon={<Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Alerts"
-          onPress={() => router.push('/alerts')}
-        />
-        <Action
-          icon={<LifeBuoy size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          icon={<LifeBuoy size={20} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Contact support"
+          detail="support@weyro.app"
           onPress={() => void Linking.openURL('mailto:support@weyro.app')}
         />
-        <Action
-          icon={<LogOut size={17} color={palette.danger} strokeWidth={1.8} />}
-          label="Sign out"
-          danger
-          onPress={() => void logout()}
-        />
+        <Action icon={<LogOut size={20} color={palette.danger} strokeWidth={1.8} />} label="Sign out" danger onPress={() => void logout()} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  eyebrow: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.3,
-  },
-  name: {
-    fontFamily: displayFamily,
-    fontSize: 30,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-  },
-  meta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
-    color: palette.textMuted,
-    marginTop: 2,
-  },
-  availability: {
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  shop: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.md,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 6,
-    borderLeftWidth: 2,
-    borderLeftColor: palette.borderStrong,
-    backgroundColor: palette.surfaceAlt,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
   },
-  availabilityOn: {
-    borderLeftColor: palette.accent,
-  },
-  availabilityText: { flex: 1 },
-  availabilityTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  availabilityDetail: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginTop: 2,
-  },
-  toggle: {
-    minWidth: 44,
-    minHeight: 28,
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.borderStrong,
+    backgroundColor: palette.surfaceAlt,
   },
-  toggleOn: { backgroundColor: palette.accent, borderColor: palette.accent },
-  toggleText: { ...typography.label, color: palette.textSecondary },
-  toggleTextOn: { color: palette.onAccent },
-  error: { ...typography.caption, color: palette.danger, marginTop: spacing.xs },
-  stats: {
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    marginTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-  },
-  stat: { flex: 1, gap: 2 },
-  statValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 18,
-    color: palette.textPrimary,
-  },
-  statLabel: { ...typography.label, color: palette.textMuted },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-  },
-  rowLabel: { ...typography.label, color: palette.textMuted },
-  rowValue: {
-    ...typography.body,
-    color: palette.textPrimary,
-    flex: 1,
-    textAlign: 'right',
-  },
+  avatarText: { fontFamily: displayFamily, fontSize: 22, color: palette.textPrimary },
+  shopText: { flex: 1 },
+  shopName: { ...typography.heading, color: palette.textPrimary },
+  shopMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  metaText: { ...typography.caption, color: palette.textSecondary },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  notice: { ...typography.caption, color: palette.warning, marginTop: spacing.sm },
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.md },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  rowLabel: { ...typography.body, color: palette.textMuted },
+  rowValue: { ...typography.body, color: palette.textPrimary, flex: 1, textAlign: 'right' },
+  hint: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xs },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 58,
+    minHeight: 56,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  actionIcon: {
-    width: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  actionIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
   actionText: { flex: 1 },
   actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },
-  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 1 },
+  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
   actionDanger: { color: palette.danger },
-  retry: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    backgroundColor: palette.accent,
-  },
-  retryText: { ...typography.label, color: palette.onAccent },
 });

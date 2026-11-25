@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -9,16 +9,15 @@ import {
 } from '@/hooks/useRequests';
 import {
   ScreenContainer,
-  AppHeader,
-  BackButton,
+  PageHeader,
   Card,
   Chip,
   Button,
   StatusPill,
   EmptyState,
   Skeleton,
-  FilterBar,
 } from '@/components/ui';
+import { quoteTimeText } from '@/utils/quotes';
 import { QuoteComposer } from '@/components/dealer/QuoteComposer';
 import { palette, spacing, typography } from '@/theme';
 import { formatDate, titleize as labelize, quotationStatusTone as statusTone } from '@/utils/format';
@@ -60,11 +59,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <AppHeader
-          left={pushed ? <BackButton /> : undefined}
-          title="Quotes"
-          subtitle="Your sent quotations"
-        />
+        <PageHeader back={pushed} title="My quotes" subtitle="Quotes you have sent" />
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <Card key={i} style={styles.skeletonCard}>
@@ -80,28 +75,26 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
 
   return (
     <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader
-        left={pushed ? <BackButton /> : undefined}
-        title="Quotes"
-        subtitle="Your sent quotations"
+      <PageHeader
+        back={pushed}
+        title="My quotes"
+        subtitle={quotes.length > 0 && statusFilter === 'ALL' ? `${quotes.length} sent` : 'Quotes you have sent'}
       />
 
       {showFilters ? (
-        <FilterBar>
-          <View style={styles.filterRow}>
-            {FILTERS.map((s) => (
-              <Chip
-                key={s}
-                label={labelize(s)}
-                selected={statusFilter === s}
-                onPress={() => {
-                  setStatusFilter(s);
-                  setEditingId(null);
-                }}
-              />
-            ))}
-          </View>
-        </FilterBar>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
+          {FILTERS.map((s) => (
+            <Chip
+              key={s}
+              label={labelize(s)}
+              selected={statusFilter === s}
+              onPress={() => {
+                setStatusFilter(s);
+                setEditingId(null);
+              }}
+            />
+          ))}
+        </ScrollView>
       ) : null}
 
       {quotes.length === 0 ? (
@@ -134,10 +127,9 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
                     {request?.title ?? 'Service request'}
                   </Text>
                   <Text style={styles.quoteMeta} numberOfLines={1}>
-                    {request?.vehicle
-                      ? `${request.vehicle.make} ${request.vehicle.model} · `
-                      : ''}
-                    {formatDate(item.createdAt)}
+                    {[request?.vehicle ? `${request.vehicle.make} ${request.vehicle.model}` : null, `sent ${formatDate(item.createdAt)}`]
+                      .filter(Boolean)
+                      .join(', ')}
                   </Text>
                   <View style={styles.metaRow}>
                     <Text style={styles.quoteAmount}>
@@ -145,9 +137,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
                     </Text>
                     <StatusPill label={labelize(item.status)} tone={statusTone(item.status)} />
                   </View>
-                  {item.etaDescription ? (
-                    <Text style={styles.quoteETA}>{item.etaDescription}</Text>
-                  ) : null}
+                  {quoteTimeText(item) ? <Text style={styles.quoteETA}>{quoteTimeText(item)}</Text> : null}
                 </View>
 
                 {isEditing ? (
@@ -209,11 +199,8 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
 }
 
 const styles = StyleSheet.create({
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
+  filterScroll: { flexGrow: 0, marginBottom: spacing.md },
+  filterRow: { flexDirection: 'row', gap: spacing.sm },
   list: { paddingBottom: spacing.xxl },
   skeletonCard: { marginBottom: spacing.md },
   card: { marginBottom: spacing.md, gap: spacing.sm },

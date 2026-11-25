@@ -367,6 +367,18 @@ describe('SparePartsService order flow', () => {
     expect(Object.keys(args.select)).not.toContain('providerId');
   });
 
+  it("edit view: a dealer opens their own part with real stock, even when hidden; never another dealer's", async () => {
+    mockPrisma.sparePart.findFirst = jest.fn().mockResolvedValue({ id: 'p1', stockQuantity: 20, isActive: false });
+    await expect(service.findMineOne('prov-1', 'PROVIDER', 'p1')).resolves.toMatchObject({ stockQuantity: 20 });
+    const where = mockPrisma.sparePart.findFirst.mock.calls[0][0].where;
+    expect(where).toEqual({ id: 'p1', deletedAt: null, providerId: 'prov-1' }); // no isActive filter
+
+    mockPrisma.sparePart.findFirst.mockResolvedValue(null);
+    await expect(service.findMineOne('prov-2', 'PROVIDER', 'p1')).rejects.toThrow('not found');
+    await expect(service.findMineOne(undefined, 'PROVIDER', 'p1')).rejects.toThrow('not found');
+    expect(mockPrisma.sparePart.findFirst.mock.calls[2][0].where.providerId).toBe('none');
+  });
+
   it('dealer order list shows customer names but no phone, user id, or gateway fields', async () => {
     mockPrisma.sparePartOrder.findMany.mockResolvedValue([
       {

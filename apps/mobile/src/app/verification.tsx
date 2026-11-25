@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader,
-  BackButton,
+  PageHeader,
+  StatusPill,
   Button,
   Card,
   ScreenContainer,
@@ -15,7 +15,15 @@ import {
   useSubmitVerificationDocuments,
 } from '@/hooks/useProfile';
 import type { UploadedImage } from '@/services/uploads';
+import { titleize as labelize } from '@/utils/format';
 import { palette, spacing, typography } from '@/theme';
+
+const STATUS_LABEL: Record<string, string> = {
+  VERIFIED: 'Verified',
+  PENDING: 'Awaiting review',
+  REJECTED: 'Not approved',
+  SUSPENDED: 'Suspended',
+};
 
 export default function VerificationDocumentsScreen() {
   const router = useRouter();
@@ -57,18 +65,16 @@ export default function VerificationDocumentsScreen() {
 
   return (
     <ScreenContainer chrome="dark" padded={false} safeBottom>
-      <AppHeader
-        left={<BackButton />}
-        title="Verification"
-        subtitle="Business documents for marketplace approval"
-      />
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
+        <PageHeader back title="Verification" subtitle="Documents Weyro checks before you can take work" />
         <Card>
-          <Text style={styles.statusLabel}>Current status</Text>
-          <Text style={styles.statusValue}>{status.replace(/_/g, ' ')}</Text>
+          <StatusPill
+            label={STATUS_LABEL[status] ?? labelize(status)}
+            tone={isVerified ? 'success' : status === 'PENDING' ? 'warning' : 'danger'}
+          />
           <Text style={styles.help}>
             {isVerified
               ? 'Your business is verified. You can receive marketplace work. Nothing more to upload.'
@@ -123,22 +129,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.sm,
   },
-  statusLabel: {
-    ...typography.label,
-    color: palette.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  statusValue: {
-    ...typography.title,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-    textTransform: 'capitalize',
-  },
   help: {
     ...typography.body,
     color: palette.textSecondary,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   submit: { marginTop: spacing.xl },
 });
