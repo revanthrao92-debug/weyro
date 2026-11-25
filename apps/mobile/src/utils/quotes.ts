@@ -39,12 +39,13 @@ export function quoteTimeText(quote: {
   return `Starts ${shortDay(new Date(quote.startsAt))}, takes about ${durationLabel(quote.durationHours)}. Ready by ${shortDay(ready)}`;
 }
 
-/** "18 more hours" / "40 more minutes" until quotes close; null once closed. */
+/** "5 more days" / "18 more hours" / "40 more minutes" until quotes close; null once closed. */
 export function timeLeft(until: string | null | undefined, now: number): string | null {
   if (!until) return null;
   const ms = new Date(until).getTime() - now;
   if (!(ms > 0)) return null;
   const hours = Math.floor(ms / HOUR_MS);
+  if (hours >= 48) return `${Math.floor(hours / 24)} more days`;
   if (hours >= 1) return `${hours} more hour${hours === 1 ? '' : 's'}`;
   const minutes = Math.max(1, Math.round(ms / 60_000));
   return `${minutes} more minute${minutes === 1 ? '' : 's'}`;

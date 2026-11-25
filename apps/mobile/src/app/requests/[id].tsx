@@ -8,7 +8,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { haptics } from '@/lib/haptics';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useNow } from '@/hooks/useNow';
 import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { quoteMarkersFor, quoteTimeText, sortQuotes, timeLeft, type QuoteSort } from '@/utils/quotes';
 import { Image } from 'expo-image';
@@ -387,16 +388,6 @@ const SORTS: { key: QuoteSort; label: string }[] = [
   { key: 'soonest', label: 'Soonest' },
   { key: 'rated', label: 'Best rated' },
 ];
-
-/** Current time, refreshed every minute, for the "taking quotes for N hours" line. */
-function useNow() {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
 
 function QuoteCard({
   quote,

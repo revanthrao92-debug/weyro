@@ -1,4 +1,4 @@
-import { durationLabel, quoteMarkersFor, readyBy, sortQuotes } from '../src/utils/quotes';
+import { durationLabel, quoteMarkersFor, readyBy, sortQuotes, timeLeft } from '../src/utils/quotes';
 
 const q = (id: string, totalCost: number, avgRating?: number) => ({ id, totalCost, provider: { avgRating } });
 
@@ -70,5 +70,15 @@ describe('quote time and sorting', () => {
     expect(durationLabel(24)).toBe('1 day');
     expect(durationLabel(72)).toBe('3 days');
     expect(durationLabel(168)).toBe('1 week');
+  });
+
+  it('says how long quotes stay open, in days once it is over 2 days', () => {
+    const now = Date.parse('2026-11-25T00:00:00Z');
+    const at = (h: number) => new Date(now + h * 3_600_000).toISOString();
+    expect(timeLeft(at(139), now)).toBe('5 more days');
+    expect(timeLeft(at(23.5), now)).toBe('23 more hours');
+    expect(timeLeft(at(0.5), now)).toBe('30 more minutes');
+    expect(timeLeft(at(-1), now)).toBeNull();
+    expect(timeLeft(null, now)).toBeNull();
   });
 });

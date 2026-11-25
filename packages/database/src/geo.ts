@@ -160,7 +160,17 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       sr.latitude,
       sr.longitude,
       sr."expiresAt",
+      sr."quotesUntil",
       sr."createdAt",
+      -- The car: a saved vehicle, or what the customer typed.
+      sr."vehicleMake",
+      sr."vehicleModel",
+      sr."vehicleYear",
+      (SELECT json_build_object('make', v.make, 'model', v.model, 'year', v.year)
+         FROM vehicles v WHERE v.id = sr."vehicleId") AS vehicle,
+      -- How many providers have already quoted (competition at a glance).
+      (SELECT COUNT(*)::int FROM quotations q
+         WHERE q."requestId" = sr.id AND q."deletedAt" IS NULL) AS "quotationsCount",
       ${
         hasCoordinates && pointGeog
           ? Prisma.sql`ROUND(
