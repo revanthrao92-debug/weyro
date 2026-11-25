@@ -56,11 +56,14 @@ export function niceMax(max: number): number {
   return 10 * step;
 }
 
-/** Index of the column nearest to x, for `count` columns spread evenly over `width`. */
-export function nearestIndex(x: number, width: number, count: number): number {
-  if (count <= 1 || width <= 0) return 0;
-  const i = Math.round((x / width) * (count - 1));
-  return Math.min(count - 1, Math.max(0, i));
+/** Trailing average over the last `days` values (shorter at the start), to smooth lumpy daily sales. */
+export function rollingAverage(values: number[], days: number): number[] {
+  let sum = 0;
+  return values.map((v, i) => {
+    sum += v;
+    if (i >= days) sum -= values[i - days];
+    return sum / Math.min(i + 1, days);
+  });
 }
 
 /** ₹1,234 → "₹1.2k", ₹2,40,000 → "₹2.4L" for tight axis labels. */

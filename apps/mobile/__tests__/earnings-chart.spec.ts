@@ -1,4 +1,4 @@
-import { compactRupees, monotonePath, nearestIndex, niceMax } from '@/utils/earningsChart';
+import { compactRupees, monotonePath, niceMax, rollingAverage } from '@/utils/earningsChart';
 
 describe('earnings chart geometry', () => {
   it('never overshoots below the lowest point (no dip under ₹0)', () => {
@@ -26,12 +26,11 @@ describe('earnings chart geometry', () => {
     expect(niceMax(50000)).toBe(50000);
   });
 
-  it('snaps a touch to the nearest day', () => {
-    expect(nearestIndex(0, 300, 31)).toBe(0);
-    expect(nearestIndex(300, 300, 31)).toBe(30);
-    expect(nearestIndex(151, 300, 31)).toBe(15);
-    expect(nearestIndex(-20, 300, 31)).toBe(0);
-    expect(nearestIndex(999, 300, 31)).toBe(30);
+  it('averages the last 7 days, using fewer at the start', () => {
+    expect(rollingAverage([7, 0, 14], 7)).toEqual([7, 3.5, 7]);
+    const avg = rollingAverage([0, 0, 0, 0, 0, 0, 0, 70], 7);
+    expect(avg[6]).toBe(0);
+    expect(avg[7]).toBe(10); // the 8th day drops day 1 from the window
   });
 
   it('shortens rupee labels', () => {
