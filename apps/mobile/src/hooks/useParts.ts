@@ -176,11 +176,13 @@ export function useUpdateSparePart() {
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['myParts'] });
-      queryClient.invalidateQueries({ queryKey: ['parts'] });
-      queryClient.invalidateQueries({ queryKey: ['part', variables.id] });
-    },
+    // Returned so mutateAsync waits for the refetch: a fast second stock tap must read the new count.
+    onSuccess: (_, variables) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['myParts'] }),
+        queryClient.invalidateQueries({ queryKey: ['parts'] }),
+        queryClient.invalidateQueries({ queryKey: ['part', variables.id] }),
+      ]),
   });
 }
 
