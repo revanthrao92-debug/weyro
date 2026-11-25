@@ -223,6 +223,8 @@ export function useMyOrders() {
 export function useDealerOrders(params?: {
   status?: string;
   fulfillmentStatus?: string;
+  /** Only paid orders the dealer still has to pack, ship or mark delivered. */
+  needsAction?: boolean;
   cursor?: string;
   limit?: number;
 }) {
@@ -233,6 +235,7 @@ export function useDealerOrders(params?: {
       if (params?.status) qs.set('status', params.status);
       if (params?.fulfillmentStatus)
         qs.set('fulfillmentStatus', params.fulfillmentStatus);
+      if (params?.needsAction) qs.set('needsAction', 'true');
       if (params?.cursor) qs.set('cursor', params.cursor);
       if (params?.limit) qs.set('limit', String(params.limit));
       return apiClient<{ items: SparePartOrder[]; nextCursor?: string | null }>(
@@ -281,11 +284,13 @@ export function useUpdateFulfillment() {
         }),
       });
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['dealerOrders'] });
-      queryClient.invalidateQueries({ queryKey: ['sparePartOrder', variables.orderId] });
-      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
-    },
+    // Returned so the next-step button stays busy until the list shows the new step.
+    onSuccess: (_, variables) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dealerOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['sparePartOrder', variables.orderId] }),
+        queryClient.invalidateQueries({ queryKey: ['providerDashboard'] }),
+      ]),
   });
 }
 

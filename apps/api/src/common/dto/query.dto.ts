@@ -51,6 +51,11 @@ export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
   fulfillmentStatus: z
     .enum(['PENDING', 'PROCESSING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
     .optional(),
+  /** "true": only paid orders the dealer still has to pack, ship or mark delivered. */
+  needsAction: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export const adminActivityQuerySchema = cursorPaginationSchema.extend({

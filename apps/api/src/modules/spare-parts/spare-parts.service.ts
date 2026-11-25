@@ -768,6 +768,7 @@ export class SparePartsService {
     params: {
       status?: string;
       fulfillmentStatus?: string;
+      needsAction?: boolean;
       cursor?: string;
       limit?: number;
     },
@@ -785,6 +786,11 @@ export class SparePartsService {
     }
     if (params.fulfillmentStatus) {
       where.fulfillmentStatus = params.fulfillmentStatus;
+    }
+    if (params.needsAction) {
+      // Paid and not finished, however old: the dealer's to-do list.
+      where.status = 'PAID';
+      where.fulfillmentStatus = { notIn: ['DELIVERED', 'CANCELLED'] };
     }
 
     const items = await this.prisma.sparePartOrder.findMany({

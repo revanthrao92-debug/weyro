@@ -93,6 +93,7 @@ export class SparePartsController {
     return this.service.findDealerOrders(user.providerProfileId || user.sub, {
       status: query.status,
       fulfillmentStatus: query.fulfillmentStatus,
+      needsAction: query.needsAction,
       cursor: query.cursor,
       limit: query.limit,
     });

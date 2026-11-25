@@ -1,13 +1,17 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Package } from 'lucide-react-native';
+import { ChevronRight, Package } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useDealerOrders,
   useMyOrders,
+  useUpdateFulfillment,
+  type FulfillmentStatus,
   type SparePartOrder,
 } from '@/hooks/useParts';
+import { useProviderDashboard } from '@/hooks/useProviderDashboard';
+import { haptics } from '@/lib/haptics';
 import {
   ScreenContainer,
   BackButton,
@@ -18,9 +22,11 @@ import {
   Skeleton,
   Button,
   ErrorState,
+  PageHeader,
 } from '@/components/ui';
 import {
   palette,
+  radii,
   spacing,
   typography,
   displayFamily,
@@ -212,81 +218,169 @@ export function CustomerOrders({ pushed = false }: { pushed?: boolean } = {}) {
 
 const DEALER_FILTERS = [
   { key: 'ALL', label: 'All' },
-  { key: 'TO_FULFILL', label: 'To fulfill' },
-  { key: 'SHIPPED', label: 'Shipped' },
   { key: 'DELIVERED', label: 'Delivered' },
   { key: 'UNPAID', label: 'Unpaid' },
+  { key: 'CANCELLED', label: 'Cancelled' },
 ] as const;
+type DealerFilter = (typeof DEALER_FILTERS)[number]['key'];
+
+/** What the dealer does next for a paid order, by its current step. */
+const NEXT_STEP: Record<string, { label: string; title: string; next?: FulfillmentStatus }> = {
+  PENDING: { label: 'To pack', title: 'Start packing', next: 'PROCESSING' },
+  PROCESSING: { label: 'Packing', title: 'Mark ready to ship', next: 'READY' },
+  // Shipping needs a carrier and tracking number, entered on the order screen.
+  READY: { label: 'Ready to ship', title: 'Add tracking and ship' },
+  SHIPPED: { label: 'On the way', title: 'Mark delivered', next: 'DELIVERED' },
+};
+
+const money = (v: number | string) => `₹${Number(v).toLocaleString('en-IN')}`;
+const customerName = (o: SparePartOrder) =>
+  o.customer ? `${o.customer.firstName} ${o.customer.lastName ?? ''}`.trim() : 'Customer';
+
+/** "Today", "Yesterday", or "22 Nov" on the phone's calendar. */
+function dayHeading(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const days = Math.round(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) /
+      86_400_000,
+  );
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+/** "today", "yesterday" or "16 Nov", to follow the word "paid". */
+const paidWhen = (iso: string) => {
+  const h = dayHeading(iso);
+  return h === 'Today' || h === 'Yesterday' ? h.toLowerCase() : h;
+};
+
+function ToDoCard({ order, onOpen }: { order: SparePartOrder; onOpen: () => void }) {
+  const update = useUpdateFulfillment();
+  const step = NEXT_STEP[order.fulfillmentStatus ?? 'PENDING'] ?? NEXT_STEP.PENDING;
+  const part = order.sparePart?.name ?? 'Spare part';
+  const act = async () => {
+    if (!step.next) return onOpen();
+    try {
+      await update.mutateAsync({ orderId: order.id, status: step.next });
+      haptics.success();
+    } catch (e: any) {
+      Alert.alert('Failed', e?.message || 'Could not update the order.');
+    }
+  };
+  return (
+    <View style={styles.todo}>
+      <PressableScale
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`Open order: ${part}, ${step.label}`}
+        scaleTo={0.99}
+      >
+        <View style={styles.todoTop}>
+          <Text style={styles.todoTitle} numberOfLines={2}>
+            {part}
+            {order.quantity > 1 ? ` x${order.quantity}` : ''}
+          </Text>
+          <Text style={styles.todoPrice}>{money(order.totalAmount)}</Text>
+        </View>
+        <Text style={styles.todoMeta}>
+          {customerName(order)}, paid {paidWhen(order.paidAt ?? order.createdAt)}
+        </Text>
+        <View style={styles.todoPill}>
+          <StatusPill label={step.label} tone={order.fulfillmentStatus === 'SHIPPED' ? 'info' : 'warning'} />
+        </View>
+      </PressableScale>
+      <Button title={step.title} loading={update.isPending} onPress={() => void act()} style={styles.todoButton} />
+    </View>
+  );
+}
+
+type ListItem =
+  | { kind: 'head'; key: string; label: string }
+  | { kind: 'order'; key: string; order: SparePartOrder; first: boolean };
 
 function DealerOrders() {
   const router = useRouter();
-  const [filter, setFilter] = useState<(typeof DEALER_FILTERS)[number]['key']>('ALL');
+  const [filter, setFilter] = useState<DealerFilter>('ALL');
   const { data, isLoading, isError, refetch } = useDealerOrders({ limit: 50 });
-  const refreshControl = useRefreshControl(refetch);
+  const todoQuery = useDealerOrders({ needsAction: true, limit: 50 });
+  const dashboard = useProviderDashboard();
+  const refreshControl = useRefreshControl(() => Promise.all([refetch(), todoQuery.refetch()]));
   const orders = data?.items ?? [];
+  const todo = todoQuery.data?.items ?? [];
+  const todoIds = new Set(todo.map((o) => o.id));
 
-  const visible = orders.filter((order) => {
-    switch (filter) {
-      case 'TO_FULFILL':
-        return (
-          order.status === 'PAID' &&
-          !['DELIVERED', 'CANCELLED'].includes(order.fulfillmentStatus ?? 'PENDING')
-        );
-      case 'SHIPPED':
-        return order.fulfillmentStatus === 'SHIPPED';
-      case 'DELIVERED':
-        return order.fulfillmentStatus === 'DELIVERED';
-      case 'UNPAID':
-        return order.status === 'PENDING';
-      default:
-        return true;
+  // The date list holds everything except the to-do cards above it; unpaid orders get their own group.
+  const finished = orders.filter((o) => !todoIds.has(o.id) && o.status !== 'PENDING');
+  const unpaid = orders.filter((o) => o.status === 'PENDING');
+  const shown =
+    filter === 'UNPAID'
+      ? unpaid
+      : filter === 'DELIVERED'
+        ? finished.filter((o) => o.fulfillmentStatus === 'DELIVERED')
+        : filter === 'CANCELLED'
+          ? finished.filter((o) => ['CANCELLED', 'FAILED', 'REFUNDED'].includes(o.status) || o.fulfillmentStatus === 'CANCELLED')
+          : finished;
+
+  const items: ListItem[] = [];
+  let lastHead = '';
+  shown.forEach((order) => {
+    const head = filter === 'UNPAID' ? 'Waiting for payment' : dayHeading(order.createdAt);
+    if (head !== lastHead) {
+      items.push({ kind: 'head', key: `h-${head}-${order.id}`, label: head });
+      lastHead = head;
     }
+    // No divider under a heading, only between rows.
+    items.push({ kind: 'order', key: order.id, order, first: items[items.length - 1]?.kind === 'head' });
   });
+  if (filter === 'ALL' && unpaid.length > 0) {
+    items.push({ kind: 'head', key: 'h-unpaid', label: `Waiting for payment (${unpaid.length})` });
+    unpaid.forEach((order, i) => items.push({ kind: 'order', key: order.id, order, first: i === 0 }));
+  }
 
-  const toFulfill = orders.filter(
-    (o) => o.status === 'PAID' && o.fulfillmentStatus !== 'DELIVERED',
-  ).length;
-  const revenue = orders
-    .filter((o) => o.status === 'PAID')
-    .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+  const paidTotal = dashboard.data?.revenue.paidTotal;
+  const subtitle =
+    orders.length === 0 && !isLoading
+      ? 'No orders yet'
+      : [
+          todo.length === 0 ? 'Nothing to pack' : `${todo.length} to do`,
+          paidTotal !== undefined ? `${money(Math.round(paidTotal))} paid in total` : null,
+        ]
+          .filter(Boolean)
+          .join(', ');
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <FlatList
         refreshControl={refreshControl}
-        data={isLoading ? [] : visible}
-        keyExtractor={(item) => item.id}
+        data={isLoading ? [] : items}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={styles.body}
         ListHeaderComponent={
           <View>
-            <OrdersHeader
-              eyebrow="Sales"
-              title="Orders"
-              summary={
-                orders.length === 0
-                  ? 'No orders yet'
-                  : `${toFulfill} to fulfill · ₹${revenue.toLocaleString('en-IN')} paid`
-              }
-            />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filters}
-            >
-              {DEALER_FILTERS.map((item) => (
-                <Chip
-                  key={item.key}
-                  label={item.label}
-                  selected={filter === item.key}
-                  onPress={() => setFilter(item.key)}
-                />
-              ))}
-            </ScrollView>
+            <PageHeader title="Orders" subtitle={subtitle} />
+            {todo.length > 0 ? (
+              <>
+                <Text style={styles.section}>To do ({todo.length})</Text>
+                {todo.map((order) => (
+                  <ToDoCard key={order.id} order={order} onOpen={() => router.push(`/order/${order.id}`)} />
+                ))}
+              </>
+            ) : null}
+            {orders.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+                {DEALER_FILTERS.map((item) => (
+                  <Chip key={item.key} label={item.label} selected={filter === item.key} onPress={() => setFilter(item.key)} />
+                ))}
+              </ScrollView>
+            ) : null}
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={[styles.row, i > 0 && styles.divider]}>
                     <View style={styles.rowText}>
-                      <Skeleton width={110} height={10} />
+                      <Skeleton width={110} height={12} />
                       <Skeleton width="60%" height={16} style={{ marginTop: 8 }} />
                     </View>
                   </View>
@@ -300,26 +394,67 @@ function DealerOrders() {
           ) : (
             <EmptyState
               icon={<Package size={26} color={palette.textMuted} strokeWidth={1.7} />}
-              title={filter === 'ALL' ? 'No orders yet' : 'Nothing here'}
-              message={
-                filter === 'ALL'
-                  ? 'Paid orders for your listings appear here.'
-                  : 'No orders match this filter.'
-              }
+              title={orders.length === 0 ? 'No orders yet' : 'Nothing here'}
+              message={orders.length === 0 ? 'Paid orders for your listings appear here.' : 'No orders match this filter.'}
             />
           )
         }
-        renderItem={({ item, index }) => (
-          <View style={index > 0 ? styles.divider : undefined}>
-            <OrderRow
-              item={item}
-              dealer
-              onPress={() => router.push(`/order/${item.id}`)}
-            />
-          </View>
-        )}
+        ListFooterComponent={
+          orders.length >= 50 ? <Text style={styles.footnote}>Showing your latest 50 orders.</Text> : undefined
+        }
+        renderItem={({ item }) =>
+          item.kind === 'head' ? (
+            <Text style={styles.dayHead}>{item.label}</Text>
+          ) : (
+            <View style={item.first ? undefined : styles.divider}>
+              <DealerRow order={item.order} onPress={() => router.push(`/order/${item.order.id}`)} />
+            </View>
+          )
+        }
       />
     </ScreenContainer>
+  );
+}
+
+function DealerRow({ order, onPress }: { order: SparePartOrder; onPress: () => void }) {
+  const part = order.sparePart?.name ?? 'Spare part';
+  const status =
+    order.status === 'PENDING'
+      ? 'Unpaid'
+      : order.status === 'PAID'
+        ? titleize(order.fulfillmentStatus ?? 'PENDING')
+        : titleize(order.status);
+  const tone: StatusTone =
+    order.status === 'PENDING'
+      ? 'warning'
+      : order.status === 'PAID' && order.fulfillmentStatus === 'DELIVERED'
+        ? 'success'
+        : order.status === 'PAID'
+          ? 'neutral'
+          : 'danger';
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${part}, ${money(order.totalAmount)}, ${status}`}
+      scaleTo={0.99}
+      style={styles.row}
+    >
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {part}
+          {order.quantity > 1 ? ` x${order.quantity}` : ''}
+        </Text>
+        <Text style={styles.rowSub} numberOfLines={1}>
+          {customerName(order)}
+        </Text>
+      </View>
+      <View style={styles.rowRight}>
+        <Text style={styles.rowAmount}>{money(order.totalAmount)}</Text>
+        <StatusPill label={status} tone={tone} />
+      </View>
+      <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />
+    </PressableScale>
   );
 }
 
@@ -367,6 +502,25 @@ const styles = StyleSheet.create({
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },
   rowMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
   rowRight: { alignItems: 'flex-end', gap: 4 },
+  section: { ...typography.section, color: palette.textPrimary, marginBottom: spacing.sm },
+  todo: {
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+  },
+  todoTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  todoTitle: { ...typography.bodyMedium, color: palette.textPrimary, flex: 1 },
+  todoPrice: { ...typography.bodyMedium, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  todoMeta: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  todoPill: { flexDirection: 'row', marginTop: spacing.sm },
+  todoButton: { marginTop: spacing.md },
+  dayHead: { ...typography.captionMedium, color: palette.textMuted, marginTop: spacing.lg, marginBottom: spacing.xs },
+  rowSub: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  rowAmount: { ...typography.bodyMedium, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  footnote: { ...typography.caption, color: palette.textMuted, textAlign: 'center', marginTop: spacing.lg },
   rowPrice: {
     fontSize: 13,
     color: palette.textPrimary,

@@ -210,13 +210,22 @@ export default function OrderDetailScreen() {
                   onChangeText={setNotes}
                 />
                 <Button
-                  title={next === 'PROCESSING' ? 'Start processing' : next === 'READY' ? 'Mark ready' : next === 'DELIVERED' ? 'Mark delivered' : 'Mark shipped'}
+                  title={
+                    next === 'PROCESSING'
+                      ? 'Start packing'
+                      : next === 'READY'
+                        ? 'Mark ready to ship'
+                        : next === 'DELIVERED'
+                          ? 'Mark delivered'
+                          : 'Add tracking and ship'
+                  }
                   loading={updateFulfillment.isPending}
                   onPress={onPrimary}
                 />
-                {current !== 'SHIPPED' ? (
+                {/* Shortcut to skip straight to shipping, only while shipping isn't already the next step. */}
+                {next !== 'SHIPPED' && current !== 'SHIPPED' ? (
                   <Button
-                    title="Mark shipped"
+                    title="Skip to shipping"
                     variant="secondary"
                     onPress={() => setShowShipForm(true)}
                   />

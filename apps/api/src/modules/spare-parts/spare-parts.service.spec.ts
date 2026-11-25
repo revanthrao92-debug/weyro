@@ -388,6 +388,18 @@ describe('SparePartsService order flow', () => {
     expect(result.items[0]).not.toHaveProperty('phone');
   });
 
+  it("dealer to-do list: every paid order not yet delivered, whatever its step", async () => {
+    mockPrisma.sparePartOrder.findMany.mockResolvedValue([]);
+    await service.findDealerOrders('prov-1', { needsAction: true });
+
+    const args = mockPrisma.sparePartOrder.findMany.mock.calls[0][0];
+    expect(args.where).toMatchObject({
+      providerId: 'prov-1',
+      status: 'PAID',
+      fulfillmentStatus: { notIn: ['DELIVERED', 'CANCELLED'] },
+    });
+  });
+
   it('admin order list includes gateway reconciliation fields', async () => {
     mockPrisma.sparePartOrder.findMany.mockResolvedValue([
       {
