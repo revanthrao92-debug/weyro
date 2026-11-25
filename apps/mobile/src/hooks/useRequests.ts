@@ -35,6 +35,8 @@ export type ServiceRequest = {
   towingEstimatedFare?: number;
   roadsideKind?: string | null;
   expiresAt: string;
+  /** New quotes stop here (accepting still works until expiresAt). Missing on older requests. */
+  quotesUntil?: string | null;
   createdAt: string;
   quotationsCount?: number;
   quotations?: Quotation[];
@@ -52,6 +54,9 @@ export type Quotation = {
   partCondition?: string;
   warrantyDays: number;
   etaDescription: string;
+  /** When the provider can start and how long the job takes; missing on older quotes. */
+  startsAt?: string | null;
+  durationHours?: number | null;
   deliveryMethod?: string;
   notes?: string;
   status: string;
@@ -90,7 +95,10 @@ export type CreateQuotation = {
   shippingCost?: number;
   partCondition?: string;
   warrantyDays: number;
-  etaDescription: string;
+  /** Older free-text time; new quotes send startsAt + durationHours instead. */
+  etaDescription?: string;
+  startsAt?: string;
+  durationHours?: number;
   deliveryMethod?: string;
   notes?: string;
 };

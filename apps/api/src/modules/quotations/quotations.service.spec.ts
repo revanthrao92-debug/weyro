@@ -123,6 +123,23 @@ describe('QuotationsService authorization and state regressions', () => {
 
       expect(mockPrisma.booking.findUnique).not.toHaveBeenCalled();
     });
+    it('still lets the customer accept after new quotes have stopped', async () => {
+      const existingBooking = { id: 'booking-1', quotationId: 'quote-1' };
+      mockPrisma.quotation.findUnique.mockResolvedValue(
+        quoteForOwner({
+          request: {
+            id: 'req-1',
+            customerId: 'cust-1',
+            status: 'QUOTES_RECEIVED',
+            quotesUntil: new Date(Date.now() - 60_000),
+            expiresAt: new Date(Date.now() + 6 * 86_400_000),
+          },
+        }),
+      );
+      mockPrisma.booking.findUnique.mockResolvedValue(existingBooking);
+
+      await expect(service.accept('quote-1', owner, {} as any)).resolves.toMatchObject({ id: 'booking-1' });
+    });
   });
 
   describe('create', () => {
@@ -247,6 +264,42 @@ describe('QuotationsService authorization and state regressions', () => {
           body: expect.stringContaining('A provider submitted'),
         }),
       );
+    });
+
+    it('stops new quotes after the 24-hour window even though the request has not expired', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        title: 'Bumper repair',
+        status: 'QUOTES_RECEIVED',
+        quotesUntil: new Date(Date.now() - 60_000),
+        expiresAt: new Date(Date.now() + 6 * 86_400_000),
+        customer: { userId: 'usr-cust' },
+      });
+      const tx = setupTransaction('QUOTES_RECEIVED', { id: 'never' });
+
+      await expect(
+        service.create('req-1', 'prov-1', { partsCost: 100, etaDescription: '2 days' } as any),
+      ).rejects.toThrow('stopped taking quotes');
+      expect(tx.quotation.create).not.toHaveBeenCalled();
+    });
+
+    it('stores "can start" + "takes about" and writes the plain text for older apps', async () => {
+      mockPrisma.serviceRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        title: 'Bumper repair',
+        status: 'OPEN',
+        expiresAt: new Date(Date.now() + 60_000),
+        customer: { userId: 'usr-cust' },
+      });
+      const tx = setupTransaction('OPEN', { id: 'quote-1', totalCost: 100, provider: { id: 'prov-1' } });
+      const startsAt = new Date(Date.now() + 86_400_000).toISOString();
+
+      await service.create('req-1', 'prov-1', { partsCost: 100, startsAt, durationHours: 24 } as any);
+
+      const data = tx.quotation.create.mock.calls[0][0].data;
+      expect(data.startsAt).toEqual(new Date(startsAt));
+      expect(data.durationHours).toBe(24);
+      expect(data.etaDescription).toMatch(/^Can start .*, takes about 1 day \(ready by .*\)$/);
     });
 
     it('rejects a quote when the request is no longer open', async () => {

@@ -8,9 +8,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { haptics } from '@/lib/haptics';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
-import { quoteMarkersFor } from '@/utils/quotes';
+import { quoteMarkersFor, quoteTimeText, sortQuotes, timeLeft, type QuoteSort } from '@/utils/quotes';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -27,6 +27,7 @@ import {
   ScreenContainer,
   Card,
   Button,
+  Chip,
   StatusPill,
   Skeleton,
   ErrorState,
@@ -75,8 +76,11 @@ export default function RequestDetailScreen() {
 
   // Checkpoint 3: providers get the quote form; customers keep Accept.
   const isProvider = role === 'PROVIDER' || role === 'BOTH';
+  const now = useNow();
+  // After the 24-hour window the server refuses new quotes, so the form hides too.
+  const quotesClosed = !!request?.quotesUntil && timeLeft(request.quotesUntil, now) === null;
   const canQuote =
-    isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+    isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '') && !quotesClosed;
   const providerType = providerProfile?.providerType ?? '';
   const quoteMode =
     request?.category === 'TOWING'
@@ -88,8 +92,10 @@ export default function RequestDetailScreen() {
           : 'parts';
   const fareEstimate = Number(request?.towingEstimatedFare ?? 0);
 
-  const quotes = quotesData?.items ?? [];
+  const [sortBy, setSortBy] = useState<QuoteSort>('cheapest');
+  const quotes = sortQuotes(quotesData?.items ?? [], sortBy);
   const quoteMarkers = quoteMarkersFor(quotes);
+  const quotesLeft = timeLeft(request?.quotesUntil, now);
   const quoteCardW = Math.min(windowWidth - 64, 400);
   const myQuote = (myQuotesData?.items ?? []).find(
     (quote) => quote.requestId === id,
@@ -205,6 +211,16 @@ export default function RequestDetailScreen() {
           <Text style={styles.sectionCount}>{quotes.length}</Text>
         </View>
 
+        {isOwner && openToQuotes && request.quotesUntil ? (
+          <Text style={styles.windowNote}>
+            {quotesLeft
+              ? `Garages near you have been told. Taking quotes for ${quotesLeft}.`
+              : quotes.length > 0
+                ? `No new quotes now. Pick one of the ${quotes.length} you have.`
+                : 'No quotes came in. Cancel this request and post it again to try once more.'}
+          </Text>
+        ) : null}
+
         {quotesLoading ? (
           <Card>
             <Skeleton width="100%" height={72} radius={radii.md} />
@@ -223,7 +239,20 @@ export default function RequestDetailScreen() {
         ) : (
           <>
             {quotes.length > 1 ? (
-              <Text style={styles.swipeHint}>Swipe to compare {quotes.length} quotes</Text>
+              <>
+                <View style={styles.sortRow}>
+                  {SORTS.map((o) => (
+                    <Chip
+                      key={o.key}
+                      label={o.label}
+                      accessibilityLabel={`Sort quotes by ${o.label.toLowerCase()}`}
+                      selected={sortBy === o.key}
+                      onPress={() => setSortBy(o.key)}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.swipeHint}>Swipe to compare {quotes.length} quotes</Text>
+              </>
             ) : null}
             <FlatList
               data={quotes}
@@ -286,7 +315,7 @@ export default function RequestDetailScreen() {
               <DetailRow label="Labour" value={`₹${Number(myQuote.labourCost).toLocaleString('en-IN')}`} />
               <DetailRow label="Shipping" value={`₹${Number(myQuote.shippingCost ?? 0).toLocaleString('en-IN')}`} />
               <DetailRow label="Warranty" value={`${myQuote.warrantyDays} days`} />
-              <DetailRow label="ETA" value={myQuote.etaDescription} last />
+              <DetailRow label="Time" value={quoteTimeText(myQuote) ?? '—'} last />
             </Card>
             {myQuote.status === 'PENDING' ? (
               <Button
@@ -353,6 +382,22 @@ function DetailRow({ label, value, last }: { label: string; value: string; last?
   );
 }
 
+const SORTS: { key: QuoteSort; label: string }[] = [
+  { key: 'cheapest', label: 'Cheapest' },
+  { key: 'soonest', label: 'Soonest' },
+  { key: 'rated', label: 'Best rated' },
+];
+
+/** Current time, refreshed every minute, for the "taking quotes for N hours" line. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}
+
 function QuoteCard({
   quote,
   onAccept,
@@ -394,9 +439,14 @@ function QuoteCard({
             format={(n) => `₹${n.toLocaleString('en-IN')}`}
             style={styles.dealerAmount}
           />
-          {marker ? <StatusPill label={marker} tone="info" /> : null}
         </View>
       </View>
+      {/* Own line: "Best rated and ready soonest" is too long to share a row with the name. */}
+      {marker ? (
+        <View style={styles.markerRow}>
+          <StatusPill label={marker} tone="info" />
+        </View>
+      ) : null}
 
       <View style={styles.dealerTags}>
         {quote.partCondition ? (
@@ -406,9 +456,7 @@ function QuoteCard({
         <StatusPill label={labelize(quote.status)} tone={statusTone(quote.status)} />
       </View>
 
-      {quote.etaDescription ? (
-        <Text style={styles.dealerEta}>{quote.etaDescription}</Text>
-      ) : null}
+      {quoteTimeText(quote) ? <Text style={styles.dealerEta}>{quoteTimeText(quote)}</Text> : null}
       {quote.notes ? <Text style={styles.dealerNotes}>{quote.notes}</Text> : null}
 
       {canAcceptNow ? (
@@ -420,6 +468,9 @@ function QuoteCard({
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  windowNote: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.sm },
+  markerRow: { flexDirection: 'row', marginTop: spacing.sm },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

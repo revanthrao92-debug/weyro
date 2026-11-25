@@ -7,6 +7,8 @@ export function notificationHref(
   if (typeof data.route === 'string') return data.route;
 
   if (typeof data.orderId === 'string') return `/order/${data.orderId}`;
+  // A new request near a garage: open it so they can quote straight away.
+  if (data.type === 'new_request' && typeof data.requestId === 'string') return `/requests/${data.requestId}`;
   if (typeof data.requestId === 'string') {
     return role === 'CUSTOMER' ? `/requests/${data.requestId}` : '/my-quotes';
   }

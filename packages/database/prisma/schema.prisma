@@ -419,6 +419,8 @@ model ServiceRequest {
   towingDistanceKm    Float?
   towingEstimatedFare Decimal?                               @db.Decimal(10, 2)
   expiresAt           DateTime
+  /// New quotes stop here (accepting a quote still works until expiresAt). Null = expiresAt.
+  quotesUntil         DateTime?
   deletedAt           DateTime?
   quotations          Quotation[]
   media               RequestMedia[]
@@ -464,6 +466,9 @@ model Quotation {
   partCondition  PartCondition?
   warrantyDays   Int             @default(30)
   etaDescription String
+  /// Earliest the provider can start, and how long the job takes (to compare and sort quotes).
+  startsAt       DateTime?
+  durationHours  Int?
   deliveryMethod String?
   notes          String?
   status         QuotationStatus @default(PENDING)

@@ -222,20 +222,33 @@ export const CreateServiceRequestSchema = z
   });
 
 // Quotation validation (Note: totalCost is computed server-side, providerId is derived from JWT)
-export const CreateQuotationSchema = z
+export const QuotationFieldsSchema = z
   .object({
     partsCost: z.number().min(0),
     labourCost: z.number().min(0).default(0),
     shippingCost: z.number().min(0).optional(),
     partCondition: z.enum(['OEM', 'AFTERMARKET', 'USED']).optional(),
     warrantyDays: z.number().int().min(0).default(30),
-    etaDescription: z.string().min(2),
+    // Old app versions send free text; new ones send startsAt + durationHours and the server writes the text.
+    etaDescription: z.string().min(2).optional(),
+    startsAt: z.string().datetime({ offset: true }).optional(),
+    durationHours: z.number().int().min(1).max(30 * 24).optional(),
     deliveryMethod: z
       .enum(['PICKUP', 'DOORSTEP_DELIVERY', 'PARTS_COURIER', 'ON_SITE_FITMENT'])
       .optional(),
     notes: z.string().max(1000).optional(),
   })
   .strict();
+
+export const CreateQuotationSchema = QuotationFieldsSchema
+  .refine((q) => (q.startsAt === undefined) === (q.durationHours === undefined), {
+    message: 'Send both startsAt and durationHours, or neither',
+    path: ['durationHours'],
+  })
+  .refine((q) => q.etaDescription !== undefined || q.startsAt !== undefined, {
+    message: 'Say when you can start and how long it takes',
+    path: ['startsAt'],
+  });
 
 // Live provider tracking
 export const UpdateBookingLocationSchema = z

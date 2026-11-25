@@ -8,6 +8,7 @@ import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { validateQuotationTransition, validateServiceRequestTransition } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
+import { quoteTiming, quotesCloseAt } from './quote-time';
 import { estimateTowingFare, PROVIDER_TYPE_CATEGORIES, TOWING_TARIFF } from '@weyro/api-contracts';
 import {
   buildCursorWhere,
@@ -46,9 +47,13 @@ export class QuotationsService {
       );
     }
 
-    if (request.expiresAt < new Date()) {
-      throw new BadRequestException('Cannot submit quotation: request has expired');
+    if (quotesCloseAt(request) < new Date()) {
+      throw new BadRequestException('Cannot submit quotation: this request has stopped taking quotes');
     }
+    const timing =
+      dto.startsAt !== undefined && dto.durationHours !== undefined
+        ? quoteTiming(dto.startsAt, dto.durationHours)
+        : null;
 
     const providerProfile = await this.prisma.providerProfile.findUnique({
       where: { id: providerId },
@@ -135,7 +140,7 @@ export class QuotationsService {
       .$transaction(async (tx) => {
         const current = await tx.serviceRequest.findUnique({
           where: { id: requestId },
-          select: { status: true, expiresAt: true },
+          select: { status: true, expiresAt: true, quotesUntil: true },
         });
 
         if (!current) {
@@ -150,9 +155,9 @@ export class QuotationsService {
           );
         }
 
-        if (current.expiresAt < new Date()) {
+        if (quotesCloseAt(current) < new Date()) {
           throw new BadRequestException(
-            'Cannot submit quotation: request has expired',
+            'Cannot submit quotation: this request has stopped taking quotes',
           );
         }
 
@@ -166,7 +171,9 @@ export class QuotationsService {
             totalCost,
             partCondition: (dto.partCondition as any) || 'OEM',
             warrantyDays: dto.warrantyDays || 30,
-            etaDescription: dto.etaDescription,
+            etaDescription: timing?.etaDescription ?? dto.etaDescription ?? '',
+            startsAt: timing?.startsAt,
+            durationHours: timing?.durationHours,
             deliveryMethod: dto.deliveryMethod || 'DOORSTEP_DELIVERY',
             notes: dto.notes,
             status: 'PENDING',
@@ -610,6 +617,14 @@ export class QuotationsService {
       );
     }
 
+    if (quotesCloseAt(quote.request) < new Date()) {
+      throw new BadRequestException('Cannot edit quotation: this request has stopped taking quotes');
+    }
+    const timing =
+      dto.startsAt !== undefined && dto.durationHours !== undefined
+        ? quoteTiming(dto.startsAt, dto.durationHours)
+        : null;
+
     let parts = Number(dto.partsCost ?? quote.partsCost);
     let labour = Number(dto.labourCost ?? quote.labourCost);
     let shipping = Number(dto.shippingCost ?? quote.shippingCost ?? 0);
@@ -655,9 +670,11 @@ export class QuotationsService {
         ...(dto.warrantyDays !== undefined
           ? { warrantyDays: dto.warrantyDays }
           : {}),
-        ...(dto.etaDescription !== undefined
-          ? { etaDescription: dto.etaDescription }
-          : {}),
+        ...(timing
+          ? timing
+          : dto.etaDescription !== undefined
+            ? { etaDescription: dto.etaDescription }
+            : {}),
         ...(dto.deliveryMethod !== undefined
           ? { deliveryMethod: dto.deliveryMethod }
           : {}),
