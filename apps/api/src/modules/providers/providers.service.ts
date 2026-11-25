@@ -8,13 +8,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PROVIDER_TYPE_CATEGORIES } from '@weyro/api-contracts';
-import {
-  addDays,
-  buildDailyBuckets,
-  forecastNetSales,
-  startOfDayUTC,
-  summariseAnalytics,
-} from './analytics';
+import { addDays, buildDailyBuckets, startOfDayUTC, summariseAnalytics } from './analytics';
+import { forecastEarnings } from './forecast';
+
+/** Days are counted in Indian time, so a 1 am sale and "today" match the dealer's calendar. */
+const IST_OFFSET_MINUTES = 330;
+/** The forecast learns from up to six months of sales, whatever range the screen shows. */
+const MODEL_DAYS = 183;
 import { CacheService } from '../../common/redis/cache.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
@@ -82,60 +82,108 @@ export class ProvidersService {
     const id = this.providerId(user);
     const periodDays = Math.min(90, Math.max(7, Math.round(days)));
     const now = new Date();
-    const start = addDays(startOfDayUTC(now), -(periodDays - 1));
+    const modelStart = addDays(now, -(MODEL_DAYS + 1));
+    const offsetMs = IST_OFFSET_MINUTES * 60_000;
+    const todayStart = new Date(startOfDayUTC(new Date(now.getTime() + offsetMs)).getTime() - offsetMs);
+    const periodStart = addDays(todayStart, -(periodDays - 1)); // first day shown on the chart
+    const last28 = addDays(now, -28);
 
-    const [orders, pendingAggregate, listings, quotesSent, quotesAccepted] =
-      await Promise.all([
-        this.prisma.sparePartOrder.findMany({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            paidAt: { gte: start },
-          },
-          select: {
-            totalAmount: true,
-            paidAt: true,
-            refundedAt: true,
-            status: true,
-          },
-          take: 2000,
-        }),
-        this.prisma.sparePartOrder.aggregate({
-          where: {
-            providerId: id,
-            status: 'PENDING',
-            deletedAt: null,
-          },
-          _sum: { totalAmount: true },
-        }),
-        this.prisma.sparePart.findMany({
-          where: { providerId: id, deletedAt: null },
-          select: { price: true, stockQuantity: true, isActive: true },
-        }),
-        this.prisma.quotation.count({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            createdAt: { gte: start },
-          },
-        }),
-        this.prisma.quotation.count({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            status: 'ACCEPTED',
-            createdAt: { gte: start },
-          },
-        }),
-      ]);
+    const profile = await this.prisma.providerProfile.findUnique({
+      where: { id },
+      select: { providerType: true, isAvailable: true },
+    });
+    const categories =
+      PROVIDER_TYPE_CATEGORIES[profile?.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES] ?? [];
+    const requestCount = (from: Date, to: Date) =>
+      categories.length
+        ? this.prisma.serviceRequest.count({
+            where: { category: { in: categories as any }, deletedAt: null, createdAt: { gte: from, lt: to } },
+          })
+        : Promise.resolve(0);
+
+    const [
+      orders,
+      pendingAggregate,
+      listings,
+      quotesSent,
+      quotesAccepted,
+      pendingQuotes,
+      decidedQuotes,
+      allAccepted,
+      unitsByPart,
+      requestsLast7,
+      requestsPrevious56,
+    ] = await Promise.all([
+      this.prisma.sparePartOrder.findMany({
+        where: { providerId: id, deletedAt: null, paidAt: { gte: modelStart } },
+        select: { totalAmount: true, paidAt: true, refundedAt: true, status: true },
+        // shortcut: loads each order row; past ~20k orders in six months, group by day in SQL instead.
+        take: 20000,
+      }),
+      this.prisma.sparePartOrder.aggregate({
+        where: { providerId: id, status: 'PENDING', deletedAt: null },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.sparePart.findMany({
+        where: { providerId: id, deletedAt: null },
+        select: { id: true, name: true, price: true, stockQuantity: true, isActive: true },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, createdAt: { gte: periodStart } },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: 'ACCEPTED', createdAt: { gte: periodStart } },
+      }),
+      this.prisma.quotation.aggregate({
+        where: { providerId: id, deletedAt: null, status: 'PENDING' },
+        _sum: { totalCost: true },
+        _count: true,
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: { in: ['ACCEPTED', 'REJECTED', 'EXPIRED'] } },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: 'ACCEPTED' },
+      }),
+      this.prisma.sparePartOrder.groupBy({
+        by: ['sparePartId'],
+        where: { providerId: id, deletedAt: null, status: 'PAID', paidAt: { gte: last28 } },
+        _sum: { quantity: true },
+      }),
+      requestCount(addDays(now, -7), now),
+      requestCount(addDays(now, -63), addDays(now, -7)),
+    ]);
 
     const analyticsOrders = orders.map((order) => ({
       ...order,
       totalAmount: Number(order.totalAmount),
     }));
-    const buckets = buildDailyBuckets(analyticsOrders, periodDays, now);
-    const summary = summariseAnalytics(buckets, analyticsOrders);
+    const allDays = buildDailyBuckets(analyticsOrders, MODEL_DAYS + 1, now, IST_OFFSET_MINUTES);
+    const buckets = allDays.slice(-periodDays);
+    const periodOrders = analyticsOrders.filter(
+      (order) => order.paidAt && order.paidAt.getTime() >= periodStart.getTime(),
+    );
+    const summary = summariseAnalytics(buckets, periodOrders);
     const activeListings = listings.filter((item) => item.isActive);
+    const unitsSold = new Map(unitsByPart.map((row) => [row.sparePartId, row._sum.quantity ?? 0]));
+
+    const forecast = forecastEarnings({
+      history: allDays.slice(0, -1), // today isn't over yet
+      shopOpen: profile?.isAvailable ?? true,
+      parts: activeListings.map((item) => ({
+        name: item.name,
+        price: Number(item.price),
+        stock: item.stockQuantity,
+        unitsLast28: unitsSold.get(item.id) ?? 0,
+      })),
+      quotes: {
+        pendingTotal: Number(pendingQuotes._sum.totalCost ?? 0),
+        pendingCount: pendingQuotes._count,
+        accepted: allAccepted,
+        decided: decidedQuotes,
+      },
+      demand: { last7: requestsLast7, previous56: requestsPrevious56 },
+    });
 
     return {
       periodDays,
@@ -143,25 +191,19 @@ export class ProvidersService {
       summary: {
         ...summary,
         pendingValue: Number(pendingAggregate._sum.totalAmount ?? 0),
-        inventoryValue: Math.round(
-          activeListings.reduce(
-            (sum, item) => sum + Number(item.price) * item.stockQuantity,
-            0,
-          ) * 100,
-        ) / 100,
+        inventoryValue:
+          Math.round(
+            activeListings.reduce((sum, item) => sum + Number(item.price) * item.stockQuantity, 0) * 100,
+          ) / 100,
         activeListings: activeListings.length,
-        lowStockListings: activeListings.filter(
-          (item) => item.stockQuantity <= 3,
-        ).length,
+        lowStockListings: activeListings.filter((item) => item.stockQuantity <= 3).length,
         quotesSent,
         quotesAccepted,
         quoteConversionRate:
-          quotesSent === 0
-            ? 0
-            : Math.round((quotesAccepted / quotesSent) * 1000) / 10,
+          quotesSent === 0 ? 0 : Math.round((quotesAccepted / quotesSent) * 1000) / 10,
       },
       buckets,
-      forecast: forecastNetSales(buckets),
+      forecast,
     };
   }
 

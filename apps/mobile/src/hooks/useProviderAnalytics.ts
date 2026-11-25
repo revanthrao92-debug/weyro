@@ -38,6 +38,12 @@ export type ProviderAnalytics = {
         projectedHigh: number;
         trend: 'UP' | 'DOWN' | 'FLAT';
         points: { date: string; value: number; low: number; high: number }[];
+        /** What moved the forecast, biggest effect first; amount in ₹ over the whole horizon. */
+        factors: { key: string; label: string; detail: string; amount: number }[];
+        /** Factors left out, with the reason (not enough history, nothing coming up...). */
+        skipped: { key: string; label: string; reason: string }[];
+        /** How close past forecasts came on this dealer's own sales; null until there's enough history. */
+        accuracy: { withinPct: number; checks: number } | null;
       }
     | { available: false; reason: string };
 };
