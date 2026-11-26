@@ -16,6 +16,12 @@ export function nextJobStep(job: JobLike): JobStep | null {
   const isTowing = category === 'TOWING';
   const isRoadside = category === 'ROADSIDE';
   const isDropOff = !isTowing && !isRoadside && job.quotation?.deliveryMethod === 'PICKUP';
+  // A dealer's accepted quote on a part request: pack it, then deliver it (no "on the way").
+  if (category === 'SPARE_PART') {
+    if (job.status === 'CONFIRMED') return { label: 'To pack', title: 'Start packing', next: 'IN_PROGRESS' };
+    if (job.status === 'IN_PROGRESS') return { label: 'Packing', title: 'Mark delivered' };
+    return null;
+  }
   switch (job.status) {
     case 'CONFIRMED':
       return isDropOff

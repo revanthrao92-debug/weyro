@@ -11,6 +11,8 @@ import {
   type SparePartOrder,
 } from '@/hooks/useParts';
 import { useProviderDashboard } from '@/hooks/useProviderDashboard';
+import { useBookings, type Booking } from '@/hooks/useBookings';
+import { JobRow, ToDoCard as JobToDoCard } from '@/components/provider/JobCards';
 import { haptics } from '@/lib/haptics';
 import {
   ScreenContainer,
@@ -298,7 +300,8 @@ function ToDoCard({ order, onOpen }: { order: SparePartOrder; onOpen: () => void
 
 type ListItem =
   | { kind: 'head'; key: string; label: string }
-  | { kind: 'order'; key: string; order: SparePartOrder; first: boolean };
+  | { kind: 'order'; key: string; order: SparePartOrder; first: boolean }
+  | { kind: 'job'; key: string; job: Booking; first: boolean };
 
 function DealerOrders() {
   const router = useRouter();
@@ -306,10 +309,20 @@ function DealerOrders() {
   const { data, isLoading, isError, refetch } = useDealerOrders({ limit: 50 });
   const todoQuery = useDealerOrders({ needsAction: true, limit: 50 });
   const dashboard = useProviderDashboard();
-  const refreshControl = useRefreshControl(() => Promise.all([refetch(), todoQuery.refetch()]));
+  // Accepted quotes on part requests become jobs (bookings); they live here too.
+  const activeJobsQuery = useBookings(undefined, { active: true, limit: 50 });
+  const jobHistoryQuery = useBookings(undefined, { limit: 50 });
+  const refreshControl = useRefreshControl(() =>
+    Promise.all([refetch(), todoQuery.refetch(), activeJobsQuery.refetch(), jobHistoryQuery.refetch()]),
+  );
   const orders = data?.items ?? [];
   const todo = todoQuery.data?.items ?? [];
   const todoIds = new Set(todo.map((o) => o.id));
+  const todoJobs = activeJobsQuery.data?.items ?? [];
+  const doneJobs = (jobHistoryQuery.data?.items ?? []).filter(
+    (j) => !['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(j.status),
+  );
+  const todoCount = todo.length + todoJobs.length;
 
   // The date list holds everything except the to-do cards above it; unpaid orders get their own group.
   const finished = orders.filter((o) => !todoIds.has(o.id) && o.status !== 'PENDING');
@@ -323,16 +336,32 @@ function DealerOrders() {
           ? finished.filter((o) => ['CANCELLED', 'FAILED', 'REFUNDED'].includes(o.status) || o.fulfillmentStatus === 'CANCELLED')
           : finished;
 
+  // Finished request jobs join the dated list (not under Unpaid: they are paid through the booking).
+  const shownJobs =
+    filter === 'UNPAID'
+      ? []
+      : filter === 'DELIVERED'
+        ? doneJobs.filter((j) => j.status === 'COMPLETED')
+        : filter === 'CANCELLED'
+          ? doneJobs.filter((j) => j.status === 'CANCELLED')
+          : doneJobs;
+  const dated = [
+    ...shown.map((order) => ({ at: order.createdAt, order, job: undefined as Booking | undefined })),
+    ...shownJobs.map((job) => ({ at: job.completedAt ?? job.createdAt, order: undefined as SparePartOrder | undefined, job })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
   const items: ListItem[] = [];
   let lastHead = '';
-  shown.forEach((order) => {
-    const head = filter === 'UNPAID' ? 'Waiting for payment' : dayHeading(order.createdAt);
+  dated.forEach(({ at, order, job }) => {
+    const head = filter === 'UNPAID' ? 'Waiting for payment' : dayHeading(at);
     if (head !== lastHead) {
-      items.push({ kind: 'head', key: `h-${head}-${order.id}`, label: head });
+      items.push({ kind: 'head', key: `h-${head}-${order?.id ?? job?.id}`, label: head });
       lastHead = head;
     }
     // No divider under a heading, only between rows.
-    items.push({ kind: 'order', key: order.id, order, first: items[items.length - 1]?.kind === 'head' });
+    const first = items[items.length - 1]?.kind === 'head';
+    if (order) items.push({ kind: 'order', key: order.id, order, first });
+    else if (job) items.push({ kind: 'job', key: `job-${job.id}`, job, first });
   });
   if (filter === 'ALL' && unpaid.length > 0) {
     items.push({ kind: 'head', key: 'h-unpaid', label: `Waiting for payment (${unpaid.length})` });
@@ -341,10 +370,10 @@ function DealerOrders() {
 
   const paidTotal = dashboard.data?.revenue.paidTotal;
   const subtitle =
-    orders.length === 0 && !isLoading
+    orders.length === 0 && todoJobs.length === 0 && doneJobs.length === 0 && !isLoading
       ? 'No orders yet'
       : [
-          todo.length === 0 ? 'Nothing to do' : `${todo.length} to do`,
+          todoCount === 0 ? 'Nothing to do' : `${todoCount} to do`,
           paidTotal !== undefined ? `${money(Math.round(paidTotal))} paid in total` : null,
         ]
           .filter(Boolean)
@@ -360,11 +389,14 @@ function DealerOrders() {
         ListHeaderComponent={
           <View>
             <PageHeader title="Orders" subtitle={subtitle} />
-            {todo.length > 0 ? (
+            {todoCount > 0 ? (
               <>
-                <Text style={styles.section}>To do ({todo.length})</Text>
+                <Text style={styles.section}>To do ({todoCount})</Text>
                 {todo.map((order) => (
                   <ToDoCard key={order.id} order={order} onOpen={() => router.push(`/order/${order.id}`)} />
+                ))}
+                {todoJobs.map((job) => (
+                  <JobToDoCard key={job.id} job={job} onOpen={() => router.push(`/job/${job.id}`)} />
                 ))}
               </>
             ) : null}
@@ -406,7 +438,11 @@ function DealerOrders() {
             <Text style={styles.dayHead}>{item.label}</Text>
           ) : (
             <View style={item.first ? undefined : styles.divider}>
-              <DealerRow order={item.order} onPress={() => router.push(`/order/${item.order.id}`)} />
+              {item.kind === 'job' ? (
+                <JobRow job={item.job} onPress={() => router.push(`/job/${item.job.id}`)} />
+              ) : (
+                <DealerRow order={item.order} onPress={() => router.push(`/order/${item.order.id}`)} />
+              )}
             </View>
           )
         }

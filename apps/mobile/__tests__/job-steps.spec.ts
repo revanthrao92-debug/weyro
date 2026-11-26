@@ -23,4 +23,8 @@ describe('nextJobStep', () => {
     expect(nextJobStep(job('COMPLETED'))).toBeNull();
     expect(nextJobStep(job('CANCELLED'))).toBeNull();
   });
+  it('a part request sold by a dealer: start packing, then mark delivered (opens the job)', () => {
+    expect(nextJobStep(job('CONFIRMED', 'SPARE_PART'))).toEqual({ label: 'To pack', title: 'Start packing', next: 'IN_PROGRESS' });
+    expect(nextJobStep(job('IN_PROGRESS', 'SPARE_PART'))).toEqual({ label: 'Packing', title: 'Mark delivered' });
+  });
 });

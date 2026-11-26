@@ -146,12 +146,16 @@ export default function MechanicJobDetailScreen() {
   const isRoadside = category === 'ROADSIDE';
   // Drop-off repairs ('PICKUP' in the quote composer): the customer brings the
   // vehicle in, so there is no "on the way" leg (the API allows CONFIRMED -> IN_PROGRESS).
+  // A dealer's sale from a part request: packed, then delivered (no "on the way" leg).
+  const isParts = category === 'SPARE_PART';
   const isDropOff =
-    !isTowing && !isRoadside && booking.quotation?.deliveryMethod === 'PICKUP';
+    isParts || (!isTowing && !isRoadside && booking.quotation?.deliveryMethod === 'PICKUP');
   const steps = isDropOff ? STEPS.filter((s) => s !== 'PROVIDER_EN_ROUTE') : STEPS;
   const stepIndex = steps.indexOf(booking.status);
-  const STEP_LABEL = isTowing
-    ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
+  const STEP_LABEL = isParts
+    ? ['Order confirmed', 'Packing', 'Delivered']
+    : isTowing
+      ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
     : isRoadside
       ? ['Confirmed', 'On the way', 'On site', 'Completed']
       : steps.map(statusLabel);
@@ -229,7 +233,9 @@ export default function MechanicJobDetailScreen() {
     }
     if (booking.status === 'PROVIDER_EN_ROUTE') return void advance('IN_PROGRESS');
     if (booking.status === 'IN_PROGRESS') {
-      const message = 'This marks the work complete and releases the held payment.';
+      const message = isParts
+        ? 'This marks the part delivered and releases the held payment.'
+        : 'This marks the work complete and releases the held payment.';
       // Alert.alert shows nothing in a browser, so the job could never be completed there.
       if (Platform.OS === 'web') {
         if (globalThis.confirm?.(`Complete job?\n\n${message}`)) void advance('COMPLETED', true);
@@ -244,9 +250,11 @@ export default function MechanicJobDetailScreen() {
 
   const primaryLabel =
     booking.status === 'CONFIRMED'
-      ? isDropOff
-        ? 'Start job'
-        : 'On my way'
+      ? isParts
+        ? 'Start packing'
+        : isDropOff
+          ? 'Start job'
+          : 'On my way'
       : booking.status === 'PROVIDER_EN_ROUTE'
         ? isTowing
           ? 'Start tow'
@@ -256,7 +264,9 @@ export default function MechanicJobDetailScreen() {
         : booking.status === 'IN_PROGRESS'
           ? isTowing
             ? 'Delivered'
-            : 'Complete job'
+            : isParts
+              ? 'Mark delivered'
+              : 'Complete job'
           : null;
 
   return (
@@ -271,7 +281,9 @@ export default function MechanicJobDetailScreen() {
                     ? 'Towing'
                     : isRoadside
                       ? 'On site'
-                      : 'In progress'
+                      : isParts
+                        ? 'Packing'
+                        : 'In progress'
                   : statusLabel(booking.status)
               }
               tone={bookingStatusTone(booking.status)}
@@ -362,9 +374,11 @@ export default function MechanicJobDetailScreen() {
           <Card style={styles.card}>
             {booking.status === 'IN_PROGRESS' ? (
               <Input
-                label="Completion notes (optional)"
+                label={isParts ? 'Delivery note (optional)' : 'Completion notes (optional)'}
                 placeholder={
-                  isTowing
+                  isParts
+                    ? 'Courier and tracking number, or who collected it'
+                    : isTowing
                     ? 'Vehicle delivered, condition, handover'
                     : isRoadside
                       ? 'What was fixed on site'
