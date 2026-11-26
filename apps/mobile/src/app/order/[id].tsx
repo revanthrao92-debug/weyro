@@ -34,7 +34,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, formatRupees } from '@/utils/format';
 import { Check } from 'lucide-react-native';
 
 const STEP_NAMES: Record<FulfillmentStatus, string> = {
@@ -166,7 +166,7 @@ export default function OrderDetailScreen() {
         </PageHeader>
 
         <View style={styles.dealerCard}>
-          <Text style={styles.dealerAmount}>₹{Number(order.totalAmount).toLocaleString('en-IN')}</Text>
+          <Text style={styles.dealerAmount}>{formatRupees(order.totalAmount)}</Text>
           <Text style={styles.dealerMeta}>
             {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Waiting for the customer to pay'}
           </Text>
@@ -375,7 +375,7 @@ function CustomerOrderView({ order }: { order: SparePartOrder }) {
 
         <Card style={styles.card}>
           <Text style={styles.amount}>
-            ₹{Number(order.totalAmount).toLocaleString('en-IN')}
+            {formatRupees(order.totalAmount)}
           </Text>
           <Text style={styles.meta}>
             {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Payment not completed'}

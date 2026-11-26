@@ -11,7 +11,7 @@ import {
   StatusPill,
   ErrorState,
 } from '@/components/ui';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, formatRupees as money } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
@@ -24,9 +24,6 @@ import { useRefreshControl } from '@/hooks/useRefreshControl';
 const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER'] as const;
 type Filter = (typeof FILTERS)[number];
 
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
-}
 
 function statusTone(status: string): StatusTone {
   if (status === 'RELEASED_TO_PROVIDER') return 'success';

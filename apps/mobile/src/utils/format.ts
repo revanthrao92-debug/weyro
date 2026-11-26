@@ -93,3 +93,12 @@ export function requestStatusTone(status: string): StatusTone {
       return 'neutral';
   }
 }
+
+/**
+ * The one rupee format: "₹749" for whole rupees, "₹1,899.50" when there are
+ * paise (nine local helpers used to disagree: some rounded paise away).
+ */
+export function formatRupees(value: number | string | null | undefined): string {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  return `₹${n.toLocaleString('en-IN', Number.isInteger(n) ? undefined : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

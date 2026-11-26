@@ -2,9 +2,7 @@ import type { StatusTone } from '@/theme';
 import type { DriverJob } from '@/hooks/useDriverGo';
 import { formatDate } from '@/utils/format';
 
-export function money(value: number): string {
-  return `₹${Number(value || 0).toLocaleString('en-IN')}`;
-}
+export { formatRupees as money } from '@/utils/format';
 
 export function jobWhen(iso: string): string {
   const date = new Date(iso);

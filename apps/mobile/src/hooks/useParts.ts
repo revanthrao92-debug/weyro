@@ -36,6 +36,8 @@ export type CreateSparePart = {
 
 export type UpdateSparePart = Partial<CreateSparePart> & {
   isActive?: boolean;
+  /** +1 / -1 from the stock buttons: applied to the current stock on the server. */
+  stockDelta?: number;
 };
 
 export type SparePartOrder = {

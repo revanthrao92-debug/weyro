@@ -4,6 +4,7 @@ import { Button, Chip, Input, StatusPill } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import type { CreateQuotation } from '@/hooks/useRequests';
 import { durationLabel, readyBy, shortDay } from '@/utils/quotes';
+import { formatRupees } from '@/utils/format';
 
 type Props = {
   mode?: 'parts' | 'service' | 'towing' | 'roadside';
@@ -247,7 +248,7 @@ export function QuoteComposer({
         <Text style={styles.totalLabel}>
           {isTowing ? 'Fare (platform estimate)' : 'Quote total'}
         </Text>
-        <Text style={styles.totalValue}>₹{total.toLocaleString('en-IN')}</Text>
+        <Text style={styles.totalValue}>{formatRupees(total)}</Text>
       </View>
       {isTowing ? (
         <Text style={styles.hint}>

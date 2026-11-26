@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProviderDashboard } from '@/hooks/useProviderDashboard';
 import { useBroadcastFeed } from '@/hooks/useRequests';
 import { useProviderProfile, useUpdateProviderProfile } from '@/hooks/useProfile';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, formatRupees } from '@/utils/format';
 import {
   displayFamily,
   fontFamilyMono,
@@ -427,7 +427,7 @@ export function MechanicDashboard() {
                 </View>
                 <View style={styles.dataRight}>
                   <Text style={styles.dataAmount}>
-                    ₹{Number(job.totalCost).toLocaleString('en-IN')}
+                    {formatRupees(job.totalCost)}
                   </Text>
                   <StatusPill
                     label={job.status === 'PROVIDER_EN_ROUTE' ? 'On the way' : titleize(job.status)}

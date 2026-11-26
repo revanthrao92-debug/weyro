@@ -33,7 +33,7 @@ import {
   StatusPill,
   PopIn,
 } from '@/components/ui';
-import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
@@ -290,7 +290,7 @@ export default function MechanicJobDetailScreen() {
 
         <Card style={styles.card}>
           <Text style={styles.amount}>
-            ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}
+            {formatRupees(booking.quotation?.totalCost ?? 0)}
           </Text>
           <Text style={styles.meta}>
             {request?.address ?? 'Workshop job'}
@@ -450,7 +450,7 @@ export default function MechanicJobDetailScreen() {
           <Text style={styles.sectionTitle}>Payment</Text>
           <Row
             label="Job value"
-            value={`₹${Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}`}
+            value={formatRupees(booking.quotation?.totalCost ?? 0)}
           />
           <Row
             label="Status"

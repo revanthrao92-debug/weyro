@@ -7,7 +7,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
+import { titleize as labelize, bookingStatusTone as statusTone, formatRupees } from '@/utils/format';
 import { palette, spacing, typography, radii } from '@/theme';
 import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
@@ -213,7 +213,7 @@ export default function BookingDetailScreen() {
             <View style={[styles.specRow, styles.divider]}>
               <Text style={styles.specLabel}>Payment</Text>
               <Text style={styles.specValue}>
-                ₹{Number(booking.payment.amount).toLocaleString('en-IN')} ·{' '}
+                {formatRupees(booking.payment.amount)} ·{' '}
                 {labelize(booking.payment.status)}
               </Text>
             </View>

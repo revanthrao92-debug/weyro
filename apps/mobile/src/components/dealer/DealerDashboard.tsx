@@ -30,11 +30,8 @@ import { useProviderDashboard } from '@/hooks/useProviderDashboard';
 import { useUpdateProviderProfile } from '@/hooks/useProfile';
 import { displayFamily, palette, radii, spacing, typography } from '@/theme';
 import { compactRupees } from '@/utils/earningsChart';
-import { formatDate, labelize } from '@/utils/format';
+import { formatDate, labelize, formatRupees as money } from '@/utils/format';
 
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
-}
 
 const stagger = (i: number) => 60 + i * 70;
 

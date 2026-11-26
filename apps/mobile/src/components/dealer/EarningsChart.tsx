@@ -5,6 +5,7 @@ import type { AnalyticsBucket, ProviderAnalytics } from '@/hooks/useProviderAnal
 import { haptics } from '@/lib/haptics';
 import { palette, spacing, typography } from '@/theme';
 import { compactRupees, monotonePath, niceMax, rollingAverage } from '@/utils/earningsChart';
+import { formatRupees as money } from '@/utils/format';
 
 type ForecastPoint = Extract<ProviderAnalytics['forecast'], { available: true }>['points'][number];
 
@@ -20,7 +21,6 @@ export interface EarningsChartProps {
   accessibilityLabel: string;
 }
 
-const money = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
 const dayLabel = (date: string) =>
   new Date(`${date}T00:00:00.000Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const NONE: ForecastPoint[] = [];

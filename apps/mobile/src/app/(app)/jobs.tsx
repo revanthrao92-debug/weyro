@@ -21,7 +21,7 @@ import {
   spacing,
   typography,
 } from '@/theme';
-import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ACTIVE', 'TODAY', 'COMPLETED', 'CANCELLED', 'ALL'] as const;
@@ -228,7 +228,7 @@ function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void })
           {route}
         </Text>
         <Text style={styles.amount}>
-          ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}
+          {formatRupees(booking.quotation?.totalCost ?? 0)}
         </Text>
       </View>
     </PressableScale>

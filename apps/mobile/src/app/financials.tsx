@@ -6,10 +6,10 @@ import { useProviderAnalytics } from '@/hooks/useProviderAnalytics';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { palette, radii, spacing, typography } from '@/theme';
 import { compactRupees } from '@/utils/earningsChart';
+import { formatRupees as money } from '@/utils/format';
 
 const RANGES = [7, 30, 90] as const;
 
-const money = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
 const signed = (value: number) => `${value >= 0 ? '+' : '−'}${compactRupees(Math.abs(value))}`;
 
 export default function FinancialsScreen() {

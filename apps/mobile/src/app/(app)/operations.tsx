@@ -21,7 +21,7 @@ import {
   StatusPill,
   ErrorState,
 } from '@/components/ui';
-import { formatDate, titleize, bookingStatusTone } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
@@ -286,7 +286,7 @@ function OrderRow({
         </View>
         <View style={styles.rowRight}>
           <Text style={styles.amount}>
-            ₹{Number(order.totalAmount).toLocaleString('en-IN')}
+            {formatRupees(order.totalAmount)}
           </Text>
           <StatusPill
             label={order.status === 'PENDING' ? 'Unpaid' : statusLabel(order.status)}
@@ -365,7 +365,7 @@ function BookingRow({
         </View>
         <View style={styles.rowRight}>
           <Text style={styles.amount}>
-            ₹{Number(booking.totalCost).toLocaleString('en-IN')}
+            {formatRupees(booking.totalCost)}
           </Text>
           <StatusPill label={statusLabel(booking.status)} tone={bookingStatusTone(booking.status)} />
         </View>
@@ -376,7 +376,7 @@ function BookingRow({
           <Text style={styles.meta}>
             Payment: {booking.payment ? statusLabel(booking.payment.status) : 'none'}
             {booking.payment
-              ? ` · ₹${Number(booking.payment.amount).toLocaleString('en-IN')}`
+              ? ` · ${formatRupees(booking.payment.amount)}`
               : ''}
           </Text>
           {booking.completionNotes ? (

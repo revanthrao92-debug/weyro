@@ -39,7 +39,7 @@ import {
   CountUp,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
-import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
+import { titleize as labelize, requestStatusTone as statusTone, formatRupees } from '@/utils/format';
 import { isNotFound } from '@/services/api-client';
 
 type RequestParams = { id: string };
@@ -312,9 +312,9 @@ export default function RequestDetailScreen() {
               <StatusPill label={labelize(myQuote.status)} tone={statusTone(myQuote.status)} />
             </View>
             <Card>
-              <DetailRow label="Parts" value={`₹${Number(myQuote.partsCost).toLocaleString('en-IN')}`} />
-              <DetailRow label="Labour" value={`₹${Number(myQuote.labourCost).toLocaleString('en-IN')}`} />
-              <DetailRow label="Shipping" value={`₹${Number(myQuote.shippingCost ?? 0).toLocaleString('en-IN')}`} />
+              <DetailRow label="Parts" value={formatRupees(myQuote.partsCost)} />
+              <DetailRow label="Labour" value={formatRupees(myQuote.labourCost)} />
+              <DetailRow label="Shipping" value={formatRupees(myQuote.shippingCost ?? 0)} />
               <DetailRow label="Warranty" value={`${myQuote.warrantyDays} days`} />
               <DetailRow label="Time" value={quoteTimeText(myQuote) ?? '—'} last />
             </Card>
@@ -427,7 +427,7 @@ function QuoteCard({
           <CountUp
             value={Number(quote.totalCost)}
             animate={fresh}
-            format={(n) => `₹${n.toLocaleString('en-IN')}`}
+            format={(n) => formatRupees(n)}
             style={styles.dealerAmount}
           />
         </View>

@@ -16,7 +16,7 @@ import {
   spacing,
   typography,
 } from '@/theme';
-import { bookingStatusTone, formatDate, labelize } from '@/utils/format';
+import { bookingStatusTone, formatDate, labelize, formatRupees } from '@/utils/format';
 
 /**
  * Bookings — transactional list. Grouped Upcoming / Past, job-sheet rows,
@@ -27,7 +27,7 @@ const PAST = new Set(['COMPLETED', 'CANCELLED']);
 
 function amount(booking: Booking): string | null {
   if (!booking.payment) return null;
-  return `₹${Number(booking.payment.amount).toLocaleString('en-IN')}`;
+  return formatRupees(booking.payment.amount);
 }
 
 function BookingRow({

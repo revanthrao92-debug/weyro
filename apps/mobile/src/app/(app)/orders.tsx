@@ -32,7 +32,7 @@ import {
   displayFamily,
   type StatusTone,
 } from '@/theme';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, formatRupees, formatRupees as money } from '@/utils/format';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 function orderTone(status: string): StatusTone {
@@ -77,7 +77,7 @@ function OrderRow({
       </View>
       <View style={styles.rowRight}>
         <Text style={styles.rowPrice}>
-          ₹{Number(item.totalAmount).toLocaleString('en-IN')}
+          {formatRupees(item.totalAmount)}
         </Text>
         {item.status === 'PAID' && item.fulfillmentStatus ? (
           <StatusPill
@@ -233,7 +233,6 @@ const NEXT_STEP: Record<string, { label: string; title: string; next?: Fulfillme
   SHIPPED: { label: 'On the way', title: 'Mark delivered', next: 'DELIVERED' },
 };
 
-const money = (v: number | string) => `₹${Number(v).toLocaleString('en-IN')}`;
 const customerName = (o: SparePartOrder) =>
   o.customer ? `${o.customer.firstName} ${o.customer.lastName ?? ''}`.trim() : 'Customer';
 

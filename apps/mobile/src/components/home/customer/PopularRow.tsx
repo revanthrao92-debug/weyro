@@ -5,6 +5,7 @@ import type { useRouter } from 'expo-router';
 import { PressableScale, SectionHead } from '@/components/ui';
 import { palette, radii, spacing, typography } from '@/theme';
 import { PACKAGES } from './shared';
+import { formatRupees } from '@/utils/format';
 
 const CARD_W = 220;
 
@@ -29,7 +30,7 @@ export function PopularRow({ router, parts }: {
       kind: 'part' as const,
       key: part.id,
       title: part.name,
-      detail: `₹${Number(part.price).toLocaleString('en-IN')}`,
+      detail: formatRupees(part.price),
       go: `/shop/${part.id}`,
       imageUrl: part.imageUrl,
     })),

@@ -25,7 +25,7 @@ import {
   useAdminActivityStats,
   useAdminOverview,
 } from '@/hooks/useAdmin';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatRupees as money } from '@/utils/format';
 import {
   displayFamily,
   fontFamilyMono,
@@ -42,9 +42,6 @@ function actionLabel(action: string) {
   ].join(' ');
 }
 
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
-}
 
 function shortDate(date: string) {
   return new Date(`${date}T00:00:00.000Z`).toLocaleDateString('en-IN', {

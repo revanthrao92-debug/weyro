@@ -20,7 +20,7 @@ import {
 import { quoteTimeText } from '@/utils/quotes';
 import { QuoteComposer } from '@/components/dealer/QuoteComposer';
 import { palette, spacing, typography } from '@/theme';
-import { formatDate, titleize as labelize, quotationStatusTone as statusTone } from '@/utils/format';
+import { formatDate, titleize as labelize, quotationStatusTone as statusTone, formatRupees } from '@/utils/format';
 
 const FILTERS = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'];
 
@@ -133,7 +133,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
                   </Text>
                   <View style={styles.metaRow}>
                     <Text style={styles.quoteAmount}>
-                      ₹{Number(item.totalCost).toLocaleString('en-IN')}
+                      {formatRupees(item.totalCost)}
                     </Text>
                     <StatusPill label={labelize(item.status)} tone={statusTone(item.status)} />
                   </View>

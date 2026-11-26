@@ -24,6 +24,7 @@ import {
   fontFamilyMono,
 } from '@/theme';
 import { isNotFound } from '@/services/api-client';
+import { formatRupees } from '@/utils/format';
 
 type PartParams = { id: string };
 
@@ -132,7 +133,7 @@ export default function PartDetailScreen() {
             <Text style={styles.title}>{part.name}</Text>
             <Text style={styles.partNumber}>{part.partNumber}</Text>
           </View>
-          <Text style={styles.price}>₹{Number(part.price).toLocaleString('en-IN')}</Text>
+          <Text style={styles.price}>{formatRupees(part.price)}</Text>
         </View>
 
         <View style={styles.pills}>
@@ -198,7 +199,7 @@ export default function PartDetailScreen() {
 
           <View style={styles.totalRow}>
             <Text style={styles.orderLabel}>Total</Text>
-            <Text style={styles.total}>₹{total.toLocaleString('en-IN')}</Text>
+            <Text style={styles.total}>{formatRupees(total)}</Text>
           </View>
 
           <SectionHead title="Delivery details" />

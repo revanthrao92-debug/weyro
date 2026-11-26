@@ -6,7 +6,7 @@ import { Minus, MoreHorizontal, Package, Plus } from 'lucide-react-native';
 import { useMyParts, useDeleteSparePart, useUpdateSparePart, type SparePart } from '@/hooks/useParts';
 import { Button, Chip, EmptyState, PageHeader, PressableScale, ScreenContainer, Skeleton, StatusPill } from '@/components/ui';
 import { palette, radii, spacing, typography } from '@/theme';
-import { labelize } from '@/utils/format';
+import { labelize, formatRupees as money } from '@/utils/format';
 
 const FILTERS = [
   { key: 'ALL', label: 'All' },
@@ -18,7 +18,6 @@ type Filter = (typeof FILTERS)[number]['key'];
 
 const stockOf = (part: SparePart) => part.stockQuantity ?? 0;
 const isLow = (part: SparePart) => stockOf(part) <= 3;
-const money = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
 
 function stockLabel(part: SparePart) {
   if (stockOf(part) <= 0) return 'Out of stock';
@@ -64,8 +63,12 @@ export default function MyListingsScreen() {
     }
   };
 
-  const setStock = (part: SparePart, next: number) =>
-    next < 0 ? undefined : run(part, () => updatePart.mutateAsync({ id: part.id, stockQuantity: next }), 'Could not update stock.');
+  // Sends the change, not a total: a sale settling while the dealer looks at
+  // the screen must not be overwritten (the server adds to the current stock).
+  const changeStock = (part: SparePart, delta: 1 | -1) =>
+    delta < 0 && stockOf(part) <= 0
+      ? undefined
+      : run(part, () => updatePart.mutateAsync({ id: part.id, stockDelta: delta }), 'Could not update stock.');
 
   const toggleActive = (part: SparePart) => {
     setMenu(null);
@@ -190,7 +193,7 @@ export default function MyListingsScreen() {
                 </Text>
                 <View style={styles.stepper}>
                   <PressableScale
-                    onPress={() => void setStock(item, stockOf(item) - 1)}
+                    onPress={() => void changeStock(item, -1)}
                     disabled={busy || stockOf(item) <= 0}
                     accessibilityRole="button"
                     accessibilityLabel={`One less ${item.name} in stock`}
@@ -200,7 +203,7 @@ export default function MyListingsScreen() {
                     <Minus size={18} color={palette.textPrimary} strokeWidth={2} />
                   </PressableScale>
                   <PressableScale
-                    onPress={() => void setStock(item, stockOf(item) + 1)}
+                    onPress={() => void changeStock(item, 1)}
                     disabled={busy}
                     accessibilityRole="button"
                     accessibilityLabel={`One more ${item.name} in stock`}

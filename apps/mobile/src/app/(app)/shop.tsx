@@ -16,6 +16,7 @@ import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterB
 import { palette, spacing, typography } from '@/theme';
 import { Image } from 'expo-image';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { formatRupees } from '@/utils/format';
 
 const CATEGORIES = [
   { label: 'Engine', Icon: Wrench },
@@ -193,7 +194,7 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
           />
         </View>
         <View style={styles.priceStock}>
-          <Text style={styles.price}>₹{Number(part.price).toLocaleString('en-IN')}</Text>
+          <Text style={styles.price}>{formatRupees(part.price)}</Text>
           <StockBadge inStock={part.inStock ?? (part.stockQuantity ?? 0) > 0} />
         </View>
       </View>
