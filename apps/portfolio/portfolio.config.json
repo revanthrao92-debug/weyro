@@ -1,0 +1,57 @@
+{
+  "identity": {
+    "name": "Revanth Jupelly",
+    "barTitle": "REVANTH JUPELLY",
+    "terminalUser": "revanth",
+    "domain": "revanthrao92-debug.github.io",
+    "tagline": "full-stack, mobile, backend.",
+    "github": "revanthrao92-debug",
+    "storagePrefix": "revanth-portfolio"
+  },
+  "about": {
+    "bio": "Full-stack developer building production mobile apps and backends with TypeScript — React Native/Expo on the client, NestJS and PostgreSQL on the server.",
+    "extra": "India · Full-stack · Mobile"
+  },
+  "links": [
+    {
+      "label": "GitHub",
+      "url": "https://github.com/revanthrao92-debug"
+    }
+  ],
+  "work": [],
+  "projects": [
+    {
+      "name": "Weyro",
+      "tag": "Marketplace · Expo + NestJS",
+      "desc": "Automotive repair marketplace for India connecting vehicle owners with workshops, garages and spare-parts distributors.",
+      "long": "Weyro lets vehicle owners post damage/repair requests with photos, receive quotations from nearby workshops, book and pay in INR through Razorpay, and chat in real time. The Expo SDK 58 / React Native app talks to a NestJS 11 modular monolith on PostgreSQL 16 + PostGIS, with domain state machines for requests, quotes, bookings and payments, S3 presigned uploads with EXIF stripping, Socket.IO chat, Expo push notifications, JWT refresh rotation, role-based guards, Redis rate limiting, and deployment on Railway and EAS.",
+      "githubRepo": "revanthrao92-debug/weyro",
+      "shots": [],
+      "stack": [
+        "TypeScript",
+        "React Native",
+        "Expo",
+        "NestJS",
+        "PostgreSQL",
+        "Prisma",
+        "Redis",
+        "Socket.io",
+        "Razorpay",
+        "Railway"
+      ],
+      "url": "https://github.com/revanthrao92-debug/weyro"
+    }
+  ],
+  "talks": [],
+  "wallRepos": [],
+  "siteStack": [
+    {
+      "name": "Vanilla JS",
+      "via": "zero-build frontend"
+    },
+    {
+      "name": "Canvas 2D",
+      "via": "intro + contribution ink"
+    }
+  ]
+}

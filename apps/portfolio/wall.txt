@@ -1,0 +1,317 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { env } from '../../config/env.config';
+import { AuthUserPayload } from '../types/auth-user-payload.type';
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly reflector: Reflector,
+  ) {}
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
+    const request = context.switchToHttp().getRequest<Request>();
+    const token = this.extractTokenFromHeader(request);
+    if (!token) {
+      throw new UnauthorizedException('Authentication token is required');
+    }
+    try {
+      const payload = await this.jwtService.verifyAsync<AuthUserPayload>(token, {
+        secret: env.JWT_ACCESS_SECRET,
+        // Pin the algorithm — never let the token choose it.
+        algorithms: ['HS256'],
+      });
+      // Required claims. A valid signature alone is not enough.
+      if (typeof payload?.sub !== 'string' || payload.sub.length === 0) {
+        throw new UnauthorizedException('Invalid authentication token claims');
+      }
+      if (
+        !['CUSTOMER', 'PROVIDER', 'BOTH', 'ADMIN'].includes(payload.role as string)
+      ) {
+        throw new UnauthorizedException('Invalid authentication token claims');
+      }
+      (request as any).user = payload;
+      return true;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Invalid or expired authentication token');
+    }
+  }
+  private extractTokenFromHeader(request: Request): string | undefined {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      return undefined;
+    }
+    const [type, token] = authHeader.split(' ');
+    return type?.toLowerCase() === 'bearer' ? token : undefined;
+  }
+}
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Queue, Worker, Job } from 'bullmq';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from './redis.module';
+import { env } from '../../config/env.config';
+/**
+ * NotificationQueue — BullMQ background queue for push notifications.
+ *
+ * STEP 4B: pushes are enqueued in-transaction (outbox pattern, already
+ * implemented) and drained here — removing the push send from the request
+ * path entirely. Retries with exponential backoff; failed jobs parked.
+ *
+ * Fallback: without REDIS_URL the queue is null — notifications fall back
+ * to the inline send (the existing behaviour), so dev/test still work.
+ */
+export interface NotificationJobData {
+  userId?: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}
+export const NOTIFICATION_QUEUE = 'weyro-notifications';
+@Injectable()
+export class NotificationQueue implements OnModuleDestroy {
+  private readonly logger = new Logger(NotificationQueue.name);
+  private queue: Queue<NotificationJobData> | null = null;
+  private worker: Worker<NotificationJobData> | null = null;
+  private readonly handler?: (data: NotificationJobData) => Promise<void>;
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
+    handler?: (data: NotificationJobData) => Promise<void>,
+  ) {
+    this.handler = handler;
+    // Only create the BullMQ queue/worker when REDIS_URL is explicitly set.
+    // Without it (dev/test), notifications fall back to inline delivery —
+    // never blocking on a Redis connection that doesn't exist.
+    if (this.redis && env.REDIS_URL) {
+      // BullMQ requires maxRetriesPerRequest: null on its connection —
+      // the shared cache connection has retry limits, so create a
+      // dedicated connection for the queue/worker pair.
+      // BullMQ requires maxRetriesPerRequest: null at construction time.
+      const bqConnection = new Redis(this.redis.options.host ?? '127.0.0.1', {
+        ...this.redis.options,
+        maxRetriesPerRequest: null,
+      });
+      this.queue = new Queue<NotificationJobData>(NOTIFICATION_QUEUE, {
+        connection: bqConnection,
+        defaultJobOptions: {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 3000 },
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
+      });
+      this.worker = new Worker<NotificationJobData>(
+        NOTIFICATION_QUEUE,
+        async (job: Job<NotificationJobData>) => {
+          if (this.handler) {
+            await this.handler(job.data);
+          }
+        },
+        { connection: bqConnection.duplicate() },
+      );
+      this.worker.on('failed', (job, err) => {
+        this.logger.warn(
+          `Notification job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`,
+        );
+      });
+      this.worker.on('completed', (job) => {
+        this.logger.log(`Notification job ${job.id} delivered`);
+      });
+/** Spherical Mercator helpers used by the raster map surface. */
+export type LatLng = { latitude: number; longitude: number };
+export const TILE_SIZE = 256;
+const MAX_LATITUDE = 85.05112878;
+export const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+export type Point = { x: number; y: number };
+/** Latitude/longitude -> world pixel coordinates at a zoom level. */
+export function project(coordinate: LatLng, zoom: number): Point {
+  const worldSize = TILE_SIZE * 2 ** zoom;
+  const latitude = clamp(coordinate.latitude, -MAX_LATITUDE, MAX_LATITUDE);
+  const sin = Math.sin((latitude * Math.PI) / 180);
+  return {
+    x: ((coordinate.longitude + 180) / 360) * worldSize,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
+  };
+}
+/** World pixel coordinates -> latitude/longitude. */
+export function unproject(point: Point, zoom: number): LatLng {
+  const worldSize = TILE_SIZE * 2 ** zoom;
+  const longitude = (point.x / worldSize) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * point.y) / worldSize;
+  const latitude =
+    (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { latitude, longitude };
+}
+/** Move a coordinate by a pixel delta at the given zoom. */
+export function offsetCoordinate(
+  coordinate: LatLng,
+  dx: number,
+  dy: number,
+  zoom: number,
+): LatLng {
+  const projected = project(coordinate, zoom);
+  return unproject({ x: projected.x + dx, y: projected.y + dy }, zoom);
+}
+const EARTH_RADIUS_M = 6371000;
+export function haversineMeters(a: LatLng, b: LatLng): number {
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+export function formatDistance(meters: number): string {
+  if (!Number.isFinite(meters) || meters < 0) return '—';
+  if (meters < 950) return `${Math.round(meters / 10) * 10} m`;
+  const km = meters / 1000;
+  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}
+/** Zoom level that fits every point inside the viewport (with padding). */
+export function fitZoom(
+  points: LatLng[],
+  width: number,
+  height: number,
+  padding = 56,
+): number {
+import { tokenStorage } from './token-storage';
+/**
+ * Resolve the API base URL.
+ *
+ * H5 fix: there is no silent localhost fallback in release builds. In
+ * production a missing env var is a hard startup error — the app cannot
+ * function against localhost on a real device, and failing loudly (in
+ * dev, via console) plus deterministically in release is safer than
+ * requests that "mysteriously" hit 127.0.0.1 on the phone itself.
+ */
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  if (fromEnv) {
+    return fromEnv.replace(/\/+$/, '');
+  }
+  if (__DEV__) {
+    // Web/desktop Expo dev convenience only. On iOS devices localhost
+    // refers to the device itself and cannot reach a backend on the Mac;
+    // use the tunnel URL env var when testing on device.
+    return 'http://localhost:4000/api/v1';
+  }
+  throw new Error(
+    'EXPO_PUBLIC_API_URL is not configured. Set it in .env / EAS config before building for release.',
+  );
+}
+export const API_URL = resolveApiUrl();
+let accessToken: string | null = null;
+export function setAccessToken(token: string | null) {
+  accessToken = token;
+}
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+/**
+ * H6: single-flight token refresh.
+ *
+ * The refresh session is a shared promise: multiple 401 responses
+ * concurrently trigger exactly one `/auth/refresh` call. Everyone awaits
+ * the same in-flight result (or the same failure).
+ */
+export type TokenRefresher = () => Promise<string | null>;
+export type SessionExpiredHandler = () => Promise<void> | void;
+let tokenRefresher: TokenRefresher | null = null;
+let sessionExpiredHandler: SessionExpiredHandler | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+/** Registered by the AuthProvider (which owns Supabase/token storage). */
+export function setTokenRefresher(fn: TokenRefresher | null) {
+  tokenRefresher = fn;
+}
+/** Registered by the AuthProvider to force a clean logout after failed refresh. */
+export function setSessionExpiredHandler(fn: SessionExpiredHandler | null) {
+  sessionExpiredHandler = fn;
+}
+/**
+ * Kick off (or join) the single in-flight refresh. Resolves the NEW access
+ * token, or null when refresh is not possible / fails.
+ */
+export async function refreshTokenSingleFlight(): Promise<string | null> {
+  if (!accessToken && !(await tokenStorage.getAccessToken()) && !tokenStorage.getRefreshToken) {
+    // Defensive: no tokens at all — refresh cannot help.
+    return null;
+  }
+  if (!tokenRefresher) {
+    return null;
+  }
+  if (!refreshInFlight) {
+    refreshInFlight = tokenRefresher()
+      .catch((err) => {
+        // Refresh failed → the session is unrecoverable. Surface once.
+        void sessionExpiredHandler?.();
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { UserRole } from '@weyro/api-contracts';
+import { ROLES_KEY } from '../decorators/roles.decorator';
+import { AuthUserPayload } from '../types/auth-user-payload.type';
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!requiredRoles || requiredRoles.length === 0) {
+      return true;
+    }
+    const request = context.switchToHttp().getRequest();
+    const user: AuthUserPayload = request.user;
+    if (!user) {
+      throw new ForbiddenException('User authentication required for role verification');
+    }
+    // ADMIN has platform-wide authority
+    if (user.role === 'ADMIN') {
+      return true;
+    }
+    const hasRole = requiredRoles.some((role) => {
+      if (user.role === role) return true;
+      // BOTH role satisfies CUSTOMER or PROVIDER requirements
+      if (user.role === 'BOTH' && (role === 'CUSTOMER' || role === 'PROVIDER')) {
+        return true;
+      }
+      return false;
+    });
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `Access denied. Requires one of the following roles: ${requiredRoles.join(', ')}`,
+      );
+    }
+    return true;
+  }
+}

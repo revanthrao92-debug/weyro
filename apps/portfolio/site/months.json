@@ -1,0 +1,64 @@
+{
+ "from": "2026-01-01",
+ "to": "2026-11-26",
+ "fetchedAt": "2026-11-26T12:04:37.807640Z",
+ "scope": "commits per repository and month (weyro git history)",
+ "months": [
+  {
+   "month": "2026-01",
+   "top": []
+  },
+  {
+   "month": "2026-02",
+   "top": []
+  },
+  {
+   "month": "2026-03",
+   "top": []
+  },
+  {
+   "month": "2026-04",
+   "top": []
+  },
+  {
+   "month": "2026-05",
+   "top": []
+  },
+  {
+   "month": "2026-06",
+   "top": []
+  },
+  {
+   "month": "2026-07",
+   "top": []
+  },
+  {
+   "month": "2026-08",
+   "top": []
+  },
+  {
+   "month": "2026-09",
+   "top": []
+  },
+  {
+   "month": "2026-10",
+   "top": [
+    {
+     "repo": "weyro",
+     "owner": "revanthrao92-debug",
+     "commits": 213
+    }
+   ]
+  },
+  {
+   "month": "2026-11",
+   "top": [
+    {
+     "repo": "weyro",
+     "owner": "revanthrao92-debug",
+     "commits": 266
+    }
+   ]
+  }
+ ]
+}
