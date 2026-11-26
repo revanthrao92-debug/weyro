@@ -14,7 +14,7 @@ import {
   ScreenContainer,
   Skeleton,
 } from '@/components/ui';
-import { palette, radii, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = [
