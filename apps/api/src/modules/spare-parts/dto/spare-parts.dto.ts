@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { partialUpdate } from '@weyro/validation';
 
 export const createSparePartSchema = z
   .object({
@@ -32,10 +33,15 @@ export class CreateSparePartDto implements z.infer<typeof createSparePartSchema>
   estimatedMinutes?: number;
 }
 
-export const updateSparePartSchema = createSparePartSchema
-  .partial()
+export const updateSparePartSchema = partialUpdate(createSparePartSchema)
   .extend({
     isActive: z.boolean().optional(),
+    // The +/- buttons send a change, not a total, so a sale settling in the
+    // meantime is never overwritten ("set to 6" after a sale made it 4).
+    stockDelta: z.number().int().min(-1000).max(1000).refine((v) => v !== 0).optional(),
+  })
+  .refine((value) => !(value.stockDelta !== undefined && value.stockQuantity !== undefined), {
+    message: 'Send stockQuantity or stockDelta, not both',
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',
@@ -51,6 +57,7 @@ export class UpdateSparePartDto implements z.infer<typeof updateSparePartSchema>
   condition?: 'OEM' | 'AFTERMARKET' | 'USED';
   price?: number;
   stockQuantity?: number;
+  stockDelta?: number;
   imageUrl?: string;
   kind?: 'PART' | 'PACKAGE';
   description?: string;

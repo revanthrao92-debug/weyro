@@ -22,7 +22,7 @@ import {
 import {
   computeProviderBadge,
 } from '@weyro/api-contracts';
-import { settleSparePartOrderPayment } from '../payments/settle-payment';
+import { refundCancelledSpareOrder, settleSparePartOrderPayment } from '../payments/settle-payment';
 import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
 import {
   notifyOrderCancelled,
@@ -320,22 +320,42 @@ export class SparePartsService {
     dto: UpdateSparePartDto,
   ) {
     const part = await this.assertOwnership(id, user);
-    const kind = dto.kind ?? part.kind;
-    const [imageKey] = dto.imageUrl
-      ? await assertOwnedMediaKeys(this.prisma, user.sub ?? '', [dto.imageUrl], MEDIA_FOLDERS_BY_USE.part)
+    const { stockDelta, ...fields } = dto;
+    const kind = fields.kind ?? part.kind;
+
+    if (stockDelta !== undefined) {
+      if (kind === 'PACKAGE') {
+        throw new BadRequestException('Service packages have no stock');
+      }
+      // Relative and conditional: adds to whatever the stock is NOW, and a
+      // decrease can never take it below 0.
+      const changed = await this.prisma.sparePart.updateMany({
+        where: { id, stockQuantity: { gte: Math.max(0, -stockDelta) } },
+        data: { stockQuantity: { increment: stockDelta } },
+      });
+      if (changed.count === 0) {
+        throw new ConflictException('Stock is already 0');
+      }
+      if (Object.keys(fields).length === 0) {
+        return this.prisma.sparePart.findUniqueOrThrow({ where: { id } });
+      }
+    }
+
+    const [imageKey] = fields.imageUrl
+      ? await assertOwnedMediaKeys(this.prisma, user.sub ?? '', [fields.imageUrl], MEDIA_FOLDERS_BY_USE.part)
       : [];
 
     return this.prisma.sparePart.update({
       where: { id },
       data: {
-        ...dto,
-        imageUrl: dto.imageUrl === undefined ? undefined : imageKey,
-        condition: dto.condition as any,
+        ...fields,
+        imageUrl: fields.imageUrl === undefined ? undefined : imageKey,
+        condition: fields.condition as any,
         stockQuantity:
           kind === 'PACKAGE'
             ? 1
-            : dto.stockQuantity !== undefined
-              ? dto.stockQuantity
+            : fields.stockQuantity !== undefined
+              ? fields.stockQuantity
               : undefined,
       },
     });
@@ -401,8 +421,26 @@ export class SparePartsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Reuse an open gateway order so retries don't create duplicate charges
-    if (existingPending?.gatewayOrderId) {
+    // Reuse an open gateway order so retries don't create duplicate charges,
+    // but only for the SAME order: a new quantity or address must not be
+    // silently replaced by the old one (charged for 1 after asking for 3).
+    const sameOrder =
+      existingPending &&
+      existingPending.quantity === quantity &&
+      existingPending.shippingName === (dto.shippingName ?? null) &&
+      existingPending.shippingPhone === (dto.shippingPhone ?? null) &&
+      existingPending.shippingAddress === (dto.shippingAddress ?? null) &&
+      existingPending.shippingCity === (dto.shippingCity ?? null) &&
+      existingPending.shippingPincode === (dto.shippingPincode ?? null);
+    if (existingPending && !sameOrder) {
+      // Superseded. If it still gets paid somehow, the captured-payment
+      // webhook refunds CANCELLED orders automatically.
+      await this.prisma.sparePartOrder.updateMany({
+        where: { id: existingPending.id, status: 'PENDING' },
+        data: { status: 'CANCELLED', fulfillmentStatus: 'CANCELLED' },
+      });
+    }
+    if (sameOrder && existingPending?.gatewayOrderId) {
       return {
         orderId: existingPending.id,
         quantity: existingPending.quantity,
@@ -537,6 +575,18 @@ export class SparePartsService {
       return result;
     });
 
+    if (settled.outOfStock) {
+      await refundCancelledSpareOrder(this.prisma, this.gateway, {
+        orderId: order.id,
+        gatewayPaymentId: dto.razorpayPaymentId,
+        amount: order.totalAmount,
+        reason: 'sold_out_after_capture',
+      });
+      throw new ConflictException(
+        'Sorry, this part sold out just before your payment went through. Your money is being refunded.',
+      );
+    }
+
     const updated =
       settled.status === 'PAID'
         ? await this.prisma.sparePartOrder.findUniqueOrThrow({ where: { id: order.id } })
@@ -648,11 +698,16 @@ export class SparePartsService {
 
     try {
       // Return reserved stock for physical parts; packages never held stock.
-      const part = await this.prisma.sparePart.findUnique({
-        where: { id: order.sparePartId },
-        select: { kind: true },
-      });
-      if (part?.kind !== 'PACKAGE') {
+      // A shipped or delivered part is with the customer, not on the shelf:
+      // restocking it would let the next customer buy a unit that isn't there.
+      const stillHere = ['PENDING', 'PROCESSING', 'READY'].includes(order.fulfillmentStatus ?? 'PENDING');
+      const part = stillHere
+        ? await this.prisma.sparePart.findUnique({
+            where: { id: order.sparePartId },
+            select: { kind: true },
+          })
+        : null;
+      if (part && part.kind !== 'PACKAGE') {
         await this.prisma.sparePart.update({
           where: { id: order.sparePartId },
           data: { stockQuantity: { increment: order.quantity } },

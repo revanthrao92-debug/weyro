@@ -8,7 +8,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PROVIDER_TYPE_CATEGORIES } from '@weyro/api-contracts';
-import { addDays, buildDailyBuckets, startOfDayUTC, summariseAnalytics } from './analytics';
+import { addDays, buildDailyBuckets, summariseAnalytics } from './analytics';
+import { istDayStart } from '../../common/utils/ist-day';
 import { forecastEarnings } from './forecast';
 
 /** Days are counted in Indian time, so a 1 am sale and "today" match the dealer's calendar. */
@@ -83,8 +84,7 @@ export class ProvidersService {
     const periodDays = Math.min(90, Math.max(7, Math.round(days)));
     const now = new Date();
     const modelStart = addDays(now, -(MODEL_DAYS + 1));
-    const offsetMs = IST_OFFSET_MINUTES * 60_000;
-    const todayStart = new Date(startOfDayUTC(new Date(now.getTime() + offsetMs)).getTime() - offsetMs);
+    const todayStart = istDayStart(now);
     const periodStart = addDays(todayStart, -(periodDays - 1)); // first day shown on the chart
     const last28 = addDays(now, -28);
 
@@ -232,10 +232,9 @@ export class ProvidersService {
         provider.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES
       ] ?? [];
 
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    // Indian day: the server runs in UTC (midnight there is 05:30 IST).
+    const dayStart = istDayStart();
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60_000);
 
     const [
       openRequests,

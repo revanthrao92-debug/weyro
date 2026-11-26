@@ -676,7 +676,7 @@ describe('PaymentsService', () => {
       };
       mockPrisma.sparePart = {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
-        update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       };
 
       const payload = {
@@ -697,8 +697,8 @@ describe('PaymentsService', () => {
       const result = await service.handleWebhook('{}', 'valid_sig', payload);
 
       expect(result.status).toBe('processed');
-      expect(mockPrisma.sparePart.update).toHaveBeenCalledWith({
-        where: { id: 'part-1' },
+      expect(mockPrisma.sparePart.updateMany).toHaveBeenCalledWith({
+        where: { id: 'part-1', stockQuantity: { gte: 2 } },
         data: { stockQuantity: { decrement: 2 } },
       });
       expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
@@ -787,7 +787,7 @@ describe('PaymentsService', () => {
       };
       mockPrisma.sparePart = {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PACKAGE' }),
-        update: jest.fn(),
+        updateMany: jest.fn(),
       };
 
       await service.handleWebhook('{}', 'valid_sig', {
@@ -805,7 +805,7 @@ describe('PaymentsService', () => {
         },
       });
 
-      expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
+      expect(mockPrisma.sparePart.updateMany).not.toHaveBeenCalled();
       // settle claims the order via the conditional updateMany
       expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
         where: {

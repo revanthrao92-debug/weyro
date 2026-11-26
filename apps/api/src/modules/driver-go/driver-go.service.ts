@@ -10,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { verifyDriverStartOtp } from './driver-otp';
 import { canTransitionDriverJob, type DriverJobStatus } from './driver-state';
+import { istDayStart, istMonthStart, istWeekStart } from '../../common/utils/ist-day';
 import type {
   DeclineDriverJobDto,
   DriverAvailabilityDto,
@@ -117,8 +118,7 @@ export class DriverGoService {
   async getMe(user: AuthUserPayload) {
     const provider = await this.driverFor(user);
     const driver = provider.driverProfile!;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = istDayStart();
 
     const [upcoming, completedToday, earningsToday] = await Promise.all([
       this.prisma.driverBooking.count({
@@ -467,21 +467,25 @@ export class DriverGoService {
     });
 
     const now = new Date();
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
-    const weekStart = new Date(dayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayStart = istDayStart(now);
+    const weekStart = istWeekStart(now);
+    const monthStart = istMonthStart(now);
 
-    const total = (from: Date) =>
-      jobs
-        .filter((job) => job.completedAt && job.completedAt >= from)
-        .reduce((sum, job) => sum + Number(job.driverEarning), 0);
+    // Totals come from the database over ALL trips in the period; the list
+    // above is only the latest 100 for display (a busy month passes 100).
+    const total = async (from: Date) => {
+      const sum = await this.prisma.driverBooking.aggregate({
+        where: { driverId: provider.id, status: 'COMPLETED', completedAt: { gte: from } },
+        _sum: { driverEarning: true },
+      });
+      return Number(sum._sum.driverEarning ?? 0);
+    };
+    const [today, week, month] = await Promise.all([total(dayStart), total(weekStart), total(monthStart)]);
 
     return {
-      today: total(dayStart),
-      week: total(weekStart),
-      month: total(monthStart),
+      today,
+      week,
+      month,
       trips: jobs.map((job) => this.shapeJob(job)),
     };
   }

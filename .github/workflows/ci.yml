@@ -104,7 +104,7 @@ jobs:
           TEST_REDIS_URL: redis://localhost:6379
         run: cd apps/api && npx jest --config jest-e2e.config.js --runInBand --silent
 
-      # Production runs with REDIS_URL set (OTP limiter, throttler, BullMQ,
+      # Production runs with REDIS_URL set (OTP limiter, throttler,
       # socket.io adapter all switch to Redis). No --forceExit: a Redis
       # connection left open at shutdown fails this step by timing out.
       - name: E2E suites with REDIS_URL (production configuration)

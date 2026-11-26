@@ -22,6 +22,22 @@ export function normalizeRegistrationNumber(input: string): string {
 }
 
 /** Shared phone field: validates with libphonenumber and outputs E.164. */
+/**
+ * Rules for a partial update (PATCH) built from the create rules, WITHOUT the
+ * create defaults. Zod 4 still fills `.default()` values inside `.partial()`,
+ * so `{ isActive: false }` used to come out as `{ isActive: false,
+ * stockQuantity: 1, condition: 'AFTERMARKET', ... }` and overwrite real data.
+ */
+export function partialUpdate<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => [
+      key,
+      field instanceof z.ZodDefault ? field.unwrap() : field,
+    ]),
+  );
+  return z.object(shape).strict().partial() as unknown as ReturnType<z.ZodObject<T>['partial']>;
+}
+
 export const phoneSchema = z
   .string()
   .trim()

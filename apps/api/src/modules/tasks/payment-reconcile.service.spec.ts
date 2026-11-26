@@ -34,7 +34,9 @@ describe('PaymentReconcileService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUnique: jest.fn().mockResolvedValue(null),
-        findUniqueOrThrow: jest.fn(),
+        // Read-back after a successful claim (was undefined, so settle crashed
+        // and the old error-audit made the "settles" test pass by accident).
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'pay_rec_1', status: 'CAPTURED' }),
         update: jest.fn(),
       },
       sparePartOrder: {
@@ -45,7 +47,7 @@ describe('PaymentReconcileService', () => {
       },
       sparePart: {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
-        update: jest.fn().mockResolvedValue({ stockQuantity: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
       $transaction: jest.fn((cb: any) => cb(prisma)),
@@ -230,7 +232,14 @@ describe('PaymentReconcileService', () => {
     await reconcile.reconcile();
 
     expect(gatewayFetch).not.toHaveBeenCalled();
-    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: expect.anything() }) }),
+    );
+    // Not settled: moved to the back of the queue so other rows get a turn.
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { id: 'pay_rec_1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 
   it('marks FAILED when the gateway cannot find the payment', async () => {
@@ -275,7 +284,14 @@ describe('PaymentReconcileService', () => {
 
     await reconcile.reconcile();
 
-    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: expect.anything() }) }),
+    );
+    // Not settled: moved to the back of the queue so other rows get a turn.
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { id: 'pay_rec_1', status: { in: ['PENDING', 'AUTHORIZED'] } },
+      data: { updatedAt: expect.any(Date) },
+    });
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
@@ -294,5 +310,40 @@ describe('PaymentReconcileService', () => {
     await reconcile.reconcile();
 
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('only picks rows where the customer started paying, so unpaid bookings cannot fill every batch', async () => {
+    await reconcile.reconcile();
+    expect(prisma.payment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ gatewayOrderId: { not: null } }) }),
+    );
+  });
+
+  it('an erroring row is logged and retried later, without an audit row every minute', async () => {
+    prisma.payment.findMany.mockResolvedValue([seedRow()]);
+    gatewayFetch.mockResolvedValue({ id: 'pay_rzp_1', order_id: 'order_rec_1', amount: 1, currency: 'INR', status: 'captured' }); // amount mismatch
+    await reconcile.reconcile();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { updatedAt: expect.any(Date) } }),
+    );
+  });
+
+  it('unpaid parts checkouts rotate too, and ones older than a week stop being checked', async () => {
+    prisma.sparePartOrder.findMany.mockResolvedValue([
+      { id: 'spo_1', sparePartId: 'p1', quantity: 1, totalAmount: 749, currency: 'INR', gatewayOrderId: 'order_sp' },
+    ]);
+    const withOrderPayments = new PaymentReconcileService(
+      prisma,
+      advisoryLock as unknown as AdvisoryLockService,
+      { fetchPayment: gatewayFetch, fetchOrderPayments: jest.fn().mockResolvedValue([]) } as unknown as PaymentGateway,
+    );
+    await withOrderPayments.reconcile();
+    const where = prisma.sparePartOrder.findMany.mock.calls[0][0].where;
+    expect(where.createdAt.gt.getTime()).toBeGreaterThan(Date.now() - 7 * 86_400_000 - 5000);
+    expect(prisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+      where: { id: 'spo_1', status: 'PENDING' },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 });

@@ -2,6 +2,7 @@ import {
   CreateQuotationSchema,
   CreateQuotationInput,
   QuotationFieldsSchema,
+  partialUpdate,
 } from '@weyro/validation';
 
 export class CreateQuotationDto implements CreateQuotationInput {
@@ -23,7 +24,7 @@ export class CreateQuotationDto implements CreateQuotationInput {
   notes?: string;
 }
 
-const UpdateQuotationSchema = QuotationFieldsSchema.partial()
+const UpdateQuotationSchema = partialUpdate(QuotationFieldsSchema)
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' })
   .refine((q) => (q.startsAt === undefined) === (q.durationHours === undefined), {
     message: 'Send both startsAt and durationHours, or neither',

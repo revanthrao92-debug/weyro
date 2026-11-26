@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { Prisma, PaymentStatus } from '@prisma/client';
+import { Prisma, PaymentStatus, PrismaClient } from '@prisma/client';
+import type { PaymentGateway } from './interfaces/payment-gateway.interface';
 
 /**
  * STEP 1 — Idempotent settlement primitive.
@@ -33,6 +34,11 @@ export interface SettleResult {
   id: string;
   /** Final stored status after the claim (only when applied = true). */
   status?: string;
+  /**
+   * The money was captured but the part sold out in the meantime: the order is
+   * now CANCELLED and the caller must refund it (refundCancelledSpareOrder).
+   */
+  outOfStock?: boolean;
 }
 
 const logger = new Logger('Settlement');
@@ -124,16 +130,24 @@ export async function settleSparePartOrderPayment(
   });
 
   if (part?.kind !== 'PACKAGE') {
-    const updatedPart = await tx.sparePart.update({
-      where: { id: input.sparePartId },
+    // Take the stock only if it is still there (conditional, so two buyers of
+    // the last unit cannot both get it).
+    const taken = await tx.sparePart.updateMany({
+      where: { id: input.sparePartId, stockQuantity: { gte: input.quantity } },
       data: { stockQuantity: { decrement: input.quantity } },
     });
 
-    if (updatedPart.stockQuantity < 0) {
-      // Roll the whole transaction back — the claim disappears with it, so
-      // callers can retry a different flow. Concurrent settlement already
-      // cannot happen (conditional claim won exactly once).
-      throw new Error('Insufficient stock to complete this order');
+    if (taken.count === 0) {
+      // Sold out between checkout and payment. Throwing here used to roll back
+      // and fail on every retry, leaving the customer charged with no refund.
+      // Cancel instead (keeping gatewayPaymentId so the refund knows the
+      // payment) and never count it as a sale (paidAt cleared).
+      await tx.sparePartOrder.update({
+        where: { id: input.orderId },
+        data: { status: 'CANCELLED', fulfillmentStatus: 'CANCELLED', paidAt: null },
+      });
+      logger.warn(`Spare part order ${input.orderId} paid but sold out: cancelled for refund`);
+      return { applied: false, alreadySettled: false, outOfStock: true, id: input.orderId, status: 'CANCELLED' };
     }
   }
 
@@ -143,4 +157,44 @@ export async function settleSparePartOrderPayment(
   });
   logger.log(`Spare part order ${input.orderId} settled to ${row.status}`);
   return { applied: true, alreadySettled: false, id: row.id, status: row.status };
+}
+
+/**
+ * Refund a parts order that was cancelled after its payment was captured
+ * (customer cancelled, or it sold out). Safe to call twice: it reuses a refund
+ * the gateway already has for this payment and amount, and only moves
+ * CANCELLED -> REFUNDED. Never throws: a failed refund is logged for follow-up.
+ */
+export async function refundCancelledSpareOrder(
+  prisma: Pick<PrismaClient, 'sparePartOrder' | 'auditLog'>,
+  gateway: Pick<PaymentGateway, 'refundPayment' | 'findRefund'>,
+  order: { orderId: string; gatewayPaymentId: string | null | undefined; amount: unknown; reason: string },
+): Promise<void> {
+  if (!order.gatewayPaymentId) return;
+  const amountInPaise = Math.round(Number(order.amount) * 100);
+  try {
+    const refund =
+      (await gateway.findRefund?.(order.gatewayPaymentId, amountInPaise)) ??
+      (await gateway.refundPayment({
+        paymentId: order.gatewayPaymentId,
+        amountInPaise,
+        notes: { orderId: order.orderId, reason: order.reason },
+      }));
+
+    await prisma.sparePartOrder.updateMany({
+      where: { id: order.orderId, status: 'CANCELLED' },
+      data: { status: 'REFUNDED' },
+    });
+    await prisma.auditLog.create({
+      data: {
+        action: 'payment.auto_refund',
+        entityType: 'SparePartOrder',
+        entityId: order.orderId,
+        newValues: { refundId: refund.refundId, reason: order.reason },
+      },
+    });
+    logger.warn(`Auto-refunded cancelled order ${order.orderId} (${order.reason}, ${refund.refundId})`);
+  } catch (error) {
+    logger.error(`Auto-refund failed for cancelled order ${order.orderId}: ${(error as Error).message}`);
+  }
 }
