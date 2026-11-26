@@ -1,4 +1,4 @@
-import { bookingStatusTone, labelize, titleize } from '../src/utils/format';
+import { bookingStatusTone, formatRupees, labelize, titleize } from '../src/utils/format';
 
 describe('titleize', () => {
   it('replaces every underscore, not just the first', () => {
@@ -23,7 +23,6 @@ describe('bookingStatusTone', () => {
 });
 
 describe('formatRupees (the one rupee format)', () => {
-  const { formatRupees } = require('../src/utils/format');
   it('whole rupees: no decimals, Indian grouping', () => {
     expect(formatRupees(749)).toBe('₹749');
     expect(formatRupees(413077)).toBe('₹4,13,077');

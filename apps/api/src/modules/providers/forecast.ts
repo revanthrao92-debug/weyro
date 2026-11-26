@@ -55,8 +55,10 @@ export type ForecastInput = {
   /** Active listings with units sold in the last 28 days. */
   parts: { name: string; price: number; stock: number; unitsLast28: number }[];
   quotes: { pendingTotal: number; pendingCount: number; accepted: number; decided: number };
-  /** Customer part requests in the dealer's categories: last 7 days and the 56 days before. */
+  /** Customer requests in the provider's categories: last 7 days and the 56 days before. */
   demand: { last7: number; previous56: number };
+  /** What those requests are called for this provider: 'part' (dealer), 'repair', 'towing'... */
+  requestWord?: string;
   festivals?: Festival[];
 };
 
@@ -328,6 +330,7 @@ export function forecastEarnings(input: ForecastInput): Forecast {
   }
 
   // Demand nearby: requests this week against the usual week, half-weighted and fading over two weeks.
+  const word = input.requestWord ?? 'part';
   let demandMult = dates.map(() => 1);
   const typicalWeek = input.demand.previous56 / 8;
   if (input.demand.previous56 >= 8) {
@@ -339,12 +342,12 @@ export function forecastEarnings(input: ForecastInput): Forecast {
       label: 'Demand near you',
       detail:
         Math.abs(input.demand.last7 - typicalWeek) < 1
-          ? `About as many part requests near you as usual (${input.demand.last7} this week).`
-          : `${input.demand.last7} part requests near you this week, against about ${Math.round(typicalWeek)} in a usual week.`,
+          ? `About as many ${word} requests near you as usual (${input.demand.last7} this week).`
+          : `${input.demand.last7} ${word} requests near you this week, against about ${Math.round(typicalWeek)} in a usual week.`,
       amount,
     });
   } else {
-    skipped.push({ key: 'demand', label: 'Demand near you', reason: 'Not enough part requests near you yet to compare weeks.' });
+    skipped.push({ key: 'demand', label: 'Demand near you', reason: `Not enough ${word} requests near you yet to compare weeks.` });
   }
 
   // Stock: a part that runs out stops selling from that day on.
@@ -374,7 +377,8 @@ export function forecastEarnings(input: ForecastInput): Forecast {
           : `${firstOut.name} may run out in about ${days} day${days === 1 ? '' : 's'}. Restock to win these sales back.`,
       amount: -stockLoss * keep,
     });
-  } else {
+  } else if (input.parts.length > 0) {
+    // Only shops with listings have stock; garages simply don't show this factor.
     skipped.push({ key: 'stock', label: 'Parts running out', reason: `Enough stock for the next ${horizon} days at your usual pace.` });
   }
 

@@ -29,6 +29,7 @@ export class BookingsController {
       query.cursor,
       query.limit,
       query.status,
+      query.active,
     );
   }
 

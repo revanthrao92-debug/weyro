@@ -14,8 +14,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { DriverProfileScreen } from '@/components/driver/DriverProfileScreen';
-import { DealerProfileScreen } from '@/components/dealer/DealerProfileScreen';
-import { MechanicProfileScreen } from '@/components/mechanic/MechanicProfileScreen';
+import { ProviderProfileScreen } from '@/components/provider/ProviderProfileScreen';
 import { AdminProfileScreen } from '@/components/admin/AdminProfileScreen';
 import {
   AppearancePicker,
@@ -51,7 +50,7 @@ export default function ProfileScreen() {
   }
 
   if (providerProfile?.providerType === 'PARTS_DEALER') {
-    return <DealerProfileScreen />;
+    return <ProviderProfileScreen />;
   }
 
   if (
@@ -59,7 +58,7 @@ export default function ProfileScreen() {
       providerProfile?.providerType ?? '',
     )
   ) {
-    return <MechanicProfileScreen />;
+    return <ProviderProfileScreen />;
   }
 
   return (

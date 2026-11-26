@@ -3,6 +3,7 @@ import { haptics } from '@/lib/haptics';
 import {
   Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,14 +29,15 @@ import {
   Card,
   EmptyState,
   Input,
+  PageHeader,
   ScreenContainer,
   Skeleton,
   StatusPill,
   PopIn,
 } from '@/components/ui';
+import { Check } from 'lucide-react-native';
 import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
 import {
-  fontFamilyMono,
   palette,
   spacing,
   typography,
@@ -227,17 +229,16 @@ export default function MechanicJobDetailScreen() {
     }
     if (booking.status === 'PROVIDER_EN_ROUTE') return void advance('IN_PROGRESS');
     if (booking.status === 'IN_PROGRESS') {
-      Alert.alert(
-        'Complete job',
-        'This marks the work complete and releases the held payment.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Complete',
-            onPress: () => void advance('COMPLETED', true),
-          },
-        ],
-      );
+      const message = 'This marks the work complete and releases the held payment.';
+      // Alert.alert shows nothing in a browser, so the job could never be completed there.
+      if (Platform.OS === 'web') {
+        if (globalThis.confirm?.(`Complete job?\n\n${message}`)) void advance('COMPLETED', true);
+        return;
+      }
+      Alert.alert('Complete job', message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Complete', onPress: () => void advance('COMPLETED', true) },
+      ]);
     }
   };
 
@@ -261,60 +262,71 @@ export default function MechanicJobDetailScreen() {
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>Job</Text>
-          <View style={styles.topBarSpacer} />
-        </View>
-
-        <Text style={styles.title} numberOfLines={2}>
-          {request?.title ?? 'Service job'}
-        </Text>
-        <View style={styles.metaRow}>
-          <StatusPill
-            label={
-              booking.status === 'IN_PROGRESS'
-                ? isTowing
-                  ? 'Towing'
-                  : isRoadside
-                    ? 'On site'
-                    : 'In progress'
-                : statusLabel(booking.status)
-            }
-            tone={bookingStatusTone(booking.status)}
-          />
-          <Text style={styles.meta}>
-            #{booking.id.slice(0, 8).toUpperCase()} · {titleize(request?.category ?? 'SERVICE')}
-          </Text>
-        </View>
+        <PageHeader back title={request?.title ?? 'Service job'}>
+          <View style={styles.metaRow}>
+            <StatusPill
+              label={
+                booking.status === 'IN_PROGRESS'
+                  ? isTowing
+                    ? 'Towing'
+                    : isRoadside
+                      ? 'On site'
+                      : 'In progress'
+                  : statusLabel(booking.status)
+              }
+              tone={bookingStatusTone(booking.status)}
+            />
+            <Text style={styles.meta}>
+              Job #{booking.id.slice(0, 8).toUpperCase()}, {titleize(request?.category ?? 'SERVICE')}
+            </Text>
+          </View>
+        </PageHeader>
 
         <Card style={styles.card}>
           <Text style={styles.amount}>
             {formatRupees(booking.quotation?.totalCost ?? 0)}
           </Text>
           <Text style={styles.meta}>
-            {request?.address ?? 'Workshop job'}
-            {booking.scheduledAt ? ` · ${formatDate(booking.scheduledAt)}` : ''}
+            {[request?.address ?? 'At the workshop', booking.scheduledAt ? formatDate(booking.scheduledAt) : null]
+              .filter(Boolean)
+              .join(', ')}
           </Text>
         </Card>
 
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Progress</Text>
-          <View style={styles.steps}>
+          {/* Reached steps ticked, the next one marked; one per line so long labels fit. */}
+          <View>
             {steps.map((step, index) => {
-              const done = stepIndex >= index && stepIndex >= 0;
+              const done = stepIndex >= 0 && index <= stepIndex;
+              const next = index === stepIndex + 1 && booking.status !== 'COMPLETED';
               return (
-                <View key={step} style={styles.step}>
-                  {index === stepIndex ? (
-                    <PopIn key={booking.status} play={firstStatus !== undefined && booking.status !== firstStatus}>
-                      <View style={[styles.dot, styles.dotDone]} />
-                    </PopIn>
-                  ) : (
-                    <View style={[styles.dot, done && styles.dotDone]} />
-                  )}
-                  <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
-                    {STEP_LABEL[index]}
-                  </Text>
+                <View
+                  key={step}
+                  style={styles.tlRow}
+                  accessible
+                  accessibilityLabel={`${STEP_LABEL[index]}${done ? ', done' : next ? ', next step' : ''}`}
+                >
+                  <View style={styles.tlRail}>
+                    {index === stepIndex ? (
+                      <PopIn key={booking.status} play={firstStatus !== undefined && booking.status !== firstStatus}>
+                        <View style={[styles.tlDot, styles.tlDotDone]}>
+                          <Check size={12} color={palette.onAccent} strokeWidth={3} />
+                        </View>
+                      </PopIn>
+                    ) : (
+                      <View style={[styles.tlDot, done && styles.tlDotDone, next && styles.tlDotNext]}>
+                        {done ? <Check size={12} color={palette.onAccent} strokeWidth={3} /> : null}
+                      </View>
+                    )}
+                    {index < steps.length - 1 ? <View style={[styles.tlLine, index < stepIndex && styles.tlLineDone]} /> : null}
+                  </View>
+                  <View style={styles.tlText}>
+                    <Text style={[styles.tlLabel, (done || next) && styles.tlLabelOn, next && styles.tlLabelNext]}>
+                      {STEP_LABEL[index]}
+                    </Text>
+                    {next ? <Text style={styles.meta}>Next step</Text> : null}
+                  </View>
                 </View>
               );
             })}
@@ -481,16 +493,26 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  topBar: {
-    flexDirection: 'row',
+  tlRow: { flexDirection: 'row', gap: spacing.md },
+  tlRail: { alignItems: 'center', width: 20 },
+  tlDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: palette.borderStrong,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    justifyContent: 'center',
   },
-  topBarSpacer: { width: 44 },
-  eyebrow: { ...typography.label, color: palette.textMuted, letterSpacing: 0.3 },
-  title: { ...typography.display, color: palette.textPrimary },
+  tlDotDone: { backgroundColor: palette.accent, borderColor: palette.accent },
+  tlDotNext: { borderColor: palette.accent },
+  tlLine: { width: 2, flex: 1, minHeight: 18, backgroundColor: palette.border },
+  tlLineDone: { backgroundColor: palette.accent },
+  tlText: { flex: 1, paddingBottom: spacing.md },
+  tlLabel: { ...typography.body, color: palette.textMuted },
+  tlLabelOn: { color: palette.textPrimary },
+  tlLabelNext: { fontWeight: '600' },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -502,17 +524,6 @@ const styles = StyleSheet.create({
   card: { marginTop: spacing.lg, gap: spacing.md },
   amount: { ...typography.title, color: palette.textPrimary },
   sectionTitle: { ...typography.captionMedium, color: palette.textPrimary },
-  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.borderStrong,
-  },
-  dotDone: { backgroundColor: palette.accent },
-  stepLabel: { ...typography.label, color: palette.textMuted },
-  stepLabelDone: { color: palette.textPrimary },
   notes: { ...typography.caption, color: palette.textSecondary },
   row: {
     flexDirection: 'row',
@@ -522,8 +533,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: { ...typography.label, color: palette.textMuted },
   rowValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 12,
+    ...typography.body,
     color: palette.textPrimary,
     flex: 1,
     textAlign: 'right',

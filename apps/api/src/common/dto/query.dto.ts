@@ -42,6 +42,11 @@ export const bookingsQuerySchema = cursorPaginationSchema.extend({
       'DISPUTED',
     ])
     .optional(),
+  /** "true": only jobs still in progress (confirmed, on the way, working), however old. */
+  active: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({

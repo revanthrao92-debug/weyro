@@ -77,12 +77,17 @@ export type Booking = {
   };
 };
 
-export function useBookings(status?: string) {
+export function useBookings(status?: string, opts?: { active?: boolean; limit?: number }) {
   return useQuery({
-    queryKey: ['bookings', status],
+    queryKey: ['bookings', status, opts?.active ?? false, opts?.limit ?? null],
     queryFn: async () => {
-      const url = status ? `/bookings?status=${status}` : '/bookings';
-      return apiClient<{ items: Booking[]; nextCursor?: string }>(url);
+      const qs = new URLSearchParams();
+      if (status) qs.set('status', status);
+      // active: every job still moving, however old (the default page is the newest 20).
+      if (opts?.active) qs.set('active', 'true');
+      if (opts?.limit) qs.set('limit', String(opts.limit));
+      const query = qs.toString();
+      return apiClient<{ items: Booking[]; nextCursor?: string }>(query ? `/bookings?${query}` : '/bookings');
     },
   });
 }
@@ -160,12 +165,17 @@ export function useUpdateBookingStatus() {
       queryClient.setQueryData<Booking>(['booking', id], context?.previous);
       Alert.alert('Update failed', (err as Error).message);
     },
+    // Returned so the step button stays busy until the lists show the new step
+    // (a fast second tap would otherwise send the same step again and fail).
     onSettled: (_data, _error, variables) => {
       const id = (variables as { id: string }).id;
-      queryClient.invalidateQueries({ queryKey: ['booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['booking', id] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+        queryClient.invalidateQueries({ queryKey: ['providerDashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['adminBookings'] }),
+        queryClient.invalidateQueries({ queryKey: ['adminOverview'] }),
+      ]);
     },
   });
 }

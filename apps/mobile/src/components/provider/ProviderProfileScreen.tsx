@@ -1,6 +1,6 @@
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BarChart3, Bell, ChevronRight, LifeBuoy, LogOut, MessageCircle, Star } from 'lucide-react-native';
+import { BarChart3, Bell, ChevronRight, FileCheck2, LifeBuoy, LogOut, MessageCircle, Star } from 'lucide-react-native';
 import {
   AppearancePicker,
   ErrorState,
@@ -49,6 +49,31 @@ function Action({
   );
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  PARTS_DEALER: 'Parts dealer',
+  MECHANIC: 'Mechanic',
+  GARAGE: 'Garage',
+  AUTHORIZED_CENTER: 'Authorised centre',
+  TOWING: 'Towing',
+  ROADSIDE: 'Roadside assistance',
+};
+
+const WORK_LABEL: Record<string, string> = {
+  PARTS_DEALER: 'Spare parts',
+  MECHANIC: 'Repair, maintenance and inspection',
+  GARAGE: 'Repair, maintenance and inspection',
+  AUTHORIZED_CENTER: 'Repair, maintenance and inspection',
+  TOWING: 'Towing and recovery',
+  ROADSIDE: 'Battery, tyre and fuel help',
+};
+
+const TOWING_TYPE_LABEL: Record<string, string> = {
+  FLATBED: 'Flatbed',
+  HOOK_AND_CHAIN: 'Hook and chain',
+  MOTORCYCLE: 'Motorcycle',
+  ANY: 'Any vehicle',
+};
+
 const VERIFICATION: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' }> = {
   VERIFIED: { label: 'Verified', tone: 'success' },
   PENDING: { label: 'Awaiting approval', tone: 'warning' },
@@ -57,10 +82,11 @@ const VERIFICATION: Record<string, { label: string; tone: 'success' | 'warning' 
 };
 
 /**
- * Dealer account and settings. The shop on/off switch, counts and work links live on the
- * Dashboard and tab bar, so this screen is only who you are, your details and settings.
+ * Account and settings for every provider (dealer, garage, mechanic, towing, roadside).
+ * The on/off switch, counts and work links live on the Dashboard and tab bar, so this
+ * screen is only who you are, your details and settings.
  */
-export function DealerProfileScreen() {
+export function ProviderProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const profileQuery = useProviderProfile();
@@ -85,7 +111,14 @@ export function DealerProfileScreen() {
     );
   }
 
-  const name = profile.businessName || user?.email?.split('@')[0] || 'Dealer';
+  const name = profile.businessName || user?.email?.split('@')[0] || 'Your business';
+  const isTowing = profile.providerType === 'TOWING';
+  const equipment = isTowing
+    ? [
+        (profile.towingVehicleTypes ?? []).map((t: string) => TOWING_TYPE_LABEL[t] ?? t).join(', ') || 'Not set',
+        profile.maxVehicleWeightKg ? `up to ${Number(profile.maxVehicleWeightKg).toLocaleString('en-IN')} kg` : 'no weight limit set',
+      ].join(', ')
+    : null;
   const verification = VERIFICATION[profile.verificationStatus] ?? VERIFICATION.PENDING;
 
   return (
@@ -100,7 +133,7 @@ export function DealerProfileScreen() {
           <View style={styles.shopText}>
             <Text style={styles.shopName}>{name}</Text>
             <View style={styles.shopMeta}>
-              <Text style={styles.metaText}>Parts dealer</Text>
+              <Text style={styles.metaText}>{TYPE_LABEL[profile.providerType] ?? 'Provider'}</Text>
               <StatusPill label={verification.label} tone={verification.tone} />
               {profile.avgRating > 0 ? (
                 <View style={styles.rating} accessible accessibilityLabel={`Rated ${profile.avgRating.toFixed(1)}`}>
@@ -124,7 +157,9 @@ export function DealerProfileScreen() {
         <SectionHead title="Business details" />
         <Row label="Phone" value={profile.phone} />
         <Row label="Address" value={profile.address} />
-        <Row label="Service area" value={`${profile.serviceRadiusKm} km around your shop`} />
+        <Row label="Service area" value={`${profile.serviceRadiusKm} km around you`} />
+        <Row label="Work" value={WORK_LABEL[profile.providerType] ?? 'Repair and maintenance'} />
+        {equipment ? <Row label="Equipment" value={equipment} /> : null}
         <Row label="Email" value={profile.email ?? user?.email ?? 'Not given'} last />
         <Text style={styles.hint}>To change these, contact support.</Text>
 
@@ -136,6 +171,12 @@ export function DealerProfileScreen() {
           icon={<BarChart3 size={20} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Earnings and forecast"
           onPress={() => router.push('/financials')}
+        />
+        <Action
+          icon={<FileCheck2 size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Verification documents"
+          detail={verification.label}
+          onPress={() => router.push('/verification')}
         />
         <Action
           icon={<MessageCircle size={20} color={palette.textSecondary} strokeWidth={1.8} />}

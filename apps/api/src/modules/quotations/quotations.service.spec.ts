@@ -470,3 +470,15 @@ describe('QuotationsService authorization and state regressions', () => {
     });
   });
 });
+
+describe('BookingsService.getBookings: active jobs', () => {
+  it('active=true returns every job still moving for this provider, however old', async () => {
+    const prisma: any = { booking: { findMany: jest.fn().mockResolvedValue([]) } };
+    const service = new BookingsService(prisma, { sendPushNotification: jest.fn() } as any);
+    await service.getBookings({ sub: 'u', role: 'PROVIDER', providerProfileId: 'prov-1' } as any, undefined, 50, undefined, true);
+    expect(prisma.booking.findMany.mock.calls[0][0].where).toMatchObject({
+      providerId: 'prov-1',
+      status: { in: ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'] },
+    });
+  });
+});

@@ -122,3 +122,54 @@ describe('ProvidersService.submitVerificationDocuments', () => {
     ).rejects.toThrow('Suspended providers cannot submit');
   });
 });
+
+describe('ProvidersService.getAnalytics: where the money comes from', () => {
+  function prismaFor(providerType: string) {
+    const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+    const any = () => jest.fn<any>();
+    return {
+      providerProfile: { findUnique: any().mockResolvedValue({ providerType, isAvailable: true }) },
+      booking: {
+        findMany: any().mockResolvedValue([
+          { completedAt: daysAgo(2), quotation: { totalCost: 3000 } },
+          { completedAt: daysAgo(3), quotation: { totalCost: 1500 } },
+        ]),
+      },
+      sparePartOrder: {
+        findMany: any().mockResolvedValue([]),
+        aggregate: any().mockResolvedValue({ _sum: { totalAmount: null } }),
+        groupBy: any().mockResolvedValue([]),
+      },
+      sparePart: { findMany: any().mockResolvedValue([]) },
+      quotation: { count: any().mockResolvedValue(0), aggregate: any().mockResolvedValue({ _sum: { totalCost: null }, _count: 0 }) },
+      serviceRequest: { count: any().mockResolvedValue(0) },
+    };
+  }
+  const garage = { sub: 'u1', role: 'PROVIDER', providerProfileId: 'prov-1' } as AuthUserPayload;
+
+  it('a garage earns from completed jobs (was always ₹0: only parts orders counted)', async () => {
+    const prisma = prismaFor('GARAGE');
+    const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
+    expect(r.earningsFrom).toBe('jobs');
+    expect(r.summary.netSales).toBe(4500);
+    expect(prisma.booking.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ providerId: 'prov-1', status: 'COMPLETED' }) }),
+    );
+  });
+
+  it('a garage that also sells parts counts both jobs and parts sales', async () => {
+    const prisma = prismaFor('GARAGE');
+    prisma.sparePartOrder.findMany.mockResolvedValue([
+      { totalAmount: 749, paidAt: new Date(Date.now() - 86_400_000), refundedAt: null, status: 'PAID' },
+    ]);
+    const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
+    expect(r.summary.netSales).toBe(4500 + 749);
+  });
+
+  it('a parts dealer still earns from paid orders', async () => {
+    const prisma = prismaFor('PARTS_DEALER');
+    const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
+    expect(r.earningsFrom).toBe('parts');
+    expect(prisma.booking.findMany).not.toHaveBeenCalled();
+  });
+});

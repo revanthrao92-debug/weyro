@@ -75,10 +75,16 @@ export class BookingsService {
     cursor?: string,
     limit: number = 20,
     status?: string,
+    active?: boolean,
   ) {
     const where: any = {};
     if (status) {
       where.status = status;
+    }
+    if (active) {
+      // The to-do list: every job still moving, however many finished jobs
+      // are newer (the default page of 20 used to push them out).
+      where.status = { in: ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'] };
     }
 
     if (user.role === 'ADMIN') {

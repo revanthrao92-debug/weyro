@@ -39,6 +39,8 @@ export default function FinancialsScreen() {
   }
 
   const { summary, buckets, forecast } = data;
+  const fromJobs = data.earningsFrom === 'jobs';
+  const unit = fromJobs ? 'paid jobs and parts sales' : 'orders';
   const fc = forecast.available ? forecast : null;
   const biggest = fc ? Math.max(1, ...fc.factors.map((f) => Math.abs(f.amount))) : 1;
 
@@ -66,9 +68,9 @@ export default function FinancialsScreen() {
             idle={{
               label: `Last ${days} days`,
               value: money(summary.netSales),
-              meta: `${summary.paidOrders} orders, ${money(summary.refundAmount)} refunded. Drag along the line to see each day.`,
+              meta: `${summary.paidOrders} ${unit}${summary.refundAmount > 0 ? `, ${money(summary.refundAmount)} refunded` : ''}. Drag along the line to see each day.`,
             }}
-            accessibilityLabel={`Earnings chart. Last ${days} days ${money(summary.netSales)} from ${summary.paidOrders} orders.${
+            accessibilityLabel={`Earnings chart. Last ${days} days ${money(summary.netSales)} from ${summary.paidOrders} ${unit}.${
               fc ? ` Next ${fc.horizonDays} days about ${money(fc.projectedTotal)}.` : ''
             }`}
           />
@@ -138,22 +140,27 @@ export default function FinancialsScreen() {
 
         <Text style={styles.section}>Money</Text>
         <View style={styles.grid}>
-          <Tile label="Paid orders" value={String(summary.paidOrders)} />
-          <Tile label="Average order" value={money(summary.averageOrderValue)} />
-          <Tile label="Refunded orders" value={String(summary.refundedOrders)} />
-          <Tile label="Waiting for payment" value={money(summary.pendingValue)} />
+          <Tile label={fromJobs ? 'Paid jobs and sales' : 'Paid orders'} value={String(summary.paidOrders)} />
+          <Tile label={fromJobs ? 'Average job' : 'Average order'} value={money(summary.averageOrderValue)} />
+          {fromJobs ? null : <Tile label="Refunded orders" value={String(summary.refundedOrders)} />}
+          {fromJobs ? null : <Tile label="Waiting for payment" value={money(summary.pendingValue)} />}
         </View>
 
-        <Text style={styles.section}>Stock and quotes</Text>
+        <Text style={styles.section}>{fromJobs ? 'Quotes' : 'Stock and quotes'}</Text>
         <View style={styles.grid}>
-          <Tile label="Stock value" value={money(summary.inventoryValue)} note={`${summary.activeListings} live listings`} />
-          <Tile label="Low on stock" value={String(summary.lowStockListings)} note="3 or fewer left" />
+          {fromJobs ? null : (
+            <Tile label="Stock value" value={money(summary.inventoryValue)} note={`${summary.activeListings} live listings`} />
+          )}
+          {fromJobs ? null : <Tile label="Low on stock" value={String(summary.lowStockListings)} note="3 or fewer left" />}
           <Tile label="Quotes sent" value={String(summary.quotesSent)} />
           <Tile label="Quotes won" value={`${summary.quoteConversionRate}%`} note={`${summary.quotesAccepted} accepted`} />
         </View>
 
         <Text style={styles.footnote}>
-          From paid parts orders only. The forecast is an estimate from your own sales, not a promise.
+          {fromJobs
+            ? 'From finished jobs (the quote total, on the day the job was completed) plus any parts you sold.'
+            : 'From paid parts orders only.'}{' '}
+          The forecast is an estimate from your own history, not a promise.
         </Text>
       </ScrollView>
     </ScreenContainer>

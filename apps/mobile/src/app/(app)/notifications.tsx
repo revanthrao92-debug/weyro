@@ -64,7 +64,7 @@ export default function NotificationsScreen({ pushed = false }: { pushed?: boole
             <Text style={styles.summary}>
               {notifications.length === 0
                 ? 'No updates yet'
-                : `${unreadCount} unread · ${notifications.length} total`}
+                : `${unreadCount} unread, ${notifications.length} total`}
             </Text>
 
             {isLoading ? (

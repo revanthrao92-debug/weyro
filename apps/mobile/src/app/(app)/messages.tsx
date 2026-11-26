@@ -65,7 +65,7 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
             <Text style={styles.summary}>
               {allThreads.length === 0
                 ? 'No conversations yet'
-                : `${allThreads.length} conversations · ${unread} unread`}
+                : `${allThreads.length} conversations, ${unread} unread`}
             </Text>
 
             <View style={styles.search}>
