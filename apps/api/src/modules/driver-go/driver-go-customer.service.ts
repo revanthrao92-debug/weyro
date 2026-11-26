@@ -332,7 +332,7 @@ export class DriverGoCustomerService {
         .sendPushNotification({
           userId: provider.user.id,
           title: 'New Driver Go request',
-          body: `${dto.pickupAddress} · ${dto.engagement === 'HOURLY' ? `${dto.durationHours} hours` : `${dto.durationDays} day`}`,
+          body: `${dto.pickupAddress}, ${dto.engagement === 'HOURLY' ? `${dto.durationHours} hours` : `${dto.durationDays} day${dto.durationDays === 1 ? '' : 's'}`}`,
           data: { type: 'DRIVER_JOB_REQUESTED', driverBookingId: booking.id },
         })
         .catch(() => {});
@@ -397,7 +397,7 @@ export class DriverGoCustomerService {
       this.notifications
         .sendPushNotification({
           userId: booking.driver.user.id,
-          title: 'Driver Go booking cancelled',
+          title: 'Booking cancelled',
           body: 'The customer cancelled this booking.',
           data: { type: 'DRIVER_JOB_CANCELLED', driverBookingId: id },
         })

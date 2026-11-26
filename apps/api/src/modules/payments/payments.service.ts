@@ -845,8 +845,8 @@ export class PaymentsService {
         this.notifications
           .sendPushNotification({
             userId: booking.provider.userId,
-            title: 'Escrow Payout Released 💰',
-            body: `Payment of ₹${Number(updatedPayment.amount).toLocaleString('en-IN')} for booking #${booking.id.slice(0, 8)} has been released to your account.`,
+            title: 'Payment released',
+            body: `₹${Number(updatedPayment.amount).toLocaleString('en-IN')} for a completed job has been released to your account.`,
             data: {
               type: 'PAYMENT_RELEASED',
               bookingId: booking.id,

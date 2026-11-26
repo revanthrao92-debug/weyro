@@ -261,7 +261,7 @@ describe('QuotationsService authorization and state regressions', () => {
 
       expect(mockNotifications.sendPushNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          body: expect.stringContaining('A provider submitted'),
+          body: expect.stringContaining('A provider sent a quote of'),
         }),
       );
     });

@@ -34,8 +34,8 @@ export function notifyOrderPlaced(
 
   notify(notifier, {
     userId: order.providerUserId,
-    title: 'New order received 🛒',
-    body: `Order #${order.orderId.slice(0, 8)} · ${order.partName} × ${order.quantity} (${rupees(order.totalAmount)}). Awaiting payment.`,
+    title: 'New order',
+    body: `${order.partName}, quantity ${order.quantity}, ${rupees(order.totalAmount)}. Waiting for the customer to pay.`,
     data: {
       type: 'SPARE_PART_ORDER_PLACED',
       orderId: order.orderId,
@@ -50,8 +50,8 @@ export function enqueueOrderPaid(
 ) {
   const params: Parameters<Notifier['sendPushNotification']>[0] = {
     userId: order.customerUserId ?? '',
-    title: 'Order paid ✓',
-    body: `Your order for ${order.partName} is confirmed — ₹${rupees(order.totalAmount)} (x${order.quantity}).`,
+    title: 'Order confirmed',
+    body: `Your order for ${order.partName} (quantity ${order.quantity}, ${rupees(order.totalAmount)}) is confirmed.`,
     data: { type: 'SPARE_PART_ORDER_PAID', orderId: order.orderId },
   };
   if (!params.userId) return;
@@ -65,8 +65,8 @@ export function notifyOrderPaid(
   if (order.customerUserId) {
     notify(notifier, {
       userId: order.customerUserId,
-      title: 'Payment confirmed ✅',
-      body: `Your payment of ${rupees(order.totalAmount)} for ${order.partName} was received.`,
+      title: 'Payment received',
+      body: `We received your payment of ${rupees(order.totalAmount)} for ${order.partName}.`,
       data: {
         type: 'SPARE_PART_ORDER_PAID',
         orderId: order.orderId,
@@ -77,8 +77,8 @@ export function notifyOrderPaid(
   if (order.providerUserId) {
     notify(notifier, {
       userId: order.providerUserId,
-      title: 'Order paid — prepare it 📦',
-      body: `${order.partName} × ${order.quantity} (${rupees(order.totalAmount)}) is paid and ready to fulfil.`,
+      title: 'New paid order',
+      body: `${order.partName}, quantity ${order.quantity}, ${rupees(order.totalAmount)}. Please pack and send it.`,
       data: {
         type: 'SPARE_PART_ORDER_PAID',
         orderId: order.orderId,
@@ -96,7 +96,7 @@ export function notifyOrderCancelled(
   notify(notifier, {
     userId: order.providerUserId,
     title: 'Order cancelled',
-    body: `Order #${order.orderId.slice(0, 8)} · ${order.partName} was cancelled by the customer.`,
+    body: `The customer cancelled the order for ${order.partName}.`,
     data: {
       type: 'SPARE_PART_ORDER_CANCELLED',
       orderId: order.orderId,
@@ -112,8 +112,8 @@ export function notifyOrderRefunded(
 
   notify(notifier, {
     userId: order.customerUserId,
-    title: 'Refund processed 💸',
-    body: `${rupees(order.totalAmount)} for ${order.partName} has been refunded.`,
+    title: 'Refund processed',
+    body: `${rupees(order.totalAmount)} for ${order.partName} has been refunded to your original payment method.`,
     data: {
       type: 'SPARE_PART_ORDER_REFUNDED',
       orderId: order.orderId,

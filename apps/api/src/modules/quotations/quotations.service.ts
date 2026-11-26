@@ -212,8 +212,8 @@ export class QuotationsService {
       this.notifications
         .sendPushNotification({
           userId: request.customer.userId,
-          title: 'New Quote Received',
-          body: `${providerLabel} submitted a quotation of ₹${totalCost} for "${request.title}".`,
+          title: 'New quote received',
+          body: `${providerLabel} sent a quote of ₹${Number(totalCost).toLocaleString('en-IN')} for "${request.title}".`,
           data: { requestId, quotationId: quote.id, type: 'new_quote' },
         })
         .catch(() => {});
@@ -473,8 +473,8 @@ export class QuotationsService {
         this.notifications
           .sendPushNotification({
             userId: providerUser.userId,
-            title: 'Quotation Accepted!',
-            body: `Your quotation for "${quote.request.title}" was accepted. Booking #${result.id.slice(0, 8)} confirmed.`,
+            title: 'Quote accepted',
+            body: `Your quote for "${quote.request.title}" was accepted. Open it to get started.`,
             data: {
               type: 'QUOTATION_ACCEPTED',
               bookingId: result.id,
