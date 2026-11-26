@@ -60,6 +60,213 @@ export class JwtAuthGuard implements CanActivate {
     return type?.toLowerCase() === 'bearer' ? token : undefined;
   }
 }
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Globe, { type GlobeMethods } from "react-globe.gl";
+import * as THREE from "three";
+import type { CountryFeature, GeoCollection } from "@/lib/types";
+export type Focus = {
+  lat: number;
+  lng: number;
+  altitude: number;
+};
+type Props = {
+  geo: GeoCollection | null;
+  activeContinent: string | null;
+  hoveredIso: string | null;
+  selectedIso: string | null;
+  focus: Focus | null;
+  onHover: (feature: CountryFeature | null) => void;
+  onPick: (feature: CountryFeature) => void;
+};
+type State = "selected" | "hovered" | "continent" | "base";
+const ALTITUDE: Record<State, number> = {
+  selected: 0.032,
+  hovered: 0.018,
+  continent: 0.01,
+  base: 0.006,
+};
+const CAP: Record<State, string> = {
+  selected: "#7c2d12",
+  hovered: "#c2410c",
+  continent: "#d9772b",
+  base: "rgba(251,227,200,0.97)",
+};
+const STROKE: Record<State, string> = {
+  selected: "#431407",
+  hovered: "#7c2d12",
+  continent: "#9a3412",
+  base: "rgba(176,98,40,0.8)",
+};
+export default function GlobeCanvas({
+  geo,
+  activeContinent,
+  hoveredIso,
+  selectedIso,
+  focus,
+  onHover,
+  onPick,
+}: Props) {
+  const globe = useRef<GlobeMethods | undefined>(undefined);
+  const wrap = useRef<HTMLDivElement | null>(null);
+  const ready = useRef(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const material = useMemo(
+    () =>
+      new THREE.MeshPhongMaterial({
+        color: "#e8863a",
+        emissive: "#c96a22",
+        emissiveIntensity: 0.45,
+        shininess: 0,
+        specular: "#000000",
+      }),
+    [],
+  );
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const measure = () =>
+      setSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+/** Spherical Mercator helpers used by the raster map surface. */
+export type LatLng = { latitude: number; longitude: number };
+export const TILE_SIZE = 256;
+const MAX_LATITUDE = 85.05112878;
+export const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+export type Point = { x: number; y: number };
+/** Latitude/longitude -> world pixel coordinates at a zoom level. */
+export function project(coordinate: LatLng, zoom: number): Point {
+  const worldSize = TILE_SIZE * 2 ** zoom;
+  const latitude = clamp(coordinate.latitude, -MAX_LATITUDE, MAX_LATITUDE);
+  const sin = Math.sin((latitude * Math.PI) / 180);
+  return {
+    x: ((coordinate.longitude + 180) / 360) * worldSize,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
+  };
+}
+/** World pixel coordinates -> latitude/longitude. */
+export function unproject(point: Point, zoom: number): LatLng {
+  const worldSize = TILE_SIZE * 2 ** zoom;
+  const longitude = (point.x / worldSize) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * point.y) / worldSize;
+  const latitude =
+    (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { latitude, longitude };
+}
+/** Move a coordinate by a pixel delta at the given zoom. */
+export function offsetCoordinate(
+  coordinate: LatLng,
+  dx: number,
+  dy: number,
+  zoom: number,
+): LatLng {
+  const projected = project(coordinate, zoom);
+  return unproject({ x: projected.x + dx, y: projected.y + dy }, zoom);
+}
+const EARTH_RADIUS_M = 6371000;
+export function haversineMeters(a: LatLng, b: LatLng): number {
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+export function formatDistance(meters: number): string {
+  if (!Number.isFinite(meters) || meters < 0) return '—';
+  if (meters < 950) return `${Math.round(meters / 10) * 10} m`;
+  const km = meters / 1000;
+  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}
+/** Zoom level that fits every point inside the viewport (with padding). */
+export function fitZoom(
+  points: LatLng[],
+  width: number,
+  height: number,
+  padding = 56,
+): number {
+export type NewsItem = {
+  title: string;
+  url: string;
+  source: string;
+  published: string | null;
+};
+const GOOGLE_NEWS = "https://news.google.com/rss/search";
+/** There is no sport section on this site, so keep it out of every lookup. */
+const SPORTS_FILTER =
+  "-cricket -football -soccer -tennis -olympics -badminton";
+const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  quot: '"',
+  apos: "'",
+  lt: "<",
+  gt: ">",
+  nbsp: " ",
+};
+/** One pass, so `&amp;#38;` decodes to `&#38;` and not further. */
+export function decodeEntities(input: string): string {
+  return input.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, body: string) => {
+    if (body[0] !== "#") return NAMED_ENTITIES[body.toLowerCase()] ?? match;
+    const hex = body[1].toLowerCase() === "x";
+    const code = Number.parseInt(body.slice(hex ? 2 : 1), hex ? 16 : 10);
+    return code <= 0x10ffff ? String.fromCodePoint(code) : match;
+  });
+}
+export function pick(block: string, tag: string): string {
+  const match = block.match(
+    new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i"),
+  );
+  return match ? decodeEntities(match[1].replace(/<!\[CDATA\[|\]\]>/g, "")).trim() : "";
+}
+/**
+ * Google News RSS. Keyless and queryable by place name, which is what the
+ * globe needs. Swap this single function for a licensed provider later —
+ * nothing outside this module knows where the stories come from.
+ */
+export async function fetchNews(query: string, limit = 9): Promise<NewsItem[]> {
+  const params = new URLSearchParams({
+    q: `${query} ${SPORTS_FILTER} when:2d`,
+    hl: "en-IN",
+    gl: "IN",
+    ceid: "IN:en",
+  });
+  const res = await fetch(`${GOOGLE_NEWS}?${params.toString()}`, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      Accept: "application/rss+xml, application/xml, text/xml",
+    },
+    next: { revalidate: 600 },
+  });
+  if (!res.ok) throw new Error(`News feed returned ${res.status}`);
+  const xml = await res.text();
+  // A consent or captcha page comes back as 200 with no feed in it.
+  if (!xml.includes("<rss")) throw new Error("News feed returned no RSS");
+  const blocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
+  const seen = new Set<string>();
+  const items: NewsItem[] = [];
+  for (const block of blocks) {
+    const url = pick(block, "link");
+    if (!isWebUrl(url)) continue;
+    const source = pick(block, "source") || "News";
+    let title = pick(block, "title");
+    if (!title) continue;
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Queue, Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
@@ -131,74 +338,75 @@ export class NotificationQueue implements OnModuleDestroy {
       this.worker.on('completed', (job) => {
         this.logger.log(`Notification job ${job.id} delivered`);
       });
-/** Spherical Mercator helpers used by the raster map surface. */
-export type LatLng = { latitude: number; longitude: number };
-export const TILE_SIZE = 256;
-const MAX_LATITUDE = 85.05112878;
-export const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-export type Point = { x: number; y: number };
-/** Latitude/longitude -> world pixel coordinates at a zoom level. */
-export function project(coordinate: LatLng, zoom: number): Point {
-  const worldSize = TILE_SIZE * 2 ** zoom;
-  const latitude = clamp(coordinate.latitude, -MAX_LATITUDE, MAX_LATITUDE);
-  const sin = Math.sin((latitude * Math.PI) / 180);
-  return {
-    x: ((coordinate.longitude + 180) / 360) * worldSize,
-    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
-  };
+import type { Feed, Region } from "./feeds";
+import { decodeEntities, pick } from "./news";
+export type StoryImage = {
+  url: string;
+  credit: string;
+  /** Set for pictures found by topic rather than supplied by the publisher. */
+  illustrative?: boolean;
+  alt?: string;
+  licence?: string;
+  licenceUrl?: string;
+  pageUrl?: string;
+};
+export type Story = {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  section: string;
+  region: Region;
+  published: string | null;
+  summary: string;
+  image: StoryImage | null;
+  /** Country or capital the headline is about, as named in places.json. */
+  place?: string;
+  /** Short topic label (Climate, Trade ...) when the headline has a clear one. */
+  topic?: string;
+};
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; ProjectDecodeBot/1.0; +https://projectdecode.example)";
+const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
+function stripHtml(input: string): string {
+  return decodeEntities(input.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
 }
-/** World pixel coordinates -> latitude/longitude. */
-export function unproject(point: Point, zoom: number): LatLng {
-  const worldSize = TILE_SIZE * 2 ** zoom;
-  const longitude = (point.x / worldSize) * 360 - 180;
-  const n = Math.PI - (2 * Math.PI * point.y) / worldSize;
-  const latitude =
-    (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-  return { latitude, longitude };
+/** Cut at a word boundary so a summary never ends mid-word. */
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max).replace(/\s+\S*$/, "");
+  return `${cut}…`;
 }
-/** Move a coordinate by a pixel delta at the given zoom. */
-export function offsetCoordinate(
-  coordinate: LatLng,
-  dx: number,
-  dy: number,
-  zoom: number,
-): LatLng {
-  const projected = project(coordinate, zoom);
-  return unproject({ x: projected.x + dx, y: projected.y + dy }, zoom);
+function hostAllowed(url: string, hosts: string[]): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "https:") return false;
+    return hosts.some((h) => hostname === h || hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
 }
-const EARTH_RADIUS_M = 6371000;
-export function haversineMeters(a: LatLng, b: LatLng): number {
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-export function formatDistance(meters: number): string {
-  if (!Number.isFinite(meters) || meters < 0) return '—';
-  if (meters < 950) return `${Math.round(meters / 10) * 10} m`;
-  const km = meters / 1000;
-  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
-}
-export function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return '—';
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
-}
-/** Zoom level that fits every point inside the viewport (with padding). */
-export function fitZoom(
-  points: LatLng[],
-  width: number,
-  height: number,
-  padding = 56,
-): number {
+function findImage(block: string, feed: Feed): StoryImage | null {
+  if (feed.imageHosts.length === 0) return null;
+  const candidates: string[] = [];
+  const attr = /<(?:media:content|media:thumbnail|enclosure)\b[^>]*?\burl=["']([^"']+)["'][^>]*>/gi;
+  for (const m of block.matchAll(attr)) {
+    const type = m[0].match(/\btype=["']?([^"'\s>]+)/i)?.[1];
+    if (type && !type.startsWith("image")) continue;
+    candidates.push(decodeEntities(m[1]));
+  }
+  const html = decodeEntities(block);
+  for (const m of html.matchAll(/<img\b[^>]*?\bsrc=["']([^"']+)["']/gi)) {
+    candidates.push(decodeEntities(m[1]));
+  }
+  const url = candidates.find(
+    (c) =>
+      hostAllowed(c, feed.imageHosts) &&
+      /\.(jpe?g|png|webp)(\?|$)/i.test(c) &&
+      !/avatar|logo|icon|gravatar|sprite/i.test(c),
+  );
 import { tokenStorage } from './token-storage';
 /**
  * Resolve the API base URL.
@@ -269,49 +477,3 @@ export async function refreshTokenSingleFlight(): Promise<string | null> {
       .catch((err) => {
         // Refresh failed → the session is unrecoverable. Surface once.
         void sessionExpiredHandler?.();
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { UserRole } from '@weyro/api-contracts';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { AuthUserPayload } from '../types/auth-user-payload.type';
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
-    }
-    const request = context.switchToHttp().getRequest();
-    const user: AuthUserPayload = request.user;
-    if (!user) {
-      throw new ForbiddenException('User authentication required for role verification');
-    }
-    // ADMIN has platform-wide authority
-    if (user.role === 'ADMIN') {
-      return true;
-    }
-    const hasRole = requiredRoles.some((role) => {
-      if (user.role === role) return true;
-      // BOTH role satisfies CUSTOMER or PROVIDER requirements
-      if (user.role === 'BOTH' && (role === 'CUSTOMER' || role === 'PROVIDER')) {
-        return true;
-      }
-      return false;
-    });
-    if (!hasRole) {
-      throw new ForbiddenException(
-        `Access denied. Requires one of the following roles: ${requiredRoles.join(', ')}`,
-      );
-    }
-    return true;
-  }
-}

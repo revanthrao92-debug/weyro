@@ -40,6 +40,22 @@
         "Railway"
       ],
       "url": "https://github.com/revanthrao92-debug/weyro"
+    },
+    {
+      "name": "Project Decode",
+      "tag": "News · Next.js + 3D globe",
+      "desc": "Interactive 3D globe news site — click any country to see what its outlets have reported in the last 48 hours.",
+      "long": "Project Decode is a newsroom-style site built around a clickable three.js globe. Picking a country or continent pulls the last 48 hours of local coverage from Google News RSS (10-minute cache, deduplicated). The homepage aggregates publisher RSS into sections (World, Geopolitics, Finance, Tech & AI, Science, Climate, Health, Culture) with a 'country in focus' pick, an INR exchange-rate strip from ECB reference rates, and an image pipeline that falls back from publisher photos to openly licensed Openverse matches to bundled public-domain art. The logo is a potrace-traced vector with a CSS-animated intro. No API keys, no database.",
+      "githubRepo": "revanthrao92-debug/Project-decode",
+      "shots": [],
+      "stack": [
+        "TypeScript",
+        "Next.js",
+        "React",
+        "Three.js",
+        "Tailwind CSS"
+      ],
+      "url": "https://github.com/revanthrao92-debug/Project-decode"
     }
   ],
   "talks": [],
