@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { titleize } from '@/utils/format';
 import {
   MapPin,
   Navigation,
@@ -15,7 +16,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 import {
-  BackButton,
+  PageHeader,
   Button,
   ButtonRow,
   EmptyState,
@@ -38,8 +39,10 @@ import {
   jobStatusTone,
   jobWhen,
   money,
+  nextTripStep,
   vehicleLabel,
 } from './driverFormat';
+import { confirmAction } from '@/lib/confirm';
 import {
   fontFamilyMono,
   palette,
@@ -78,10 +81,8 @@ export function DriverBookingScreen() {
   if (jobQuery.isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>JOB</Text>
-          <View style={styles.spacer} />
+        <View style={styles.headerPad}>
+          <PageHeader back title="Trip" />
         </View>
         <View style={styles.body}>
           <Skeleton width="60%" height={28} />
@@ -95,14 +96,12 @@ export function DriverBookingScreen() {
   if (jobQuery.isError || !jobQuery.data) {
     return (
       <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>JOB</Text>
-          <View style={styles.spacer} />
+        <View style={styles.headerPad}>
+          <PageHeader back title="Trip" />
         </View>
         <EmptyState
-          title="Job not found"
-          message="This job may have been reassigned or cancelled."
+          title="Trip not found"
+          message="This trip may have been reassigned or cancelled."
         />
       </ScreenContainer>
     );
@@ -120,40 +119,44 @@ export function DriverBookingScreen() {
     try {
       await action();
     } catch (e: any) {
-      setError(e?.message || 'Could not update this job.');
+      setError(e?.message || 'Could not update this trip.');
     }
   };
 
   const accept = () => run(() => acceptJob.mutateAsync(job.id));
-  const decline = () =>
-    run(async () => {
+  const decline = async () => {
+    if (!(await confirmAction('Decline this trip?', 'The customer will look for another driver.', 'Decline'))) return;
+    await run(async () => {
       await declineJob.mutateAsync({ id: job.id });
-      router.back();
+      if (router.canGoBack()) router.back();
+      else router.replace('/driver-jobs');
     });
+  };
+  const step = nextTripStep(job.status);
+  const advance = async () => {
+    if (step?.next) return run(() => updateStatus.mutateAsync({ id: job.id, status: step.next! }));
+    if (!(await confirmAction('End this trip?', 'Only end it once the customer has the car back.', 'End trip'))) return;
+    await run(() => updateStatus.mutateAsync({ id: job.id, status: 'COMPLETED' }));
+  };
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <View style={styles.topBar}>
-        <BackButton />
-        <Text style={styles.eyebrow}>JOB</Text>
-        <View style={styles.spacer} />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.head}>
-          <StatusPill
-            label={jobStatusLabel(job.status)}
-            tone={jobStatusTone(job.status)}
-          />
-          <Text style={styles.title}>{jobWhen(job.startAt)}</Text>
-          <Text style={styles.subtitle}>
-            {durationLabel(job)} · {job.engagement === 'DAILY' ? 'Daily' : 'Hourly'}{' '}
-            · {job.scheduleMode === 'ON_DEMAND' ? 'On demand' : 'Scheduled'}
-          </Text>
-        </View>
+        <PageHeader back title={jobWhen(job.startAt)}>
+          <View style={styles.headMeta}>
+            <StatusPill label={jobStatusLabel(job.status)} tone={jobStatusTone(job.status)} />
+            <Text style={styles.subtitle}>
+              {[
+                durationLabel(job),
+                job.engagement === 'DAILY' ? 'Daily' : 'Hourly',
+                job.scheduleMode === 'ON_DEMAND' ? 'On demand' : 'Scheduled',
+              ].join(', ')}
+            </Text>
+          </View>
+        </PageHeader>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -177,7 +180,7 @@ export function DriverBookingScreen() {
         <Row label="Vehicle" value={vehicleLabel(job)} />
         <Row
           label="Transmission"
-          value={job.vehicle?.transmission ?? job.transmission ?? 'Not specified'}
+          value={titleize(job.vehicle?.transmission ?? job.transmission ?? 'Not specified')}
         />
 
         <SectionHead title="Route" />
@@ -264,7 +267,7 @@ export function DriverBookingScreen() {
 
         {job.status === 'CANCELLED' ? (
           <View style={styles.completeNote}>
-            <Text style={styles.completeTitle}>Job cancelled</Text>
+            <Text style={styles.completeTitle}>Trip cancelled</Text>
             <Text style={styles.completeBody}>
               {job.cancellationReason ?? 'No reason provided.'}
             </Text>
@@ -282,7 +285,7 @@ export function DriverBookingScreen() {
                 style={styles.flex}
               />
               <Button
-                title="Accept job"
+                title="Accept trip"
                 onPress={() => void accept()}
                 loading={acceptJob.isPending}
                 disabled={pending}
@@ -291,43 +294,8 @@ export function DriverBookingScreen() {
             </ButtonRow>
           ) : null}
 
-          {job.status === 'CONFIRMED' ? (
-            <Button
-              title="Start journey"
-              onPress={() =>
-                void run(() =>
-                  updateStatus.mutateAsync({
-                    id: job.id,
-                    status: 'DRIVER_EN_ROUTE',
-                  }),
-                )
-              }
-              loading={updateStatus.isPending}
-            />
-          ) : null}
-
-          {job.status === 'DRIVER_EN_ROUTE' ? (
-            <Button
-              title="I've arrived"
-              onPress={() =>
-                void run(() =>
-                  updateStatus.mutateAsync({ id: job.id, status: 'ARRIVED' }),
-                )
-              }
-              loading={updateStatus.isPending}
-            />
-          ) : null}
-
-          {job.status === 'IN_PROGRESS' ? (
-            <Button
-              title="Complete trip"
-              onPress={() =>
-                void run(() =>
-                  updateStatus.mutateAsync({ id: job.id, status: 'COMPLETED' }),
-                )
-              }
-              loading={updateStatus.isPending}
-            />
+          {step && job.status !== 'ARRIVED' ? (
+            <Button title={step.title} onPress={() => void advance()} loading={updateStatus.isPending} />
           ) : null}
         </View>
       </ScrollView>
@@ -336,27 +304,13 @@ export function DriverBookingScreen() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  eyebrow: {
-    ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  spacer: { width: 44 },
+  headerPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  headMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   body: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  head: { gap: spacing.xs, alignItems: 'flex-start' },
-  title: { ...typography.title, color: palette.textPrimary, marginTop: spacing.xs },
   subtitle: {
     ...typography.caption,
     color: palette.textSecondary,
@@ -381,7 +335,7 @@ const styles = StyleSheet.create({
   personText: { flex: 1 },
   personName: { ...typography.bodyMedium, color: palette.textPrimary },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  phone: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  phone: { ...typography.caption, color: palette.textMuted },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -417,7 +371,7 @@ const styles = StyleSheet.create({
   placeText: { flex: 1 },
   placeLabel: { ...typography.label, color: palette.textMuted },
   placeValue: { ...typography.body, color: palette.textPrimary, marginTop: 2 },
-  mapButton: { minHeight: 36, paddingVertical: 6, paddingHorizontal: 12 },
+  mapButton: { minHeight: 44, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   helper: { ...typography.caption, color: palette.textSecondary },
   otp: {
     minHeight: 52,

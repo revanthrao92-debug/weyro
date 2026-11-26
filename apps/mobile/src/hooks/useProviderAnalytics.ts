@@ -12,7 +12,7 @@ export type AnalyticsBucket = {
 export type ProviderAnalytics = {
   periodDays: number;
   /** 'jobs': finished jobs plus any parts sold (garage, mechanic, towing). 'parts': paid parts orders (dealer). */
-  earningsFrom?: 'jobs' | 'parts';
+  earningsFrom?: 'trips' | 'jobs' | 'parts';
   currency: string;
   summary: {
     grossSales: number;

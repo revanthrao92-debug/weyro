@@ -33,3 +33,18 @@ describe('driver earnings totals', () => {
     );
   });
 });
+
+describe('driver trip list', () => {
+  it('always includes every open trip, plus only the latest 50 finished ones', async () => {
+    const prisma = { driverBooking: { findMany: jest.fn().mockResolvedValue([]) } } as any;
+    const service = new DriverGoService(prisma, {} as any);
+    jest.spyOn(service as any, 'driverFor').mockResolvedValue({ id: 'drv-1' });
+    await service.getJobs({ sub: 'u1' } as any);
+    const [open, finished] = prisma.driverBooking.findMany.mock.calls.map((c: any[]) => c[0]);
+    expect(open.where.status.in).toEqual(['REQUESTED', 'CONFIRMED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'IN_PROGRESS']);
+    expect(open.orderBy).toEqual([{ startAt: 'asc' }]);
+    expect(finished.where.status.notIn).toBeDefined();
+    expect(finished.orderBy).toEqual([{ startAt: 'desc' }]);
+    expect(finished.take).toBe(50);
+  });
+});

@@ -141,6 +141,9 @@ describe('ProvidersService.getAnalytics: where the money comes from', () => {
         groupBy: any().mockResolvedValue([]),
       },
       sparePart: { findMany: any().mockResolvedValue([]) },
+      driverBooking: {
+        findMany: any().mockResolvedValue([{ completedAt: new Date(Date.now() - 86_400_000), driverEarning: 735.54 }]),
+      },
       quotation: { count: any().mockResolvedValue(0), aggregate: any().mockResolvedValue({ _sum: { totalCost: null }, _count: 0 }) },
       serviceRequest: { count: any().mockResolvedValue(0) },
     };
@@ -170,6 +173,14 @@ describe('ProvidersService.getAnalytics: where the money comes from', () => {
     const prisma = prismaFor('PARTS_DEALER');
     const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
     expect(r.earningsFrom).toBe('parts');
+    expect(prisma.booking.findMany).not.toHaveBeenCalled();
+  });
+
+  it('a driver earns their share of finished trips', async () => {
+    const prisma = prismaFor('DRIVER');
+    const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
+    expect(r.earningsFrom).toBe('trips');
+    expect(r.summary.netSales).toBe(735.54);
     expect(prisma.booking.findMany).not.toHaveBeenCalled();
   });
 });

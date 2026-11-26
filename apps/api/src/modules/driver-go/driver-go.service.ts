@@ -38,6 +38,9 @@ const JOB_INCLUDE = {
 /** Wrong start-code guesses allowed per booking before it locks. */
 const MAX_START_OTP_ATTEMPTS = 5;
 
+/** Trips still in play: a request to answer or a trip not yet finished. */
+const OPEN_STATUSES: DriverJobStatus[] = ['REQUESTED', 'CONFIRMED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'];
+
 @Injectable()
 export class DriverGoService {
   constructor(
@@ -237,17 +240,34 @@ export class DriverGoService {
 
   async getJobs(user: AuthUserPayload, status?: DriverJobStatus) {
     const provider = await this.driverFor(user);
-    const jobs = await this.prisma.driverBooking.findMany({
-      where: {
-        driverId: provider.id,
-        deletedAt: null,
-        ...(status ? { status } : {}),
-      },
-      include: JOB_INCLUDE,
-      orderBy: [{ startAt: 'asc' }],
-      take: 100,
-    });
-    return { items: jobs.map((job) => this.shapeJob(job)) };
+    const base = { driverId: provider.id, deletedAt: null };
+    if (status) {
+      const jobs = await this.prisma.driverBooking.findMany({
+        where: { ...base, status },
+        include: JOB_INCLUDE,
+        orderBy: [{ startAt: 'asc' }],
+        take: 100,
+      });
+      return { items: jobs.map((job) => this.shapeJob(job)) };
+    }
+    // Every open trip (requests and upcoming, soonest first) plus the latest 50
+    // finished ones. One list of the OLDEST 100 used to fill up with history and
+    // hide new requests once a driver had done 100 trips.
+    const [open, finished] = await Promise.all([
+      this.prisma.driverBooking.findMany({
+        where: { ...base, status: { in: OPEN_STATUSES } },
+        include: JOB_INCLUDE,
+        orderBy: [{ startAt: 'asc' }],
+        take: 100,
+      }),
+      this.prisma.driverBooking.findMany({
+        where: { ...base, status: { notIn: OPEN_STATUSES } },
+        include: JOB_INCLUDE,
+        orderBy: [{ startAt: 'desc' }],
+        take: 50,
+      }),
+    ]);
+    return { items: [...open, ...finished].map((job) => this.shapeJob(job)) };
   }
 
   async getJob(user: AuthUserPayload, id: string) {

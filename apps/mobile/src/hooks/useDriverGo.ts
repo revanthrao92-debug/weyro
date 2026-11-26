@@ -163,10 +163,15 @@ export function useSaveDriverAvailability() {
   });
 }
 
-function invalidateJobs(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: ['driverJobs'] });
-  queryClient.invalidateQueries({ queryKey: ['driverMe'] });
-  queryClient.invalidateQueries({ queryKey: ['driverEarnings'] });
+/** Returned from onSuccess so buttons stay busy until the lists show the new step. */
+function invalidateJobs(queryClient: ReturnType<typeof useQueryClient>, id: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['driverJobs'] }),
+    queryClient.invalidateQueries({ queryKey: ['driverMe'] }),
+    queryClient.invalidateQueries({ queryKey: ['driverEarnings'] }),
+    queryClient.invalidateQueries({ queryKey: ['providerAnalytics'] }),
+    queryClient.invalidateQueries({ queryKey: ['driverJob', id] }),
+  ]);
 }
 
 export function useAcceptDriverJob() {
@@ -176,10 +181,7 @@ export function useAcceptDriverJob() {
       apiClient<DriverJob>(`/driver-go/jobs/${id}/accept`, {
         method: 'POST',
       }),
-    onSuccess: (_data, id) => {
-      invalidateJobs(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['driverJob', id] });
-    },
+    onSuccess: (_data, id) => invalidateJobs(queryClient, id),
   });
 }
 
@@ -191,10 +193,7 @@ export function useDeclineDriverJob() {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
-    onSuccess: (_data, variables) => {
-      invalidateJobs(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['driverJob', variables.id] });
-    },
+    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 
@@ -212,10 +211,7 @@ export function useUpdateDriverJobStatus() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       }),
-    onSuccess: (_data, variables) => {
-      invalidateJobs(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['driverJob', variables.id] });
-    },
+    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 
@@ -227,10 +223,7 @@ export function useVerifyDriverStartOtp() {
         method: 'POST',
         body: JSON.stringify({ code }),
       }),
-    onSuccess: (_data, variables) => {
-      invalidateJobs(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['driverJob', variables.id] });
-    },
+    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 

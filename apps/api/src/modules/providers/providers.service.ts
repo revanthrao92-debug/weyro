@@ -104,7 +104,8 @@ export class ProvidersService {
     // Parts dealers earn from paid parts orders. Garages, mechanics and tow
     // trucks earn from finished jobs (the quote total on the day the job was
     // completed) PLUS any parts they sell in the shop: all money in.
-    const earnsFromJobs = profile?.providerType !== 'PARTS_DEALER';
+    const isDriver = profile?.providerType === 'DRIVER';
+    const earnsFromJobs = profile?.providerType !== 'PARTS_DEALER' && !isDriver;
     const partOrders = this.prisma.sparePartOrder.findMany({
       where: { providerId: id, deletedAt: null, paidAt: { gte: modelStart } },
       select: { totalAmount: true, paidAt: true, refundedAt: true, status: true },
@@ -123,7 +124,20 @@ export class ProvidersService {
             rows.map((job) => ({ totalAmount: job.quotation.totalCost, paidAt: job.completedAt, refundedAt: null, status: 'PAID' })),
           )
       : Promise.resolve([]);
-    const ordersQuery = Promise.all([partOrders, jobs]).then(([p, j]) => [...p, ...j]);
+    // Drivers earn their share of each finished Driver Go trip.
+    const trips = isDriver
+      ? this.prisma.driverBooking
+          .findMany({
+            where: { driverId: id, deletedAt: null, status: 'COMPLETED', completedAt: { gte: modelStart } },
+            select: { completedAt: true, driverEarning: true },
+            // shortcut: same per-row load as above.
+            take: 20000,
+          })
+          .then((rows) =>
+            rows.map((trip) => ({ totalAmount: trip.driverEarning, paidAt: trip.completedAt, refundedAt: null, status: 'PAID' })),
+          )
+      : Promise.resolve([]);
+    const ordersQuery = Promise.all([partOrders, jobs, trips]).then(([p, j, t]) => [...p, ...j, ...t]);
 
     const [
       orders,
@@ -203,14 +217,22 @@ export class ProvidersService {
         decided: decidedQuotes,
       },
       demand: { last7: requestsLast7, previous56: requestsPrevious56 },
-      requestWord: earnsFromJobs ? (profile?.providerType === 'TOWING' ? 'towing' : profile?.providerType === 'ROADSIDE' ? 'roadside' : 'repair') : 'part',
+      requestWord: isDriver
+        ? 'trip'
+        : earnsFromJobs
+          ? profile?.providerType === 'TOWING'
+            ? 'towing'
+            : profile?.providerType === 'ROADSIDE'
+              ? 'roadside'
+              : 'repair'
+          : 'part',
     });
 
     return {
       periodDays,
       currency: 'INR',
       /** What the money comes from: 'jobs' (garage, mechanic, towing) or 'parts' (dealer). */
-      earningsFrom: earnsFromJobs ? 'jobs' : 'parts',
+      earningsFrom: isDriver ? 'trips' : earnsFromJobs ? 'jobs' : 'parts',
       summary: {
         ...summary,
         pendingValue: Number(pendingAggregate._sum.totalAmount ?? 0),
