@@ -9,25 +9,34 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "staging": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://weyro-api-staging.up.railway.app/api/v1"
-      }
+        "EXPO_PUBLIC_API_URL": "https://weyro-api-staging.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging"
+      },
+      "channel": "staging"
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1"
-      }
+        "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview"
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1"
-      }
+        "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production"
+      },
+      "channel": "production"
     }
   },
   "submit": {

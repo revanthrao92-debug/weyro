@@ -86,7 +86,8 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@sentry/react-native/expo"
     ],
     "experiments": {
       "reactCompiler": true
@@ -101,6 +102,14 @@
         "projectId": "e31c0a35-add9-4155-b4d8-63be55f1556e"
       }
     },
-    "owner": "revanthrao22"
+    "owner": "revanthrao22",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e31c0a35-add9-4155-b4d8-63be55f1556e",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

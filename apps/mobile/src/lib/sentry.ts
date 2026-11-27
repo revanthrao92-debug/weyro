@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react-native';
+import * as Updates from 'expo-updates';
 import { scrubSentryEvent, scrubValue } from '@weyro/api-contracts';
 
 /**
@@ -9,6 +10,24 @@ import { scrubSentryEvent, scrubValue } from '@weyro/api-contracts';
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim();
 
 let initialised = false;
+
+type UpdateInfo = Pick<typeof Updates, 'updateId' | 'isEmbeddedLaunch' | 'channel' | 'runtimeVersion'>;
+
+/**
+ * Which app code a crash came from: the over-the-air update id, or "embedded" for the code
+ * shipped in the store build. Lets us undo exactly the update that is crashing.
+ * Empty in development and on web, where updates are off.
+ */
+export function updateTags(u: UpdateInfo): Record<string, string> {
+  if (!u.updateId) return {};
+  const tags: Record<string, string> = {
+    'expo-update-id': u.updateId,
+    'expo-is-embedded-update': String(u.isEmbeddedLaunch),
+  };
+  if (u.channel) tags['expo-channel'] = u.channel;
+  if (u.runtimeVersion) tags['expo-runtime-version'] = u.runtimeVersion;
+  return tags;
+}
 
 export function initSentry(): boolean {
   if (!dsn || initialised) return initialised;
@@ -26,6 +45,7 @@ export function initSentry(): boolean {
     beforeSend: (event) => scrubSentryEvent(event as never) as typeof event,
     beforeBreadcrumb: (breadcrumb) => scrubValue(breadcrumb),
   });
+  Sentry.setTags(updateTags(Updates));
   initialised = true;
   return true;
 }

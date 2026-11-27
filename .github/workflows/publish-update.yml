@@ -1,0 +1,183 @@
+# Publish an over-the-air app update (EAS Update). Run by hand from the Actions tab.
+# Routine and undo commands: docs/DEPLOYMENT.md, "App updates".
+#
+# Safety gates, in order. Any failure stops the run before anything reaches a phone:
+#   1. the full CI workflow passed for this exact commit
+#   2. production only from main, and only when the GitHub "production" environment
+#      has a required reviewer (so a person must approve)
+#   3. mobile typecheck, lint and unit tests pass here too
+#   4. the bundle is built first and checked to contain the right API address
+#      (a release build without it crashes on start, see src/services/api-client.ts)
+
+name: Publish app update
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Who gets it: preview = test group, production = everyone'
+        type: choice
+        options: [preview, production]
+        default: preview
+      rollout:
+        description: 'Share of users that get it now (raise later with eas update:edit)'
+        type: choice
+        options: ['10', '50', '100']
+        default: '10'
+      message:
+        description: 'What this update fixes (shown in the Expo dashboard)'
+        type: string
+        required: true
+
+concurrency:
+  group: publish-update-${{ inputs.channel }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  gate:
+    name: Checks before publishing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CI passed for this commit
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ok=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')
+          if [ "${ok:-0}" -lt 1 ]; then
+            echo "::error::CI has not passed for ${{ github.sha }}. Push, wait for green CI, then publish."
+            exit 1
+          fi
+
+      - name: Production rules
+        if: inputs.channel == 'production'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production updates are published from main only."
+            exit 1
+          fi
+          # Fail closed: if the check itself errors, do not publish.
+          rules=$(gh api "repos/${{ github.repository }}/environments/production" --jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length') || {
+            echo "::error::Could not read the 'production' environment. Create it in Settings > Environments with a required reviewer."
+            exit 1
+          }
+          if [ "${rules:-0}" -lt 1 ]; then
+            echo "::error::The 'production' environment has no required reviewer. Add one in Settings > Environments."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+        working-directory: .
+      - run: npm run build -w @weyro/api-contracts
+        working-directory: .
+      - run: npx tsc --noEmit
+      - run: npx eslint . --ext .ts,.tsx --max-warnings 0
+      - run: npx jest --silent
+
+  publish:
+    name: Publish to ${{ inputs.channel }} (${{ inputs.rollout }}%)
+    needs: gate
+    runs-on: ubuntu-latest
+    # production needs a reviewer's approval click before this job starts.
+    environment: ${{ inputs.channel }}
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+        working-directory: .
+      - run: npm run build -w @weyro/api-contracts
+        working-directory: .
+
+      - name: Secrets present
+        run: |
+          [ -n "$EXPO_TOKEN" ] || { echo "::error::Add the EXPO_TOKEN repository secret."; exit 1; }
+          if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ] || [ -z "$SENTRY_PROJECT" ]; then
+            if [ "${{ inputs.channel }}" = "production" ]; then
+              echo "::error::Production needs crash-report source maps: set SENTRY_AUTH_TOKEN (secret), SENTRY_ORG and SENTRY_PROJECT (variables)."
+              exit 1
+            fi
+            echo "::warning::Sentry upload not configured; crash reports from this preview update will be unreadable."
+          fi
+
+      # Same values the store build uses, taken from eas.json so there is one source of truth.
+      # eas update does NOT read eas.json build env, so they are exported here.
+      - name: App settings for ${{ inputs.channel }}
+        run: |
+          jq -r --arg p "${{ inputs.channel }}" '.build[$p].env // {} | to_entries[] | "\(.key)=\(.value)"' eas.json >> "$GITHUB_ENV"
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Non-secret EAS environment variables (e.g. EXPO_PUBLIC_SENTRY_DSN) for the bundle.
+      - name: EAS environment variables
+        run: eas env:pull --environment ${{ inputs.channel }} --non-interactive --path .env.local
+
+      - name: Build the update
+        run: npx expo export --platform ios --platform android --output-dir dist --dump-sourcemap --dump-assetmap
+
+      # Byte search with Node: grep misses text inside large compiled Hermes bundles on some systems.
+      - name: Check the bundle points at the right server
+        run: |
+          has() { node -e '
+            const fs = require("fs"), path = require("path");
+            const [dir, text] = process.argv.slice(1);
+            const files = fs.readdirSync(dir).filter((f) => !f.endsWith(".map")).map((f) => path.join(dir, f));
+            process.exit(text && files.some((f) => fs.readFileSync(f).includes(Buffer.from(text))) ? 0 : 1);
+          ' "dist/_expo/static/js/$1" "$2"; }
+          [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::EXPO_PUBLIC_API_URL missing for ${{ inputs.channel }} in eas.json"; exit 1; }
+          for platform in ios android; do
+            has "$platform" "$EXPO_PUBLIC_API_URL" || { echo "::error::$platform bundle does not contain $EXPO_PUBLIC_API_URL"; exit 1; }
+          done
+          dsn=$(grep -E '^EXPO_PUBLIC_SENTRY_DSN=' .env.local 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
+          if [ -z "$dsn" ] || ! has ios "$dsn" || ! has android "$dsn"; then
+            if [ "${{ inputs.channel }}" = "production" ]; then
+              echo "::error::No Sentry DSN in the bundle. Set EXPO_PUBLIC_SENTRY_DSN in EAS env (production)."
+              exit 1
+            fi
+            echo "::warning::No Sentry DSN in the bundle: crashes from this preview update will not be reported."
+          fi
+
+      - name: Upload source maps to Sentry
+        if: env.SENTRY_AUTH_TOKEN != '' && env.SENTRY_ORG != '' && env.SENTRY_PROJECT != ''
+        run: npx sentry-expo-upload-sourcemaps dist
+
+      - name: Publish
+        run: |
+          eas update --channel "${{ inputs.channel }}" --environment "${{ inputs.channel }}" \
+            --message "$UPDATE_MESSAGE" --skip-bundler --input-dir dist \
+            --rollout-percentage "${{ inputs.rollout }}" --non-interactive
+        env:
+          UPDATE_MESSAGE: ${{ inputs.message }}

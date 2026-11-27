@@ -59,10 +59,71 @@ event and breadcrumb (`packages/api-contracts/src/sentry-scrub.ts`, covered by
 tests that run the real SDK). The SDKs' own collection of headers, cookies, request
 bodies, query strings, DB query parameters and local variables is switched off.
 
-**Not done yet: source maps.** Mobile stack traces are not symbolicated until
-source maps are uploaded. That needs the `@sentry/react-native` config plugin plus a
-`SENTRY_AUTH_TOKEN` in EAS (see Expo's "Using Sentry" guide). It was left out
-deliberately because the plugin can fail a build that has no token.
+**Source maps (readable crash reports).** The `@sentry/react-native/expo` plugin
+(`app.json`) and `getSentryExpoConfig` (`metro.config.js`) are on. They need three
+EAS environment variables for the `preview` and `production` environments:
+`SENTRY_ORG`, `SENTRY_PROJECT` (plain) and `SENTRY_AUTH_TOKEN` (secret).
+**A preview/production build without the token fails on purpose.** That way a build
+that would send unreadable crash reports can't ship. `development` builds skip the
+upload (`SENTRY_DISABLE_AUTO_UPLOAD` in `eas.json`). Every mobile event is tagged
+with `expo-update-id`, `expo-channel` and `expo-runtime-version`
+(`apps/mobile/src/lib/sentry.ts`), so a crash points to the exact update to undo.
+
+## App updates (over the air)
+
+The app downloads new JavaScript (screens, text, logic) on open and uses it on the next
+open, with no store review. Native changes still need a store build.
+
+**Channels.** Each build profile in `eas.json` listens to one channel:
+`preview` (internal builds on the team's and a few trusted partners' phones, the
+**test group**), `production` (store builds, everyone) and `staging`.
+`runtimeVersion` uses the `fingerprint` policy, so an update only reaches builds with
+the same native code. An update that needs a native change can't reach an old build.
+Builds made before `expo-updates` was added never receive updates. Make a new
+preview and production build once.
+
+**Over the air or store release?**
+
+| Change | How |
+| --- | --- |
+| Text, layout, screen logic, bug fix in JS | Over the air |
+| New permission, new native library, Expo SDK upgrade, app icon or splash | Store build |
+| Anything in payments or money logic | Store build, with full testing, never over the air |
+
+**Publishing.** Only through GitHub Actions: **Publish app update** (`.github/workflows/publish-update.yml`).
+It refuses to publish unless all of these hold:
+- CI passed for that exact commit.
+- The mobile checks pass again.
+- The built bundle contains the right API address for the channel.
+- For production:
+  - it runs from `main`;
+  - the `production` GitHub environment has a required reviewer, who must approve;
+  - the bundle has a Sentry DSN;
+  - source maps upload.
+
+Repository setup:
+- Secret `EXPO_TOKEN`
+- Secret `SENTRY_AUTH_TOKEN`
+- Variables `SENTRY_ORG` and `SENTRY_PROJECT`
+- Environment `production` with a required reviewer
+- EAS env `EXPO_PUBLIC_SENTRY_DSN` for `preview` and `production`
+
+**Routine, one fix per update:**
+1. Publish to `preview`. Use the app on a test phone for a day; reopen it twice to load the update.
+2. Publish to `production` at **10%**. Watch Sentry (filter by `expo-update-id`) for an hour.
+3. Raise to 50%, then 100%: `eas update:edit` (choose the update, enter the new percentage).
+4. No publishing on Friday evenings or the night before a festival rush.
+
+**Undo:**
+
+| Situation | Command |
+| --- | --- |
+| Problem during a rollout | `eas update:revert-update-rollout` |
+| Problem after 100% | `eas update:rollback` (back to the previous update) or `eas update:roll-back-to-embedded --channel production` (back to the store build's code) |
+
+Phones pick up the undo the next time the app opens. **Undo fixes the app, not data**:
+anything a bad update already wrote to the server has to be fixed separately.
+Practise an undo on `preview` once a quarter.
 
 ## Production image
 
