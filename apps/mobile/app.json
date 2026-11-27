@@ -87,7 +87,9 @@
         }
       ],
       "expo-font",
-      "@sentry/react-native/expo"
+      "@sentry/react-native",
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "reactCompiler": true

@@ -59,7 +59,7 @@ event and breadcrumb (`packages/api-contracts/src/sentry-scrub.ts`, covered by
 tests that run the real SDK). The SDKs' own collection of headers, cookies, request
 bodies, query strings, DB query parameters and local variables is switched off.
 
-**Source maps (readable crash reports).** The `@sentry/react-native/expo` plugin
+**Source maps (readable crash reports).** The `@sentry/react-native` config plugin
 (`app.json`) and `getSentryExpoConfig` (`metro.config.js`) are on. They need three
 EAS environment variables for the `preview` and `production` environments:
 `SENTRY_ORG`, `SENTRY_PROJECT` (plain) and `SENTRY_AUTH_TOKEN` (secret).
