@@ -5,10 +5,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The "Publish app update" workflow runs this whole suite on the exact commit it publishes.
+  workflow_call:
 
+# Only a newer push to the same pull request cancels a run. Runs on main and runs started
+# by a publish are never cancelled, so every commit that should be checked gets checked.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '22'

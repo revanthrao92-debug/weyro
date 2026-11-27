@@ -95,6 +95,7 @@ export function DriverDashboard() {
   const upcoming = jobs.find((job) => ['CONFIRMED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'].includes(job.status));
   const sales = analytics.data;
   const forecast = sales?.forecast.available ? sales.forecast : null;
+  const offline = forecast?.factors.find((f) => f.key === 'closed'); // ₹0 because the driver is offline
   const verificationTone = verified ? 'success' : me.verificationStatus === 'PENDING' ? 'warning' : 'danger';
 
   const toggleOnline = async () => {
@@ -175,7 +176,9 @@ export function DriverDashboard() {
               ) : (
                 <Text style={styles.emptyLine}>Your earnings show here after your first trip.</Text>
               )}
-              {forecast ? (
+              {offline ? (
+                <Text style={styles.forecastText}>{offline.detail}</Text>
+              ) : forecast ? (
                 <Text style={styles.forecastText}>
                   Next {forecast.horizonDays} days: about <Text style={styles.forecastStrong}>{compactRupees(forecast.projectedTotal)}</Text>, likely{' '}
                   {compactRupees(forecast.projectedLow)} to {compactRupees(forecast.projectedHigh)}

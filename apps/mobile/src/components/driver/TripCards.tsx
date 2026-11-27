@@ -8,7 +8,7 @@ import {
   type DriverJob,
 } from '@/hooks/useDriverGo';
 import { haptics } from '@/lib/haptics';
-import { confirmAction } from '@/lib/confirm';
+import { confirmAction, notice } from '@/lib/confirm';
 import { palette, radii, spacing, typography } from '@/theme';
 import {
   customerName,
@@ -22,6 +22,12 @@ import {
 } from './driverFormat';
 
 /** Trip cards shared by the driver Dashboard, Jobs and Earnings screens. */
+
+/** Tell the driver why a tap didn't work; the list refreshes behind the message. */
+function failed(title: string, error: unknown) {
+  haptics.warning();
+  notice(title, (error as Error)?.message || 'Check your connection and try again.');
+}
 
 function TripSummary({ job }: { job: DriverJob }) {
   return (
@@ -54,13 +60,13 @@ export function TripRequestCard({ job, onOpen }: { job: DriverJob; onOpen: () =>
     try {
       await accept.mutateAsync(job.id);
       haptics.success();
-    } catch {
-      // The screen refreshes; the trip may have been taken or cancelled.
+    } catch (error) {
+      failed('Could not accept this trip', error);
     }
   };
   const onDecline = async () => {
     if (!(await confirmAction('Decline this trip?', 'The customer will look for another driver.', 'Decline'))) return;
-    await decline.mutateAsync({ id: job.id }).catch(() => undefined);
+    await decline.mutateAsync({ id: job.id }).catch((error) => failed('Could not decline this trip', error));
   };
   return (
     <View style={styles.card}>
@@ -88,8 +94,8 @@ export function TripToDoCard({ job, onOpen }: { job: DriverJob; onOpen: () => vo
     try {
       await update.mutateAsync({ id: job.id, status: step.next });
       haptics.success();
-    } catch {
-      // The trip screen shows the reason if it can't move.
+    } catch (error) {
+      failed('Could not update this trip', error);
     }
   };
   return (

@@ -21,7 +21,9 @@ export function DriverEarningsScreen() {
   const refreshControl = useRefreshControl(() => Promise.all([query.refetch(), analytics.refetch()]));
   const sales = analytics.data;
   const forecast = sales?.forecast.available ? sales.forecast : null;
+  const offline = forecast?.factors.find((f) => f.key === 'closed'); // ₹0 because the driver is offline
   const trips = (query.data?.trips ?? []).filter((trip) => trip.status === 'COMPLETED');
+  const feeRate = query.data?.platformFeeRate;
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
@@ -75,7 +77,9 @@ export function DriverEarningsScreen() {
           ) : (
             <Text style={styles.empty}>Your earnings show here after your first trip.</Text>
           )}
-          {forecast ? (
+          {offline ? (
+            <Text style={styles.forecast}>{offline.detail}</Text>
+          ) : forecast ? (
             <Text style={styles.forecast}>
               Next {forecast.horizonDays} days: about {money(forecast.projectedTotal)}, likely {money(forecast.projectedLow)} to{' '}
               {money(forecast.projectedHigh)}.
@@ -86,7 +90,8 @@ export function DriverEarningsScreen() {
         </View>
 
         <Text style={styles.note}>
-          Amounts are after the 18% platform fee. During the pilot, the Weyro team releases payouts every week.
+          Amounts are after the{feeRate !== undefined ? ` ${Math.round(feeRate * 100)}%` : ''} platform fee. During the pilot, the
+          Weyro team releases payouts every week.
         </Text>
 
         <Text style={styles.section}>Finished trips</Text>

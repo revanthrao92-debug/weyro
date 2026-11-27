@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { verifyDriverStartOtp } from './driver-otp';
+import { PLATFORM_COMMISSION } from './driver-pricing';
 import { canTransitionDriverJob, type DriverJobStatus } from './driver-state';
 import { istDayStart, istMonthStart, istWeekStart } from '../../common/utils/ist-day';
 import type {
@@ -242,10 +243,12 @@ export class DriverGoService {
     const provider = await this.driverFor(user);
     const base = { driverId: provider.id, deletedAt: null };
     if (status) {
+      // Open trips: soonest first. Finished ones: newest first, so the latest 100 show.
+      const open = OPEN_STATUSES.includes(status);
       const jobs = await this.prisma.driverBooking.findMany({
         where: { ...base, status },
         include: JOB_INCLUDE,
-        orderBy: [{ startAt: 'asc' }],
+        orderBy: [{ startAt: open ? 'asc' : 'desc' }],
         take: 100,
       });
       return { items: jobs.map((job) => this.shapeJob(job)) };
@@ -276,7 +279,7 @@ export class DriverGoService {
       where: { id, driverId: provider.id, deletedAt: null },
       include: JOB_INCLUDE,
     });
-    if (!job) throw new NotFoundException('Driver job not found');
+    if (!job) throw new NotFoundException('Trip not found.');
     return this.shapeJob(job);
   }
 
@@ -302,7 +305,7 @@ export class DriverGoService {
   async accept(user: AuthUserPayload, id: string) {
     const provider = await this.driverFor(user);
     if (provider.verificationStatus !== 'VERIFIED') {
-      throw new BadRequestException('Driver is not verified yet.');
+      throw new BadRequestException('Your account is not verified yet.');
     }
 
     const result = await this.prisma.driverBooking.updateMany({
@@ -310,7 +313,7 @@ export class DriverGoService {
       data: { status: 'CONFIRMED', acceptedAt: new Date() },
     });
     if (result.count === 0) {
-      throw new ConflictException('This job is no longer available.');
+      throw new ConflictException('This trip is no longer available.');
     }
 
     const job = await this.prisma.driverBooking.findUniqueOrThrow({
@@ -337,7 +340,7 @@ export class DriverGoService {
       },
     });
     if (result.count === 0) {
-      throw new ConflictException('This job is no longer available.');
+      throw new ConflictException('This trip is no longer available.');
     }
     const job = await this.prisma.driverBooking.findUniqueOrThrow({
       where: { id },
@@ -358,7 +361,7 @@ export class DriverGoService {
       where: { id, driverId: provider.id, deletedAt: null },
       include: JOB_INCLUDE,
     });
-    if (!job) throw new NotFoundException('Driver job not found');
+    if (!job) throw new NotFoundException('Trip not found.');
 
     const current = job.status as DriverJobStatus;
     const next = dto.status as DriverJobStatus;
@@ -381,7 +384,7 @@ export class DriverGoService {
         data: data as never,
       });
       if (claimed.count === 0) {
-        throw new ConflictException('Booking changed, refresh and try again');
+        throw new ConflictException('This trip just changed. Refresh and try again.');
       }
       const result = await tx.driverBooking.findUniqueOrThrow({
         where: { id },
@@ -426,7 +429,7 @@ export class DriverGoService {
       where: { id, driverId: provider.id, deletedAt: null },
       include: JOB_INCLUDE,
     });
-    if (!job) throw new NotFoundException('Driver job not found');
+    if (!job) throw new NotFoundException('Trip not found.');
     if (job.status !== 'ARRIVED') {
       throw new BadRequestException('Start code can only be used after arrival.');
     }
@@ -458,7 +461,7 @@ export class DriverGoService {
       },
     });
     if (started.count === 0) {
-      throw new ConflictException('Booking changed, refresh and try again');
+      throw new ConflictException('This trip just changed. Refresh and try again.');
     }
     const updated = await this.prisma.driverBooking.findUniqueOrThrow({
       where: { id },
@@ -478,6 +481,7 @@ export class DriverGoService {
     const jobs = await this.prisma.driverBooking.findMany({
       where: {
         driverId: provider.id,
+        deletedAt: null,
         status: 'COMPLETED',
         completedAt: { not: null },
       },
@@ -495,7 +499,7 @@ export class DriverGoService {
     // above is only the latest 100 for display (a busy month passes 100).
     const total = async (from: Date) => {
       const sum = await this.prisma.driverBooking.aggregate({
-        where: { driverId: provider.id, status: 'COMPLETED', completedAt: { gte: from } },
+        where: { driverId: provider.id, deletedAt: null, status: 'COMPLETED', completedAt: { gte: from } },
         _sum: { driverEarning: true },
       });
       return Number(sum._sum.driverEarning ?? 0);
@@ -506,6 +510,7 @@ export class DriverGoService {
       today,
       week,
       month,
+      platformFeeRate: PLATFORM_COMMISSION,
       trips: jobs.map((job) => this.shapeJob(job)),
     };
   }

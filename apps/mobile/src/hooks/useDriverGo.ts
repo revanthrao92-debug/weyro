@@ -91,6 +91,8 @@ export type DriverEarnings = {
   today: number;
   week: number;
   month: number;
+  /** Weyro's share of each trip, e.g. 0.18. Missing on older servers. */
+  platformFeeRate?: number;
   trips: DriverJob[];
 };
 
@@ -163,7 +165,11 @@ export function useSaveDriverAvailability() {
   });
 }
 
-/** Returned from onSuccess so buttons stay busy until the lists show the new step. */
+/**
+ * Returned from onSettled so buttons stay busy until the lists show the new step. Runs on
+ * failure too: a trip another driver took, or one the customer cancelled, drops off the list
+ * instead of staying stuck on screen.
+ */
 function invalidateJobs(queryClient: ReturnType<typeof useQueryClient>, id: string) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['driverJobs'] }),
@@ -181,7 +187,7 @@ export function useAcceptDriverJob() {
       apiClient<DriverJob>(`/driver-go/jobs/${id}/accept`, {
         method: 'POST',
       }),
-    onSuccess: (_data, id) => invalidateJobs(queryClient, id),
+    onSettled: (_data, _error, id) => invalidateJobs(queryClient, id),
   });
 }
 
@@ -193,7 +199,7 @@ export function useDeclineDriverJob() {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
-    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
+    onSettled: (_data, _error, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 
@@ -211,7 +217,7 @@ export function useUpdateDriverJobStatus() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       }),
-    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
+    onSettled: (_data, _error, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 
@@ -223,7 +229,7 @@ export function useVerifyDriverStartOtp() {
         method: 'POST',
         body: JSON.stringify({ code }),
       }),
-    onSuccess: (_data, variables) => invalidateJobs(queryClient, variables.id),
+    onSettled: (_data, _error, variables) => invalidateJobs(queryClient, variables.id),
   });
 }
 

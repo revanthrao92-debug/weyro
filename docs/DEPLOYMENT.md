@@ -63,7 +63,10 @@ bodies, query strings, DB query parameters and local variables is switched off.
 (`app.json`) and `getSentryExpoConfig` (`metro.config.js`) are on. They need three
 EAS environment variables for the `preview` and `production` environments:
 `SENTRY_ORG`, `SENTRY_PROJECT` (plain) and `SENTRY_AUTH_TOKEN` (secret).
-**A preview/production build without the token fails on purpose.** That way a build
+`staging` builds use the `preview` variables (`"environment": "preview"` in `eas.json`;
+EAS only has development, preview and production environments), while their reports are
+still labelled `staging`.
+**A staging/preview/production build without the token fails on purpose.** That way a build
 that would send unreadable crash reports can't ship. `development` builds skip the
 upload (`SENTRY_DISABLE_AUTO_UPLOAD` in `eas.json`). Every mobile event is tagged
 with `expo-update-id`, `expo-channel` and `expo-runtime-version`
@@ -92,8 +95,9 @@ preview and production build once.
 
 **Publishing.** Only through GitHub Actions: **Publish app update** (`.github/workflows/publish-update.yml`).
 It refuses to publish unless all of these hold:
-- CI passed for that exact commit.
-- The mobile checks pass again.
+- The full CI suite (`ci.yml`: API unit, integration and e2e tests, mobile typecheck, lint
+  and tests) passes, run inside the publish workflow on that exact commit. It works from any
+  branch, with or without a pull request.
 - The built bundle contains the right API address for the channel.
 - For production:
   - it runs from `main`;
@@ -109,7 +113,8 @@ Repository setup:
 - EAS env `EXPO_PUBLIC_SENTRY_DSN` for `preview` and `production`
 
 **Routine, one fix per update:**
-1. Publish to `preview`. Use the app on a test phone for a day; reopen it twice to load the update.
+1. Publish to `preview`. It always goes to every test phone (the rollout choice only applies
+   to production). Use the app on a test phone for a day; reopen it twice to load the update.
 2. Publish to `production` at **10%**. Watch Sentry (filter by `expo-update-id`) for an hour.
 3. Raise to 50%, then 100%: `eas update:edit` (choose the update, enter the new percentage).
 4. No publishing on Friday evenings or the night before a festival rush.

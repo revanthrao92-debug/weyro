@@ -90,7 +90,8 @@ export class ProvidersService {
 
     const profile = await this.prisma.providerProfile.findUnique({
       where: { id },
-      select: { providerType: true, isAvailable: true },
+      // Drivers switch on and off with driverProfile.isOnline, not the shop's isAvailable.
+      select: { providerType: true, isAvailable: true, driverProfile: { select: { isOnline: true } } },
     });
     const categories =
       PROVIDER_TYPE_CATEGORIES[profile?.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES] ?? [];
@@ -202,7 +203,10 @@ export class ProvidersService {
 
     const forecast = forecastEarnings({
       history: allDays.slice(0, -1), // today isn't over yet
-      shopOpen: profile?.isAvailable ?? true,
+      shopOpen: isDriver ? (profile?.driverProfile?.isOnline ?? false) : (profile?.isAvailable ?? true),
+      closedText: isDriver
+        ? { label: 'You are offline', detail: 'Customers cannot book you until you go online. This forecast is ₹0 until then.' }
+        : undefined,
       // Only physical parts have stock to run out of (service packages don't).
       parts: activeListings.filter((item) => item.kind !== 'PACKAGE').map((item) => ({
         name: item.name,

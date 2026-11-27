@@ -144,3 +144,19 @@ describe('forecastEarnings', () => {
     expect(f.points.every((p) => p.value >= 0 && p.low >= 0)).toBe(true);
   });
 });
+
+describe('forecast messages use each business type\'s own words', () => {
+  const tooFew = history(30, (_d, i) => (i % 10 === 0 ? 500 : 0)); // 3 sales days: below the minimum
+  const reasonFor = (requestWord?: string) => {
+    const f = forecastEarnings(input({ history: tooFew, requestWord }));
+    if (f.available) throw new Error('expected the forecast to be unavailable');
+    return f.reason;
+  };
+
+  it('dealers: paid orders', () => expect(reasonFor('part')).toMatch(/paid orders/));
+  it('drivers: finished trips', () => expect(reasonFor('trip')).toMatch(/finished trips/));
+  it('garages and tow trucks: finished jobs', () => {
+    expect(reasonFor('repair')).toMatch(/finished jobs/);
+    expect(reasonFor('towing')).toMatch(/finished jobs/);
+  });
+});

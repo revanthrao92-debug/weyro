@@ -49,11 +49,8 @@ export function DriverJobsScreen() {
         .join(', ') || 'Nothing waiting';
 
   // Show a date heading above the first trip of each day.
-  const pastRows = finished.map((job, i) => {
-    const head = dayHeading(job.completedAt ?? job.startAt);
-    const prev = i > 0 ? dayHeading(finished[i - 1].completedAt ?? finished[i - 1].startAt) : null;
-    return { job, head: head !== prev ? head : null };
-  });
+  const heads = finished.map((job) => dayHeading(job.completedAt ?? job.startAt)); // once per trip
+  const pastRows = finished.map((job, i) => ({ job, head: heads[i] !== heads[i - 1] ? heads[i] : null }));
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>

@@ -20,7 +20,8 @@
         "EXPO_PUBLIC_API_URL": "https://weyro-api-staging.up.railway.app/api/v1",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging"
       },
-      "channel": "staging"
+      "channel": "staging",
+      "environment": "preview"
     },
     "preview": {
       "distribution": "internal",
@@ -28,7 +29,8 @@
         "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -36,7 +38,8 @@
         "EXPO_PUBLIC_API_URL": "https://weyro-api-production.up.railway.app/api/v1",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production"
       },
-      "channel": "production"
+      "channel": "production",
+      "environment": "production"
     }
   },
   "submit": {

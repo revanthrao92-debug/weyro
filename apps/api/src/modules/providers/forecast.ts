@@ -59,6 +59,8 @@ export type ForecastInput = {
   demand: { last7: number; previous56: number };
   /** What those requests are called for this provider: 'part' (dealer), 'repair', 'towing'... */
   requestWord?: string;
+  /** How the off switch is described when it's off (drivers go "offline", shops are "switched off"). */
+  closedText?: { label: string; detail: string };
   festivals?: Festival[];
 };
 
@@ -245,12 +247,17 @@ export function forecastEarnings(input: ForecastInput): Forecast {
   const history = input.history;
   const salesDays = history.length - Math.max(0, history.findIndex((d) => d.orders > 0));
   const orderCount = sum(history.map((d) => d.orders));
+  // Dealers sell parts; garages and tow trucks finish jobs; drivers finish trips.
+  const word = input.requestWord ?? 'part';
+  const isShop = word === 'part';
+  const units = isShop ? 'paid orders' : word === 'trip' ? 'finished trips' : 'finished jobs';
+  const income = isShop ? 'sales' : 'earnings';
   if (orderCount < MIN_ORDERS) {
-    return { available: false, reason: `At least ${MIN_ORDERS} paid orders are needed for a forecast.` };
+    return { available: false, reason: `At least ${MIN_ORDERS} ${units} are needed for a forecast.` };
   }
   const model = fitModel(history, festivals);
   if (!model) {
-    return { available: false, reason: `At least ${MIN_DAYS} days of sales are needed for a forecast.` };
+    return { available: false, reason: `At least ${MIN_DAYS} days of ${income} are needed for a forecast.` };
   }
 
   const keep = 1 - model.refundRate;
@@ -290,8 +297,8 @@ export function forecastEarnings(input: ForecastInput): Forecast {
       label: 'Day of the week',
       reason:
         salesDays < 28
-          ? `Needs 4 weeks of sales (you have ${salesDays} days).`
-          : 'No day of the week stands out in your sales yet.',
+          ? `Needs 4 weeks of ${income} (you have ${salesDays} days).`
+          : `No day of the week stands out in your ${income} yet.`,
     });
   }
 
@@ -309,8 +316,8 @@ export function forecastEarnings(input: ForecastInput): Forecast {
       label: 'Start of the month',
       reason:
         salesDays < 60
-          ? `Needs 2 months of sales (you have ${salesDays} days).`
-          : 'No pay-day pattern in your sales: the first week sells like any other.',
+          ? `Needs 2 months of ${income} (you have ${salesDays} days).`
+          : `No pay-day pattern in your ${income}: the first week is like any other.`,
     });
   }
 
@@ -330,7 +337,6 @@ export function forecastEarnings(input: ForecastInput): Forecast {
   }
 
   // Demand nearby: requests this week against the usual week, half-weighted and fading over two weeks.
-  const word = input.requestWord ?? 'part';
   let demandMult = dates.map(() => 1);
   const typicalWeek = input.demand.previous56 / 8;
   if (input.demand.previous56 >= 8) {
@@ -422,8 +428,10 @@ export function forecastEarnings(input: ForecastInput): Forecast {
   if (!input.shopOpen) {
     factors.push({
       key: 'closed',
-      label: 'Shop is switched off',
-      detail: 'Customers cannot order until you turn on "Accepting orders". This forecast is ₹0 until then.',
+      label: input.closedText?.label ?? 'Shop is switched off',
+      detail:
+        input.closedText?.detail ??
+        'Customers cannot order until you turn on "Accepting orders". This forecast is ₹0 until then.',
       amount: -sum(net),
     });
     net = net.map(() => 0);

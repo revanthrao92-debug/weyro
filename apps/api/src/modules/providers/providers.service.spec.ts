@@ -183,4 +183,45 @@ describe('ProvidersService.getAnalytics: where the money comes from', () => {
     expect(r.summary.netSales).toBe(735.54);
     expect(prisma.booking.findMany).not.toHaveBeenCalled();
   });
+
+  describe('forecast follows the driver online switch (driverProfile.isOnline, not shop isAvailable)', () => {
+    // 90 days with a trip every day, so the forecast has enough history to run.
+    const steadyTrips = Array.from({ length: 90 }, (_, i) => ({
+      completedAt: new Date(Date.now() - (i + 1) * 86_400_000),
+      driverEarning: 700,
+    }));
+    function driverPrisma(isOnline: boolean) {
+      const prisma = prismaFor('DRIVER');
+      // isAvailable stays true (its default): only the driver switch may close the forecast.
+      prisma.providerProfile.findUnique.mockResolvedValue({ providerType: 'DRIVER', isAvailable: true, driverProfile: { isOnline } });
+      prisma.driverBooking.findMany.mockResolvedValue(steadyTrips);
+      return prisma;
+    }
+
+    it('an offline driver is forecast ₹0 with a driver-worded reason', async () => {
+      const r = await new ProvidersService(driverPrisma(false) as any, {} as any).getAnalytics(garage, 30);
+      if (!r.forecast.available) throw new Error(`forecast unavailable: ${r.forecast.reason}`);
+      expect(r.forecast.projectedTotal).toBe(0);
+      const closed = r.forecast.factors.find((f: { key: string }) => f.key === 'closed');
+      expect(closed?.label).toBe('You are offline');
+    });
+
+    it('an online driver gets a normal forecast', async () => {
+      const r = await new ProvidersService(driverPrisma(true) as any, {} as any).getAnalytics(garage, 30);
+      if (!r.forecast.available) throw new Error(`forecast unavailable: ${r.forecast.reason}`);
+      expect(r.forecast.projectedTotal).toBeGreaterThan(0);
+      expect(r.forecast.factors.some((f: { key: string }) => f.key === 'closed')).toBe(false);
+    });
+
+    it('a shop keeps using its own switch and wording', async () => {
+      const prisma = prismaFor('GARAGE');
+      prisma.providerProfile.findUnique.mockResolvedValue({ providerType: 'GARAGE', isAvailable: false, driverProfile: null });
+      prisma.booking.findMany.mockResolvedValue(
+        Array.from({ length: 90 }, (_, i) => ({ completedAt: new Date(Date.now() - (i + 1) * 86_400_000), quotation: { totalCost: 2000 } })),
+      );
+      const r = await new ProvidersService(prisma as any, {} as any).getAnalytics(garage, 30);
+      if (!r.forecast.available) throw new Error(`forecast unavailable: ${r.forecast.reason}`);
+      expect(r.forecast.factors.find((f: { key: string }) => f.key === 'closed')?.label).toBe('Shop is switched off');
+    });
+  });
 });

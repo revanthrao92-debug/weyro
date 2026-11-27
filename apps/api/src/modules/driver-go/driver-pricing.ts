@@ -17,7 +17,8 @@ export type DriverFare = {
   endAt: Date;
 };
 
-const PLATFORM_COMMISSION = 0.18;
+/** Weyro's share of each trip; the app shows it on the Earnings screen. */
+export const PLATFORM_COMMISSION = 0.18;
 const NIGHT_SURCHARGE = 0.15;
 const DAILY_HOURS = 8;
 

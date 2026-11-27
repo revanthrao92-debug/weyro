@@ -2,11 +2,11 @@
 # Routine and undo commands: docs/DEPLOYMENT.md, "App updates".
 #
 # Safety gates, in order. Any failure stops the run before anything reaches a phone:
-#   1. the full CI workflow passed for this exact commit
+#   1. the full CI suite (ci.yml: API unit, integration and e2e tests, mobile checks)
+#      runs here on this exact commit and must pass
 #   2. production only from main, and only when the GitHub "production" environment
 #      has a required reviewer (so a person must approve)
-#   3. mobile typecheck, lint and unit tests pass here too
-#   4. the bundle is built first and checked to contain the right API address
+#   3. the bundle is built first and checked to contain the right API address
 #      (a release build without it crashes on start, see src/services/api-client.ts)
 
 name: Publish app update
@@ -20,7 +20,7 @@ on:
         options: [preview, production]
         default: preview
       rollout:
-        description: 'Share of users that get it now (raise later with eas update:edit)'
+        description: 'Production only: share of users that get it now (raise later with eas update:edit). Preview always goes to every test phone.'
         type: choice
         options: ['10', '50', '100']
         default: '10'
@@ -41,30 +41,17 @@ permissions:
   actions: read
 
 jobs:
+  ci:
+    name: Full CI on this commit
+    uses: ./.github/workflows/ci.yml
+
   gate:
-    name: Checks before publishing
+    name: Production rules
+    needs: ci
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
-
-      - name: CI passed for this commit
-        working-directory: .
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ok=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}" \
-            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')
-          if [ "${ok:-0}" -lt 1 ]; then
-            echo "::error::CI has not passed for ${{ github.sha }}. Push, wait for green CI, then publish."
-            exit 1
-          fi
-
       - name: Production rules
         if: inputs.channel == 'production'
-        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -82,20 +69,8 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-        working-directory: .
-      - run: npm run build -w @weyro/api-contracts
-        working-directory: .
-      - run: npx tsc --noEmit
-      - run: npx eslint . --ext .ts,.tsx --max-warnings 0
-      - run: npx jest --silent
-
   publish:
-    name: Publish to ${{ inputs.channel }} (${{ inputs.rollout }}%)
+    name: Publish to ${{ inputs.channel }} (${{ inputs.channel == 'production' && inputs.rollout || '100' }}%)
     needs: gate
     runs-on: ubuntu-latest
     # production needs a reviewer's approval click before this job starts.
@@ -178,6 +153,8 @@ jobs:
         run: |
           eas update --channel "${{ inputs.channel }}" --environment "${{ inputs.channel }}" \
             --message "$UPDATE_MESSAGE" --skip-bundler --input-dir dist \
-            --rollout-percentage "${{ inputs.rollout }}" --non-interactive
+            --rollout-percentage "$ROLLOUT" --non-interactive
         env:
           UPDATE_MESSAGE: ${{ inputs.message }}
+          # The test group always gets the whole update; only production rolls out in steps.
+          ROLLOUT: ${{ inputs.channel == 'production' && inputs.rollout || '100' }}
