@@ -1,6 +1,7 @@
 # Deployment notes
 
-Step-by-step Railway setup lives in [DEPLOY_RAILWAY.md](./DEPLOY_RAILWAY.md).
+**Moving to AWS (Mumbai):** setup, deploys and operations are in [DEPLOY_AWS.md](./DEPLOY_AWS.md).
+The Railway setup in [DEPLOY_RAILWAY.md](./DEPLOY_RAILWAY.md) stays until the switch is complete.
 This page collects the settings that are easy to get wrong.
 
 ## Reverse proxy: `TRUST_PROXY` (required)

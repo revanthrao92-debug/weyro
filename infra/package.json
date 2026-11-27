@@ -1,0 +1,26 @@
+{
+  "name": "weyro-infra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Weyro on AWS (Mumbai), as code. See docs/DEPLOY_AWS.md.",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "jest",
+    "synth": "cdk synth --quiet",
+    "diff": "cdk diff",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.278.0",
+    "constructs": "^10.8.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "aws-cdk": "2.1149.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

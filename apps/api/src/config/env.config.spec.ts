@@ -33,6 +33,26 @@ describe('production env validation', () => {
     expect(issuesFor(productionEnv())).toEqual([]);
   });
 
+  describe('storage credentials', () => {
+    it('AWS S3 needs no keys: the server uses its ECS task role', () => {
+      const aws = productionEnv();
+      delete aws.STORAGE_ACCESS_KEY;
+      delete aws.STORAGE_SECRET_KEY;
+      delete aws.STORAGE_ENDPOINT;
+      expect(issuesFor(aws)).toEqual([]);
+    });
+
+    it('S3-compatible stores (R2, MinIO) still need both keys', () => {
+      const r2 = { ...productionEnv(), STORAGE_ENDPOINT: 'https://acct.r2.cloudflarestorage.com' };
+      delete r2.STORAGE_ACCESS_KEY;
+      delete r2.STORAGE_SECRET_KEY;
+      expect(issuesFor(r2)).toEqual([
+        'STORAGE_ACCESS_KEY: STORAGE_ACCESS_KEY is required in production when STORAGE_ENDPOINT is set',
+        'STORAGE_SECRET_KEY: STORAGE_SECRET_KEY is required in production when STORAGE_ENDPOINT is set',
+      ]);
+    });
+  });
+
   describe('H7 – TRUST_PROXY', () => {
     it('is required in production (missing or empty fails boot)', () => {
       const missing = productionEnv();
