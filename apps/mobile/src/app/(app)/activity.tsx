@@ -155,8 +155,8 @@ export default function ActivityScreen() {
             </View>
             <Text style={styles.meta} numberOfLines={1}>
               {item.actorRole?.toLowerCase() ?? 'system'}
-              {item.entityType ? ` · ${item.entityType}` : ''}
-              {item.entityId ? ` · ${item.entityId.slice(0, 8)}` : ''}
+              {item.entityType ? `, ${item.entityType}` : ''}
+              {item.entityRef ? `, ${item.entityRef}` : ''}
             </Text>
           </View>
         )}

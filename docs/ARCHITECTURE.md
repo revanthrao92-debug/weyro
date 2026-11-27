@@ -87,3 +87,30 @@ Direct file uploads to the API process and local disk writes are completely deco
 - **Resilient API Client**: Centralized `apiClient` manages automatic `Authorization: Bearer <token>` injection and intercepts HTTP 401s to perform stateful refresh token rotation seamlessly.
 - **Offline Mutation Queue**: Queueable non-financial mutations are stored through an encrypted persistence adapter (`SecureStore` native, `localStorage` on web). JWTs are attached at dispatch time (not queue time) with unique idempotency keys. Failed requests retry with exponential backoff (up to 5 attempts); unrecoverable 4xx client errors are dropped to prevent poison-pill locks.
 - **Modular Screen Architecture**: All primary screens (`index.tsx`, `quotes.tsx`, `explore.tsx`, `admin.tsx`) are decomposed into small, typed components ≤ 220 lines each.
+
+## 7. Reference Numbers
+
+Every request, quote, job, parts order, driver trip, payment and refund has a Weyro reference
+number that people can read out on a call, e.g. `J-261127-0042-6`:
+
+| Part | Meaning |
+| --- | --- |
+| `J` | Type: R request, Q quote, J job (garage/mechanic/towing booking), O parts order, T driver trip, P payment, F refund |
+| `261127` | Day the record was **created**, in India time (YYMMDD). It does not change if the job is rescheduled |
+| `0042` | Running count for that type on that day (4 digits, grows to 5+ after 9999) |
+| `6` | Damm check digit: catches every single wrong digit and every swap of two neighbouring digits |
+
+- **Assigned by the database:** a `BEFORE INSERT` trigger on each of the seven tables, backed by the
+  `ref_counters` table (migration `20261127000000_reference_numbers`). Every insert path gets a number,
+  values sent by callers are ignored, and an `UPDATE` that changes `ref` is rejected. The counter
+  update is atomic and part of the same transaction, so concurrent servers never collide and a
+  rolled-back insert does not use up a number.
+- **Same formula in TypeScript:** `packages/api-contracts/src/ref.ts` (`parseRef`, `formatRef`,
+  `dammDigit`). The SQL `weyro_damm()` / `weyro_next_ref()` must stay identical. The e2e suite
+  (`e2e-reference-numbers.spec.ts`) checks that every stored number passes `parseRef`.
+- **Finding one:** `GET /admin/lookup?ref=` (admin only) accepts loose typing ("j 261127 0042 6"),
+  rejects mistyped numbers before querying, and returns a summary with the linked numbers
+  (a job lists its request, quote and payments). The admin Operations screen has a search box.
+- **Shown** on detail screens, in alerts ("… Ref J-261127-0042-6."), in the admin payments ledger
+  and activity log, and in support email subjects. The app falls back to a short ID if the server is
+  older than the app (`refOf` in `apps/mobile/src/utils/format.ts`).

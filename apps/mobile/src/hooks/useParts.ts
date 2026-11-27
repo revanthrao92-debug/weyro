@@ -41,6 +41,8 @@ export type UpdateSparePart = Partial<CreateSparePart> & {
 };
 
 export type SparePartOrder = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   sparePartId: string;
   providerId: string;

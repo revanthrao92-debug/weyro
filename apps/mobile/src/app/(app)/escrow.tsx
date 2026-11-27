@@ -143,8 +143,9 @@ function EscrowRow({ entry }: { entry: EscrowEntry }) {
       </Text>
       <View style={styles.metaRow}>
         <Text style={styles.meta}>
-          #{entry.bookingId.slice(0, 8).toUpperCase()}
-          {entry.bookingStatus ? ` · ${titleize(entry.bookingStatus)}` : ''}
+          {entry.paymentRef ?? `#${entry.bookingId.slice(0, 8).toUpperCase()}`}
+          {entry.bookingRef ? `, for job ${entry.bookingRef}` : ''}
+          {entry.bookingStatus ? `, ${titleize(entry.bookingStatus)}` : ''}
         </Text>
         <Text style={styles.meta}>{formatDate(entry.confirmedAt)}</Text>
       </View>

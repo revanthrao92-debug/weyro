@@ -1,5 +1,6 @@
 import { SessionRevocationService } from '../../common/auth/session-revocation.service';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -13,6 +14,7 @@ import { VerifyProviderDto } from './dto/verify-provider.dto';
 import {
   AdminOverviewMetrics,
   EscrowLedgerEntry,
+  parseRef,
   ProviderVerificationRecord,
 } from '@weyro/api-contracts';
 import {
@@ -96,6 +98,7 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: {
+        ref: true,
         id: true,
         status: true,
         fulfillmentStatus: true,
@@ -361,6 +364,8 @@ export class AdminService {
     return payments.map((payment) => ({
       bookingId: payment.bookingId,
       paymentId: payment.id,
+      paymentRef: payment.ref,
+      bookingRef: payment.booking?.ref,
       customerName: `${payment.booking?.customer?.firstName || 'Customer'} ${
         payment.booking?.customer?.lastName || ''
       }`.trim(),
@@ -474,9 +479,26 @@ export class AdminService {
       },
     });
 
+    // Weyro reference number of each logged record (one query per record type on this page).
+    const refs = new Map<string, string>();
+    const idsOf = (type: string) => [...new Set(items.filter((l) => l.entityType === type && l.entityId).map((l) => l.entityId!))];
+    const lookups: [string, (ids: string[]) => Promise<{ id: string; ref: string }[]>][] = [
+      ['Booking', (ids) => this.prisma.booking.findMany({ where: { id: { in: ids } }, select: { id: true, ref: true } })],
+      ['Payment', (ids) => this.prisma.payment.findMany({ where: { id: { in: ids } }, select: { id: true, ref: true } })],
+      ['ServiceRequest', (ids) => this.prisma.serviceRequest.findMany({ where: { id: { in: ids } }, select: { id: true, ref: true } })],
+      ['SparePartOrder', (ids) => this.prisma.sparePartOrder.findMany({ where: { id: { in: ids } }, select: { id: true, ref: true } })],
+    ];
+    await Promise.all(
+      lookups.map(async ([type, find]) => {
+        const ids = idsOf(type);
+        if (ids.length) for (const row of await find(ids)) refs.set(row.id, row.ref);
+      }),
+    );
+
     return {
       items: items.map((log) => ({
         ...log,
+        entityRef: log.entityId ? (refs.get(log.entityId) ?? null) : null,
         newValues: log.newValues ?? undefined,
         oldValues: log.oldValues ?? undefined,
         createdAt: log.createdAt.toISOString(),
@@ -558,5 +580,96 @@ export class AdminService {
         providers: totalProviders,
       },
     };
+  }
+
+  /**
+   * Find anything by its Weyro reference number (e.g. J-261127-0042-6) and summarise it:
+   * what it is, its status, amount, who is involved and the linked reference numbers.
+   */
+  async lookup(text: string) {
+    const parsed = parseRef(text);
+    if (!parsed) {
+      throw new BadRequestException(
+        'That is not a valid Weyro reference. Check the letters and numbers (like J-261127-0042-6) and try again.',
+      );
+    }
+    const { ref, type, label } = parsed;
+    const name = (p?: { firstName?: string | null; lastName?: string | null } | null) =>
+      p ? [p.firstName, p.lastName].filter(Boolean).join(' ') || null : null;
+    const money = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+    const base = { ref, type, label };
+    const notFound = () => new NotFoundException(`No ${label.toLowerCase()} has the reference ${ref}.`);
+
+    switch (type) {
+      case 'R': {
+        const r = await this.prisma.serviceRequest.findUnique({
+          where: { ref },
+          include: { customer: true, quotations: { select: { ref: true } } },
+        });
+        if (!r) throw notFound();
+        return { ...base, id: r.id, title: r.title, status: r.status, amount: null, createdAt: r.createdAt,
+          customer: name(r.customer), provider: null, linked: r.quotations.map((q) => q.ref) };
+      }
+      case 'Q': {
+        const q = await this.prisma.quotation.findUnique({
+          where: { ref },
+          include: { request: { select: { ref: true, title: true } }, provider: { select: { businessName: true } }, booking: { select: { ref: true } } },
+        });
+        if (!q) throw notFound();
+        return { ...base, id: q.id, title: q.request.title, status: q.status, amount: money(q.totalCost), createdAt: q.createdAt,
+          customer: null, provider: q.provider.businessName, linked: [q.request.ref, q.booking?.ref].filter(Boolean) };
+      }
+      case 'J': {
+        const b = await this.prisma.booking.findUnique({
+          where: { ref },
+          include: {
+            customer: true,
+            provider: { select: { businessName: true } },
+            quotation: { select: { ref: true, totalCost: true, request: { select: { ref: true, title: true } } } },
+            payments: { select: { ref: true } },
+          },
+        });
+        if (!b) throw notFound();
+        return { ...base, id: b.id, title: b.quotation.request.title, status: b.status, amount: money(b.quotation.totalCost),
+          createdAt: b.createdAt, customer: name(b.customer), provider: b.provider.businessName,
+          linked: [b.quotation.request.ref, b.quotation.ref, ...b.payments.map((p) => p.ref)] };
+      }
+      case 'O': {
+        const o = await this.prisma.sparePartOrder.findUnique({
+          where: { ref },
+          include: { customer: true, provider: { select: { businessName: true } }, sparePart: { select: { name: true } } },
+        });
+        if (!o) throw notFound();
+        return { ...base, id: o.id, title: o.sparePart.name, status: o.status, amount: money(o.totalAmount), createdAt: o.createdAt,
+          customer: name(o.customer), provider: o.provider.businessName, linked: [] as string[] };
+      }
+      case 'T': {
+        const t = await this.prisma.driverBooking.findUnique({
+          where: { ref },
+          include: { customer: true, driver: { select: { businessName: true } } },
+        });
+        if (!t) throw notFound();
+        return { ...base, id: t.id, title: t.pickupAddress, status: t.status, amount: money(t.totalAmount), createdAt: t.createdAt,
+          customer: name(t.customer), provider: t.driver.businessName, linked: [] as string[] };
+      }
+      case 'P': {
+        const p = await this.prisma.payment.findUnique({
+          where: { ref },
+          include: { booking: { select: { ref: true } }, refunds: { select: { ref: true } } },
+        });
+        if (!p) throw notFound();
+        return { ...base, id: p.id, title: 'Payment', status: p.status, amount: money(p.amount), createdAt: p.createdAt,
+          customer: null, provider: null, linked: [p.booking.ref, ...p.refunds.map((r) => r.ref)] };
+      }
+      case 'F': {
+        const f = await this.prisma.refund.findUnique({
+          where: { ref },
+          include: { payment: { select: { ref: true, booking: { select: { ref: true } } } } },
+        });
+        if (!f) throw notFound();
+        return { ...base, id: f.id, title: 'Refund', status: f.status, amount: money(f.amount), createdAt: f.createdAt,
+          customer: null, provider: null, linked: [f.payment.ref, f.payment.booking.ref] };
+      }
+    }
   }
 }

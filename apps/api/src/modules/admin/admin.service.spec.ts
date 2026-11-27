@@ -1,4 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { formatRef } from '@weyro/api-contracts';
 import { AdminService } from './admin.service';
 import type { PaymentGateway } from '../payments/interfaces/payment-gateway.interface';
 
@@ -170,5 +171,49 @@ describe('AdminService.verifyProvider', () => {
       service.verifyProvider('missing', { status: 'VERIFIED' }, 'admin-1'),
     ).rejects.toThrow('not found');
     expect(prisma.providerProfile.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminService.lookup by Weyro reference number', () => {
+  const ref = (type: Parameters<typeof formatRef>[0]) => formatRef(type, '261127', 42);
+  const any = () => jest.fn<any>();
+  const prisma: any = {
+    serviceRequest: { findUnique: any() },
+    quotation: { findUnique: any() },
+    booking: { findUnique: any() },
+    sparePartOrder: { findUnique: any() },
+    driverBooking: { findUnique: any() },
+    payment: { findUnique: any() },
+    refund: { findUnique: any() },
+  };
+  const service = new AdminService(prisma, {} as PaymentGateway);
+
+  it('refuses a mistyped number before touching the database', async () => {
+    const good = ref('J');
+    const wrong = good.slice(0, -1) + String((Number(good.slice(-1)) + 1) % 10);
+    await expect(service.lookup(wrong)).rejects.toThrow('not a valid Weyro reference');
+    expect(prisma.booking.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('each type letter looks in its own table, by the cleaned-up number', async () => {
+    const tables: [string, string][] = [
+      ['R', 'serviceRequest'], ['Q', 'quotation'], ['J', 'booking'], ['O', 'sparePartOrder'],
+      ['T', 'driverBooking'], ['P', 'payment'], ['F', 'refund'],
+    ];
+    for (const [type, table] of tables) {
+      prisma[table].findUnique.mockResolvedValueOnce(null);
+      const typed = ref(type as any).toLowerCase().replace(/-/g, ' '); // how someone might type it
+      await expect(service.lookup(typed)).rejects.toThrow(`has the reference ${ref(type as any)}`);
+      expect(prisma[table].findUnique).toHaveBeenLastCalledWith(expect.objectContaining({ where: { ref: ref(type as any) } }));
+    }
+  });
+
+  it('a refund shows its payment and job', async () => {
+    prisma.refund.findUnique.mockResolvedValueOnce({
+      id: 'rf-1', status: 'PROCESSED', amount: 500, createdAt: new Date(),
+      payment: { ref: 'P-261127-0001-x', booking: { ref: 'J-261127-0001-x' } },
+    });
+    const r = await service.lookup(ref('F'));
+    expect(r).toMatchObject({ label: 'Refund', amount: 500, linked: ['P-261127-0001-x', 'J-261127-0001-x'] });
   });
 });

@@ -36,7 +36,7 @@ import {
   PopIn,
 } from '@/components/ui';
 import { Check } from 'lucide-react-native';
-import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone, formatRupees, refOf } from '@/utils/format';
 import {
   palette,
   spacing,
@@ -289,9 +289,14 @@ export default function MechanicJobDetailScreen() {
               tone={bookingStatusTone(booking.status)}
             />
             <Text style={styles.meta}>
-              Job #{booking.id.slice(0, 8).toUpperCase()}, {titleize(request?.category ?? 'SERVICE')}
+              Job {refOf(booking)}, {titleize(request?.category ?? 'SERVICE')}
             </Text>
           </View>
+          {request?.ref ? (
+            <Text style={styles.meta} selectable>
+              From request {request.ref}
+            </Text>
+          ) : null}
         </PageHeader>
 
         <Card style={styles.card}>

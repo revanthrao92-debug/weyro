@@ -1,4 +1,4 @@
-import { bookingStatusTone, formatRupees, labelize, titleize } from '../src/utils/format';
+import { bookingStatusTone, formatRupees, labelize, refOf, titleize } from '../src/utils/format';
 
 describe('titleize', () => {
   it('replaces every underscore, not just the first', () => {
@@ -35,5 +35,15 @@ describe('formatRupees (the one rupee format)', () => {
     expect(formatRupees(null)).toBe('₹0');
     expect(formatRupees(undefined)).toBe('₹0');
     expect(formatRupees('abc')).toBe('₹0');
+  });
+});
+
+describe('refOf', () => {
+  it('shows the Weyro reference number', () => {
+    expect(refOf({ ref: 'J-261127-0042-6', id: 'd50c8c42-aaaa-bbbb' })).toBe('J-261127-0042-6');
+  });
+  it('falls back to a short ID when an older server sends no number', () => {
+    expect(refOf({ id: 'd50c8c42-aaaa-bbbb' })).toBe('#D50C8C42');
+    expect(refOf({ ref: '', id: 'd50c8c42-aaaa-bbbb' })).toBe('#D50C8C42');
   });
 });

@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { titleize } from '@/utils/format';
+import { refOf, titleize } from '@/utils/format';
 import {
   MapPin,
   Navigation,
@@ -154,6 +154,9 @@ export function DriverBookingScreen() {
                 job.engagement === 'DAILY' ? 'Daily' : 'Hourly',
                 job.scheduleMode === 'ON_DEMAND' ? 'On demand' : 'Scheduled',
               ].join(', ')}
+            </Text>
+            <Text style={styles.subtitle} selectable>
+              Trip {refOf(job)}
             </Text>
           </View>
         </PageHeader>

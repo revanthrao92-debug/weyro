@@ -28,3 +28,17 @@ describe('booking update alerts', () => {
     expect(msg('DISPUTED', { audience: 'provider' }).title).toBe('Issue reported');
   });
 });
+
+describe('job alerts carry the reference number', () => {
+  const base = { status: 'PROVIDER_EN_ROUTE', jobTitle: 'Front bumper dent', providerName: 'Apex Auto', audience: 'customer' as const };
+
+  it('ends with the job number when there is one', () => {
+    expect(bookingUpdateMessage({ ...base, ref: 'J-261127-0042-6' }).body).toBe(
+      'Apex Auto is on the way for "Front bumper dent". Ref J-261127-0042-6.',
+    );
+  });
+
+  it('reads normally without one', () => {
+    expect(bookingUpdateMessage(base).body).toBe('Apex Auto is on the way for "Front bumper dent".');
+  });
+});

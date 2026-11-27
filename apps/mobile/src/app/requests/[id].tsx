@@ -39,7 +39,7 @@ import {
   CountUp,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
-import { titleize as labelize, requestStatusTone as statusTone, formatRupees } from '@/utils/format';
+import { titleize as labelize, requestStatusTone as statusTone, formatRupees, refOf } from '@/utils/format';
 import { isNotFound } from '@/services/api-client';
 
 type RequestParams = { id: string };
@@ -182,6 +182,9 @@ export default function RequestDetailScreen() {
         </View>
 
         <Text style={styles.title}>{request.title}</Text>
+        <Text style={styles.address} selectable>
+          Request {refOf(request)}
+        </Text>
         <View style={styles.metaRow}>
           <StatusPill label={labelize(request.status)} tone={statusTone(request.status)} />
           <StatusPill label={labelize(request.category)} tone="neutral" />

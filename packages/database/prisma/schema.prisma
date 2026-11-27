@@ -337,6 +337,8 @@ model DriverAvailability {
 
 model DriverBooking {
   id                      String              @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                     String              @unique @default("")
   customerId              String
   customer                CustomerProfile     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   driverId                String
@@ -387,6 +389,8 @@ model DriverBooking {
 
 model ServiceRequest {
   id                  String                                 @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                 String                                 @unique @default("")
   customerId          String
   customer            CustomerProfile                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   // Optional: a request may use a saved vehicle OR carry free-form details.
@@ -455,6 +459,8 @@ model RequestMedia {
 
 model Quotation {
   id             String          @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref            String          @unique @default("")
   requestId      String
   request        ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   providerId     String
@@ -487,6 +493,8 @@ model Quotation {
 
 model Booking {
   id                        String          @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                       String          @unique @default("")
   quotationId               String          @unique
   quotation                 Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
   // Denormalized from the quotation so the database can enforce "one active
@@ -526,6 +534,8 @@ model Booking {
 
 model Payment {
   id               String        @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref              String        @unique @default("")
   bookingId        String
   booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   amount           Decimal       @db.Decimal(10, 2)
@@ -553,6 +563,8 @@ model Payment {
 /// payment sits in REFUND_PENDING until the refund.processed webhook confirms.
 model Refund {
   id              String       @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref             String       @unique @default("")
   paymentId       String
   payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   amount          Decimal      @db.Decimal(10, 2)
@@ -620,6 +632,8 @@ model SparePart {
 
 model SparePartOrder {
   id                String               @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref               String               @unique @default("")
   sparePartId       String
   sparePart         SparePart            @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
   providerId        String
@@ -877,4 +891,15 @@ model JobLock {
   expiresAt DateTime
 
   @@map("job_locks")
+}
+
+/// Daily counters behind the reference numbers (one row per type per India day). Used only by
+/// the weyro_next_ref() SQL function; see migration 20261127000000_reference_numbers.
+model RefCounter {
+  type  String @db.Char(1)
+  day   String @db.Char(6)
+  value Int
+
+  @@id([type, day])
+  @@map("ref_counters")
 }

@@ -3,6 +3,8 @@ import { apiClient } from '@/services/api-client';
 import { Alert } from 'react-native';
 
 export type Booking = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   quotationId: string;
   customerId: string;
@@ -36,6 +38,7 @@ export type Booking = {
     warrantyDays: number;
     notes: string | null;
     request?: {
+      ref?: string;
       id: string;
       title: string;
       category: string;

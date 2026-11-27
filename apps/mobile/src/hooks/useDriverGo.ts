@@ -37,6 +37,8 @@ export type DriverMe = {
 };
 
 export type DriverJob = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status:
     | 'REQUESTED'

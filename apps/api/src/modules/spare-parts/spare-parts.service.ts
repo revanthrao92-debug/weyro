@@ -53,6 +53,7 @@ export class SparePartsService {
 
   private async notificationContext(order: {
     id: string;
+    ref?: string;
     sparePartId: string;
     customerId: string;
     providerId: string;
@@ -76,6 +77,7 @@ export class SparePartsService {
 
     return {
       orderId: order.id,
+      ref: order.ref,
       partName: part?.name ?? 'your order',
       totalAmount: Number(order.totalAmount),
       quantity: order.quantity,
@@ -813,6 +815,7 @@ export class SparePartsService {
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: {
+        ref: true,
         id: true,
         quantity: true,
         unitPrice: true,
@@ -868,6 +871,7 @@ export class SparePartsService {
       take: boundedLimit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
+        ref: true,
         id: true,
         quantity: true,
         unitPrice: true,
@@ -926,6 +930,7 @@ export class SparePartsService {
       take: boundedLimit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
+        ref: true,
         id: true,
         quantity: true,
         unitPrice: true,
@@ -967,6 +972,7 @@ export class SparePartsService {
     const order = await this.prisma.sparePartOrder.findUnique({
       where: { id: orderId },
       select: {
+        ref: true,
         id: true,
         quantity: true,
         unitPrice: true,

@@ -111,3 +111,7 @@ export type ProviderAdminQuery = z.infer<typeof providerAdminQuerySchema>;
 export type AdminActivityQuery = z.infer<typeof adminActivityQuerySchema>;
 export type AdminOrdersQuery = z.infer<typeof adminOrdersQuerySchema>;
 export type AdminBookingsQuery = z.infer<typeof adminBookingsQuerySchema>;
+
+/** A Weyro reference number as typed by an admin; the service checks the format and check digit. */
+export const adminLookupQuerySchema = z.object({ ref: z.string().trim().min(1).max(40) }).strict();
+export type AdminLookupQuery = z.infer<typeof adminLookupQuerySchema>;

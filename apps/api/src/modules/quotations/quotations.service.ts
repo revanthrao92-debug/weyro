@@ -514,6 +514,7 @@ export class QuotationsService {
       include: {
         request: {
           select: {
+            ref: true,
             id: true,
             title: true,
             description: true,

@@ -141,6 +141,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
   return Prisma.sql`
     SELECT 
       sr.id,
+      sr.ref,
       sr.title,
       sr.description,
       sr.category,

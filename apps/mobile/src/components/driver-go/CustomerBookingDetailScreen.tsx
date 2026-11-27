@@ -24,6 +24,7 @@ import {
   useMyDriverBooking,
 } from '@/hooks/useDriverGoCustomer';
 import { jobWhen, money } from '@/components/driver/driverFormat';
+import { refOf } from '@/utils/format';
 import { customerStatusLabel, customerStatusTone } from './format';
 import {
   displayFamily,
@@ -124,8 +125,11 @@ export function CustomerBookingDetailScreen() {
         <Text style={styles.subtitle}>
           {booking.engagement === 'HOURLY'
             ? `${booking.durationHours} hours`
-            : `${booking.durationDays} day · 8 hours`}{' '}
-          · {money(booking.totalAmount)}
+            : `${booking.durationDays} day, 8 hours`}
+          , {money(booking.totalAmount)}
+        </Text>
+        <Text style={styles.subtitle} selectable>
+          Trip {refOf(booking)}
         </Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -258,7 +262,7 @@ export function CustomerBookingDetailScreen() {
             variant="secondary"
             onPress={() =>
               void Linking.openURL(
-                `mailto:support@weyro.app?subject=Driver%20Go%20booking%20${booking.id.slice(0, 8)}`,
+                `mailto:support@weyro.app?subject=${encodeURIComponent(`Driver Go trip ${refOf(booking)}`)}`,
               )
             }
           />

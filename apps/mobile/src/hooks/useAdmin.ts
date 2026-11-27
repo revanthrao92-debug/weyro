@@ -83,6 +83,8 @@ export type AdminProviderDetail = ProviderVerificationRecord & {
 };
 
 export type EscrowEntry = {
+  paymentRef?: string;
+  bookingRef?: string;
   bookingId: string;
   paymentId?: string;
   customerName: string;
@@ -103,6 +105,8 @@ export type AdminActivityLog = {
   action: string;
   entityType: string | null;
   entityId: string | null;
+  /** Weyro reference number of the record this event is about, when it has one. */
+  entityRef?: string | null;
   createdAt: string;
 };
 
@@ -161,6 +165,8 @@ export function useAdminActivityStats() {
 }
 
 export type AdminOrder = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status: string;
   fulfillmentStatus: string;
@@ -178,6 +184,8 @@ export type AdminOrder = {
 };
 
 export type AdminBooking = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status: string;
   scheduledAt: string | null;
@@ -247,5 +255,28 @@ export function useAdminRefundBooking() {
       queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
       queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
     },
+  });
+}
+
+export type AdminLookupResult = {
+  ref: string;
+  type: string;
+  label: string;
+  id: string;
+  title: string | null;
+  status: string;
+  amount: number | null;
+  createdAt: string;
+  customer: string | null;
+  provider: string | null;
+  /** Reference numbers of linked records: a job lists its request, quote and payments. */
+  linked: string[];
+};
+
+/** Find anything by its Weyro reference number (admin only). */
+export function useAdminLookup() {
+  return useMutation({
+    mutationFn: async (ref: string) =>
+      apiClient<AdminLookupResult>(`/admin/lookup?ref=${encodeURIComponent(ref)}`),
   });
 }

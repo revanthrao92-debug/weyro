@@ -102,3 +102,11 @@ export function formatRupees(value: number | string | null | undefined): string 
   const n = Math.round((Number(value) || 0) * 100) / 100;
   return `₹${n.toLocaleString('en-IN', Number.isInteger(n) ? undefined : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/**
+ * A record's Weyro reference number (e.g. J-261127-0042-6). Falls back to a short ID only if the
+ * server is older than the app (an over-the-air update can briefly run ahead of the API).
+ */
+export function refOf(item: { ref?: string | null; id: string }): string {
+  return item.ref || `#${item.id.slice(0, 8).toUpperCase()}`;
+}

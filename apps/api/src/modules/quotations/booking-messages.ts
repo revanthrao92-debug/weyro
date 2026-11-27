@@ -9,9 +9,16 @@ export type BookingMessageInput = {
   providerName: string;
   category?: string | null;
   audience: 'customer' | 'provider';
+  /** The job's Weyro reference number; added at the end so both sides can quote it. */
+  ref?: string | null;
 };
 
-export function bookingUpdateMessage({ status, jobTitle, providerName, category, audience }: BookingMessageInput) {
+export function bookingUpdateMessage(input: BookingMessageInput) {
+  const message = baseMessage(input);
+  return input.ref ? { ...message, body: `${message.body} Ref ${input.ref}.` } : message;
+}
+
+function baseMessage({ status, jobTitle, providerName, category, audience }: BookingMessageInput) {
   const job = `"${jobTitle}"`;
   const isParts = category === 'SPARE_PART';
   const isTowing = category === 'TOWING';

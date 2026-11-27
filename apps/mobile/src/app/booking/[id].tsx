@@ -7,7 +7,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { titleize as labelize, bookingStatusTone as statusTone, formatRupees } from '@/utils/format';
+import { titleize as labelize, bookingStatusTone as statusTone, formatRupees, refOf } from '@/utils/format';
 import { palette, spacing, typography, radii } from '@/theme';
 import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
@@ -137,7 +137,7 @@ export default function BookingDetailScreen() {
           <View style={styles.metaRow}>
             <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
             <Text style={styles.date}>
-              Booking #{booking.id.slice(0, 8)}, {new Date(booking.createdAt).toLocaleDateString()}
+              Booking {refOf(booking)}, {new Date(booking.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
           </View>
         </PageHeader>

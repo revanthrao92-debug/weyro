@@ -406,6 +406,7 @@ export class PaymentsService {
               where: { gatewayOrderId: orderId },
               select: {
                 id: true,
+                ref: true,
                 sparePartId: true,
                 quantity: true,
                 status: true,
@@ -448,6 +449,7 @@ export class PaymentsService {
               if (settled.applied) {
                 notifyOrderPaid(this.notifications, {
                   orderId: sparePartOrder.id,
+                  ref: sparePartOrder.ref,
                   partName: sparePartOrder.sparePart?.name ?? 'your order',
                   totalAmount: Number(sparePartOrder.totalAmount),
                   quantity: sparePartOrder.quantity,

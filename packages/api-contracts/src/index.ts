@@ -382,6 +382,9 @@ export interface ProviderVerificationRecord {
 export interface EscrowLedgerEntry {
   bookingId: string;
   paymentId?: string;
+  /** Weyro reference numbers of the payment (P-…) and the job it pays for (J-…). */
+  paymentRef?: string;
+  bookingRef?: string;
   customerName: string;
   providerName: string;
   amount: number;
@@ -458,3 +461,4 @@ export interface NotificationItem {
   createdAt: string;
 }
 export * from './sentry-scrub';
+export * from './ref';

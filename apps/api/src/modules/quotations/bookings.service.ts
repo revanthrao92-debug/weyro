@@ -324,6 +324,7 @@ export class BookingsService {
           providerName: provider?.businessName ?? 'Your provider',
           category: booking.quotation?.request?.category,
           audience: target.audience,
+          ref: booking.ref,
         });
         this.notifications
           .sendPushNotification({

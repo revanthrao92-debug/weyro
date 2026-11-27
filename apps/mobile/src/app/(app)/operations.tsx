@@ -21,7 +21,7 @@ import {
   StatusPill,
   ErrorState,
 } from '@/components/ui';
-import { formatDate, titleize, bookingStatusTone, formatRupees } from '@/utils/format';
+import { formatDate, titleize, bookingStatusTone, formatRupees, refOf } from '@/utils/format';
 import {
   fontFamilyMono,
   palette,
@@ -30,6 +30,7 @@ import {
   type StatusTone,
 } from '@/theme';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { RefSearch } from '@/components/admin/RefSearch';
 
 const ORDER_FILTERS = ['ALL', 'PAID', 'PENDING', 'REFUNDED'] as const;
 const JOB_FILTERS = ['ALL', 'ACTIVE', 'DISPUTED', 'COMPLETED', 'CANCELLED'] as const;
@@ -121,6 +122,7 @@ export default function OperationsScreen() {
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <AppHeader title="Operations" subtitle="Orders, jobs and disputes" />
+      <RefSearch />
 
       <View style={styles.segment}>
         <Chip
@@ -269,7 +271,7 @@ function OrderRow({
       <PressableScale
         onPress={() => setExpanded((value) => !value)}
         accessibilityRole="button"
-        accessibilityLabel={`Order ${order.id.slice(0, 8)}`}
+        accessibilityLabel={`Order ${refOf(order)}`}
         scaleTo={0.99}
         style={styles.row}
       >

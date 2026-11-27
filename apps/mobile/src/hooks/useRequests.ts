@@ -6,6 +6,8 @@ import {
 } from '@/services/offline-queue';
 
 export type ServiceRequest = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   customerId: string;
   /** Null when the request used free-form vehicle details instead of a saved vehicle. */
@@ -43,6 +45,8 @@ export type ServiceRequest = {
 };
 
 export type Quotation = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   requestId: string;
   providerId: string;

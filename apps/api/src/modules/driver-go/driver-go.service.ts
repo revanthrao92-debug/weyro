@@ -76,6 +76,7 @@ export class DriverGoService {
   private shapeJob(job: any) {
     return {
       id: job.id,
+      ref: job.ref,
       status: job.status,
       engagement: job.engagement,
       scheduleMode: job.scheduleMode,
@@ -288,13 +289,14 @@ export class DriverGoService {
     title: string,
     body: string,
     data: Record<string, string>,
+    ref?: string | null,
   ) {
     if (!userId) return;
     try {
       await this.notifications.sendPushNotification({
         userId,
         title,
-        body,
+        body: ref ? `${body} Ref ${ref}.` : body,
         data,
       });
     } catch {
@@ -325,6 +327,7 @@ export class DriverGoService {
       'Driver confirmed',
       `${provider.businessName} accepted your Driver Go booking.`,
       { type: 'DRIVER_JOB_ACCEPTED', driverBookingId: id },
+      job.ref,
     );
     return this.shapeJob(job);
   }
@@ -351,6 +354,7 @@ export class DriverGoService {
       'Driver unavailable',
       'Your Driver Go request was declined. Please choose another driver.',
       { type: 'DRIVER_JOB_DECLINED', driverBookingId: id },
+      job.ref,
     );
     return this.shapeJob(job);
   }
@@ -415,10 +419,13 @@ export class DriverGoService {
     };
     const message = messages[next];
     if (message) {
-      await this.notify(updated.customer?.userId, message.title, message.body, {
-        type: `DRIVER_JOB_${next}`,
-        driverBookingId: id,
-      });
+      await this.notify(
+        updated.customer?.userId,
+        message.title,
+        message.body,
+        { type: `DRIVER_JOB_${next}`, driverBookingId: id },
+        updated.ref,
+      );
     }
     return this.shapeJob(updated);
   }
@@ -472,6 +479,7 @@ export class DriverGoService {
       'Trip started',
       'Your Driver Go trip has started. Stay safe.',
       { type: 'DRIVER_JOB_STARTED', driverBookingId: id },
+      updated.ref,
     );
     return this.shapeJob(updated);
   }

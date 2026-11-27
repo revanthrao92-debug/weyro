@@ -34,7 +34,7 @@ import {
   typography,
   type StatusTone,
 } from '@/theme';
-import { formatDate, titleize, formatRupees } from '@/utils/format';
+import { formatDate, titleize, formatRupees, refOf } from '@/utils/format';
 import { Check } from 'lucide-react-native';
 
 const STEP_NAMES: Record<FulfillmentStatus, string> = {
@@ -160,7 +160,7 @@ export default function OrderDetailScreen() {
               tone={order.status === 'PAID' ? 'success' : order.status === 'PENDING' ? 'warning' : 'danger'}
             />
             <Text style={styles.dealerMeta}>
-              Order #{order.id.slice(0, 8).toUpperCase()}, qty {order.quantity}
+              Order {refOf(order)}, quantity {order.quantity}
             </Text>
           </View>
         </PageHeader>
@@ -369,7 +369,7 @@ function CustomerOrderView({ order }: { order: SparePartOrder }) {
             <StatusPill label={titleize(current)} tone={tone(current)} />
           ) : null}
           <Text style={styles.meta}>
-            #{order.id.slice(0, 8).toUpperCase()} · qty {order.quantity}
+            {refOf(order)}, quantity {order.quantity}
           </Text>
         </View>
 
