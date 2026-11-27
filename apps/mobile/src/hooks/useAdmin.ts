@@ -65,6 +65,8 @@ export type AdminOverview = {
   totalBookings: number;
   completedBookings: number;
   totalEscrowVolume: number;
+  /** All money paid through Weyro, by source. Missing on older servers. */
+  moneyIn?: { total: number; jobs: number; parts: number; trips: number };
   pendingVerifications: number;
   verifiedProviders: number;
 };
@@ -90,7 +92,7 @@ export type EscrowEntry = {
   customerName: string;
   providerName: string;
   amount: number;
-  status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  status: 'AWAITING_PAYMENT' | 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
   bookingStatus?: string;
   payoutReference?: string;
   confirmedAt: string;

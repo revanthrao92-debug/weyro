@@ -361,7 +361,10 @@ export interface AdminOverviewMetrics {
   acceptedQuotations: number;
   totalBookings: number;
   completedBookings: number;
+  /** Booking payments held or captured (kept for older app versions; see moneyIn). */
   totalEscrowVolume: number;
+  /** All money customers paid through Weyro, by where it came from. */
+  moneyIn: { total: number; jobs: number; parts: number; trips: number };
   pendingVerifications: number;
   verifiedProviders: number;
 }
@@ -388,7 +391,8 @@ export interface EscrowLedgerEntry {
   customerName: string;
   providerName: string;
   amount: number;
-  status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  /** AWAITING_PAYMENT: the customer hasn't paid yet, so nothing is held. */
+  status: 'AWAITING_PAYMENT' | 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
   bookingStatus?: BookingStatus;
   payoutReference?: string;
   confirmedAt: string;

@@ -217,3 +217,40 @@ describe('AdminService.lookup by Weyro reference number', () => {
     expect(r).toMatchObject({ label: 'Refund', amount: 500, linked: ['P-261127-0001-x', 'J-261127-0001-x'] });
   });
 });
+
+describe('AdminService.getOverview money in', () => {
+  const any = () => jest.fn<any>();
+  function prismaWith() {
+    return {
+      serviceRequest: { count: any().mockResolvedValue(3) },
+      quotation: { count: any().mockResolvedValue(2) },
+      booking: { count: any().mockResolvedValue(1) },
+      providerProfile: { count: any().mockResolvedValue(4) },
+      payment: { aggregate: any().mockResolvedValue({ _sum: { amount: 6950 } }) },
+      sparePartOrder: { aggregate: any().mockResolvedValue({ _sum: { totalAmount: 43852 } }) },
+      driverBooking: { aggregate: any().mockResolvedValue({ _sum: { totalAmount: 598 } }) },
+    } as any;
+  }
+
+  it('counts paid parts orders and finished trips, not just job payments (was "₹0 collected")', async () => {
+    const prisma = prismaWith();
+    const r = await new AdminService(prisma, {} as PaymentGateway).getOverview();
+    expect(r.moneyIn).toEqual({ total: 6950 + 43852 + 598, jobs: 6950, parts: 43852, trips: 598 });
+  });
+
+  it('leaves out refunded and deleted orders, and deleted records in every count', async () => {
+    const prisma = prismaWith();
+    await new AdminService(prisma, {} as PaymentGateway).getOverview();
+    expect(prisma.sparePartOrder.aggregate.mock.calls[0][0].where).toMatchObject({ deletedAt: null, refundedAt: null, paidAt: { not: null } });
+    for (const model of ['serviceRequest', 'quotation', 'booking', 'providerProfile']) {
+      for (const [args] of prisma[model].count.mock.calls) expect(args.where.deletedAt).toBeNull();
+    }
+  });
+
+  it('adds up in the database instead of loading every payment', async () => {
+    const prisma = prismaWith();
+    await new AdminService(prisma, {} as PaymentGateway).getOverview();
+    expect(prisma.payment.aggregate).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.findMany).toBeUndefined();
+  });
+});

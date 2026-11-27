@@ -3,31 +3,26 @@ import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Landmark } from 'lucide-react-native';
 import { useAdminEscrow, type EscrowEntry } from '@/hooks/useAdmin';
 import {
-  AppHeader,
   Chip,
   EmptyState,
   ScreenContainer,
   Skeleton,
   StatusPill,
   ErrorState,
+  PageHeader,
 } from '@/components/ui';
 import { formatDate, titleize, formatRupees as money } from '@/utils/format';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-  type StatusTone,
-} from '@/theme';
+import { palette, spacing, typography, type StatusTone } from '@/theme';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 
-const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER'] as const;
+const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER', 'AWAITING_PAYMENT'] as const;
 type Filter = (typeof FILTERS)[number];
 
 
 function statusTone(status: string): StatusTone {
   if (status === 'RELEASED_TO_PROVIDER') return 'success';
   if (status === 'REFUNDED_TO_CUSTOMER') return 'danger';
+  if (status === 'AWAITING_PAYMENT') return 'neutral';
   return 'warning';
 }
 
@@ -35,6 +30,7 @@ function statusLabel(status: string) {
   if (status === 'HELD_IN_ESCROW') return 'Held';
   if (status === 'RELEASED_TO_PROVIDER') return 'Released';
   if (status === 'REFUNDED_TO_CUSTOMER') return 'Refunded';
+  if (status === 'AWAITING_PAYMENT') return 'Not paid yet';
   return titleize(status);
 }
 
@@ -63,7 +59,6 @@ export default function EscrowScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
         refreshControl={refreshControl}
         data={isLoading ? [] : visible}
@@ -72,6 +67,7 @@ export default function EscrowScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
+            <PageHeader title="Payments" subtitle="Held, released to providers, and refunded" />
             <View style={styles.summary}>
               <View style={styles.summaryBlock}>
                 <Text style={styles.summaryValue}>{money(totals.held)}</Text>
@@ -139,16 +135,22 @@ function EscrowRow({ entry }: { entry: EscrowEntry }) {
         <StatusPill label={statusLabel(entry.status)} tone={statusTone(entry.status)} />
       </View>
       <Text style={styles.parties} numberOfLines={1}>
-        {entry.customerName} → {entry.providerName}
+        From {entry.customerName} to {entry.providerName}
       </Text>
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>
-          {entry.paymentRef ?? `#${entry.bookingId.slice(0, 8).toUpperCase()}`}
-          {entry.bookingRef ? `, for job ${entry.bookingRef}` : ''}
-          {entry.bookingStatus ? `, ${titleize(entry.bookingStatus)}` : ''}
+      {/* Each number on its own line so it never breaks in the middle. */}
+      <Text style={styles.meta} selectable>
+        Payment {entry.paymentRef ?? `#${entry.bookingId.slice(0, 8).toUpperCase()}`}
+      </Text>
+      {entry.bookingRef ? (
+        <Text style={styles.meta} selectable>
+          For job {entry.bookingRef}
         </Text>
-        <Text style={styles.meta}>{formatDate(entry.confirmedAt)}</Text>
-      </View>
+      ) : null}
+      <Text style={styles.meta}>
+        {[entry.bookingStatus ? `Job ${titleize(entry.bookingStatus).toLowerCase()}` : null, formatDate(entry.confirmedAt)]
+          .filter(Boolean)
+          .join(', ')}
+      </Text>
       {entry.releasedAt ? (
         <Text style={styles.meta}>Released {formatDate(entry.releasedAt)}</Text>
       ) : null}
@@ -160,7 +162,7 @@ function EscrowRow({ entry }: { entry: EscrowEntry }) {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   summary: {
     flexDirection: 'row',
     paddingVertical: spacing.md,
@@ -169,13 +171,8 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
   },
   summaryBlock: { flex: 1, gap: 2 },
-  summaryValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 15,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  summaryLabel: { ...typography.label, color: palette.textMuted },
+  summaryValue: { ...typography.heading, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  summaryLabel: { ...typography.caption, color: palette.textMuted },
   filters: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -194,17 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  amount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 18,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  parties: { ...typography.caption, color: palette.textPrimary },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  meta: { ...typography.label, color: palette.textMuted },
+  amount: { ...typography.heading, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  parties: { ...typography.body, color: palette.textPrimary },
+  meta: { ...typography.caption, color: palette.textMuted, flexShrink: 1 },
 });

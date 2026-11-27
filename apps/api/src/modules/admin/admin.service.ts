@@ -46,6 +46,7 @@ export class AdminService {
   ) {}
 
   async getOverview(): Promise<AdminOverviewMetrics> {
+    const live = { deletedAt: null };
     const [
       totalRequests,
       openBroadcasts,
@@ -55,23 +56,36 @@ export class AdminService {
       completedBookings,
       pendingVerifications,
       verifiedProviders,
-      payments,
+      jobPayments,
+      partsPaid,
+      tripsDone,
     ] = await Promise.all([
-      this.prisma.serviceRequest.count(),
-      this.prisma.serviceRequest.count({ where: { status: 'OPEN', isBroadcast: true } }),
-      this.prisma.quotation.count(),
-      this.prisma.quotation.count({ where: { status: 'ACCEPTED' } }),
-      this.prisma.booking.count(),
-      this.prisma.booking.count({ where: { status: 'COMPLETED' } }),
-      this.prisma.providerProfile.count({ where: { verificationStatus: 'PENDING' } }),
-      this.prisma.providerProfile.count({ where: { verificationStatus: 'VERIFIED' } }),
-      this.prisma.payment.findMany({
-        where: { status: { in: ['AUTHORIZED', 'CAPTURED'] } },
-        select: { amount: true },
+      this.prisma.serviceRequest.count({ where: live }),
+      this.prisma.serviceRequest.count({ where: { ...live, status: 'OPEN', isBroadcast: true } }),
+      this.prisma.quotation.count({ where: live }),
+      this.prisma.quotation.count({ where: { ...live, status: 'ACCEPTED' } }),
+      this.prisma.booking.count({ where: live }),
+      this.prisma.booking.count({ where: { ...live, status: 'COMPLETED' } }),
+      this.prisma.providerProfile.count({ where: { ...live, verificationStatus: 'PENDING' } }),
+      this.prisma.providerProfile.count({ where: { ...live, verificationStatus: 'VERIFIED' } }),
+      // Totals are summed in the database, not by loading every row.
+      this.prisma.payment.aggregate({
+        where: { ...live, status: { in: ['AUTHORIZED', 'CAPTURED'] } },
+        _sum: { amount: true },
+      }),
+      this.prisma.sparePartOrder.aggregate({
+        where: { ...live, paidAt: { not: null }, refundedAt: null },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.driverBooking.aggregate({
+        where: { ...live, status: 'COMPLETED' },
+        _sum: { totalAmount: true },
       }),
     ]);
 
-    const totalEscrowVolume = payments.reduce((acc, p) => acc + Number(p.amount), 0);
+    const jobs = Number(jobPayments._sum.amount ?? 0);
+    const parts = Number(partsPaid._sum.totalAmount ?? 0);
+    const trips = Number(tripsDone._sum.totalAmount ?? 0);
 
     return {
       totalRequests,
@@ -80,7 +94,8 @@ export class AdminService {
       acceptedQuotations,
       totalBookings,
       completedBookings,
-      totalEscrowVolume,
+      totalEscrowVolume: jobs,
+      moneyIn: { total: jobs + parts + trips, jobs, parts, trips },
       pendingVerifications,
       verifiedProviders,
     };
@@ -377,7 +392,9 @@ export class AdminService {
           ? 'REFUNDED_TO_CUSTOMER'
           : payment.status === 'RELEASED'
             ? 'RELEASED_TO_PROVIDER'
-            : 'HELD_IN_ESCROW',
+            : payment.status === 'PENDING'
+              ? 'AWAITING_PAYMENT' // not paid yet: nothing is held
+              : 'HELD_IN_ESCROW',
       bookingStatus: payment.booking?.status,
       payoutReference: payment.payoutReference ?? undefined,
       releasedAt:

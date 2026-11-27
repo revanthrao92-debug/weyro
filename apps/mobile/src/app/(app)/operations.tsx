@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { Package, Wrench } from 'lucide-react-native';
 import {
   useAdminBookings,
@@ -11,7 +11,6 @@ import {
 } from '@/hooks/useAdmin';
 import { useUpdateBookingStatus } from '@/hooks/useBookings';
 import {
-  AppHeader,
   Button,
   Chip,
   EmptyState,
@@ -20,15 +19,11 @@ import {
   Skeleton,
   StatusPill,
   ErrorState,
+  PageHeader,
 } from '@/components/ui';
+import { confirmAction, notice } from '@/lib/confirm';
 import { formatDate, titleize, bookingStatusTone, formatRupees, refOf } from '@/utils/format';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-  type StatusTone,
-} from '@/theme';
+import { palette, spacing, typography, type StatusTone } from '@/theme';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { RefSearch } from '@/components/admin/RefSearch';
 
@@ -80,48 +75,47 @@ export default function OperationsScreen() {
     return booking.status === jobFilter;
   });
 
-  const confirmRefund = (kind: 'order' | 'booking', id: string) => {
+  /** Ask first (works in a browser too), then refund through the payment provider. */
+  const confirmRefund = async (kind: 'order' | 'booking', id: string, what: string, amount: number) => {
     if (refundGuard.current) return;
     refundGuard.current = true;
-    Alert.alert(
-      'Issue refund',
-      'Refund the captured payment through the gateway?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            refundGuard.current = false;
-          },
-        },
-        {
-          text: 'Refund',
-          style: 'destructive',
-          onPress: () => {
-            const mutation = kind === 'order' ? refundOrder : refundBooking;
-            mutation
-              .mutateAsync(id)
-              .catch((e: any) =>
-                Alert.alert('Refund failed', e?.message || 'Could not refund.'),
-              )
-              .finally(() => {
-                refundGuard.current = false;
-              });
-          },
-        },
-      ],
-      {
-        cancelable: true,
-        onDismiss: () => {
-          refundGuard.current = false;
-        },
-      },
-    );
+    try {
+      const ok = await confirmAction(
+        `Refund ${formatRupees(amount)}?`,
+        `${what}. The customer gets the money back on their original payment method. This can't be undone.`,
+        'Refund',
+      );
+      if (!ok) return;
+      await (kind === 'order' ? refundOrder : refundBooking).mutateAsync(id);
+      notice('Refund started', `${formatRupees(amount)} is on its way back to the customer.`);
+    } catch (e: any) {
+      notice('Refund failed', e?.message || 'Check your connection and try again.');
+    } finally {
+      refundGuard.current = false;
+    }
+  };
+
+  /** Admin decisions on a job: each one asked first, with what it means. */
+  const JOB_STEP: Record<string, { title: string; ask: string; button: string }> = {
+    COMPLETED: { title: 'Mark the job complete?', ask: 'The issue is closed and the provider can be paid.', button: 'Complete' },
+    CANCELLED: { title: 'Cancel this job?', ask: 'The job stops. Refund the payment separately if one was made.', button: 'Cancel job' },
+    DISPUTED: { title: 'Flag a dispute?', ask: 'Payment to the provider is held until you resolve it.', button: 'Flag dispute' },
+  };
+  const changeJob = async (id: string, status: string) => {
+    const step = JOB_STEP[status];
+    if (step && !(await confirmAction(step.title, step.ask, step.button))) return;
+    try {
+      await updateBooking.mutateAsync({ id, status });
+    } catch (e: any) {
+      notice('Could not update the job', e?.message || 'Check your connection and try again.');
+    }
   };
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Operations" subtitle="Orders, jobs and disputes" />
+      <View style={styles.headerPad}>
+        <PageHeader title="Operations" subtitle="Orders, jobs, refunds and disputes" />
+      </View>
       <RefSearch />
 
       <View style={styles.segment}>
@@ -187,7 +181,14 @@ export default function OperationsScreen() {
             <OrderRow
               order={item}
               refunding={refundOrder.isPending}
-              onRefund={() => confirmRefund('order', item.id)}
+              onRefund={() =>
+                void confirmRefund(
+                  'order',
+                  item.id,
+                  `Parts order ${refOf(item)}, ${item.sparePart?.name ?? 'parts'}`,
+                  Number(item.totalAmount),
+                )
+              }
             />
           )}
         />
@@ -236,14 +237,15 @@ export default function OperationsScreen() {
               booking={item}
               refunding={refundBooking.isPending}
               updating={updateBooking.isPending}
-              onRefund={() => confirmRefund('booking', item.id)}
-              onStatus={(status) => {
-                updateBooking
-                  .mutateAsync({ id: item.id, status })
-                  .catch((e: any) =>
-                    Alert.alert('Failed', e?.message || 'Could not update job.'),
-                  );
-              }}
+              onRefund={() =>
+                void confirmRefund(
+                  'booking',
+                  item.id,
+                  `Job ${refOf(item)}, ${item.request?.title ?? 'service job'}`,
+                  Number(item.payment?.amount ?? item.totalCost),
+                )
+              }
+              onStatus={(status) => void changeJob(item.id, status)}
             />
           )}
         />
@@ -280,10 +282,10 @@ function OrderRow({
             {order.sparePart?.name ?? 'Parts order'}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {order.provider?.businessName ?? 'Dealer'} · {customer}
+            {order.provider?.businessName ?? 'Dealer'}, to {customer}
           </Text>
-          <Text style={styles.meta}>
-            {formatDate(order.createdAt)} · qty {order.quantity}
+          <Text style={styles.meta} selectable>
+            {refOf(order)}, {formatDate(order.createdAt)}, quantity {order.quantity}
           </Text>
         </View>
         <View style={styles.rowRight}>
@@ -300,8 +302,8 @@ function OrderRow({
       {expanded ? (
         <View style={styles.detail}>
           <Text style={styles.meta}>
-            Fulfillment: {statusLabel(order.fulfillmentStatus)}
-            {order.trackingNumber ? ` · ${order.trackingNumber}` : ''}
+            Delivery: {statusLabel(order.fulfillmentStatus)}
+            {order.trackingNumber ? `, tracking ${order.trackingNumber}` : ''}
           </Text>
           {order.paidAt ? (
             <Text style={styles.meta}>Paid {formatDate(order.paidAt)}</Text>
@@ -358,11 +360,10 @@ function BookingRow({
             {booking.request?.title ?? 'Service job'}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {booking.provider?.businessName ?? 'Provider'} · {customer}
+            {booking.provider?.businessName ?? 'Provider'}, for {customer}
           </Text>
-          <Text style={styles.meta}>
-            {titleize(booking.request?.category ?? 'SERVICE')} ·{' '}
-            {formatDate(booking.createdAt)}
+          <Text style={styles.meta} selectable>
+            {refOf(booking)}, {titleize(booking.request?.category ?? 'SERVICE')}, {formatDate(booking.createdAt)}
           </Text>
         </View>
         <View style={styles.rowRight}>
@@ -377,9 +378,7 @@ function BookingRow({
         <View style={styles.detail}>
           <Text style={styles.meta}>
             Payment: {booking.payment ? statusLabel(booking.payment.status) : 'none'}
-            {booking.payment
-              ? ` · ${formatRupees(booking.payment.amount)}`
-              : ''}
+            {booking.payment ? `, ${formatRupees(booking.payment.amount)}` : ''}
           </Text>
           {booking.completionNotes ? (
             <Text style={styles.meta}>Notes: {booking.completionNotes}</Text>
@@ -388,7 +387,7 @@ function BookingRow({
             {booking.status === 'DISPUTED' ? (
               <>
                 <Button
-                  title="Resolve completed"
+                  title="Mark complete"
                   loading={updating}
                   onPress={() => onStatus('COMPLETED')}
                 />
@@ -428,6 +427,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
+  headerPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   filters: {
     flexDirection: 'row',
@@ -448,14 +448,9 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   title: { ...typography.bodyMedium, color: palette.textPrimary },
-  meta: { ...typography.label, color: palette.textMuted },
+  meta: { ...typography.caption, color: palette.textMuted },
   rowRight: { alignItems: 'flex-end', gap: 4 },
-  amount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 13,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
+  amount: { ...typography.bodyMedium, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
   detail: {
     paddingBottom: spacing.lg,
     gap: spacing.sm,
