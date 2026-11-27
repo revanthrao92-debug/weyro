@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { parseRef } from '@weyro/api-contracts';
 import { Button, Chip, Input, StatusPill } from '@/components/ui';
@@ -15,6 +16,7 @@ export function RefSearch() {
   const [text, setText] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const lookup = useAdminLookup();
+  const router = useRouter();
 
   const find = (value: string) => {
     const parsed = parseRef(value);
@@ -81,6 +83,12 @@ export function RefSearch() {
               </View>
             </View>
           ) : null}
+          <Button
+            title="Open full details"
+            variant="secondary"
+            onPress={() => router.push(`/admin-record/${result.ref}`)}
+            style={styles.openButton}
+          />
         </View>
       ) : null}
     </View>
@@ -107,4 +115,5 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xs },
   linked: { marginTop: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  openButton: { marginTop: spacing.md },
 });

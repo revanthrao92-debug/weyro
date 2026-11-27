@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Landmark } from 'lucide-react-native';
 import { useAdminEscrow, type EscrowEntry } from '@/hooks/useAdmin';
 import {
@@ -10,6 +11,7 @@ import {
   StatusPill,
   ErrorState,
   PageHeader,
+  PressableScale,
 } from '@/components/ui';
 import { formatDate, titleize, formatRupees as money } from '@/utils/format';
 import { palette, spacing, typography, type StatusTone } from '@/theme';
@@ -35,6 +37,7 @@ function statusLabel(status: string) {
 }
 
 export default function EscrowScreen() {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>('ALL');
   const { data, isLoading, isError, refetch } = useAdminEscrow();
   const refreshControl = useRefreshControl(refetch);
@@ -121,15 +124,24 @@ export default function EscrowScreen() {
             />
           )
         }
-        renderItem={({ item }) => <EscrowRow entry={item} />}
+        renderItem={({ item }) => (
+          <EscrowRow entry={item} onOpen={item.paymentRef ? () => router.push(`/admin-record/${item.paymentRef}`) : undefined} />
+        )}
       />
     </ScreenContainer>
   );
 }
 
-function EscrowRow({ entry }: { entry: EscrowEntry }) {
+function EscrowRow({ entry, onOpen }: { entry: EscrowEntry; onOpen?: () => void }) {
   return (
-    <View style={styles.row}>
+    <PressableScale
+      onPress={onOpen}
+      disabled={!onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Payment ${entry.paymentRef ?? ''}, ${money(entry.amount)}`}
+      scaleTo={0.99}
+      style={styles.row}
+    >
       <View style={styles.rowTop}>
         <Text style={styles.amount}>{money(entry.amount)}</Text>
         <StatusPill label={statusLabel(entry.status)} tone={statusTone(entry.status)} />
@@ -157,7 +169,7 @@ function EscrowRow({ entry }: { entry: EscrowEntry }) {
       {entry.payoutReference ? (
         <Text style={styles.meta}>Payout ref {entry.payoutReference}</Text>
       ) : null}
-    </View>
+    </PressableScale>
   );
 }
 

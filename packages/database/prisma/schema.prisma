@@ -903,3 +903,23 @@ model RefCounter {
   @@id([type, day])
   @@map("ref_counters")
 }
+
+/// Non-personal history of every record created and every status change, written by database
+/// triggers (migration 20261128000000_event_history) plus cleaned text events written by the API.
+/// Append-only. Exported nightly as a dataset. See docs/DATA.md.
+model Event {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  seq        BigInt   @unique @default(autoincrement())
+  occurredAt DateTime @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)"))
+  type       String
+  entityType String
+  entityRef  String
+  fromStatus String?
+  toStatus   String?
+  source     String   @default("live")
+  data       Json     @default("{}")
+
+  @@index([entityRef, seq])
+  @@index([occurredAt])
+  @@map("events")
+}

@@ -46,6 +46,12 @@ export class AdminController {
     return this.service.lookup(query.ref);
   }
 
+  /** Full detail of one record by reference number, with its timeline and live location. */
+  @Get('records/:ref')
+  async recordDetail(@Param('ref', new ZodValidationPipe(adminLookupQuerySchema.shape.ref)) ref: string) {
+    return this.service.recordDetail(ref);
+  }
+
   @Get('orders')
   async getOrders(
     @Query(new ZodValidationPipe(adminOrdersQuerySchema)) query: AdminOrdersQuery,

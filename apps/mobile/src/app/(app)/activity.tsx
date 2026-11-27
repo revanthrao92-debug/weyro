@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Activity } from 'lucide-react-native';
 import { useAdminActivity, useAdminActivityStats } from '@/hooks/useAdmin';
-import { Chip, EmptyState, ErrorState, PageHeader, ScreenContainer, Skeleton } from '@/components/ui';
+import { Chip, EmptyState, ErrorState, PageHeader, PressableScale, ScreenContainer, Skeleton } from '@/components/ui';
 import { ActivityChart } from '@/components/admin/ActivityChart';
 import { actionLabel, whenShort } from '@/components/admin/activityFormat';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
@@ -19,6 +20,7 @@ const KIND: Record<string, string> = {
 
 /** Admin activity log: what happened on the platform, newest first, with each record's number. */
 export default function ActivityScreen() {
+  const router = useRouter();
   const [kind, setKind] = useState('ALL');
   const activity = useAdminActivity({ limit: 50 });
   const stats = useAdminActivityStats();
@@ -72,15 +74,22 @@ export default function ActivityScreen() {
           )
         }
         renderItem={({ item, index }) => (
-          <View style={[styles.row, index > 0 && styles.divider]}>
+          <PressableScale
+            onPress={item.entityRef ? () => router.push(`/admin-record/${item.entityRef}`) : undefined}
+            disabled={!item.entityRef}
+            accessibilityRole={item.entityRef ? 'button' : undefined}
+            accessibilityLabel={`${actionLabel(item.action)}${item.entityRef ? `, ${item.entityRef}` : ''}`}
+            scaleTo={0.99}
+            style={[styles.row, index > 0 && styles.divider]}
+          >
             <View style={styles.rowText}>
               <Text style={styles.action}>{actionLabel(item.action)}</Text>
-              <Text style={styles.meta} numberOfLines={1} selectable>
+              <Text style={styles.meta} numberOfLines={1}>
                 {[item.entityRef, item.actorRole ? item.actorRole.toLowerCase() : 'system'].filter(Boolean).join(', ')}
               </Text>
             </View>
             <Text style={styles.meta}>{whenShort(item.createdAt)}</Text>
-          </View>
+          </PressableScale>
         )}
       />
     </ScreenContainer>

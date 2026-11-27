@@ -5,6 +5,8 @@ import { AdvisoryLockService } from '../../prisma/advisory-lock.service';
 import { ExpiryCronService } from './expiry-cron.service';
 import { PaymentReconcileService } from './payment-reconcile.service';
 import { OutboxCronService } from './outbox-cron.service';
+import { DatasetService } from './dataset.service';
+import { UploadsModule } from '../uploads/uploads.module';
 
 /**
  * STEP 2+3+7 — scheduled jobs.
@@ -15,13 +17,14 @@ import { OutboxCronService } from './outbox-cron.service';
  * - OutboxCronService drains the transactional outbox.
  */
 @Module({
-  imports: [PaymentsModule, NotificationsModule],
+  imports: [PaymentsModule, NotificationsModule, UploadsModule],
   providers: [
     AdvisoryLockService,
     ExpiryCronService,
     PaymentReconcileService,
     OutboxCronService,
+    DatasetService,
   ],
-  exports: [AdvisoryLockService, PaymentReconcileService],
+  exports: [AdvisoryLockService, PaymentReconcileService, DatasetService],
 })
 export class TasksModule {}

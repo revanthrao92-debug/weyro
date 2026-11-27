@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { validatePaymentTransition } from '../../common/state-machines/state-machines';
 import { VerifyProviderDto } from './dto/verify-provider.dto';
+import { recordDetail } from './record-detail';
 import {
   AdminOverviewMetrics,
   EscrowLedgerEntry,
@@ -172,6 +173,7 @@ export class AdminService {
     return {
       items: items.map((booking) => ({
         id: booking.id,
+        ref: booking.ref,
         status: booking.status,
         scheduledAt: booking.scheduledAt,
         createdAt: booking.createdAt,
@@ -688,5 +690,10 @@ export class AdminService {
           customer: null, provider: null, linked: [f.payment.ref, f.payment.booking.ref] };
       }
     }
+  }
+
+  /** Everything about one record for the admin detail screen (see record-detail.ts). */
+  recordDetail(ref: string) {
+    return recordDetail(this.prisma, ref);
   }
 }

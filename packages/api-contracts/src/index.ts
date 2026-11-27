@@ -466,3 +466,4 @@ export interface NotificationItem {
 }
 export * from './sentry-scrub';
 export * from './ref';
+export * from './training-scrub';

@@ -5,6 +5,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -82,6 +83,34 @@ export class S3StorageService implements StorageService {
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
     });
+  }
+
+  async putPrivateObject(params: { key: string; body: Buffer; contentType: string; contentEncoding?: string }): Promise<void> {
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: params.key,
+        Body: params.body,
+        ContentType: params.contentType,
+        ContentEncoding: params.contentEncoding,
+        // No ACL: buckets with ACLs disabled (the S3 default) reject any ACL. The bucket is private
+        // (production refuses STORAGE_PUBLIC_URL), and this key is outside the signed media folders.
+      }),
+    );
+  }
+
+  async objectExists(key: string): Promise<boolean> {
+    try {
+      await this.s3Client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return true;
+    } catch (error: any) {
+      if (error?.name === 'NotFound' || error?.$metadata?.httpStatusCode === 404) return false;
+      throw error; // a real failure must not look like "missing" (that would re-export over a good file)
+    }
+  }
+
+  async deletePrivateObject(key: string): Promise<void> {
+    await this.s3Client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   async getPresignedUploadUrl(
