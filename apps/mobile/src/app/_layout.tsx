@@ -3,23 +3,33 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PortalHost } from '@rn-primitives/portal';
 import { useAuth , AuthProvider } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ThemeProvider, NAV_THEME } from '@/lib/theme';
-import { palette } from '@/theme';
+import { colorSchemeName, palette } from '@/theme';
+import { colorScheme as nativewindScheme } from 'nativewind';
 import { flushOfflineQueue } from '@/services/offline-queue';
 import { initSentry } from '@/lib/sentry';
 // Registers the background location task at module scope (required by Expo Router + TaskManager).
 import '@/services/background-location';
 import { useFonts, Sora_600SemiBold } from '@expo-google-fonts/sora';
+import { shouldRetryQuery } from '@/services/api-client';
+import * as Notifications from 'expo-notifications';
+import { notificationHref } from '@/lib/notificationHref';
+
+// RN Reusables components read CSS variables: match the chosen theme (see theme/preference).
+// Skipped during the web build's server render (no window there); phones always have one.
+if (typeof window !== 'undefined') nativewindScheme.set(colorSchemeName);
 
 // M9: crash reporting (off unless EXPO_PUBLIC_SENTRY_DSN is set).
 initSentry();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: shouldRetryQuery } },
+});
 
 export default function RootLayout() {
   // Registers the display face used by typography.display (Sora 600).
@@ -31,7 +41,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           {/* Light is the app's active theme (see global.css). */}
-          <StatusBar style="light" />
+          <StatusBar style={colorSchemeName === 'light' ? 'dark' : 'light'} />
           <ErrorBoundary>
             <AuthRouter />
           </ErrorBoundary>
@@ -39,6 +49,28 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * Tapping a push notification opens the screen it is about (also when the tap
+ * cold-starts the app); same mapping as the in-app notification list.
+ * Native only: the response API throws UnavailabilityError on web.
+ */
+function NotificationTapRouter() {
+  const { isAuthenticated, role } = useAuth();
+  const router = useRouter();
+  const lastResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    if (!isAuthenticated || !lastResponse) return;
+    if (lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const data = lastResponse.notification.request.content.data as Record<string, unknown> | null;
+    Notifications.clearLastNotificationResponse();
+    const href = notificationHref(data ?? null, role);
+    if (href) router.push(href as never);
+  }, [isAuthenticated, lastResponse, role, router]);
+
+  return null;
 }
 
 function AuthRouter() {
@@ -51,7 +83,9 @@ function AuthRouter() {
     const inAuthGroup = segments[0] === '(auth)';
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && (inAuthGroup || (segments as string[]).length === 0)) {
+      // Also leave the blank start page: opening the app while already logged
+      // in lands there, and nothing else moves you on.
       router.replace('/(app)');
     }
   }, [isAuthenticated, isLoading, router, segments]);
@@ -85,12 +119,13 @@ function AuthRouter() {
 
   return (
     <View style={styles.root}>
-      <ThemeProvider value={NAV_THEME.light}>
-        <Stack screenOptions={{ headerShown: false }}>
+      <ThemeProvider value={NAV_THEME[colorSchemeName]}>
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
+      {Platform.OS !== 'web' ? <NotificationTapRouter /> : null}
       {/* RNR portal host — must stay the last child of the providers. */}
       <PortalHost />
     </View>

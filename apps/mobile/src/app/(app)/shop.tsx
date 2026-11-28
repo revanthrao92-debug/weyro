@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Text, View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useParts } from '@/hooks/useParts';
@@ -10,11 +10,13 @@ import {
   Zap,
   Car,
   Filter,
+  ClipboardCheck,
 } from 'lucide-react-native';
-import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale } from '@/components/ui';
+import { Input, ScreenContainer, Card, StatusPill, EmptyState, Skeleton, FilterBar, AdBanner, FadeSlideIn, PressableScale, ErrorState } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { Image } from 'expo-image';
-import { photo, photoForCategory } from '@/lib/photos';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { formatRupees } from '@/utils/format';
 
 const CATEGORIES = [
   { label: 'Engine', Icon: Wrench },
@@ -29,7 +31,14 @@ export default function ShopScreen() {
   const [search, setSearch] = useState('');
   const [make, setMake] = useState('');
   const router = useRouter();
-  const { data, isLoading } = useParts({ search, make });
+  // Search after typing pauses, not on every keystroke.
+  const [query, setQuery] = useState({ search, make });
+  useEffect(() => {
+    const t = setTimeout(() => setQuery({ search: search.trim(), make: make.trim() }), 300);
+    return () => clearTimeout(t);
+  }, [search, make]);
+  const { data, isLoading, isError, refetch } = useParts(query);
+  const refreshControl = useRefreshControl(refetch);
 
   const parts = data?.items ?? [];
 
@@ -120,7 +129,9 @@ export default function ShopScreen() {
         </View>
       </FilterBar>
 
-      {parts.length === 0 ? (
+      {isError && !data ? (
+        <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+      ) : parts.length === 0 ? (
         <EmptyState
           icon={<Package size={28} color={palette.textMuted} />}
           title="No parts found"
@@ -128,6 +139,7 @@ export default function ShopScreen() {
         />
       ) : (
         <FlatList
+          refreshControl={refreshControl}
           data={parts}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
@@ -157,12 +169,22 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
       scaleTo={0.98}
     >
       <View style={styles.cardContent}>
-        <Image
-          source={{ uri: part.imageUrl || photo(photoForCategory(part.category)) }}
-          style={styles.partPhoto}
-          contentFit="cover"
-          transition={120}
-        />
+        {part.imageUrl ? (
+          <Image
+            source={{ uri: part.imageUrl }}
+            style={styles.partPhoto}
+            contentFit="cover"
+            transition={120}
+          />
+        ) : (
+          <View style={[styles.partPhoto, styles.partPhotoEmpty]}>
+            {part.kind === 'PACKAGE' ? (
+              <ClipboardCheck size={24} color={palette.textMuted} strokeWidth={1.6} />
+            ) : (
+              <Package size={24} color={palette.textMuted} strokeWidth={1.6} />
+            )}
+          </View>
+        )}
         <View style={styles.info}>
           <Text style={styles.partName}>{part.name}</Text>
           <Text style={styles.partNumber}>{part.partNumber}</Text>
@@ -172,7 +194,7 @@ function PartCard({ part, onPress }: { part: any; onPress: () => void }) {
           />
         </View>
         <View style={styles.priceStock}>
-          <Text style={styles.price}>₹{Number(part.price).toLocaleString('en-IN')}</Text>
+          <Text style={styles.price}>{formatRupees(part.price)}</Text>
           <StockBadge inStock={part.inStock ?? (part.stockQuantity ?? 0) > 0} />
         </View>
       </View>
@@ -277,6 +299,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: palette.surfaceAlt,
   },
+  partPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1 },
   partName: { ...typography.bodyMedium, color: palette.textPrimary, marginBottom: spacing.xs },
   partNumber: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.xs },

@@ -2,6 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { getStorageToken, ThrottlerStorageService } from '@nestjs/throttler';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../common/redis/redis.constants';
 import { AppModule } from '../app.module';
 import { env } from '../config/env.config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -159,7 +162,6 @@ describe('Security foundations (Postgres)', () => {
         urgency: 'NORMAL',
         mediaUrls: [],
         damagePhotos: [],
-        isBroadcast: true,
       });
     expect(created.status).toBe(201);
 
@@ -249,7 +251,6 @@ describe('Security foundations (Postgres)', () => {
         urgency: 'NORMAL',
         mediaUrls: [],
         damagePhotos: [],
-        isBroadcast: true,
       });
     expect(created.status).toBe(201);
 
@@ -299,5 +300,91 @@ describe('Security foundations (Postgres)', () => {
       .post(`${API}/auth/refresh`)
       .send({ refreshToken: session.refreshToken });
     expect(res.status).toBe(401);
+  });
+});
+
+/**
+ * H5 with the Redis limiter (the path production uses when REDIS_URL is set).
+ * Needs a Redis: set TEST_REDIS_URL (CI provides one); skipped otherwise.
+ */
+const testRedisUrl = process.env.TEST_REDIS_URL;
+(testRedisUrl ? describe : describe.skip)('OTP send limits (Redis)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let redis: Redis;
+  let seq = 0;
+  const http = () => request(app.getHttpServer());
+  const newPhone = () => `+9192${String(Date.now()).slice(-6)}${String(seq++).padStart(2, '0')}`;
+  const keys = (phone: string) => ({
+    cooldown: `weyro:otp:send:cooldown:${phone}`,
+    daily: `weyro:otp:send:daily:${phone}`,
+    global: `weyro:otp:send:global:${Math.floor(Date.now() / 3_600_000)}`,
+  });
+  const cleanup = async (phone: string) => {
+    const k = keys(phone);
+    await redis.del(k.cooldown, k.daily, k.global);
+    await prisma.otpSend.deleteMany({ where: { phone } });
+    await prisma.oTP.deleteMany({ where: { phone } });
+  };
+
+  beforeAll(async () => {
+    redis = new Redis(testRedisUrl!, { maxRetriesPerRequest: 2 });
+    await redis.ping();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(REDIS_CLIENT)
+      .useValue(redis)
+      // AppModule builds its Redis throttler storage once at import, so the app
+      // closed by the block above already disconnected it. Use a fresh one.
+      .overrideProvider(getStorageToken())
+      .useValue(new ThrottlerStorageService())
+      .compile();
+    app = moduleRef.createNestApplication({ rawBody: true });
+    app.setGlobalPrefix('api/v1');
+    await app.init();
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    redis?.disconnect();
+  });
+
+  it('H5 (Redis): a second send within 30s is refused and only the first is logged in otp_sends', async () => {
+    const phone = newPhone();
+    try {
+      const first = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+      expect(first.status).toBe(201);
+      const second = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+      expect(second.status).toBe(429);
+      expect(await prisma.otpSend.count({ where: { phone } })).toBe(1);
+      expect(await redis.get(keys(phone).daily)).toBe('1');
+    } finally {
+      await cleanup(phone);
+    }
+  });
+
+  it('H5 (Redis): the 6th send in 24h is refused when the daily counter is at 5', async () => {
+    const phone = newPhone();
+    try {
+      await redis.set(keys(phone).daily, '5', 'EX', 86400);
+      await redis.del(keys(phone).cooldown);
+      const res = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+      expect(res.status).toBe(429);
+      expect(await prisma.oTP.count({ where: { phone } })).toBe(0);
+    } finally {
+      await cleanup(phone);
+    }
+  });
+
+  it('H5 (Redis): sends are refused with 503 once the global hourly cap is reached', async () => {
+    const phone = newPhone();
+    try {
+      await redis.set(keys(phone).global, String(env.OTP_GLOBAL_HOURLY_CAP), 'EX', 3660);
+      const res = await http().post(`${API}/auth/send-otp`).send({ phone, purpose: 'login' });
+      expect(res.status).toBe(503);
+      expect(await prisma.otpSend.count({ where: { phone } })).toBe(0);
+    } finally {
+      await cleanup(phone);
+    }
   });
 });

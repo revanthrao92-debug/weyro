@@ -154,17 +154,29 @@ export const envSchema = z.object({
     });
   }
 
+  // Keys are needed for S3-compatible stores (R2, MinIO: STORAGE_ENDPOINT set). On AWS S3 itself the
+  // server uses its ECS task role, so no long-lived keys exist anywhere.
+  if (value.STORAGE_ENDPOINT) {
+    for (const key of ['STORAGE_ACCESS_KEY', 'STORAGE_SECRET_KEY'] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required in production when STORAGE_ENDPOINT is set`,
+        });
+      }
+    }
+  }
+
   for (const key of [
     'STORAGE_BUCKET',
-    'STORAGE_ACCESS_KEY',
-    'STORAGE_SECRET_KEY',
     'RAZORPAY_KEY_ID',
     'RAZORPAY_KEY_SECRET',
     'RAZORPAY_WEBHOOK_SECRET',
     'OTP_HASH_SECRET',
     'SMS_PROVIDER',
-    // H7: behind Railway's proxy every client would share one IP bucket (or
-    // spoof X-Forwarded-For) without an explicit hop count.
+    // H7: behind a proxy every client would share one IP bucket (or spoof
+    // X-Forwarded-For) without an explicit hop count. AWS: 2 (CloudFront + load balancer).
     'TRUST_PROXY',
   ] as const) {
     if (!value[key]) {

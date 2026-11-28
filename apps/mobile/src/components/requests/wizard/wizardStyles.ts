@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 import {
   displayFamily,
-  fontFamilyMono,
   palette,
   radii,
   spacing,
@@ -27,8 +26,6 @@ export const styles = StyleSheet.create({
   eyebrow: {
     ...typography.label,
     color: palette.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
   },
   progress: {
     paddingHorizontal: spacing.lg,
@@ -44,10 +41,8 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   progressStep: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
-    letterSpacing: 0.6,
   },
   progressLabel: {
     ...typography.label,
@@ -91,8 +86,7 @@ export const styles = StyleSheet.create({
     borderTopColor: palette.border,
   },
   serviceIndex: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   serviceText: { flex: 1 },
@@ -152,30 +146,6 @@ export const styles = StyleSheet.create({
   savedTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   savedAddress: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
   savedDetail: { ...typography.caption, color: palette.textMuted, marginTop: 4 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  toggleText: { flex: 1 },
-  toggleLabel: { ...typography.body, color: palette.textPrimary },
-  toggle: {
-    minWidth: 58,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceAlt,
-    alignItems: 'center',
-  },
-  toggleActive: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
-  },
-  toggleValue: { ...typography.label, color: palette.textSecondary },
-  toggleValueActive: { color: palette.accent },
   banner: {
     flexDirection: 'row',
     alignItems: 'flex-start',

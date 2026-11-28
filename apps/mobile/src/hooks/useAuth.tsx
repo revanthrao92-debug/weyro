@@ -6,7 +6,7 @@ import {
   useState,
   ReactNode,
 } from 'react';
-import { Alert , Platform as RNPlatform } from 'react-native';
+import { Platform as RNPlatform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, setAccessToken, setTokenRefresher, setSessionExpiredHandler } from '@/services/api-client';
 import {
@@ -23,6 +23,7 @@ import {
   CustomerProfile,
   ProviderProfile,
 } from '@weyro/api-contracts';
+import { notice } from '@/lib/confirm';
 
 type AuthUser = User & {
   customerProfile?: CustomerProfile | null;
@@ -55,7 +56,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * AuthProvider's `refresh` (context consumers) and the api-client's
  * single-flight interceptor use the same implementation.
  */
-async function performTokenRefresh(): Promise<{
+export async function performTokenRefresh(): Promise<{
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
@@ -76,6 +77,9 @@ async function performTokenRefresh(): Promise<{
 
   await tokenStorage.setAccessToken(res.accessToken);
   await tokenStorage.setRefreshToken(res.refreshToken);
+  // The api-client reads its in-memory copy first; without this the retried
+  // request still sent the expired token and the user was logged out.
+  setAccessToken(res.accessToken);
   return res;
 }
 
@@ -215,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         body: JSON.stringify({ phone, code, newPassword }),
       });
-      Alert.alert(
+      notice(
         'Success',
         'Password reset. Please log in with your new password.'
       );

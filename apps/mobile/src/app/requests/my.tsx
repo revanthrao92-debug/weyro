@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMyRequests, type ServiceRequest } from '@/hooks/useRequests';
 import {
+  BackButton,
   ScreenContainer,
   PressableScale,
   Chip,
@@ -10,6 +11,7 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  ErrorState,
 } from '@/components/ui';
 import {
   StatusTone,
@@ -17,9 +19,9 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { formatDate, labelize } from '@/utils/format';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['OPEN', 'QUOTES_RECEIVED', 'ACCEPTED', 'CANCELLED', 'COMPLETED'];
 
@@ -77,7 +79,8 @@ function RequestRow({
 export default function MyRequestsScreen() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const router = useRouter();
-  const { data, isLoading } = useMyRequests();
+  const { data, isLoading, isError, refetch } = useMyRequests();
+  const refreshControl = useRefreshControl(refetch);
 
   const all = data?.items ?? [];
   const requests = statusFilter
@@ -89,7 +92,12 @@ export default function MyRequestsScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
+        <BackButton />
         <Text style={styles.eyebrow}>Requests</Text>
         <Text style={styles.title}>Your requests</Text>
         <Text style={styles.summary}>
@@ -110,6 +118,8 @@ export default function MyRequestsScreen() {
               </View>
             ))}
           </View>
+        ) : isError ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
         ) : all.length === 0 ? (
           <View style={styles.empty}>
             <EmptyState
@@ -125,7 +135,11 @@ export default function MyRequestsScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.filterRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
               {FILTERS.map((s) => (
                 <Chip
                   key={s}
@@ -136,7 +150,7 @@ export default function MyRequestsScreen() {
                   }
                 />
               ))}
-            </View>
+            </ScrollView>
 
             {requests.length === 0 ? (
               <View style={styles.empty}>
@@ -183,15 +197,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
   filterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
@@ -216,8 +228,7 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowKicker: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },

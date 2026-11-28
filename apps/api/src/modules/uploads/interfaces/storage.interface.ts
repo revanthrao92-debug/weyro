@@ -44,6 +44,15 @@ export interface StorageService {
     key: string;
     contentType: string;
   }): Promise<FinalizeImageResult>;
+  /**
+   * Store a private, non-image file written by the server (e.g. the nightly dataset). Keys outside
+   * the media folders are never signed for clients (see common/media/media-key.ts).
+   */
+  putPrivateObject(params: { key: string; body: Buffer; contentType: string; contentEncoding?: string }): Promise<void>;
+  /** True when a file already exists at this key. */
+  objectExists(key: string): Promise<boolean>;
+  /** Remove a server-written private file (no error if it's already gone). */
+  deletePrivateObject(key: string): Promise<void>;
 }
 
 export const STORAGE_SERVICE = Symbol('STORAGE_SERVICE');

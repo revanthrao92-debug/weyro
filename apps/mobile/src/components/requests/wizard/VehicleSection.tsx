@@ -18,7 +18,7 @@ export function VehicleSection({ vehicles, vehiclesQuery, effectiveVehicleMode, 
 }) {
   return (
     <>
-      <SectionHead index="01" title="Vehicle" />
+      <SectionHead title="Vehicle" />
       <VehicleSelector
         vehicles={vehicles}
         isError={vehiclesQuery.isError}

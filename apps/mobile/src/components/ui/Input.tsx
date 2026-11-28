@@ -71,6 +71,8 @@ export function Input({
         style={[
           {
             borderColor,
+            // Explicit: the text-foreground class kept the light-theme colour on web, near-invisible in dark.
+            color: palette.textPrimary,
             borderRadius: 6,
             backgroundColor: hasError ? palette.dangerSoftBg : palette.surfaceAlt,
           },

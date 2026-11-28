@@ -19,10 +19,9 @@ export const MAP_STYLE = process.env.EXPO_PUBLIC_MAPBOX_STYLE?.trim() || 'mapbox
 
 export const MAPBOX_API = 'https://api.mapbox.com';
 
-/** Bengaluru fallback centre — the seeded market. */
-export const FALLBACK_CENTER = { latitude: 12.9716, longitude: 77.5946 };
+/** Hyderabad fallback centre — the launch market. */
+export const FALLBACK_CENTER = { latitude: 17.385, longitude: 78.4867 };
 
-export const DEFAULT_ZOOM = 15;
 export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 19;
 
@@ -32,5 +31,3 @@ export const GEOCODE_COUNTRY = 'in';
 /** Debounce/dedupe tuning. */
 export const SEARCH_DEBOUNCE_MS = 320;
 export const REVERSE_DEBOUNCE_MS = 450;
-/** Do not re-geocode for pans smaller than this (no wasted requests). */
-export const REVERSE_MIN_MOVE_M = 12;

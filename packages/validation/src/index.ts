@@ -22,6 +22,22 @@ export function normalizeRegistrationNumber(input: string): string {
 }
 
 /** Shared phone field: validates with libphonenumber and outputs E.164. */
+/**
+ * Rules for a partial update (PATCH) built from the create rules, WITHOUT the
+ * create defaults. Zod 4 still fills `.default()` values inside `.partial()`,
+ * so `{ isActive: false }` used to come out as `{ isActive: false,
+ * stockQuantity: 1, condition: 'AFTERMARKET', ... }` and overwrite real data.
+ */
+export function partialUpdate<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => [
+      key,
+      field instanceof z.ZodDefault ? field.unwrap() : field,
+    ]),
+  );
+  return z.object(shape).strict().partial() as unknown as ReturnType<z.ZodObject<T>['partial']>;
+}
+
 export const phoneSchema = z
   .string()
   .trim()
@@ -175,7 +191,6 @@ export const CreateServiceRequestSchema = z
     urgency: z.enum(['NORMAL', 'URGENT', 'EMERGENCY']).default('NORMAL'),
     mediaUrls: z.array(z.string()).default([]),
     damagePhotos: z.array(z.string()).default([]),
-    isBroadcast: z.boolean().default(true),
     fulfillmentType: z
       .enum(['ON_SITE', 'WORKSHOP_VISIT', 'PARTS_SHIPPING', 'TOW_TO_GARAGE'])
       .optional(),
@@ -222,20 +237,33 @@ export const CreateServiceRequestSchema = z
   });
 
 // Quotation validation (Note: totalCost is computed server-side, providerId is derived from JWT)
-export const CreateQuotationSchema = z
+export const QuotationFieldsSchema = z
   .object({
     partsCost: z.number().min(0),
     labourCost: z.number().min(0).default(0),
     shippingCost: z.number().min(0).optional(),
     partCondition: z.enum(['OEM', 'AFTERMARKET', 'USED']).optional(),
     warrantyDays: z.number().int().min(0).default(30),
-    etaDescription: z.string().min(2),
+    // Old app versions send free text; new ones send startsAt + durationHours and the server writes the text.
+    etaDescription: z.string().min(2).optional(),
+    startsAt: z.string().datetime({ offset: true }).optional(),
+    durationHours: z.number().int().min(1).max(30 * 24).optional(),
     deliveryMethod: z
       .enum(['PICKUP', 'DOORSTEP_DELIVERY', 'PARTS_COURIER', 'ON_SITE_FITMENT'])
       .optional(),
     notes: z.string().max(1000).optional(),
   })
   .strict();
+
+export const CreateQuotationSchema = QuotationFieldsSchema
+  .refine((q) => (q.startsAt === undefined) === (q.durationHours === undefined), {
+    message: 'Send both startsAt and durationHours, or neither',
+    path: ['durationHours'],
+  })
+  .refine((q) => q.etaDescription !== undefined || q.startsAt !== undefined, {
+    message: 'Say when you can start and how long it takes',
+    path: ['startsAt'],
+  });
 
 // Live provider tracking
 export const UpdateBookingLocationSchema = z

@@ -1,34 +1,30 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Landmark } from 'lucide-react-native';
 import { useAdminEscrow, type EscrowEntry } from '@/hooks/useAdmin';
 import {
-  AppHeader,
   Chip,
   EmptyState,
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
+  PageHeader,
+  PressableScale,
 } from '@/components/ui';
-import { formatDate, titleize } from '@/utils/format';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-  type StatusTone,
-} from '@/theme';
+import { formatDate, titleize, formatRupees as money } from '@/utils/format';
+import { palette, spacing, typography, type StatusTone } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
-const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER'] as const;
+const FILTERS = ['ALL', 'HELD_IN_ESCROW', 'RELEASED_TO_PROVIDER', 'REFUNDED_TO_CUSTOMER', 'AWAITING_PAYMENT'] as const;
 type Filter = (typeof FILTERS)[number];
 
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
-}
 
 function statusTone(status: string): StatusTone {
   if (status === 'RELEASED_TO_PROVIDER') return 'success';
   if (status === 'REFUNDED_TO_CUSTOMER') return 'danger';
+  if (status === 'AWAITING_PAYMENT') return 'neutral';
   return 'warning';
 }
 
@@ -36,12 +32,15 @@ function statusLabel(status: string) {
   if (status === 'HELD_IN_ESCROW') return 'Held';
   if (status === 'RELEASED_TO_PROVIDER') return 'Released';
   if (status === 'REFUNDED_TO_CUSTOMER') return 'Refunded';
+  if (status === 'AWAITING_PAYMENT') return 'Not paid yet';
   return titleize(status);
 }
 
 export default function EscrowScreen() {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>('ALL');
-  const { data, isLoading } = useAdminEscrow();
+  const { data, isLoading, isError, refetch } = useAdminEscrow();
+  const refreshControl = useRefreshControl(refetch);
   const entries = useMemo(() => data ?? [], [data]);
 
   const visible = useMemo(
@@ -63,14 +62,15 @@ export default function EscrowScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Payments" subtitle="Collected, released and refunded" />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : visible}
         keyExtractor={(item) => item.paymentId ?? item.bookingId}
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
+            <PageHeader title="Payments" subtitle="Held, released to providers, and refunded" />
             <View style={styles.summary}>
               <View style={styles.summaryBlock}>
                 <Text style={styles.summaryValue}>{money(totals.held)}</Text>
@@ -85,7 +85,11 @@ export default function EscrowScreen() {
                 <Text style={styles.summaryLabel}>Refunded</Text>
               </View>
             </View>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
@@ -94,7 +98,7 @@ export default function EscrowScreen() {
                   onPress={() => setFilter(item)}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeleton}>
@@ -106,7 +110,9 @@ export default function EscrowScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<Landmark size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No payments yet' : 'Nothing here'}
@@ -118,41 +124,57 @@ export default function EscrowScreen() {
             />
           )
         }
-        renderItem={({ item }) => <EscrowRow entry={item} />}
+        renderItem={({ item }) => (
+          <EscrowRow entry={item} onOpen={item.paymentRef ? () => router.push(`/admin-record/${item.paymentRef}`) : undefined} />
+        )}
       />
     </ScreenContainer>
   );
 }
 
-function EscrowRow({ entry }: { entry: EscrowEntry }) {
+function EscrowRow({ entry, onOpen }: { entry: EscrowEntry; onOpen?: () => void }) {
   return (
-    <View style={styles.row}>
+    <PressableScale
+      onPress={onOpen}
+      disabled={!onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Payment ${entry.paymentRef ?? ''}, ${money(entry.amount)}`}
+      scaleTo={0.99}
+      style={styles.row}
+    >
       <View style={styles.rowTop}>
         <Text style={styles.amount}>{money(entry.amount)}</Text>
         <StatusPill label={statusLabel(entry.status)} tone={statusTone(entry.status)} />
       </View>
       <Text style={styles.parties} numberOfLines={1}>
-        {entry.customerName} → {entry.providerName}
+        From {entry.customerName} to {entry.providerName}
       </Text>
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>
-          #{entry.bookingId.slice(0, 8).toUpperCase()}
-          {entry.bookingStatus ? ` · ${titleize(entry.bookingStatus)}` : ''}
+      {/* Each number on its own line so it never breaks in the middle. */}
+      <Text style={styles.meta} selectable>
+        Payment {entry.paymentRef ?? `#${entry.bookingId.slice(0, 8).toUpperCase()}`}
+      </Text>
+      {entry.bookingRef ? (
+        <Text style={styles.meta} selectable>
+          For job {entry.bookingRef}
         </Text>
-        <Text style={styles.meta}>{formatDate(entry.confirmedAt)}</Text>
-      </View>
+      ) : null}
+      <Text style={styles.meta}>
+        {[entry.bookingStatus ? `Job ${titleize(entry.bookingStatus).toLowerCase()}` : null, formatDate(entry.confirmedAt)]
+          .filter(Boolean)
+          .join(', ')}
+      </Text>
       {entry.releasedAt ? (
         <Text style={styles.meta}>Released {formatDate(entry.releasedAt)}</Text>
       ) : null}
       {entry.payoutReference ? (
         <Text style={styles.meta}>Payout ref {entry.payoutReference}</Text>
       ) : null}
-    </View>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   summary: {
     flexDirection: 'row',
     paddingVertical: spacing.md,
@@ -161,16 +183,10 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
   },
   summaryBlock: { flex: 1, gap: 2 },
-  summaryValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 15,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  summaryLabel: { ...typography.label, color: palette.textMuted },
+  summaryValue: { ...typography.heading, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  summaryLabel: { ...typography.caption, color: palette.textMuted },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
@@ -187,17 +203,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  amount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 18,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  parties: { ...typography.caption, color: palette.textPrimary },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  meta: { ...typography.label, color: palette.textMuted },
+  amount: { ...typography.heading, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  parties: { ...typography.body, color: palette.textPrimary },
+  meta: { ...typography.caption, color: palette.textMuted, flexShrink: 1 },
 });

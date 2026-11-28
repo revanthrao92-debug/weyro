@@ -8,6 +8,7 @@
  * test:e2e -w @weyro/api`.
  */
 
+import { getBroadcastRecipientsQuery } from '@weyro/database';
 import { PrismaService, withSoftDelete } from '../prisma/prisma.service';
 
 describe('PostGIS & Soft Delete E2E', () => {
@@ -109,13 +110,7 @@ describe('PostGIS & Soft Delete E2E', () => {
         },
       });
 
-      // `location` is an Unsupported(...) column, so it is written via raw SQL.
-      await prisma.$executeRaw`
-        UPDATE "service_requests"
-        SET "location" = ST_GeogFromText('SRID=4326;POINT(77.5946 12.9716)')
-        WHERE "id" = ${request.id}
-      `;
-
+      // `location` is computed by the database from latitude/longitude.
       const rows = await prisma.$queryRaw<
         Array<{ distance: number }>
       >`
@@ -157,15 +152,6 @@ describe('PostGIS & Soft Delete E2E', () => {
         },
       });
 
-      await prisma.$executeRaw`
-        UPDATE "service_requests"
-        SET "dropoffLocation" = ST_SetSRID(
-          ST_MakePoint(77.6245, 12.9352),
-          4326
-        )::geography
-        WHERE "id" = ${request.id}
-      `;
-
       const rows = await prisma.$queryRaw<
         Array<{ distance: number; fare: number }>
       >`
@@ -182,6 +168,81 @@ describe('PostGIS & Soft Delete E2E', () => {
       expect(rows).toHaveLength(1);
       expect(Number(rows[0].distance)).toBeGreaterThan(5);
       expect(Number(rows[0].fare)).toBe(705);
+    });
+  });
+
+  describe('Broadcast recipients', () => {
+    // Customer in central Bengaluru. ~0.11 degrees of latitude is about 12 km.
+    const customer = { latitude: 12.9716, longitude: 77.5946 };
+    const made: string[] = [];
+    const provider = async (
+      name: string,
+      over: { type?: 'MECHANIC' | 'GARAGE' | 'PARTS_DEALER'; latOffset?: number; radius?: number; verified?: boolean; on?: boolean },
+    ) => {
+      const n = made.length;
+      const user = await prisma.user.create({
+        data: {
+          email: `e2e-bcast-${n}-${suffix}@example.com`,
+          phone: `+9196${n}${suffix.slice(-7)}`,
+          passwordHash: 'not-a-real-hash',
+          role: 'PROVIDER',
+          providerProfile: {
+            create: {
+              businessName: name,
+              description: 'Broadcast test provider',
+              providerType: over.type ?? 'MECHANIC',
+              phone: `+9196${n}${suffix.slice(-7)}`,
+              address: 'Bengaluru',
+              latitude: customer.latitude + (over.latOffset ?? 0.01),
+              longitude: customer.longitude,
+              serviceRadiusKm: over.radius ?? 15,
+              verificationStatus: over.verified === false ? 'PENDING' : 'VERIFIED',
+              isAvailable: over.on !== false,
+            },
+          },
+        },
+      });
+      made.push(user.id);
+      return user.id;
+    };
+
+    afterAll(async () => {
+      await prisma.user.deleteMany({ where: { id: { in: made } } }).catch(() => undefined);
+    });
+
+    it('pings only verified, switched-on, matching providers whose own area covers the customer', async () => {
+      const near = await provider('Near garage', {});
+      const wideFar = await provider('Far garage, wide area', { type: 'GARAGE', latOffset: 0.27, radius: 50 }); // ~30 km
+      await provider('Switched off', { on: false });
+      await provider('Not verified', { verified: false });
+      await provider('Far garage, small area', { latOffset: 0.27, radius: 15 });
+      await provider('Parts dealer', { type: 'PARTS_DEALER' });
+
+      const rows = await prisma.$queryRaw<{ userId: string; distanceKm: number }[]>(
+        getBroadcastRecipientsQuery({ ...customer, providerTypes: ['MECHANIC', 'GARAGE', 'AUTHORIZED_CENTER'] }),
+      );
+      const mine = rows.filter((r) => made.includes(r.userId));
+      expect(mine.map((r) => r.userId)).toEqual([near, wideFar]); // nearest first
+      expect(Number(mine[0].distanceKm)).toBeLessThan(2);
+      expect(Number(mine[1].distanceKm)).toBeGreaterThan(25);
+    });
+
+    it('matches a provider at its new place after it moves (profile edits change only lat/lng)', async () => {
+      const mover = await provider('Moving garage', { latOffset: 0.27 }); // ~30 km away, 15 km area
+      const recipients = async () =>
+        (
+          await prisma.$queryRaw<{ userId: string }[]>(
+            getBroadcastRecipientsQuery({ ...customer, providerTypes: ['MECHANIC'] }),
+          )
+        ).map((r) => r.userId);
+      expect(await recipients()).not.toContain(mover);
+
+      // Same write as PATCH /providers/me: coordinates only, no map point.
+      await prisma.providerProfile.update({
+        where: { userId: mover },
+        data: { latitude: customer.latitude + 0.02, longitude: customer.longitude },
+      });
+      expect(await recipients()).toContain(mover);
     });
   });
 

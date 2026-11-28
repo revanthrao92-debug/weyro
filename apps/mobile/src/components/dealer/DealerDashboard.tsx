@@ -1,14 +1,7 @@
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BarChart3,
-  Bell,
   ChevronRight,
   MessageCircle,
   Package,
@@ -17,47 +10,32 @@ import {
   TriangleAlert,
   Wallet,
 } from 'lucide-react-native';
+import { useState } from 'react';
 import {
-  EmptyState,
+  ErrorState,
+  FadeSlideIn,
   PressableScale,
   ScreenContainer,
   SectionHead,
   Skeleton,
   StatusPill,
+  SwitchRow,
 } from '@/components/ui';
+import { TopBar } from '@/components/home/customer/TopBar';
+import { EarningsChart } from './EarningsChart';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useProviderAnalytics } from '@/hooks/useProviderAnalytics';
 import { useProviderDashboard } from '@/hooks/useProviderDashboard';
 import { useUpdateProviderProfile } from '@/hooks/useProfile';
-import {
-  displayFamily,
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-} from '@/theme';
-import { formatDate } from '@/utils/format';
-import { useState } from 'react';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
+import { compactRupees } from '@/utils/earningsChart';
+import { formatDate, labelize, formatRupees as money } from '@/utils/format';
 
-function money(value: number) {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
-}
 
-function StatBlock({
-  label,
-  value,
-  onPress,
-}: {
-  label: string;
-  value: string | number;
-  onPress?: () => void;
-}) {
-  const content = (
-    <>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </>
-  );
-  if (!onPress) return <View style={styles.stat}>{content}</View>;
+const stagger = (i: number) => 60 + i * 70;
+
+function StatBlock({ label, value, onPress }: { label: string; value: string | number; onPress: () => void }) {
   return (
     <PressableScale
       onPress={onPress}
@@ -66,7 +44,8 @@ function StatBlock({
       scaleTo={0.98}
       style={styles.stat}
     >
-      {content}
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </PressableScale>
   );
 }
@@ -95,7 +74,7 @@ function ActionRow({
         <Text style={styles.actionLabel}>{label}</Text>
         <Text style={styles.actionDetail}>{detail}</Text>
       </View>
-      <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
+      <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />
     </PressableScale>
   );
 }
@@ -104,16 +83,18 @@ export function DealerDashboard() {
   const router = useRouter();
   const { user, providerProfile } = useAuth();
   const query = useProviderDashboard();
+  const analytics = useProviderAnalytics(30);
+  const { unreadCount } = useNotifications();
   const updateProfile = useUpdateProviderProfile();
   const [toggleError, setToggleError] = useState<string | null>(null);
 
   if (query.isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <View style={styles.body}>
-          <Skeleton width="60%" height={30} />
-          <Skeleton width="100%" height={92} style={{ marginTop: spacing.lg }} />
-          <Skeleton width="100%" height={160} style={{ marginTop: spacing.md }} />
+        <View style={styles.loading}>
+          <Skeleton width="70%" height={34} />
+          <Skeleton width="100%" height={72} style={{ marginTop: spacing.lg }} />
+          <Skeleton width="100%" height={220} style={{ marginTop: spacing.md }} />
         </View>
       </ScreenContainer>
     );
@@ -122,23 +103,11 @@ export function DealerDashboard() {
   if (query.isError || !query.data) {
     return (
       <ScreenContainer chrome="dark" safeBottom>
-        <View style={styles.body}>
-          <EmptyState
-            title="Dashboard unavailable"
-            message="Check your connection and try again."
-            action={
-              <PressableScale
-                onPress={() => void query.refetch()}
-                accessibilityRole="button"
-                accessibilityLabel="Retry"
-                style={styles.retry}
-                scaleTo={0.97}
-              >
-                <Text style={styles.retryText}>Retry</Text>
-              </PressableScale>
-            }
-          />
-        </View>
+        <ErrorState
+          title="Dashboard unavailable"
+          message="Check your connection and try again."
+          onRetry={() => void query.refetch()}
+        />
       </ScreenContainer>
     );
   }
@@ -146,10 +115,7 @@ export function DealerDashboard() {
   const data = query.data;
   const verified = data.provider.verificationStatus === 'VERIFIED';
   const name =
-    data.provider.businessName ||
-    providerProfile?.businessName ||
-    user?.email?.split('@')[0] ||
-    'Dealer';
+    data.provider.businessName || providerProfile?.businessName || user?.email?.split('@')[0] || 'Dealer';
   const verificationTone =
     data.provider.verificationStatus === 'VERIFIED'
       ? 'success'
@@ -198,449 +164,322 @@ export function DealerDashboard() {
     }
   };
 
+  const sales = analytics.data;
+  const forecast = sales?.forecast.available ? sales.forecast : null;
+
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.topRow}>
-          <View>
-            <Text style={styles.eyebrow}>Dealer</Text>
-            <Text style={styles.name} numberOfLines={1}>
+      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+        <TopBar router={router} user={user} unreadCount={unreadCount} initial={name[0]} />
+
+        <View style={styles.body}>
+          <FadeSlideIn delay={stagger(0)}>
+            <Text style={styles.name} numberOfLines={2} accessibilityRole="header">
               {name}
             </Text>
-          </View>
-          <View style={styles.headerActions}>
-            <PressableScale
-              onPress={() => router.push('/alerts')}
-              accessibilityRole="button"
-              accessibilityLabel="Alerts"
-              style={styles.headerButton}
-              scaleTo={0.92}
-            >
-              <Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />
-            </PressableScale>
-            <PressableScale
-              onPress={() => router.push('/inbox')}
-              accessibilityRole="button"
-              accessibilityLabel="Messages"
-              style={styles.headerButton}
-              scaleTo={0.92}
-            >
-              <MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />
-            </PressableScale>
-          </View>
-        </View>
-
-        <View style={styles.verifiedRow}>
-          <StatusPill label={data.provider.verificationStatus} tone={verificationTone} />
-          <Text style={styles.meta}>
-            {data.provider.avgRating > 0
-              ? `${data.provider.avgRating.toFixed(1)} rating · ${data.provider.totalReviews} reviews`
-              : 'New dealer'}
-          </Text>
-        </View>
-
-        <PressableScale
-          onPress={() => void toggleAvailability()}
-          disabled={updateProfile.isPending}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: data.provider.isAvailable }}
-          accessibilityLabel="Accepting orders"
-          style={[styles.availability, data.provider.isAvailable && styles.availabilityOn]}
-          scaleTo={0.99}
-        >
-          <View style={styles.availabilityText}>
-            <Text style={styles.availabilityTitle}>
-              {data.provider.isAvailable ? 'Accepting orders' : 'Shop closed'}
-            </Text>
-            <Text style={styles.availabilityDetail}>
-              {data.provider.isAvailable
-                ? 'Customers can buy your active listings.'
-                : 'Your listings stay visible but cannot be ordered.'}
-            </Text>
-          </View>
-          {updateProfile.isPending ? (
-            <ActivityIndicator color={palette.accent} />
-          ) : (
-            <View style={[styles.toggle, data.provider.isAvailable && styles.toggleOn]}>
-              <Text style={[styles.toggleText, data.provider.isAvailable && styles.toggleTextOn]}>
-                {data.provider.isAvailable ? 'On' : 'Off'}
+            <View style={styles.verifiedRow}>
+              <StatusPill label={labelize(data.provider.verificationStatus)} tone={verificationTone} />
+              <Text style={styles.meta}>
+                {data.provider.avgRating > 0
+                  ? `${data.provider.avgRating.toFixed(1)} rating, ${data.provider.totalReviews} reviews`
+                  : 'New dealer'}
               </Text>
             </View>
-          )}
-        </PressableScale>
-        {!verified ? (
-          <Text style={styles.notice}>
-            Your account is {data.provider.verificationStatus.toLowerCase()}. You
-            cannot accept orders until approval.
-          </Text>
-        ) : null}
-        {toggleError ? <Text style={styles.error}>{toggleError}</Text> : null}
+          </FadeSlideIn>
 
-        <View style={styles.stats}>
-          <StatBlock
-            label="Open requests"
-            value={data.counts.openRequests}
+          <FadeSlideIn delay={stagger(1)}>
+            <View style={styles.card}>
+              <SwitchRow
+                title={data.provider.isAvailable ? 'Accepting orders' : 'Shop closed'}
+                detail={
+                  data.provider.isAvailable
+                    ? 'Customers can buy your active listings.'
+                    : 'Your listings stay visible but cannot be ordered.'
+                }
+                value={data.provider.isAvailable}
+                onToggle={() => void toggleAvailability()}
+                busy={updateProfile.isPending}
+                accessibilityLabel="Accepting orders"
+              />
+              {!verified ? (
+                <Text style={styles.notice}>
+                  Your account is {data.provider.verificationStatus.toLowerCase()}. You cannot accept orders until
+                  approval.
+                </Text>
+              ) : null}
+              {toggleError ? <Text style={styles.error}>{toggleError}</Text> : null}
+            </View>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(2)}>
+            <SectionHead title="Earnings" action="Details" onAction={() => router.push('/financials')} />
+            <View style={[styles.card, styles.cardAfterHead]}>
+              {analytics.isLoading ? (
+                <Skeleton width="100%" height={210} />
+              ) : sales && sales.buckets.length > 0 ? (
+                <EarningsChart
+                  compact
+                  buckets={sales.buckets}
+                  forecast={forecast?.points}
+                  idle={{
+                    label: 'Last 30 days',
+                    value: money(sales.summary.netSales),
+                    meta: `${sales.summary.paidOrders} paid orders. Drag along the line to see each day.`,
+                  }}
+                  accessibilityLabel={`Earnings chart. Last 30 days ${money(sales.summary.netSales)} from ${
+                    sales.summary.paidOrders
+                  } orders.${forecast ? ` Next ${forecast.horizonDays} days, about ${money(forecast.projectedTotal)}.` : ''}`}
+                />
+              ) : (
+                <Text style={styles.emptyLine}>Your earnings will show here after your first sale.</Text>
+              )}
+              {forecast ? (
+                <PressableScale
+                  onPress={() => router.push('/financials')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Forecast: next ${forecast.horizonDays} days about ${money(
+                    forecast.projectedTotal,
+                  )}, likely ${money(forecast.projectedLow)} to ${money(forecast.projectedHigh)}`}
+                  scaleTo={0.99}
+                  style={styles.forecastRow}
+                >
+                  <View style={styles.legendDash} />
+                  <Text style={styles.forecastText}>
+                    Next {forecast.horizonDays} days: about{' '}
+                    <Text style={styles.forecastStrong}>{compactRupees(forecast.projectedTotal)}</Text>, likely{' '}
+                    {compactRupees(forecast.projectedLow)} to {compactRupees(forecast.projectedHigh)}
+                  </Text>
+                  <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />
+                </PressableScale>
+              ) : sales && !sales.forecast.available ? (
+                <Text style={styles.cardDetail}>{sales.forecast.reason}</Text>
+              ) : null}
+            </View>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(3)}>
+            <View style={styles.stats}>
+              <StatBlock label="To fulfill" value={data.counts.pendingOrders} onPress={() => router.push('/orders')} />
+              <StatBlock
+                label="Open requests"
+                value={data.counts.openRequests}
+                onPress={() => router.push('/opportunities')}
+              />
+              <StatBlock label="Quotes" value={data.counts.pendingQuotes} onPress={() => router.push('/my-quotes')} />
+              <StatBlock
+                label="Listings"
+                value={data.counts.activeListings}
+                onPress={() => router.push('/my-listings')}
+              />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{money(data.revenue.todayPaid)}</Text>
+                <Text style={styles.statLabel}>Sales today</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{money(data.revenue.inventoryValue)}</Text>
+                <Text style={styles.statLabel}>Stock value</Text>
+              </View>
+            </View>
+          </FadeSlideIn>
+
+          <SectionHead title="Needs attention" />
+          {attention.length === 0 ? (
+            <Text style={styles.emptyLine}>All clear. Nothing needs action.</Text>
+          ) : (
+            attention.map((item, index) => (
+              <PressableScale
+                key={item.key}
+                onPress={item.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={[styles.row, index > 0 && styles.divider]}
+                scaleTo={0.99}
+              >
+                <TriangleAlert size={18} color={palette.warning} strokeWidth={1.8} />
+                <Text style={styles.rowText}>{item.label}</Text>
+                <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />
+              </PressableScale>
+            ))
+          )}
+
+          <SectionHead
+            title="Recent orders"
+            action={data.recentOrders.length > 0 ? 'View all' : undefined}
+            onAction={() => router.push('/orders')}
+          />
+          {data.recentOrders.length === 0 ? (
+            <Text style={styles.emptyLine}>No orders yet.</Text>
+          ) : (
+            data.recentOrders.map((order, index) => (
+              <PressableScale
+                key={order.id}
+                onPress={() => router.push(`/order/${order.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Order ${order.sparePart?.name ?? ''}, ${money(order.totalAmount)}`}
+                style={[styles.row, index > 0 && styles.divider]}
+                scaleTo={0.99}
+              >
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {order.sparePart?.name ?? 'Spare part'}
+                  </Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>
+                    {order.customer?.firstName ?? 'Customer'}, {formatDate(order.createdAt)}
+                  </Text>
+                </View>
+                <View style={styles.rowRight}>
+                  <Text style={styles.amount}>{money(order.totalAmount)}</Text>
+                  <Text style={styles.rowMeta}>{labelize(order.fulfillmentStatus)}</Text>
+                </View>
+              </PressableScale>
+            ))
+          )}
+
+          <SectionHead
+            title="Recent quotes"
+            action={data.recentQuotes.length > 0 ? 'View all' : undefined}
+            onAction={() => router.push('/my-quotes')}
+          />
+          {data.recentQuotes.length === 0 ? (
+            <Text style={styles.emptyLine}>No quotes sent yet.</Text>
+          ) : (
+            data.recentQuotes.map((quote, index) => (
+              <PressableScale
+                key={quote.id}
+                onPress={() => router.push('/my-quotes')}
+                accessibilityRole="button"
+                accessibilityLabel={`Quote ${quote.request?.title ?? ''}, ${money(quote.totalCost)}`}
+                style={[styles.row, index > 0 && styles.divider]}
+                scaleTo={0.99}
+              >
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {quote.request?.title ?? 'Service request'}
+                  </Text>
+                  <Text style={styles.rowMeta}>{formatDate(quote.createdAt)}</Text>
+                </View>
+                <View style={styles.rowRight}>
+                  <Text style={styles.amount}>{money(quote.totalCost)}</Text>
+                  <Text style={styles.rowMeta}>{labelize(quote.status)}</Text>
+                </View>
+              </PressableScale>
+            ))
+          )}
+
+          <SectionHead title="Manage" />
+          <ActionRow
+            icon={<Radar size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+            label="Requests"
+            detail="Open spare-part requests near you"
             onPress={() => router.push('/opportunities')}
           />
-          <StatBlock
-            label="Quotes"
-            value={data.counts.pendingQuotes}
-            onPress={() => router.push('/my-quotes')}
-          />
-          <StatBlock
-            label="To fulfill"
-            value={data.counts.pendingOrders}
+          <ActionRow
+            icon={<Package size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+            label="Orders"
+            detail="Fulfill paid customer orders"
             onPress={() => router.push('/orders')}
           />
-          <StatBlock
+          <ActionRow
+            icon={<Tag size={20} color={palette.textSecondary} strokeWidth={1.8} />}
             label="Listings"
-            value={data.counts.activeListings}
+            detail="Manage parts, price and stock"
             onPress={() => router.push('/my-listings')}
           />
+          <ActionRow
+            icon={<BarChart3 size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+            label="Earnings and forecast"
+            detail="Daily sales, refunds and the next 14 days"
+            onPress={() => router.push('/financials')}
+          />
+          <ActionRow
+            icon={<Wallet size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+            label="Quotes"
+            detail="Sent quotes and their status"
+            onPress={() => router.push('/my-quotes')}
+          />
+          <ActionRow
+            icon={<MessageCircle size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+            label="Messages"
+            detail="Customer conversations"
+            onPress={() => router.push('/inbox')}
+          />
+
+          <Text style={styles.footer}>{data.provider.serviceRadiusKm} km service radius</Text>
         </View>
-
-        <View style={styles.moneyRow}>
-          <View style={styles.moneyBlock}>
-            <Text style={styles.moneyValue}>{money(data.revenue.paidTotal)}</Text>
-            <Text style={styles.moneyLabel}>Paid sales</Text>
-          </View>
-          <View style={styles.moneyBlock}>
-            <Text style={styles.moneyValue}>{money(data.revenue.todayPaid)}</Text>
-            <Text style={styles.moneyLabel}>Today</Text>
-          </View>
-          <View style={styles.moneyBlock}>
-            <Text style={styles.moneyValue}>{money(data.revenue.inventoryValue)}</Text>
-            <Text style={styles.moneyLabel}>Inventory value</Text>
-          </View>
-        </View>
-
-        <SectionHead index="01" title="Needs attention" />
-        {attention.length === 0 ? (
-          <Text style={styles.emptyLine}>All clear. Nothing needs action.</Text>
-        ) : (
-          attention.map((item) => (
-            <PressableScale
-              key={item.key}
-              onPress={item.onPress}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              style={styles.attentionRow}
-              scaleTo={0.99}
-            >
-              <TriangleAlert size={15} color={palette.textMuted} strokeWidth={1.8} />
-              <Text style={styles.attentionText}>{item.label}</Text>
-              <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
-            </PressableScale>
-          ))
-        )}
-
-        <SectionHead
-          index="02"
-          title="Recent orders"
-          action={data.recentOrders.length > 0 ? 'View all' : undefined}
-          onAction={() => router.push('/orders')}
-        />
-        {data.recentOrders.length === 0 ? (
-          <Text style={styles.emptyLine}>No orders yet.</Text>
-        ) : (
-          data.recentOrders.map((order, index) => (
-            <PressableScale
-              key={order.id}
-              onPress={() => router.push('/orders')}
-              accessibilityRole="button"
-              accessibilityLabel={`Order ${order.sparePart?.name ?? ''}`}
-              style={[styles.dataRow, index > 0 && styles.divider]}
-              scaleTo={0.99}
-            >
-              <View style={styles.dataText}>
-                <Text style={styles.dataTitle} numberOfLines={1}>
-                  {order.sparePart?.name ?? 'Spare part'}
-                </Text>
-                <Text style={styles.dataMeta} numberOfLines={1}>
-                  {order.customer?.firstName ?? 'Customer'} · {order.fulfillmentStatus.toLowerCase()}
-                </Text>
-              </View>
-              <View style={styles.dataRight}>
-                <Text style={styles.dataAmount}>{money(order.totalAmount)}</Text>
-                <Text style={styles.dataMeta}>{formatDate(order.createdAt)}</Text>
-              </View>
-            </PressableScale>
-          ))
-        )}
-
-        <SectionHead
-          index="03"
-          title="Recent quotes"
-          action={data.recentQuotes.length > 0 ? 'View all' : undefined}
-          onAction={() => router.push('/my-quotes')}
-        />
-        {data.recentQuotes.length === 0 ? (
-          <Text style={styles.emptyLine}>No quotes sent yet.</Text>
-        ) : (
-          data.recentQuotes.map((quote, index) => (
-            <PressableScale
-              key={quote.id}
-              onPress={() => router.push('/my-quotes')}
-              accessibilityRole="button"
-              accessibilityLabel={`Quote ${quote.request?.title ?? ''}`}
-              style={[styles.dataRow, index > 0 && styles.divider]}
-              scaleTo={0.99}
-            >
-              <View style={styles.dataText}>
-                <Text style={styles.dataTitle} numberOfLines={1}>
-                  {quote.request?.title ?? 'Service request'}
-                </Text>
-                <Text style={styles.dataMeta}>{quote.status.toLowerCase()}</Text>
-              </View>
-              <View style={styles.dataRight}>
-                <Text style={styles.dataAmount}>{money(quote.totalCost)}</Text>
-                <Text style={styles.dataMeta}>{formatDate(quote.createdAt)}</Text>
-              </View>
-            </PressableScale>
-          ))
-        )}
-
-        <SectionHead index="04" title="Manage" />
-        <ActionRow
-          icon={<Radar size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Requests"
-          detail="Open spare-part requests near you"
-          onPress={() => router.push('/opportunities')}
-        />
-        <ActionRow
-          icon={<Package size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Orders"
-          detail="Fulfill paid customer orders"
-          onPress={() => router.push('/orders')}
-        />
-        <ActionRow
-          icon={<Tag size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Listings"
-          detail="Manage parts, price and stock"
-          onPress={() => router.push('/my-listings')}
-        />
-        <ActionRow
-          icon={<BarChart3 size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Financials"
-          detail="Sales trend, refunds and forecast"
-          onPress={() => router.push('/financials')}
-        />
-        <ActionRow
-          icon={<Wallet size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Quotes"
-          detail="Sent quotes and their status"
-          onPress={() => router.push('/my-quotes')}
-        />
-        <ActionRow
-          icon={<MessageCircle size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Messages"
-          detail="Customer conversations"
-          onPress={() => router.push('/inbox')}
-        />
-
-        <Text style={styles.footer}>
-          {data.provider.serviceRadiusKm} km service radius · Hyderabad pilot
-        </Text>
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  eyebrow: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.3,
-  },
-  name: {
-    fontFamily: displayFamily,
-    fontSize: 30,
-    lineHeight: 34,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-  },
-  headerActions: { flexDirection: 'row', gap: spacing.sm },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+  page: { paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg },
+  loading: { paddingTop: spacing.lg },
+  name: { fontFamily: displayFamily, fontSize: 28, lineHeight: 34, color: palette.textPrimary, marginTop: spacing.sm },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' },
+  meta: { ...typography.caption, color: palette.textMuted },
+  card: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
     backgroundColor: palette.surface,
   },
-  verifiedRow: {
+  cardAfterHead: { marginTop: 0 },
+  cardTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  cardDetail: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  notice: { ...typography.caption, color: palette.warning, marginTop: spacing.sm },
+  error: { ...typography.caption, color: palette.danger, marginTop: spacing.sm },
+  forecastRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    minHeight: 44,
     marginTop: spacing.sm,
-    flexWrap: 'wrap',
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
   },
-  meta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
-    color: palette.textMuted,
-  },
-  availability: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 6,
-    borderLeftWidth: 2,
-    borderLeftColor: palette.borderStrong,
-    backgroundColor: palette.surfaceAlt,
-  },
-  availabilityOn: {
-    borderLeftColor: palette.accent,
-  },
-  availabilityText: { flex: 1 },
-  availabilityTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  availabilityDetail: {
-    ...typography.caption,
-    color: palette.textSecondary,
-    marginTop: 2,
-  },
-  toggle: {
-    minWidth: 44,
-    minHeight: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.borderStrong,
-  },
-  toggleOn: {
-    backgroundColor: palette.accent,
-    borderColor: palette.accent,
-  },
-  toggleText: { ...typography.label, color: palette.textSecondary },
-  toggleTextOn: { color: palette.onAccent },
-  notice: {
-    ...typography.caption,
-    color: palette.warning,
-    marginTop: spacing.xs,
-  },
-  error: { ...typography.caption, color: palette.danger, marginTop: spacing.xs },
+  legendDash: { width: 16, borderTopWidth: 2, borderStyle: 'dashed', borderColor: palette.accent },
+  forecastText: { ...typography.caption, color: palette.textSecondary, flex: 1 },
+  forecastStrong: { ...typography.captionMedium, color: palette.textPrimary },
   stats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
   },
   stat: {
     width: '50%',
+    minHeight: 64,
     paddingVertical: spacing.md,
-    gap: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
   },
-  statValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 20,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: { ...typography.label, color: palette.textMuted },
-  moneyRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  moneyBlock: { flex: 1, gap: 2 },
-  moneyValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 13,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  moneyLabel: { ...typography.label, color: palette.textMuted },
-  attentionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-  },
-  attentionText: {
-    ...typography.body,
-    color: palette.textPrimary,
-    flex: 1,
-  },
-  emptyLine: {
-    ...typography.caption,
-    color: palette.textMuted,
-    paddingVertical: spacing.md,
-  },
-  dataRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 58,
-    paddingVertical: spacing.sm,
-  },
-  divider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-  },
-  dataText: { flex: 1 },
-  dataTitle: { ...typography.bodyMedium, color: palette.textPrimary },
-  dataMeta: { ...typography.caption, color: palette.textMuted, marginTop: 1 },
-  dataRight: { alignItems: 'flex-end' },
-  dataAmount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 12,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
+  statValue: { ...typography.heading, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  statLabel: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 60, paddingVertical: spacing.sm },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  rowText: { ...typography.body, color: palette.textPrimary, flex: 1 },
+  rowTitle: { ...typography.bodyMedium, color: palette.textPrimary },
+  rowMeta: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
+  rowRight: { alignItems: 'flex-end' },
+  amount: { ...typography.bodyMedium, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 58,
+    minHeight: 60,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  actionIcon: {
-    width: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  actionIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
   actionText: { flex: 1 },
   actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },
-  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 1 },
-  footer: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
-    color: palette.textMuted,
-    marginTop: spacing.xl,
-    textAlign: 'center',
-  },
-  retry: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    backgroundColor: palette.accent,
-  },
-  retryText: { ...typography.label, color: palette.onAccent },
+  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
+  footer: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xl, textAlign: 'center' },
+  emptyLine: { ...typography.caption, color: palette.textMuted, paddingVertical: spacing.md },
 });

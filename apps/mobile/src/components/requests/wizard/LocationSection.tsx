@@ -20,7 +20,6 @@ export function LocationSection({ config, location, dropoff, savedLocation, erro
   return (
     <>
       <SectionHead
-        index="02"
         title={config.locationMode === 'trip' ? 'Route' : 'Location'}
       />
       {config.locationMode === 'trip' ? (

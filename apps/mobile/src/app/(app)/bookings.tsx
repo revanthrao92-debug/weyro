@@ -9,15 +9,14 @@ import {
   StatusPill,
   Skeleton,
   Button,
+  PageHeader,
 } from '@/components/ui';
 import {
   palette,
   spacing,
   typography,
-  displayFamily,
-  fontFamilyMono,
 } from '@/theme';
-import { bookingStatusTone, formatDate, labelize } from '@/utils/format';
+import { bookingStatusTone, formatDate, labelize, formatRupees } from '@/utils/format';
 
 /**
  * Bookings — transactional list. Grouped Upcoming / Past, job-sheet rows,
@@ -28,7 +27,7 @@ const PAST = new Set(['COMPLETED', 'CANCELLED']);
 
 function amount(booking: Booking): string | null {
   if (!booking.payment) return null;
-  return `₹${Number(booking.payment.amount).toLocaleString('en-IN')}`;
+  return formatRupees(booking.payment.amount);
 }
 
 function BookingRow({
@@ -59,8 +58,13 @@ function BookingRow({
           {value ? ` · ${value}` : ''}
         </Text>
         <Text style={styles.rowTitle} numberOfLines={1}>
-          {booking.provider?.businessName ?? 'Booking'}
+          {booking.quotation?.request?.title ?? booking.provider?.businessName ?? 'Booking'}
         </Text>
+        {booking.quotation?.request?.title && booking.provider?.businessName ? (
+          <Text style={styles.rowMeta} numberOfLines={1}>
+            {booking.provider.businessName}
+          </Text>
+        ) : null}
         {booking.payment ? (
           <Text style={styles.rowMeta} numberOfLines={1}>
             Payment {labelize(booking.payment.status).toLowerCase()}
@@ -69,11 +73,7 @@ function BookingRow({
       </View>
       <StatusPill
         label={labelize(booking.status)}
-        tone={
-          booking.status === 'CONFIRMED' || booking.status === 'PROVIDER_EN_ROUTE'
-            ? 'neutral'
-            : bookingStatusTone(booking.status)
-        }
+        tone={bookingStatusTone(booking.status)}
       />
     </PressableScale>
   );
@@ -103,13 +103,12 @@ export default function BookingsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.textSecondary} />
         }
       >
-        <Text style={styles.eyebrow}>Activity</Text>
-        <Text style={styles.title}>Bookings</Text>
-        <Text style={styles.summary}>
-          {bookings.length === 0
-            ? 'No bookings yet'
-            : `${upcoming.length} active · ${past.length} past`}
-        </Text>
+        <PageHeader
+          title="Bookings"
+          subtitle={
+            bookings.length === 0 ? 'No bookings yet' : `${upcoming.length} active, ${past.length} past`
+          }
+        />
 
         {isLoading ? (
           <View style={styles.loading}>
@@ -140,7 +139,7 @@ export default function BookingsScreen() {
         ) : (
           <>
             {upcoming.length > 0 ? (
-              <SectionHead index="01" title="Upcoming" />
+              <SectionHead title="Upcoming" />
             ) : null}
             {upcoming.length > 0 ? (
               <View style={styles.list}>
@@ -156,7 +155,7 @@ export default function BookingsScreen() {
             ) : null}
 
             {past.length > 0 ? (
-              <SectionHead index={upcoming.length > 0 ? '02' : '01'} title="Past" />
+              <SectionHead title="Past" />
             ) : null}
             {past.length > 0 ? (
               <View style={styles.list}>
@@ -179,25 +178,6 @@ export default function BookingsScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: 104 },
-  eyebrow: {
-    ...typography.label,
-    color: palette.textMuted,
-    letterSpacing: 0.3,
-  },
-  title: {
-    fontFamily: displayFamily,
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: -0.6,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-  },
-  summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
-    color: palette.textMuted,
-    marginTop: spacing.xs,
-  },
   loading: {
     marginTop: spacing.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -220,8 +200,7 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowKicker: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
   },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: 3 },

@@ -2,9 +2,7 @@ import type { StatusTone } from '@/theme';
 import type { DriverJob } from '@/hooks/useDriverGo';
 import { formatDate } from '@/utils/format';
 
-export function money(value: number): string {
-  return `₹${Number(value || 0).toLocaleString('en-IN')}`;
-}
+export { formatRupees as money } from '@/utils/format';
 
 export function jobWhen(iso: string): string {
   const date = new Date(iso);
@@ -41,7 +39,7 @@ export function jobStatusLabel(status: DriverJob['status']): string {
     case 'CONFIRMED':
       return 'Confirmed';
     case 'DRIVER_EN_ROUTE':
-      return 'En route';
+      return 'On the way';
     case 'ARRIVED':
       return 'Arrived';
     case 'IN_PROGRESS':
@@ -84,5 +82,26 @@ export function customerName(job: DriverJob): string {
 
 export function vehicleLabel(job: DriverJob): string {
   if (!job.vehicle) return 'Vehicle';
-  return `${job.vehicle.make} ${job.vehicle.model} · ${job.vehicle.registrationNumber}`;
+  return `${job.vehicle.make} ${job.vehicle.model}, ${job.vehicle.registrationNumber}`;
+}
+
+/**
+ * What the driver does next on a trip. Starting needs the customer's code and
+ * ending needs a confirmation, so those have no direct `next`: the list opens the trip.
+ */
+export function nextTripStep(
+  status: DriverJob['status'],
+): { title: string; next?: 'DRIVER_EN_ROUTE' | 'ARRIVED' } | null {
+  switch (status) {
+    case 'CONFIRMED':
+      return { title: 'On my way', next: 'DRIVER_EN_ROUTE' };
+    case 'DRIVER_EN_ROUTE':
+      return { title: 'I have arrived', next: 'ARRIVED' };
+    case 'ARRIVED':
+      return { title: 'Start trip' };
+    case 'IN_PROGRESS':
+      return { title: 'End trip' };
+    default:
+      return null;
+  }
 }

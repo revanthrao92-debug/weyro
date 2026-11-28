@@ -79,8 +79,6 @@ const styles = StyleSheet.create({
   eyebrow: {
     ...typography.label,
     color: palette.textSecondary,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
   },
   spacer: { flex: 1 },
   action: {

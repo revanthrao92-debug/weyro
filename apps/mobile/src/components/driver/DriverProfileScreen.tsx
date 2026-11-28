@@ -1,16 +1,10 @@
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Bell, CalendarClock, ChevronRight, LifeBuoy, LogOut, MessageCircle, Star, Wallet } from 'lucide-react-native';
 import {
-  CalendarClock,
-  ChevronRight,
-  LifeBuoy,
-  LogOut,
-  MessageCircle,
-  Wallet,
-} from 'lucide-react-native';
-import {
-  AppHeader,
-  EmptyState,
+  AppearancePicker,
+  ErrorState,
+  PageHeader,
   PressableScale,
   ScreenContainer,
   SectionHead,
@@ -19,17 +13,13 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useDriverMe } from '@/hooks/useDriverGo';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
+import { titleize } from '@/utils/format';
 import { money } from './driverFormat';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-} from '@/theme';
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, !last && styles.rowDivider]}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue}>{value}</Text>
     </View>
@@ -39,240 +29,192 @@ function Row({ label, value }: { label: string; value: string }) {
 function Action({
   icon,
   label,
+  detail,
   onPress,
   danger = false,
 }: {
   icon: React.ReactNode;
   label: string;
+  detail?: string;
   onPress: () => void;
   danger?: boolean;
 }) {
   return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      scaleTo={0.99}
-      style={styles.action}
-    >
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} scaleTo={0.99} style={styles.action}>
       <View style={styles.actionIcon}>{icon}</View>
-      <Text style={[styles.actionLabel, danger && styles.actionDanger]}>
-        {label}
-      </Text>
-      <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
+      <View style={styles.actionText}>
+        <Text style={[styles.actionLabel, danger && styles.actionDanger]}>{label}</Text>
+        {detail ? <Text style={styles.actionDetail}>{detail}</Text> : null}
+      </View>
+      {danger ? null : <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />}
     </PressableScale>
   );
 }
 
+const VERIFICATION: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' }> = {
+  VERIFIED: { label: 'Verified', tone: 'success' },
+  PENDING: { label: 'Awaiting approval', tone: 'warning' },
+  REJECTED: { label: 'Not approved', tone: 'danger' },
+  SUSPENDED: { label: 'Suspended', tone: 'danger' },
+};
+
+const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Driver account: who you are, your driving details, settings. Trips and earnings live on Home. */
 export function DriverProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const query = useDriverMe();
   const me = query.data;
-  const name = me?.businessName || user?.email?.split('@')[0] || 'Driver';
-  const initials = name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+
+  if (query.isLoading) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <PageHeader title="Profile" />
+        <Skeleton width="100%" height={96} />
+        <Skeleton width="100%" height={180} style={{ marginTop: spacing.md }} />
+      </ScreenContainer>
+    );
+  }
+
+  if (query.isError || !me) {
+    return (
+      <ScreenContainer chrome="dark" safeBottom>
+        <PageHeader title="Profile" />
+        <ErrorState title="Profile unavailable" message="Check your connection and try again." onRetry={() => void query.refetch()} />
+      </ScreenContainer>
+    );
+  }
+
+  const name = me.businessName || user?.email?.split('@')[0] || 'Driver';
+  const verification = VERIFICATION[me.verificationStatus] ?? VERIFICATION.PENDING;
+  const d = me.driver;
+  const licence = d.licenceNumber
+    ? d.licenceExpiry
+      ? `${d.licenceNumber}, valid until ${dateText(d.licenceExpiry)}`
+      : d.licenceNumber
+    : 'Not added yet';
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader title="Profile" subtitle="Driver account" />
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
-        {query.isLoading ? (
-          <>
-            <Skeleton width="100%" height={80} />
-            <Skeleton width="100%" height={120} style={{ marginTop: spacing.md }} />
-          </>
-        ) : query.isError || !me ? (
-          <EmptyState
-            title="Profile unavailable"
-            message="Check your connection and try again."
-          />
-        ) : (
-          <>
-            <View style={styles.accountRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials || 'D'}</Text>
-              </View>
-              <View style={styles.accountText}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {name}
-                </Text>
-                <Text style={styles.email} numberOfLines={1}>
-                  {me.email || me.phone}
-                </Text>
-              </View>
-              <StatusPill
-                label={me.verificationStatus}
-                tone={me.verificationStatus === 'VERIFIED' ? 'success' : 'warning'}
-              />
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <PageHeader title="Profile" />
+
+        <View style={styles.card}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{name[0]?.toUpperCase()}</Text>
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.name}>{name}</Text>
+            <View style={styles.meta}>
+              <Text style={styles.metaText}>Driver</Text>
+              <StatusPill label={verification.label} tone={verification.tone} />
+              {me.avgRating > 0 ? (
+                <View style={styles.rating} accessible accessibilityLabel={`Rated ${me.avgRating.toFixed(1)}`}>
+                  <Star size={14} color={palette.textSecondary} fill={palette.textSecondary} strokeWidth={1.5} />
+                  <Text style={styles.metaText}>
+                    {me.avgRating.toFixed(1)} ({me.totalReviews})
+                  </Text>
+                </View>
+              ) : null}
             </View>
+          </View>
+        </View>
+        {me.verificationStatus !== 'VERIFIED' ? (
+          <Text style={styles.notice}>
+            {me.verificationStatus === 'PENDING'
+              ? 'Weyro is checking your documents. You can go online once you are approved.'
+              : 'Your account is not active for trips. Contact support for help.'}
+          </Text>
+        ) : null}
 
-            <View style={styles.stats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{me.completedJobs}</Text>
-                <Text style={styles.statLabel}>Trips</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>
-                  {me.avgRating > 0 ? me.avgRating.toFixed(1) : '—'}
-                </Text>
-                <Text style={styles.statLabel}>Rating</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>
-                  {money(me.stats.earningsToday)}
-                </Text>
-                <Text style={styles.statLabel}>Today</Text>
-              </View>
-            </View>
+        <SectionHead title="Driving details" />
+        <Row label="Experience" value={`${d.experienceYears} year${d.experienceYears === 1 ? '' : 's'}`} />
+        <Row label="Cars you drive" value={d.transmissions.map(titleize).join(', ') || 'Not set'} />
+        <Row label="Languages" value={d.languages.join(', ') || 'Not set'} />
+        <Row label="Hourly rate" value={money(d.hourlyRate)} />
+        <Row label="Daily rate" value={money(d.dailyRate)} />
+        <Row label="Licence" value={licence} />
+        <Row label="Email" value={me.email || user?.email || 'Not given'} />
+        <Row label="Phone" value={me.phone || 'Not given'} last />
+        <Text style={styles.hint}>To change these, contact support.</Text>
 
-            <SectionHead index="01" title="Driver details" />
-            <Row label="Experience" value={`${me.driver.experienceYears} years`} />
-            <Row
-              label="Transmissions"
-              value={me.driver.transmissions.join(' / ') || 'Not set'}
-            />
-            <Row
-              label="Languages"
-              value={me.driver.languages.join(', ') || 'Not set'}
-            />
-            <Row label="Hourly" value={money(me.driver.hourlyRate)} />
-            <Row label="Daily" value={money(me.driver.dailyRate)} />
-            <Row
-              label="Licence"
-              value={
-                me.driver.licenceNumber
-                  ? `${me.driver.licenceNumber} · expires ${
-                      me.driver.licenceExpiry
-                        ? new Date(me.driver.licenceExpiry).toLocaleDateString()
-                        : '—'
-                    }`
-                  : 'Pending'
-              }
-            />
+        <SectionHead title="Settings" />
+        <AppearancePicker />
 
-            <SectionHead index="02" title="Account" />
-            <Action
-              icon={<CalendarClock size={17} color={palette.textPrimary} strokeWidth={1.8} />}
-              label="Availability"
-              onPress={() => router.push('/driver-availability')}
-            />
-            <Action
-              icon={<Wallet size={17} color={palette.textPrimary} strokeWidth={1.8} />}
-              label="Earnings"
-              onPress={() => router.push('/driver-earnings')}
-            />
-            <Action
-              icon={<MessageCircle size={17} color={palette.textPrimary} strokeWidth={1.8} />}
-              label="Messages"
-              onPress={() => router.push('/inbox')}
-            />
-            <Action
-              icon={<LifeBuoy size={17} color={palette.textPrimary} strokeWidth={1.8} />}
-              label="Contact support"
-              onPress={() => void Linking.openURL('mailto:support@weyro.app')}
-            />
-            <Action
-              icon={<LogOut size={17} color={palette.danger} strokeWidth={1.8} />}
-              label="Sign out"
-              danger
-              onPress={() => void logout()}
-            />
-          </>
-        )}
+        <SectionHead title="More" />
+        <Action
+          icon={<CalendarClock size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Availability"
+          detail="The days and hours you can drive"
+          onPress={() => router.push('/driver-availability')}
+        />
+        <Action
+          icon={<Wallet size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Earnings and forecast"
+          onPress={() => router.push('/driver-earnings')}
+        />
+        <Action
+          icon={<MessageCircle size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Messages"
+          onPress={() => router.push('/inbox')}
+        />
+        <Action icon={<Bell size={20} color={palette.textSecondary} strokeWidth={1.8} />} label="Alerts" onPress={() => router.push('/alerts')} />
+        <Action
+          icon={<LifeBuoy size={20} color={palette.textSecondary} strokeWidth={1.8} />}
+          label="Contact support"
+          detail="support@weyro.app"
+          onPress={() => void Linking.openURL('mailto:support@weyro.app')}
+        />
+        <Action icon={<LogOut size={20} color={palette.danger} strokeWidth={1.8} />} label="Sign out" danger onPress={() => void logout()} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  accountRow: {
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  card: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
   },
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.surfaceAlt,
   },
-  avatarText: { ...typography.bodyMedium, color: palette.textPrimary },
-  accountText: { flex: 1 },
-  name: { ...typography.bodyMedium, color: palette.textPrimary },
-  email: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
-    color: palette.textMuted,
-    marginTop: 2,
-  },
-  stats: {
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-  },
-  stat: { flex: 1, gap: 2 },
-  statValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 18,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: { ...typography.label, color: palette.textMuted },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-  },
-  rowLabel: { ...typography.label, color: palette.textMuted },
-  rowValue: {
-    ...typography.body,
-    color: palette.textPrimary,
-    flex: 1,
-    textAlign: 'right',
-  },
+  avatarText: { fontFamily: displayFamily, fontSize: 22, color: palette.textPrimary },
+  cardText: { flex: 1 },
+  name: { ...typography.heading, color: palette.textPrimary },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  metaText: { ...typography.caption, color: palette.textSecondary },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  notice: { ...typography.caption, color: palette.warning, marginTop: spacing.sm },
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.md },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  rowLabel: { ...typography.body, color: palette.textMuted },
+  rowValue: { ...typography.body, color: palette.textPrimary, flex: 1, textAlign: 'right' },
+  hint: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xs },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 58,
+    minHeight: 56,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  actionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceAlt,
-  },
-  actionLabel: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-    flex: 1,
-  },
+  actionIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
+  actionText: { flex: 1 },
+  actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },
+  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
   actionDanger: { color: palette.danger },
 });

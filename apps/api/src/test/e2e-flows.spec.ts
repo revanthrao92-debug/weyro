@@ -273,7 +273,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'URGENT',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
 
       expect(res.status).toBe(201);
@@ -345,6 +344,21 @@ describe('HTTP E2E flows (Postgres)', () => {
       expect(booking.status).toBe('CONFIRMED');
       expect(Number(payment.amount)).toBe(2000);
       expect(payment.status).toBe('PENDING');
+    });
+
+    it('opens a chat thread for the job that both sides can see', async () => {
+      const [customerThreads, garageThreads] = await Promise.all([
+        http().get(`${API}/chat/threads`).set('Authorization', `Bearer ${customer.accessToken}`),
+        http().get(`${API}/chat/threads`).set('Authorization', `Bearer ${garage.accessToken}`),
+      ]);
+      expect(customerThreads.status).toBe(200);
+      expect(garageThreads.status).toBe(200);
+      const forRequest = (body: any) =>
+        (Array.isArray(body) ? body : body.items).filter(
+          (t: { requestId: string | null }) => t.requestId === requestId,
+        );
+      expect(forRequest(customerThreads.body)).toHaveLength(1);
+      expect(forRequest(garageThreads.body)).toHaveLength(1);
     });
 
     it('lists the booking for the customer', async () => {
@@ -874,7 +888,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'NORMAL',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       cancelRequestId = created.body.id;
@@ -1032,7 +1045,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'URGENT',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       multiQuoteRequestId = created.body.id;
@@ -1078,7 +1090,6 @@ describe('HTTP E2E flows (Postgres)', () => {
       latitude: 12.9784,
       longitude: 77.6408,
       urgency: 'NORMAL',
-      isBroadcast: true,
     };
 
     beforeAll(async () => {
@@ -1261,7 +1272,6 @@ describe('HTTP E2E flows (Postgres)', () => {
             urgency: 'NORMAL',
             mediaUrls: [],
             damagePhotos: [],
-            isBroadcast: true,
           });
         expect(created.status).toBe(201);
         const requestId = created.body.id as string;
@@ -1350,7 +1360,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'NORMAL',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       extraRequestIds.push(created.body.id);

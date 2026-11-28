@@ -1,28 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-export interface ProviderFeedItem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  urgency: string;
-  status: string;
-  isBroadcast: boolean;
-  damagePhotos: string[];
-  fulfillmentType: string | null;
-  address: string;
-  latitude: number;
-  longitude: number;
-  expiresAt: Date;
-  createdAt: Date;
-  distanceKm: number;
-}
-
-/**
- * SQL migration statement to enable PostGIS.
- */
-export const ENABLE_POSTGIS_SQL = Prisma.sql`CREATE EXTENSION IF NOT EXISTS postgis;`;
-
 export interface ProviderFeedQueryParams {
   /**
    * The calling provider. Requests this provider has already quoted are
@@ -164,6 +141,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
   return Prisma.sql`
     SELECT 
       sr.id,
+      sr.ref,
       sr.title,
       sr.description,
       sr.category,
@@ -183,12 +161,22 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       sr.latitude,
       sr.longitude,
       sr."expiresAt",
+      sr."quotesUntil",
       sr."createdAt",
+      -- The car: a saved vehicle, or what the customer typed.
+      sr."vehicleMake",
+      sr."vehicleModel",
+      sr."vehicleYear",
+      (SELECT json_build_object('make', v.make, 'model', v.model, 'year', v.year)
+         FROM vehicles v WHERE v.id = sr."vehicleId") AS vehicle,
+      -- How many providers have already quoted (competition at a glance).
+      (SELECT COUNT(*)::int FROM quotations q
+         WHERE q."requestId" = sr.id AND q."deletedAt" IS NULL) AS "quotationsCount",
       ${
         hasCoordinates && pointGeog
           ? Prisma.sql`ROUND(
               (ST_Distance(
-                COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+                sr.location,
                 ${pointGeog}
               ) / 1000.0)::numeric,
               2
@@ -199,7 +187,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
     WHERE sr.status IN ('OPEN', 'QUOTES_RECEIVED')
       AND sr."isBroadcast" = true
       AND sr."deletedAt" IS NULL
-      AND sr."expiresAt" > NOW()
+      AND COALESCE(sr."quotesUntil", sr."expiresAt") > NOW()
       ${
         providerId
           ? Prisma.sql`AND NOT EXISTS (
@@ -214,7 +202,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       ${
         hasCoordinates && pointGeog
           ? Prisma.sql`AND ST_DWithin(
-              COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+              sr.location,
               ${pointGeog},
               ${radiusMeters}
             )`
@@ -241,5 +229,53 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       sr."createdAt" DESC,
       sr.id DESC
     LIMIT ${boundedLimit};
+  `;
+}
+
+export interface BroadcastRecipientsParams {
+  latitude: number;
+  longitude: number;
+  /** Provider types that serve the request's category (from PROVIDER_TYPE_CATEGORIES). */
+  providerTypes: string[];
+  towingVehicleType?: string | null;
+  vehicleWeightKg?: number | null;
+  limit?: number;
+}
+
+/**
+ * Who to ping about a new request: verified, switched-on providers of a matching type whose OWN
+ * service radius covers the customer, nearest first. Towing also needs the right truck and capacity.
+ */
+export function getBroadcastRecipientsQuery(params: BroadcastRecipientsParams): Prisma.Sql {
+  const { latitude, longitude, providerTypes, towingVehicleType, vehicleWeightKg, limit = 50 } = params;
+  const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography`;
+  const providerPoint = Prisma.sql`pp.location`;
+  const towingSql =
+    towingVehicleType && towingVehicleType !== 'ANY'
+      ? Prisma.sql`AND (
+          cardinality(pp."towingVehicleTypes") = 0
+          OR 'ANY'::"TowingVehicleType" = ANY(pp."towingVehicleTypes")
+          OR ${towingVehicleType}::"TowingVehicleType" = ANY(pp."towingVehicleTypes")
+        )`
+      : Prisma.empty;
+  const weightSql =
+    typeof vehicleWeightKg === 'number'
+      ? Prisma.sql`AND (pp."maxVehicleWeightKg" IS NULL OR pp."maxVehicleWeightKg" >= ${vehicleWeightKg})`
+      : Prisma.empty;
+  return Prisma.sql`
+    SELECT pp.id AS "providerId", pp."userId" AS "userId",
+           ST_Distance(${providerPoint}, ${point}) / 1000 AS "distanceKm"
+    FROM provider_profiles pp
+    JOIN users u ON u.id = pp."userId"
+    WHERE pp."deletedAt" IS NULL
+      AND u."isActive" = true
+      AND pp."verificationStatus" = 'VERIFIED'
+      AND pp."isAvailable" = true
+      AND pp."providerType"::text IN (${Prisma.join(providerTypes)})
+      AND ST_DWithin(${providerPoint}, ${point}, pp."serviceRadiusKm" * 1000)
+      ${towingSql}
+      ${weightSql}
+    ORDER BY "distanceKm" ASC
+    LIMIT ${Math.min(50, Math.max(1, limit))}
   `;
 }

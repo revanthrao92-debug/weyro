@@ -6,6 +6,8 @@ import {
 } from '@/services/offline-queue';
 
 export type ServiceRequest = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   customerId: string;
   /** Null when the request used free-form vehicle details instead of a saved vehicle. */
@@ -35,12 +37,16 @@ export type ServiceRequest = {
   towingEstimatedFare?: number;
   roadsideKind?: string | null;
   expiresAt: string;
+  /** New quotes stop here (accepting still works until expiresAt). Missing on older requests. */
+  quotesUntil?: string | null;
   createdAt: string;
   quotationsCount?: number;
   quotations?: Quotation[];
 };
 
 export type Quotation = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   requestId: string;
   providerId: string;
@@ -52,6 +58,9 @@ export type Quotation = {
   partCondition?: string;
   warrantyDays: number;
   etaDescription: string;
+  /** When the provider can start and how long the job takes; missing on older quotes. */
+  startsAt?: string | null;
+  durationHours?: number | null;
   deliveryMethod?: string;
   notes?: string;
   status: string;
@@ -73,7 +82,6 @@ export type CreateServiceRequest = {
   urgency: string;
   mediaUrls: string[];
   damagePhotos: string[];
-  isBroadcast: boolean;
   fulfillmentType?: string;
   dropoffAddress?: string;
   dropoffLatitude?: number;
@@ -90,7 +98,10 @@ export type CreateQuotation = {
   shippingCost?: number;
   partCondition?: string;
   warrantyDays: number;
-  etaDescription: string;
+  /** Older free-text time; new quotes send startsAt + durationHours instead. */
+  etaDescription?: string;
+  startsAt?: string;
+  durationHours?: number;
   deliveryMethod?: string;
   notes?: string;
 };
@@ -146,11 +157,15 @@ export function useBroadcastFeed(params?: {
   });
 }
 
-export function useRequest(id: string) {
+export function useRequest(id: string, live = false) {
   return useQuery({
     queryKey: ['request', id],
     queryFn: async () => apiClient<ServiceRequest>(`/damage-requests/${id}`),
     enabled: !!id,
+    // While open to quotes and on screen; stops by itself once the request
+    // is accepted/cancelled/expired elsewhere.
+    refetchInterval: (query) =>
+      live && ['OPEN', 'QUOTES_RECEIVED'].includes(query.state.data?.status ?? '') ? 15_000 : false,
   });
 }
 
@@ -194,16 +209,18 @@ export function useCancelRequest() {
         method: 'POST',
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
     },
   });
 }
 
 /** Quotations */
-export function useRequestQuotations(requestId: string) {
+export function useRequestQuotations(requestId: string, poll = false) {
   return useQuery({
     queryKey: ['quotations', requestId],
+    refetchInterval: poll ? 15_000 : false,
     queryFn: async () =>
       apiClient<{ items: Quotation[]; nextCursor?: string | null }>(
         `/damage-requests/${requestId}/quotations`
@@ -235,6 +252,9 @@ export function useCreateQuotation() {
       queryClient.invalidateQueries({
         queryKey: ['quotations', variables.requestId],
       });
+      // The request screen decides "form or your quote" from myQuotations.
+      queryClient.invalidateQueries({ queryKey: ['myQuotations'] });
+      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
     },
   });
 }
@@ -256,15 +276,22 @@ export function useAcceptQuotation() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      // Accepting moves the request to ACCEPTED and rejects the other quotes.
+      queryClient.invalidateQueries({ queryKey: ['request'] });
+      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 }
 
-export function useMyQuotations(params?: { cursor?: string; limit?: number; status?: string }) {
+export function useMyQuotations(
+  params?: { cursor?: string; limit?: number; status?: string },
+  enabled = true,
+) {
   return useQuery({
     queryKey: ['myQuotations', params],
+    enabled,
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.cursor) qs.set('cursor', params.cursor);

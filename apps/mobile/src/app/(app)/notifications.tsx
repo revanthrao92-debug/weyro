@@ -13,41 +13,13 @@ import {
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
+import { notificationHref } from '@/lib/notificationHref';
 
 const dateLabel = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-
-function notificationHref(
-  data: Record<string, unknown> | null,
-  role?: string | null,
-): string | null {
-  if (!data) return null;
-  if (typeof data.route === 'string') return data.route;
-
-  if (typeof data.orderId === 'string') return `/order/${data.orderId}`;
-  if (typeof data.requestId === 'string') {
-    return role === 'CUSTOMER' ? `/requests/${data.requestId}` : '/my-quotes';
-  }
-  if (typeof data.driverBookingId === 'string') {
-    return role === 'CUSTOMER'
-      ? `/driver-go/bookings/${data.driverBookingId}`
-      : `/driver-booking/${data.driverBookingId}`;
-  }
-  if (typeof data.bookingId === 'string') {
-    if (data.type === 'QUOTATION_ACCEPTED' && role !== 'CUSTOMER') {
-      return '/my-quotes';
-    }
-    return `/booking/${data.bookingId}`;
-  }
-  if (data.type === 'QUOTATION_ACCEPTED') {
-    return role === 'CUSTOMER' ? '/bookings' : '/my-quotes';
-  }
-  return null;
-}
 
 export default function NotificationsScreen({ pushed = false }: { pushed?: boolean } = {}) {
   const router = useRouter();
@@ -80,6 +52,7 @@ export default function NotificationsScreen({ pushed = false }: { pushed?: boole
                   accessibilityRole="button"
                   accessibilityLabel={`Mark all as read, ${unreadCount} unread`}
                   scaleTo={0.95}
+                  style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}
                 >
                   <Text style={styles.markAll}>
                     {isMarkingAllAsRead ? 'Marking…' : 'Mark all read'}
@@ -91,7 +64,7 @@ export default function NotificationsScreen({ pushed = false }: { pushed?: boole
             <Text style={styles.summary}>
               {notifications.length === 0
                 ? 'No updates yet'
-                : `${unreadCount} unread · ${notifications.length} total`}
+                : `${unreadCount} unread, ${notifications.length} total`}
             </Text>
 
             {isLoading ? (
@@ -181,8 +154,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
@@ -209,8 +181,7 @@ const styles = StyleSheet.create({
   rowTitleUnread: { ...typography.captionMedium, color: palette.textPrimary },
   rowBody: { ...typography.label, color: palette.textMuted, marginTop: 2 },
   date: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 2,
   },

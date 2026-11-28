@@ -1,4 +1,5 @@
 import { serializeBooking } from './booking-serializer';
+import { bookingUpdateMessage } from './booking-messages';
 import {
   BadRequestException,
   ConflictException,
@@ -75,10 +76,16 @@ export class BookingsService {
     cursor?: string,
     limit: number = 20,
     status?: string,
+    active?: boolean,
   ) {
     const where: any = {};
     if (status) {
       where.status = status;
+    }
+    if (active) {
+      // The to-do list: every job still moving, however many finished jobs
+      // are newer (the default page of 20 used to push them out).
+      where.status = { in: ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'] };
     }
 
     if (user.role === 'ADMIN') {
@@ -262,6 +269,16 @@ export class BookingsService {
 
       }
 
+      // Public "jobs completed" count on provider profiles. completedAt is only
+      // unset on the first completion, so DISPUTED -> COMPLETED doesn't recount.
+      // shortcut: a completed job later cancelled via DISPUTED stays counted; decrement there if admins start doing that.
+      if (newStatus === 'COMPLETED' && !booking.completedAt) {
+        await tx.providerProfile.update({
+          where: { id: booking.providerId },
+          data: { completedJobs: { increment: 1 } },
+        });
+      }
+
       return updatedBooking;
     });
 
@@ -286,42 +303,33 @@ export class BookingsService {
       }
     }
 
-    // Notify opposite party of booking status update
+    // Notify the other party in plain words (the customer when the provider
+    // moves the job, the provider when the customer cancels or disputes).
     try {
-      const targetUserIds: string[] = [];
-      if (isCustomerOwner) {
-        const p = await this.prisma.providerProfile.findUnique({
+      const [customer, provider] = await Promise.all([
+        this.prisma.customerProfile.findUnique({ where: { id: booking.customerId }, select: { userId: true } }),
+        this.prisma.providerProfile.findUnique({
           where: { id: booking.providerId },
-          select: { userId: true },
-        });
-        if (p?.userId) targetUserIds.push(p.userId);
-      } else if (isProviderOwner) {
-        const c = await this.prisma.customerProfile.findUnique({
-          where: { id: booking.customerId },
-          select: { userId: true },
-        });
-        if (c?.userId) targetUserIds.push(c.userId);
-      } else {
-        const [c, p] = await Promise.all([
-          this.prisma.customerProfile.findUnique({
-            where: { id: booking.customerId },
-            select: { userId: true },
-          }),
-          this.prisma.providerProfile.findUnique({
-            where: { id: booking.providerId },
-            select: { userId: true },
-          }),
-        ]);
-        if (c?.userId) targetUserIds.push(c.userId);
-        if (p?.userId) targetUserIds.push(p.userId);
-      }
+          select: { userId: true, businessName: true },
+        }),
+      ]);
+      const targets: { userId: string; audience: 'customer' | 'provider' }[] = [];
+      if (!isCustomerOwner && customer?.userId) targets.push({ userId: customer.userId, audience: 'customer' });
+      if (!isProviderOwner && provider?.userId) targets.push({ userId: provider.userId, audience: 'provider' });
 
-      for (const targetUserId of targetUserIds) {
+      for (const target of targets) {
+        const message = bookingUpdateMessage({
+          status: newStatus,
+          jobTitle: booking.quotation?.request?.title ?? 'your job',
+          providerName: provider?.businessName ?? 'Your provider',
+          category: booking.quotation?.request?.category,
+          audience: target.audience,
+          ref: booking.ref,
+        });
         this.notifications
           .sendPushNotification({
-            userId: targetUserId,
-            title: `Booking Update: ${newStatus}`,
-            body: `Booking #${booking.id.slice(0, 8)} status changed to ${newStatus}.`,
+            userId: target.userId,
+            ...message,
             data: {
               type: 'BOOKING_STATUS_CHANGED',
               bookingId: booking.id,

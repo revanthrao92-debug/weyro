@@ -28,6 +28,18 @@ export type OutboxDeliverer = (
 
 export const OUTBOX_DELIVERER = 'OUTBOX_DELIVERER';
 
+/** How long a claimed event stays invisible to other drains while it is delivered. */
+const CLAIM_LEASE = '5 minutes';
+
+type ClaimedEvent = {
+  id: string;
+  type: string;
+  channel: string;
+  payload: unknown;
+  attempts: number;
+  maxAttempts: number;
+};
+
 @Injectable()
 export class OutboxService {
   private readonly logger = new Logger(OutboxService.name);
@@ -65,58 +77,78 @@ export class OutboxService {
     return row.id;
   }
 
-  /** Drain due events (called by the Tasks cron). */
-  async drain(limit = 25): Promise<number> {
-    const now = new Date();
-
-    const due = await this.prisma.outboxEvent.findMany({
-      where: {
-        sentAt: null,
-        failedAt: null,
-        nextAttemptAt: { lte: now },
-      },
-      orderBy: { nextAttemptAt: 'asc' },
-      take: limit,
-    });
-
-    if (due.length === 0) {
-      return 0;
-    }
-
+  /**
+   * Drain due events (called by the Tasks cron). Claims batches until none are
+   * due or `budgetMs` has passed, so a backlog clears in one run instead of
+   * one batch per minute. Safe to run on every replica at once (see `claim`).
+   */
+  async drain(batchSize = 50, budgetMs = 8_000): Promise<number> {
     if (!this.deliverer) {
       this.logger.warn('Outbox drain skipped — no deliverer registered yet.');
       return 0;
     }
 
+    const deadline = Date.now() + budgetMs;
     let delivered = 0;
-    for (const event of due) {
-      try {
-        await this.deliverer(event);
-        await this.prisma.outboxEvent.update({
-          where: { id: event.id },
-          data: { sentAt: new Date() },
-        });
-        delivered += 1;
-      } catch (err: any) {
-        const attempts = event.attempts + 1;
-        const terminal = attempts >= event.maxAttempts;
-        const backoffMs = 30_000 * 2 ** Math.min(5, attempts - 1); // 30s…480s
-        await this.prisma.outboxEvent.update({
-          where: { id: event.id },
-          data: {
-            attempts,
-            lastError: String(err?.message ?? err),
-            ...(terminal
-              ? { failedAt: new Date() }
-              : { nextAttemptAt: new Date(Date.now() + backoffMs) }),
-          },
-        });
-        this.logger.warn(
-          `Outbox ${event.id} (${event.type}) attempt ${attempts}/${event.maxAttempts} failed: ${err?.message ?? err}`,
-        );
-      }
+    while (Date.now() < deadline) {
+      const batch = await this.claim(batchSize);
+      const results = await Promise.all(batch.map((event) => this.deliverOne(event)));
+      delivered += results.filter(Boolean).length;
+      if (batch.length < batchSize) break;
     }
-
     return delivered;
+  }
+
+  /**
+   * Atomically claim up to `limit` due events. `FOR UPDATE SKIP LOCKED` keeps
+   * concurrent replicas off the same rows, and pushing `nextAttemptAt` forward
+   * leases them: if this process dies mid-delivery, they become due again after
+   * CLAIM_LEASE and are retried (at-least-once delivery).
+   */
+  private claim(limit: number): Promise<ClaimedEvent[]> {
+    // nextAttemptAt is TIMESTAMP (no zone) holding UTC, as Prisma writes it.
+    return this.prisma.$queryRaw<ClaimedEvent[]>`
+      UPDATE "outbox_events"
+      SET "nextAttemptAt" = (now() AT TIME ZONE 'UTC') + ${CLAIM_LEASE}::interval
+      WHERE "id" IN (
+        SELECT "id" FROM "outbox_events"
+        WHERE "sentAt" IS NULL AND "failedAt" IS NULL
+          AND "nextAttemptAt" <= (now() AT TIME ZONE 'UTC')
+        ORDER BY "nextAttemptAt"
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING "id", "type", "channel", "payload", "attempts", "maxAttempts"
+    `;
+  }
+
+  /** Deliver one claimed event; on failure schedule a retry with backoff. Returns true if sent. */
+  private async deliverOne(event: ClaimedEvent): Promise<boolean> {
+    try {
+      await this.deliverer!(event);
+      await this.prisma.outboxEvent.update({
+        where: { id: event.id },
+        data: { sentAt: new Date() },
+      });
+      return true;
+    } catch (err: any) {
+      const attempts = event.attempts + 1;
+      const terminal = attempts >= event.maxAttempts;
+      const backoffMs = 30_000 * 2 ** Math.min(5, attempts - 1); // 30s…480s
+      await this.prisma.outboxEvent.update({
+        where: { id: event.id },
+        data: {
+          attempts,
+          lastError: String(err?.message ?? err),
+          ...(terminal
+            ? { failedAt: new Date() }
+            : { nextAttemptAt: new Date(Date.now() + backoffMs) }),
+        },
+      });
+      this.logger.warn(
+        `Outbox ${event.id} (${event.type}) attempt ${attempts}/${event.maxAttempts} failed: ${err?.message ?? err}`,
+      );
+      return false;
+    }
   }
 }

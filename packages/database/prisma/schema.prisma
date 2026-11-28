@@ -268,7 +268,7 @@ model ProviderProfile {
   address               String
   latitude              Float
   longitude             Float
-  location              Unsupported("geography(Point, 4326)")?
+  location              Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(longitude, latitude), 4326))::geography"))
   serviceRadiusKm       Float                                  @default(15.0)
   verificationStatus    VerificationStatus                     @default(PENDING)
   // Towing / roadside capabilities
@@ -299,6 +299,7 @@ model ProviderProfile {
   @@index([verificationStatus])
   @@index([providerType])
   @@index([avgRating])
+  @@index([location], map: "provider_profiles_location_gix", type: Gist)
   @@map("provider_profiles")
 }
 
@@ -337,6 +338,8 @@ model DriverAvailability {
 
 model DriverBooking {
   id                      String              @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                     String              @unique @default("")
   customerId              String
   customer                CustomerProfile     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   driverId                String
@@ -387,6 +390,8 @@ model DriverBooking {
 
 model ServiceRequest {
   id                  String                                 @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                 String                                 @unique @default("")
   customerId          String
   customer            CustomerProfile                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   // Optional: a request may use a saved vehicle OR carry free-form details.
@@ -401,7 +406,7 @@ model ServiceRequest {
   address             String
   latitude            Float
   longitude           Float
-  location            Unsupported("geography(Point, 4326)")?
+  location            Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(longitude, latitude), 4326))::geography"))
   urgency             Urgency                                @default(NORMAL)
   status              ServiceRequestStatus                   @default(OPEN)
   isBroadcast         Boolean                                @default(true)
@@ -413,12 +418,14 @@ model ServiceRequest {
   dropoffAddress      String?
   dropoffLatitude     Float?
   dropoffLongitude    Float?
-  dropoffLocation     Unsupported("geography(Point, 4326)")?
+  dropoffLocation     Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(\"dropoffLongitude\", \"dropoffLatitude\"), 4326))::geography"))
   towingVehicleType   TowingVehicleType?
   vehicleWeightKg     Int?
   towingDistanceKm    Float?
   towingEstimatedFare Decimal?                               @db.Decimal(10, 2)
   expiresAt           DateTime
+  /// New quotes stop here (accepting a quote still works until expiresAt). Null = expiresAt.
+  quotesUntil         DateTime?
   deletedAt           DateTime?
   quotations          Quotation[]
   media               RequestMedia[]
@@ -434,6 +441,8 @@ model ServiceRequest {
   @@index([category, status])
   @@index([expiresAt])
   @@index([deletedAt])
+  @@index([location], map: "service_requests_location_gix", type: Gist)
+  @@index([dropoffLocation], map: "service_requests_dropoffLocation_gix", type: Gist)
   @@map("service_requests")
 }
 
@@ -453,6 +462,8 @@ model RequestMedia {
 
 model Quotation {
   id             String          @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref            String          @unique @default("")
   requestId      String
   request        ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   providerId     String
@@ -464,6 +475,9 @@ model Quotation {
   partCondition  PartCondition?
   warrantyDays   Int             @default(30)
   etaDescription String
+  /// Earliest the provider can start, and how long the job takes (to compare and sort quotes).
+  startsAt       DateTime?
+  durationHours  Int?
   deliveryMethod String?
   notes          String?
   status         QuotationStatus @default(PENDING)
@@ -482,6 +496,8 @@ model Quotation {
 
 model Booking {
   id                        String          @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref                       String          @unique @default("")
   quotationId               String          @unique
   quotation                 Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
   // Denormalized from the quotation so the database can enforce "one active
@@ -521,6 +537,8 @@ model Booking {
 
 model Payment {
   id               String        @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref              String        @unique @default("")
   bookingId        String
   booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   amount           Decimal       @db.Decimal(10, 2)
@@ -548,6 +566,8 @@ model Payment {
 /// payment sits in REFUND_PENDING until the refund.processed webhook confirms.
 model Refund {
   id              String       @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref             String       @unique @default("")
   paymentId       String
   payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   amount          Decimal      @db.Decimal(10, 2)
@@ -615,6 +635,8 @@ model SparePart {
 
 model SparePartOrder {
   id                String               @id @default(uuid())
+  /// Weyro reference number, e.g. J-261127-0042-6. Assigned by a database trigger on insert, never changes.
+  ref               String               @unique @default("")
   sparePartId       String
   sparePart         SparePart            @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
   providerId        String
@@ -862,4 +884,45 @@ model OutboxEvent {
   @@index([channel, sentAt, nextAttemptAt])
   @@index([type])
   @@map("outbox_events")
+}
+
+/// Lease lock for scheduled jobs, so only one API replica runs a job at a time.
+/// A row per job; a crashed holder's lease expires and another replica takes over.
+model JobLock {
+  name      String   @id
+  owner     String
+  expiresAt DateTime
+
+  @@map("job_locks")
+}
+
+/// Daily counters behind the reference numbers (one row per type per India day). Used only by
+/// the weyro_next_ref() SQL function; see migration 20261127000000_reference_numbers.
+model RefCounter {
+  type  String @db.Char(1)
+  day   String @db.Char(6)
+  value Int
+
+  @@id([type, day])
+  @@map("ref_counters")
+}
+
+/// Non-personal history of every record created and every status change, written by database
+/// triggers (migration 20261128000000_event_history) plus cleaned text events written by the API.
+/// Append-only. Exported nightly as a dataset. See docs/DATA.md.
+model Event {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  seq        BigInt   @unique @default(autoincrement())
+  occurredAt DateTime @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)"))
+  type       String
+  entityType String
+  entityRef  String
+  fromStatus String?
+  toStatus   String?
+  source     String   @default("live")
+  data       Json     @default("{}")
+
+  @@index([entityRef, seq])
+  @@index([occurredAt])
+  @@map("events")
 }

@@ -24,6 +24,8 @@ import {
   adminOrdersQuerySchema,
   AdminBookingsQuery,
   adminBookingsQuerySchema,
+  AdminLookupQuery,
+  adminLookupQuerySchema,
 } from '../../common/dto/query.dto';
 import { idParamSchema } from '../../common/dto/id-param.schema';
 
@@ -36,6 +38,18 @@ export class AdminController {
   @Get('overview')
   async getOverview() {
     return this.service.getOverview();
+  }
+
+  /** Find anything by its Weyro reference number, e.g. GET /admin/lookup?ref=J-261127-0042-6 */
+  @Get('lookup')
+  async lookup(@Query(new ZodValidationPipe(adminLookupQuerySchema)) query: AdminLookupQuery) {
+    return this.service.lookup(query.ref);
+  }
+
+  /** Full detail of one record by reference number, with its timeline and live location. */
+  @Get('records/:ref')
+  async recordDetail(@Param('ref', new ZodValidationPipe(adminLookupQuerySchema.shape.ref)) ref: string) {
+    return this.service.recordDetail(ref);
   }
 
   @Get('orders')

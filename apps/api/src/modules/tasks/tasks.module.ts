@@ -5,22 +5,26 @@ import { AdvisoryLockService } from '../../prisma/advisory-lock.service';
 import { ExpiryCronService } from './expiry-cron.service';
 import { PaymentReconcileService } from './payment-reconcile.service';
 import { OutboxCronService } from './outbox-cron.service';
+import { DatasetService } from './dataset.service';
+import { UploadsModule } from '../uploads/uploads.module';
 
 /**
  * STEP 2+3+7 — scheduled jobs.
  * - Imports PaymentsModule so PaymentReconcileService resolves
  *   PAYMENT_GATEWAY from the payments module's export.
- * - AdvisoryLockService gates all crons (replica-safe).
+ * - AdvisoryLockService (lease in job_locks) keeps lock-gated crons to one replica;
+ *   the outbox drain claims rows itself, so it runs on every replica.
  * - OutboxCronService drains the transactional outbox.
  */
 @Module({
-  imports: [PaymentsModule, NotificationsModule],
+  imports: [PaymentsModule, NotificationsModule, UploadsModule],
   providers: [
     AdvisoryLockService,
     ExpiryCronService,
     PaymentReconcileService,
     OutboxCronService,
+    DatasetService,
   ],
-  exports: [AdvisoryLockService, PaymentReconcileService],
+  exports: [AdvisoryLockService, PaymentReconcileService, DatasetService],
 })
 export class TasksModule {}

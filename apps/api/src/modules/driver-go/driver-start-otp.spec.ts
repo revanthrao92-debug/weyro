@@ -93,7 +93,7 @@ describe('DriverGoService.verifyStartOtp (M7)', () => {
       return result;
     });
 
-    expect(await guess(CODE)).toBe('Booking changed, refresh and try again');
+    expect(await guess(CODE)).toBe('This trip just changed. Refresh and try again.');
     expect(job.status).toBe('CANCELLED'); // not resurrected into IN_PROGRESS
   });
 

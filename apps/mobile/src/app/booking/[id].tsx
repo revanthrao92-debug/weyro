@@ -1,14 +1,16 @@
+import { useEffect, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
   View,
   Text,
-  Alert,
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { titleize as labelize, bookingStatusTone as statusTone } from '@/utils/format';
-import { palette, spacing, typography, radii, displayFamily, fontFamilyMono } from '@/theme';
-import { useLocalSearchParams } from 'expo-router';
+import { titleize as labelize, bookingStatusTone as statusTone, formatRupees, refOf } from '@/utils/format';
+import { palette, spacing, typography, radii } from '@/theme';
+import { useLocalSearchParams, useIsFocused, useRouter } from 'expo-router';
 import { useBooking, useUpdateBookingStatus } from '@/hooks/useBookings';
+import { useAuth } from '@/hooks/useAuth';
 import {
   ScreenContainer,
   Button,
@@ -16,9 +18,14 @@ import {
   Skeleton,
   EmptyState,
   BackButton,
+  ButtonRow,
+  DrawCheck,
+  PopIn,
   FadeSlideIn,
   SectionHead,
+  PageHeader,
 } from '@/components/ui';
+import { notice } from '@/lib/confirm';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
 const TIMELINE: { key: string; label: string }[] = [
@@ -28,15 +35,24 @@ const TIMELINE: { key: string; label: string }[] = [
   { key: 'COMPLETED', label: 'Completed' },
 ];
 
-type BookingDetailParams = { id: string };
+type BookingDetailParams = { id: string; confirmed?: string };
 
 
 
 
 export default function BookingDetailScreen() {
-  const { id } = useLocalSearchParams<BookingDetailParams>();
-  const { data: booking, isLoading, isError } = useBooking(id || '');
+  const { id, confirmed } = useLocalSearchParams<BookingDetailParams>();
+  const router = useRouter();
+  // One-time banner: remember it for this visit, then drop the param so coming
+  // back later (or a re-render) doesn't announce "just confirmed" again.
+  const [justConfirmed] = useState(confirmed === '1');
+  useEffect(() => {
+    if (confirmed === '1') router.setParams({ confirmed: undefined });
+  }, [confirmed, router]);
+  const { data: booking, isLoading, isError } = useBooking(id || '', useIsFocused());
   const updateStatus = useUpdateBookingStatus();
+  const { role } = useAuth();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
 
   if (isLoading) {
@@ -63,19 +79,42 @@ export default function BookingDetailScreen() {
     );
   }
 
+  // Status moves are provider actions (the API rejects them from customers).
+  const isProvider = role === 'PROVIDER' || role === 'BOTH';
+  const isDropOff = booking.quotation?.deliveryMethod === 'PICKUP';
   const canUpdate =
-    booking.status === 'CONFIRMED' ||
+    isProvider &&
+    (booking.status === 'CONFIRMED' ||
     booking.status === 'PROVIDER_EN_ROUTE' ||
-    booking.status === 'IN_PROGRESS';
+    booking.status === 'IN_PROGRESS');
 
   const nextStatus = (() => {
     switch (booking.status) {
-      case 'CONFIRMED': return 'PROVIDER_EN_ROUTE';
+      case 'CONFIRMED': return isDropOff ? 'IN_PROGRESS' : 'PROVIDER_EN_ROUTE';
       case 'PROVIDER_EN_ROUTE': return 'IN_PROGRESS';
       case 'IN_PROGRESS': return 'COMPLETED';
       default: return null;
     }
   })();
+
+  // The API lets the customer cancel until work starts (CONFIRMED / PROVIDER_EN_ROUTE).
+  const canCustomerCancel =
+    !isProvider && (booking.status === 'CONFIRMED' || booking.status === 'PROVIDER_EN_ROUTE');
+
+  const handleCancel = async () => {
+    try {
+      await updateStatus.mutateAsync({
+        id: booking.id,
+        status: 'CANCELLED',
+        trackingNumber: undefined,
+        carrierName: undefined,
+      });
+      haptics.warning();
+      setConfirmingCancel(false);
+    } catch (e: any) {
+      notice('Failed', e.message || 'Unable to cancel booking');
+    }
+  };
 
   const handleUpdateStatus = async () => {
     if (!nextStatus) return;
@@ -87,28 +126,34 @@ export default function BookingDetailScreen() {
         carrierName: undefined,
       });
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update status');
+      notice('Failed', e.message || 'Unable to update status');
     }
   };
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.topLabel}>Booking</Text>
-          <View style={styles.spacer} />
-        </View>
+        <PageHeader back title={booking.quotation?.request?.title ?? 'Booking'}>
+          <View style={styles.metaRow}>
+            <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
+            <Text style={styles.date}>
+              Booking {refOf(booking)}, {new Date(booking.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+        </PageHeader>
 
-        <Text style={styles.title}>Booking #{booking.id.slice(0, 8)}</Text>
-        <View style={styles.metaRow}>
-          <StatusPill label={labelize(booking.status)} tone={statusTone(booking.status)} />
-          <Text style={styles.date}>{new Date(booking.createdAt).toLocaleDateString()}</Text>
-        </View>
+        {justConfirmed && booking.status === 'CONFIRMED' ? (
+          <View style={styles.confirmedBanner} accessibilityRole="alert">
+            <DrawCheck size={28} color={palette.statusDone} />
+            <Text style={styles.confirmedText}>
+              Booking confirmed with {booking.provider?.businessName ?? 'your provider'}
+            </Text>
+          </View>
+        ) : null}
 
         <SectionHead title="Progress" />
         <BookingTimeline booking={booking} />
-        {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
+        {!isDropOff && booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
           <>
             <RouteMapCard />
             <Text style={styles.note}>
@@ -123,14 +168,19 @@ export default function BookingDetailScreen() {
             <SectionHead title="Provider" />
             <View style={styles.spec}>
               <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Garage</Text>
-                <Text style={styles.specValue}>{booking.provider.businessName}</Text>
+                <Text style={styles.specLabel}>Provider</Text>
+                <View style={styles.providerValue}>
+                  {booking.provider.verificationStatus === 'VERIFIED' ? (
+                    <StatusPill label="Verified" tone="success" />
+                  ) : null}
+                  <Text style={styles.specValue}>{booking.provider.businessName}</Text>
+                </View>
               </View>
               <View style={[styles.specRow, styles.divider]}>
                 <Text style={styles.specLabel}>Rating</Text>
                 <Text style={styles.specValue}>
-                  {Number(booking.provider.avgRating ?? 0).toFixed(1)} ·{' '}
-                  {booking.provider.totalReviews} reviews
+                  ★ {Number(booking.provider.avgRating ?? 0).toFixed(1)}{' '}
+                  <Text style={styles.specMuted}>({booking.provider.totalReviews} reviews)</Text>
                 </Text>
               </View>
               <View style={[styles.specRow, styles.divider]}>
@@ -163,7 +213,7 @@ export default function BookingDetailScreen() {
             <View style={[styles.specRow, styles.divider]}>
               <Text style={styles.specLabel}>Payment</Text>
               <Text style={styles.specValue}>
-                ₹{Number(booking.payment.amount).toLocaleString('en-IN')} ·{' '}
+                {formatRupees(booking.payment.amount)} ·{' '}
                 {labelize(booking.payment.status)}
               </Text>
             </View>
@@ -175,7 +225,9 @@ export default function BookingDetailScreen() {
             <Button
               title={
                 booking.status === 'CONFIRMED'
-                  ? 'Mark en route'
+                  ? isDropOff
+                    ? 'Mark in progress'
+                    : 'Mark en route'
                   : booking.status === 'PROVIDER_EN_ROUTE'
                     ? 'Mark in progress'
                     : 'Mark completed'
@@ -185,6 +237,37 @@ export default function BookingDetailScreen() {
             />
           </View>
         ) : null}
+
+        {canCustomerCancel ? (
+          <View style={styles.actions}>
+            {confirmingCancel ? (
+              <>
+                <Text style={styles.note}>Cancel this booking? This can&apos;t be undone.</Text>
+                <ButtonRow>
+                  <Button
+                    title="Keep booking"
+                    variant="secondary"
+                    onPress={() => setConfirmingCancel(false)}
+                    style={styles.flex}
+                  />
+                  <Button
+                    title="Cancel booking"
+                    variant="destructive"
+                    loading={updateStatus.isPending}
+                    onPress={() => void handleCancel()}
+                    style={styles.flex}
+                  />
+                </ButtonRow>
+              </>
+            ) : (
+              <Button
+                title="Cancel booking"
+                variant="destructive"
+                onPress={() => setConfirmingCancel(true)}
+              />
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </ScreenContainer>
   );
@@ -192,7 +275,14 @@ export default function BookingDetailScreen() {
 
 
 const BookingTimeline = ({ booking }: { booking: any }) => {
-  const steps = TIMELINE.map((t) => ({ ...t, active: booking.status === t.key }));
+  // Status seen on open; only a later change (polled) animates the active dot.
+  const [firstStatus] = useState<string>(booking.status);
+  // Drop-off repairs have no en-route leg (see app/job/[id].tsx).
+  const enRoute = booking.quotation?.deliveryMethod !== 'PICKUP';
+  const steps = TIMELINE.filter((t) => enRoute || t.key !== 'PROVIDER_EN_ROUTE').map((t) => ({
+    ...t,
+    active: booking.status === t.key,
+  }));
   // "done" = everything before the current status index in the flow order
   const flowOrder = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
   const currentIndex = flowOrder.indexOf(booking.status as string);
@@ -202,7 +292,7 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
   }, {});
   const timestamps: Record<string, string | undefined> = {
     CONFIRMED: booking.createdAt,
-    IN_PROGRESS: booking.providerLocationUpdatedAt ?? booking.updatedAt,
+    IN_PROGRESS: booking.startedAt,
     PROVIDER_EN_ROUTE: booking.providerLocationUpdatedAt,
     COMPLETED: booking.completedAt ?? (booking.status === 'COMPLETED' ? booking.updatedAt : undefined),
   };
@@ -218,7 +308,13 @@ const BookingTimeline = ({ booking }: { booking: any }) => {
           <FadeSlideIn key={step.key} delay={i * 70}>
             <View style={tlm.row}>
               <View style={{ alignItems: 'center' }}>
-                <View style={[tlm.dot, done && tlm.dotDone, active && tlm.dotActive]} />
+                {active ? (
+                  <PopIn key={booking.status} play={booking.status !== firstStatus}>
+                    <View style={[tlm.dot, done && tlm.dotDone, tlm.dotActive]} />
+                  </PopIn>
+                ) : (
+                  <View style={[tlm.dot, done && tlm.dotDone]} />
+                )}
                 {!isLast && steps.length > 1 && (
                   <View style={[tlm.line, done && tlm.lineDone]} />
                 )}
@@ -330,29 +426,27 @@ const mapCard = StyleSheet.create({
 
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
-  topBar: {
+  flex: { flex: 1 },
+  confirmedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.statusDoneSoftBg,
   },
-  topLabel: { ...typography.label, color: palette.textMuted },
-  spacer: { width: 44 },
-  title: {
-    fontFamily: displayFamily,
-    fontSize: 30,
-    lineHeight: 34,
-    letterSpacing: -0.5,
-    color: palette.textPrimary,
-  },
+  confirmedText: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
+  providerValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
+  specMuted: { color: palette.textSecondary, fontWeight: '400' },
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
-  date: { fontFamily: fontFamilyMono, fontSize: 11, color: palette.textMuted },
+  date: { fontSize: 12, color: palette.textMuted },
   note: {
     ...typography.label,
     color: palette.textMuted,

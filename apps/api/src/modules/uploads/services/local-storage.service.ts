@@ -130,6 +130,23 @@ export class LocalStorageService implements StorageService {
     await fs.writeFile(target, body);
   }
 
+  async putPrivateObject(params: { key: string; body: Buffer; contentType: string }): Promise<void> {
+    const target = this.resolveKey(params.key);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, params.body);
+  }
+
+  async objectExists(key: string): Promise<boolean> {
+    return fs
+      .access(this.resolveKey(key))
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  async deletePrivateObject(key: string): Promise<void> {
+    await fs.rm(this.resolveKey(key), { force: true });
+  }
+
   async readLocalFile(
     key: string,
   ): Promise<{ body: Buffer; contentType: string }> {

@@ -14,3 +14,6 @@ graphify-out
 docs
 backups
 *.log
+# Local-only files and the AWS infrastructure code never belong in the API image.
+apps/api/uploads
+infra

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Plus, X } from 'lucide-react-native';
 import { uploadImage, type UploadFolder, type UploadedImage } from '@/services/uploads';
 import { palette, spacing, radii, typography } from '@/theme';
+import { notice } from '@/lib/confirm';
 
 export interface PhotoPickerProps {
   images: UploadedImage[];
@@ -53,7 +54,7 @@ export function PhotoPicker({
       }
       onChange([...images, ...uploaded]);
     } catch (error: any) {
-      Alert.alert('Upload failed', error?.message || 'Could not upload the photo.');
+      notice('Upload failed', error?.message || 'Could not upload the photo.');
     } finally {
       setBusy(false);
       onUploadingChange?.(false);
@@ -63,7 +64,7 @@ export function PhotoPicker({
   async function pickFromLibrary() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo access to attach damage photos.');
+      notice('Permission required', 'Allow photo access to attach damage photos.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -78,7 +79,7 @@ export function PhotoPicker({
   async function takePhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow camera access to take a photo.');
+      notice('Permission required', 'Allow camera access to take a photo.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
@@ -87,6 +88,8 @@ export function PhotoPicker({
 
   function addTapped() {
     if (busy || remaining === 0) return;
+    // A browser has no camera choice here, and Alert.alert shows nothing there: open the file picker.
+    if (Platform.OS === 'web') return void pickFromLibrary();
     Alert.alert('Add photo', undefined, [
       { text: 'Take photo', onPress: () => void takePhoto() },
       { text: 'Choose from library', onPress: () => void pickFromLibrary() },

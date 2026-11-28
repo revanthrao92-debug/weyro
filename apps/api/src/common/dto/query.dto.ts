@@ -42,6 +42,11 @@ export const bookingsQuerySchema = cursorPaginationSchema.extend({
       'DISPUTED',
     ])
     .optional(),
+  /** "true": only jobs still in progress (confirmed, on the way, working), however old. */
+  active: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
@@ -51,6 +56,11 @@ export const sparePartOrderQuerySchema = cursorPaginationSchema.extend({
   fulfillmentStatus: z
     .enum(['PENDING', 'PROCESSING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
     .optional(),
+  /** "true": only paid orders the dealer still has to pack, ship or mark delivered. */
+  needsAction: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export const adminActivityQuerySchema = cursorPaginationSchema.extend({
@@ -101,3 +111,7 @@ export type ProviderAdminQuery = z.infer<typeof providerAdminQuerySchema>;
 export type AdminActivityQuery = z.infer<typeof adminActivityQuerySchema>;
 export type AdminOrdersQuery = z.infer<typeof adminOrdersQuerySchema>;
 export type AdminBookingsQuery = z.infer<typeof adminBookingsQuerySchema>;
+
+/** A Weyro reference number as typed by an admin; the service checks the format and check digit. */
+export const adminLookupQuerySchema = z.object({ ref: z.string().trim().min(1).max(40) }).strict();
+export type AdminLookupQuery = z.infer<typeof adminLookupQuerySchema>;

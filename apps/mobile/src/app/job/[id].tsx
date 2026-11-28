@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useIsFocused } from 'expo-router';
 import * as Location from 'expo-location';
 import {
   getActiveJobId,
@@ -27,18 +27,20 @@ import {
   Card,
   EmptyState,
   Input,
+  PageHeader,
   ScreenContainer,
   Skeleton,
   StatusPill,
+  PopIn,
 } from '@/components/ui';
-import { formatDate, titleize } from '@/utils/format';
+import { Check } from 'lucide-react-native';
+import { formatDate, titleize, bookingStatusTone, formatRupees, refOf } from '@/utils/format';
 import {
-  fontFamilyMono,
   palette,
   spacing,
   typography,
-  type StatusTone,
 } from '@/theme';
+import { confirmAction, notice } from '@/lib/confirm';
 
 const STEPS = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
 
@@ -55,17 +57,14 @@ function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? titleize(status);
 }
 
-function tone(status: string): StatusTone {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
-  if (status === 'CANCELLED' || status === 'DISPUTED') return 'danger';
-  return 'neutral';
-}
 
 export default function MechanicJobDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: booking, isLoading, isError } = useBooking(id ?? '');
+  const { data: booking, isLoading, isError } = useBooking(id ?? '', useIsFocused());
+  // Status seen on open; the progress dot only animates for a change after that.
+  const [firstStatus, setFirstStatus] = useState<string>();
+  if (booking && firstStatus === undefined) setFirstStatus(booking.status);
   const updateStatus = useUpdateBookingStatus();
   const updateLocation = useUpdateBookingLocation();
   const [notes, setNotes] = useState('');
@@ -140,16 +139,25 @@ export default function MechanicJobDetailScreen() {
         request.vehicle.year ? ` ${request.vehicle.year}` : ''
       }`
     : 'Vehicle';
-  const stepIndex = STEPS.indexOf(booking.status);
   const payment = booking.payment ?? booking.payments?.[0];
   const category = request?.category ?? '';
   const isTowing = category === 'TOWING';
   const isRoadside = category === 'ROADSIDE';
-  const STEP_LABEL = isTowing
-    ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
+  // Drop-off repairs ('PICKUP' in the quote composer): the customer brings the
+  // vehicle in, so there is no "on the way" leg (the API allows CONFIRMED -> IN_PROGRESS).
+  // A dealer's sale from a part request: packed, then delivered (no "on the way" leg).
+  const isParts = category === 'SPARE_PART';
+  const isDropOff =
+    isParts || (!isTowing && !isRoadside && booking.quotation?.deliveryMethod === 'PICKUP');
+  const steps = isDropOff ? STEPS.filter((s) => s !== 'PROVIDER_EN_ROUTE') : STEPS;
+  const stepIndex = steps.indexOf(booking.status);
+  const STEP_LABEL = isParts
+    ? ['Order confirmed', 'Packing', 'Delivered']
+    : isTowing
+      ? ['Confirmed', 'On the way', 'Towing', 'Delivered']
     : isRoadside
       ? ['Confirmed', 'On the way', 'On site', 'Completed']
-      : STEPS.map(statusLabel);
+      : steps.map(statusLabel);
   const canShareLocation =
     ['PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(booking.status) &&
     (isTowing || isRoadside);
@@ -161,9 +169,11 @@ export default function MechanicJobDetailScreen() {
         status,
         ...(withNotes && notes.trim() ? { completionNotes: notes.trim() } : {}),
       });
+      if (status === 'CANCELLED') haptics.warning();
+      else haptics.success();
       if (['COMPLETED', 'CANCELLED'].includes(status)) stopSharing();
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update the job.');
+      notice('Failed', e?.message || 'Could not update the job.');
     }
   };
 
@@ -176,7 +186,7 @@ export default function MechanicJobDetailScreen() {
       // Provider-only screen: the only place background location is requested.
       const { permission, started } = await startJobLocationUpdates(booking.id);
       if (permission === 'denied') {
-        Alert.alert(
+        notice(
           'Location permission needed',
           'Allow location access to share your live position with the customer.',
         );
@@ -205,38 +215,39 @@ export default function MechanicJobDetailScreen() {
           },
           (position) => send(position.coords),
         );
-        Alert.alert(
+        notice(
           'Sharing only while Weyro is open',
           'To keep sharing when you switch apps or lock your phone, set Weyro\'s location access to "Always" in Settings.',
         );
       }
       setSharing(true);
     } catch {
-      Alert.alert('Could not start location', 'Location sharing is unavailable on this device.');
+      notice('Could not start location', 'Location sharing is unavailable on this device.');
     }
   };
 
   const onPrimary = () => {
-    if (booking.status === 'CONFIRMED') return void advance('PROVIDER_EN_ROUTE');
+    if (booking.status === 'CONFIRMED') {
+      return void advance(isDropOff ? 'IN_PROGRESS' : 'PROVIDER_EN_ROUTE');
+    }
     if (booking.status === 'PROVIDER_EN_ROUTE') return void advance('IN_PROGRESS');
     if (booking.status === 'IN_PROGRESS') {
-      Alert.alert(
-        'Complete job',
-        'This marks the work complete and releases the held payment.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Complete',
-            onPress: () => void advance('COMPLETED', true),
-          },
-        ],
-      );
+      const message = isParts
+        ? 'This marks the part delivered and releases the held payment.'
+        : 'This marks the work complete and releases the held payment.';
+      void confirmAction('Complete job', message, 'Complete').then((ok) => {
+        if (ok) void advance('COMPLETED', true);
+      });
     }
   };
 
   const primaryLabel =
     booking.status === 'CONFIRMED'
-      ? 'On my way'
+      ? isParts
+        ? 'Start packing'
+        : isDropOff
+          ? 'Start job'
+          : 'On my way'
       : booking.status === 'PROVIDER_EN_ROUTE'
         ? isTowing
           ? 'Start tow'
@@ -246,60 +257,86 @@ export default function MechanicJobDetailScreen() {
         : booking.status === 'IN_PROGRESS'
           ? isTowing
             ? 'Delivered'
-            : 'Complete job'
+            : isParts
+              ? 'Mark delivered'
+              : 'Complete job'
           : null;
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>Job</Text>
-          <View style={styles.topBarSpacer} />
-        </View>
-
-        <Text style={styles.title} numberOfLines={2}>
-          {request?.title ?? 'Service job'}
-        </Text>
-        <View style={styles.metaRow}>
-          <StatusPill
-            label={
-              booking.status === 'IN_PROGRESS'
-                ? isTowing
-                  ? 'Towing'
-                  : isRoadside
-                    ? 'On site'
-                    : 'In progress'
-                : statusLabel(booking.status)
-            }
-            tone={tone(booking.status)}
-          />
-          <Text style={styles.meta}>
-            #{booking.id.slice(0, 8).toUpperCase()} · {titleize(request?.category ?? 'SERVICE')}
-          </Text>
-        </View>
+        <PageHeader back title={request?.title ?? 'Service job'}>
+          <View style={styles.metaRow}>
+            <StatusPill
+              label={
+                booking.status === 'IN_PROGRESS'
+                  ? isTowing
+                    ? 'Towing'
+                    : isRoadside
+                      ? 'On site'
+                      : isParts
+                        ? 'Packing'
+                        : 'In progress'
+                  : statusLabel(booking.status)
+              }
+              tone={bookingStatusTone(booking.status)}
+            />
+            <Text style={styles.meta}>
+              Job {refOf(booking)}, {titleize(request?.category ?? 'SERVICE')}
+            </Text>
+          </View>
+          {request?.ref ? (
+            <Text style={styles.meta} selectable>
+              From request {request.ref}
+            </Text>
+          ) : null}
+        </PageHeader>
 
         <Card style={styles.card}>
           <Text style={styles.amount}>
-            ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}
+            {formatRupees(booking.quotation?.totalCost ?? 0)}
           </Text>
           <Text style={styles.meta}>
-            {request?.address ?? 'Workshop job'}
-            {booking.scheduledAt ? ` · ${formatDate(booking.scheduledAt)}` : ''}
+            {[request?.address ?? 'At the workshop', booking.scheduledAt ? formatDate(booking.scheduledAt) : null]
+              .filter(Boolean)
+              .join(', ')}
           </Text>
         </Card>
 
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Progress</Text>
-          <View style={styles.steps}>
-            {STEPS.map((step, index) => {
-              const done = stepIndex >= index && stepIndex >= 0;
+          {/* Reached steps ticked, the next one marked; one per line so long labels fit. */}
+          <View>
+            {steps.map((step, index) => {
+              const done = stepIndex >= 0 && index <= stepIndex;
+              const next = index === stepIndex + 1 && booking.status !== 'COMPLETED';
               return (
-                <View key={step} style={styles.step}>
-                  <View style={[styles.dot, done && styles.dotDone]} />
-                  <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>
-                    {STEP_LABEL[index]}
-                  </Text>
+                <View
+                  key={step}
+                  style={styles.tlRow}
+                  accessible
+                  accessibilityLabel={`${STEP_LABEL[index]}${done ? ', done' : next ? ', next step' : ''}`}
+                >
+                  <View style={styles.tlRail}>
+                    {index === stepIndex ? (
+                      <PopIn key={booking.status} play={firstStatus !== undefined && booking.status !== firstStatus}>
+                        <View style={[styles.tlDot, styles.tlDotDone]}>
+                          <Check size={12} color={palette.onAccent} strokeWidth={3} />
+                        </View>
+                      </PopIn>
+                    ) : (
+                      <View style={[styles.tlDot, done && styles.tlDotDone, next && styles.tlDotNext]}>
+                        {done ? <Check size={12} color={palette.onAccent} strokeWidth={3} /> : null}
+                      </View>
+                    )}
+                    {index < steps.length - 1 ? <View style={[styles.tlLine, index < stepIndex && styles.tlLineDone]} /> : null}
+                  </View>
+                  <View style={styles.tlText}>
+                    <Text style={[styles.tlLabel, (done || next) && styles.tlLabelOn, next && styles.tlLabelNext]}>
+                      {STEP_LABEL[index]}
+                    </Text>
+                    {next ? <Text style={styles.meta}>Next step</Text> : null}
+                  </View>
                 </View>
               );
             })}
@@ -335,9 +372,11 @@ export default function MechanicJobDetailScreen() {
           <Card style={styles.card}>
             {booking.status === 'IN_PROGRESS' ? (
               <Input
-                label="Completion notes (optional)"
+                label={isParts ? 'Delivery note (optional)' : 'Completion notes (optional)'}
                 placeholder={
-                  isTowing
+                  isParts
+                    ? 'Courier and tracking number, or who collected it'
+                    : isTowing
                     ? 'Vehicle delivered, condition, handover'
                     : isRoadside
                       ? 'What was fixed on site'
@@ -358,14 +397,9 @@ export default function MechanicJobDetailScreen() {
                 title="Call off job"
                 variant="destructive"
                 onPress={() =>
-                  Alert.alert('Cancel job', 'Cancel this assigned job?', [
-                    { text: 'Keep job', style: 'cancel' },
-                    {
-                      text: 'Cancel job',
-                      style: 'destructive',
-                      onPress: () => void advance('CANCELLED'),
-                    },
-                  ])
+                  void confirmAction('Cancel job', 'Cancel this assigned job?', 'Cancel job').then((ok) => {
+                    if (ok) void advance('CANCELLED');
+                  })
                 }
               />
             ) : null}
@@ -398,14 +432,14 @@ export default function MechanicJobDetailScreen() {
             <Row label="Distance" value={`${request.towingDistanceKm} km`} />
           ) : null}
           {request?.address ? (
-            <Row label="Pickup" value={request.address} />
+            <Row label={isDropOff ? 'Customer address' : 'Pickup'} value={request.address} />
           ) : null}
           {isTowing && request?.dropoffAddress ? (
             <Row label="Dropoff" value={request.dropoffAddress} />
           ) : null}
           {request?.address ? (
             <Button
-              title="Pickup in maps"
+              title={isDropOff ? 'Address in maps' : 'Pickup in maps'}
               variant="secondary"
               onPress={() =>
                 void Linking.openURL(
@@ -435,7 +469,7 @@ export default function MechanicJobDetailScreen() {
           <Text style={styles.sectionTitle}>Payment</Text>
           <Row
             label="Job value"
-            value={`₹${Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}`}
+            value={formatRupees(booking.quotation?.totalCost ?? 0)}
           />
           <Row
             label="Status"
@@ -466,16 +500,26 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  topBar: {
-    flexDirection: 'row',
+  tlRow: { flexDirection: 'row', gap: spacing.md },
+  tlRail: { alignItems: 'center', width: 20 },
+  tlDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: palette.borderStrong,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    justifyContent: 'center',
   },
-  topBarSpacer: { width: 44 },
-  eyebrow: { ...typography.label, color: palette.textMuted, letterSpacing: 0.3 },
-  title: { ...typography.display, color: palette.textPrimary },
+  tlDotDone: { backgroundColor: palette.accent, borderColor: palette.accent },
+  tlDotNext: { borderColor: palette.accent },
+  tlLine: { width: 2, flex: 1, minHeight: 18, backgroundColor: palette.border },
+  tlLineDone: { backgroundColor: palette.accent },
+  tlText: { flex: 1, paddingBottom: spacing.md },
+  tlLabel: { ...typography.body, color: palette.textMuted },
+  tlLabelOn: { color: palette.textPrimary },
+  tlLabelNext: { fontWeight: '600' },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,17 +531,6 @@ const styles = StyleSheet.create({
   card: { marginTop: spacing.lg, gap: spacing.md },
   amount: { ...typography.title, color: palette.textPrimary },
   sectionTitle: { ...typography.captionMedium, color: palette.textPrimary },
-  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.borderStrong,
-  },
-  dotDone: { backgroundColor: palette.accent },
-  stepLabel: { ...typography.label, color: palette.textMuted },
-  stepLabelDone: { color: palette.textPrimary },
   notes: { ...typography.caption, color: palette.textSecondary },
   row: {
     flexDirection: 'row',
@@ -507,8 +540,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: { ...typography.label, color: palette.textMuted },
   rowValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 12,
+    ...typography.body,
     color: palette.textPrimary,
     flex: 1,
     textAlign: 'right',

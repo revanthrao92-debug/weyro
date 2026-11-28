@@ -1,0 +1,92 @@
+# Deploy the API to AWS (Mumbai). See docs/DEPLOY_AWS.md.
+#
+# - Production: automatically after CI passes on main, and only after a reviewer approves the
+#   "aws-production" GitHub environment.
+# - Staging: run by hand from the Actions tab, from any branch.
+# - Off until the repository variable AWS_DEPLOY_ENABLED is "true" (set once AWS is ready).
+#
+# Each deploy: build the image → push it to ECR (tag = commit) → `cdk deploy` with that tag.
+# The new tasks run database migrations, then start; ECS keeps the old version serving and
+# rolls back by itself if the new one fails its health check. Ends with a /ready check.
+
+name: Deploy to AWS
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Where to deploy'
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  id-token: write # keyless AWS login (OIDC)
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.AWS_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    environment: aws-${{ github.event.inputs.environment || 'production' }}
+    env:
+      AWS_REGION: ap-south-1
+      TARGET: ${{ github.event.inputs.environment || 'production' }}
+      # The commit CI checked (workflow_run) or the branch being deployed by hand.
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the API image (skipped if this commit is already there)
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/weyro-api:${{ env.SHA }}
+        run: |
+          if aws ecr describe-images --repository-name weyro-api --image-ids imageTag="$SHA" >/dev/null 2>&1; then
+            echo "Image $SHA already in ECR"
+          else
+            docker build --platform linux/amd64 -f apps/api/Dockerfile -t "$IMAGE" .
+            docker push "$IMAGE"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Deploy (migrations run in the new tasks before they serve)
+        working-directory: infra
+        run: |
+          npm ci
+          STACK=$([ "$TARGET" = production ] && echo WeyroProduction || echo WeyroStaging)
+          npx cdk deploy "$STACK" --require-approval never \
+            -c imageTag="$SHA" -c alertEmail="${{ vars.ALERT_EMAIL }}" -c budgetUsd="${{ vars.MONTHLY_BUDGET_USD || 100 }}"
+          echo "STACK=$STACK" >> "$GITHUB_ENV"
+
+      - name: Check the live API answers
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name "$STACK" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          echo "API: $URL"
+          curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "$URL/ready"

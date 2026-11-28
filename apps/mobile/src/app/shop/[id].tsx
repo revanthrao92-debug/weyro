@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSparePart, useCreateSparePartOrder } from '@/hooks/useParts';
@@ -13,6 +13,7 @@ import {
   StatusPill,
   Skeleton,
   EmptyState,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
@@ -22,13 +23,16 @@ import {
   displayFamily,
   fontFamilyMono,
 } from '@/theme';
+import { isNotFound } from '@/services/api-client';
+import { formatRupees } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 type PartParams = { id: string };
 
 export default function PartDetailScreen() {
   const { id } = useLocalSearchParams<PartParams>();
   const router = useRouter();
-  const { data: part, isLoading } = useSparePart(id || '');
+  const { data: part, isLoading, isError, error, refetch } = useSparePart(id || '');
   const createOrder = useCreateSparePartOrder();
   const [ordering, setOrdering] = useState(false);
   const [shippingName, setShippingName] = useState('');
@@ -53,7 +57,11 @@ export default function PartDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <EmptyState title="Part not found" message="This part may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Part not found" message="This part may have been removed." />
+        )}
       </ScreenContainer>
     );
   }
@@ -71,11 +79,11 @@ export default function PartDetailScreen() {
 
   const handleOrder = async () => {
     if (!inStock || quantity < 1 || quantity > maxQty) {
-      Alert.alert('Error', 'Invalid quantity');
+      notice('Error', 'Invalid quantity');
       return;
     }
     if (!validShipping) {
-      Alert.alert('Delivery details needed', 'Add a name, phone and delivery address first.');
+      notice('Delivery details needed', 'Add a name, phone and delivery address first.');
       return;
     }
     setOrdering(true);
@@ -92,7 +100,7 @@ export default function PartDetailScreen() {
       // The order exists now; it appears in Orders with its payment state.
       router.replace('/my-orders');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to create order');
+      notice('Failed', e.message || 'Unable to create order');
     } finally {
       setOrdering(false);
     }
@@ -126,7 +134,7 @@ export default function PartDetailScreen() {
             <Text style={styles.title}>{part.name}</Text>
             <Text style={styles.partNumber}>{part.partNumber}</Text>
           </View>
-          <Text style={styles.price}>₹{Number(part.price).toLocaleString('en-IN')}</Text>
+          <Text style={styles.price}>{formatRupees(part.price)}</Text>
         </View>
 
         <View style={styles.pills}>
@@ -192,7 +200,7 @@ export default function PartDetailScreen() {
 
           <View style={styles.totalRow}>
             <Text style={styles.orderLabel}>Total</Text>
-            <Text style={styles.total}>₹{total.toLocaleString('en-IN')}</Text>
+            <Text style={styles.total}>{formatRupees(total)}</Text>
           </View>
 
           <SectionHead title="Delivery details" />
@@ -282,12 +290,11 @@ const styles = StyleSheet.create({
   },
   partNumber: {
     fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 4,
   },
   price: {
-    fontFamily: fontFamilyMono,
     fontSize: 22,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],
@@ -333,8 +340,8 @@ const styles = StyleSheet.create({
   orderLabel: { ...typography.caption, color: palette.textSecondary },
   quantity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   qtyButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: palette.border,
@@ -344,7 +351,7 @@ const styles = StyleSheet.create({
   },
   qtyDisabled: { opacity: 0.4 },
   qtyButtonText: { ...typography.heading, color: palette.textPrimary },
-  qtyValue: { fontFamily: fontFamilyMono, fontSize: 16, color: palette.textPrimary },
+  qtyValue: { fontSize: 16, color: palette.textPrimary },
   totalRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,7 +363,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   total: {
-    fontFamily: fontFamilyMono,
     fontSize: 20,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],

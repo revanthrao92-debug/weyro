@@ -1,19 +1,28 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   Pressable,
   PressableProps,
   StyleProp,
   StyleSheet,
+  Text,
+  TextStyle,
+  View,
   ViewStyle,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
+  Easing,
   FadeInDown,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
+  withRepeat,
   withSpring,
+  withTiming,
+  ZoomIn,
 } from 'react-native-reanimated';
-import { durations, springs } from '@/theme';
+import { durations, palette, springs } from '@/theme';
 
 /**
  * Motion primitives — thin wrappers over Reanimated so every screen uses the
@@ -97,7 +106,139 @@ export function PressableScale({
   );
 }
 
-/** Style helper for screens that need the same pressed feel on a plain View. */
-export const motionStyles = StyleSheet.create({
-  fill: { flex: 1 },
-});
+/**
+ * Slow expanding ring behind an urgent control (SOS). One ring, low amplitude,
+ * every ~2 s; nothing under Reduce Motion.
+ */
+export function Pulse({
+  children,
+  color = palette.accent,
+  radius = 8,
+  style,
+}: {
+  children: ReactNode;
+  color?: string;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const reducedMotion = useReducedMotion();
+  const t = useSharedValue(0);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    t.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) }), -1);
+    // Stop the endless loop on unmount or when Reduce Motion turns on.
+    return () => cancelAnimation(t);
+  }, [reducedMotion, t]);
+
+  const ring = useAnimatedStyle(() => ({
+    opacity: 0.55 * (1 - t.value),
+    transform: [{ scale: 1 + 0.18 * t.value }],
+  }));
+
+  return (
+    <View style={style}>
+      {reducedMotion ? null : (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { borderRadius: radius, borderWidth: 2, borderColor: color }, ring]}
+        />
+      )}
+      {children}
+    </View>
+  );
+}
+
+/**
+ * One-time spring scale-in. Give it a `key` that changes with the state it
+ * marks (e.g. the booking status) so it replays only when that state changes.
+ */
+export function PopIn({
+  children,
+  play = true,
+  style,
+}: {
+  children: ReactNode;
+  play?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const reducedMotion = useReducedMotion();
+  return (
+    <Animated.View
+      entering={play && !reducedMotion ? ZoomIn.springify().damping(14) : undefined}
+      style={style}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Accent outline that fades out once, marking something that just arrived. */
+export function FlashBorder({
+  children,
+  active,
+  radius = 8,
+  style,
+}: {
+  children: ReactNode;
+  active: boolean;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const reducedMotion = useReducedMotion();
+  const o = useSharedValue(active && !reducedMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (active && !reducedMotion) o.value = withDelay(1200, withTiming(0, { duration: 1400 }));
+  }, [active, reducedMotion, o]);
+
+  const outline = useAnimatedStyle(() => ({ opacity: o.value }));
+
+  return (
+    <View style={style}>
+      {children}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { borderRadius: radius, borderWidth: 2, borderColor: palette.accent },
+          outline,
+        ]}
+      />
+    </View>
+  );
+}
+
+/** A number that counts up from 0 once when `animate` (e.g. a price that just arrived). */
+export function CountUp({
+  value,
+  animate,
+  format = (n: number) => n.toLocaleString('en-IN'),
+  style,
+}: {
+  value: number;
+  animate: boolean;
+  format?: (n: number) => string;
+  style?: StyleProp<TextStyle>;
+}) {
+  const reducedMotion = useReducedMotion();
+  const play = animate && !reducedMotion && Number.isFinite(value);
+  const [shown, setShown] = useState(play ? 0 : value);
+
+  useEffect(() => {
+    if (!play) return;
+    const start = Date.now();
+    let frame = 0;
+    const tick = () => {
+      const p = Math.min(1, (Date.now() - start) / 700);
+      // Land on the exact value (no rounding drift on e.g. 1499.50).
+      setShown(p < 1 ? Math.round(value * (1 - Math.pow(1 - p, 3))) : value);
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [play, value]);
+
+  if (!Number.isFinite(value)) return <Text style={style}>{String(value)}</Text>;
+  return <Text style={style}>{format(play ? shown : value)}</Text>;
+}

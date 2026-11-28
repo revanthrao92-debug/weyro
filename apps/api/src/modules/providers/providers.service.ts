@@ -8,13 +8,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PROVIDER_TYPE_CATEGORIES } from '@weyro/api-contracts';
-import {
-  addDays,
-  buildDailyBuckets,
-  forecastNetSales,
-  startOfDayUTC,
-  summariseAnalytics,
-} from './analytics';
+import { addDays, buildDailyBuckets, summariseAnalytics } from './analytics';
+import { istDayStart } from '../../common/utils/ist-day';
+import { forecastEarnings } from './forecast';
+
+/** Days are counted in Indian time, so a 1 am sale and "today" match the dealer's calendar. */
+const IST_OFFSET_MINUTES = 330;
+/** The forecast learns from up to six months of sales, whatever range the screen shows. */
+const MODEL_DAYS = 183;
 import { CacheService } from '../../common/redis/cache.service';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import {
@@ -82,86 +83,176 @@ export class ProvidersService {
     const id = this.providerId(user);
     const periodDays = Math.min(90, Math.max(7, Math.round(days)));
     const now = new Date();
-    const start = addDays(startOfDayUTC(now), -(periodDays - 1));
+    const modelStart = addDays(now, -(MODEL_DAYS + 1));
+    const todayStart = istDayStart(now);
+    const periodStart = addDays(todayStart, -(periodDays - 1)); // first day shown on the chart
+    const last28 = addDays(now, -28);
 
-    const [orders, pendingAggregate, listings, quotesSent, quotesAccepted] =
-      await Promise.all([
-        this.prisma.sparePartOrder.findMany({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            paidAt: { gte: start },
-          },
-          select: {
-            totalAmount: true,
-            paidAt: true,
-            refundedAt: true,
-            status: true,
-          },
-          take: 2000,
-        }),
-        this.prisma.sparePartOrder.aggregate({
-          where: {
-            providerId: id,
-            status: 'PENDING',
-            deletedAt: null,
-          },
-          _sum: { totalAmount: true },
-        }),
-        this.prisma.sparePart.findMany({
-          where: { providerId: id, deletedAt: null },
-          select: { price: true, stockQuantity: true, isActive: true },
-        }),
-        this.prisma.quotation.count({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            createdAt: { gte: start },
-          },
-        }),
-        this.prisma.quotation.count({
-          where: {
-            providerId: id,
-            deletedAt: null,
-            status: 'ACCEPTED',
-            createdAt: { gte: start },
-          },
-        }),
-      ]);
+    const profile = await this.prisma.providerProfile.findUnique({
+      where: { id },
+      // Drivers switch on and off with driverProfile.isOnline, not the shop's isAvailable.
+      select: { providerType: true, isAvailable: true, driverProfile: { select: { isOnline: true } } },
+    });
+    const categories =
+      PROVIDER_TYPE_CATEGORIES[profile?.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES] ?? [];
+    const requestCount = (from: Date, to: Date) =>
+      categories.length
+        ? this.prisma.serviceRequest.count({
+            where: { category: { in: categories as any }, deletedAt: null, createdAt: { gte: from, lt: to } },
+          })
+        : Promise.resolve(0);
+
+    // Parts dealers earn from paid parts orders. Garages, mechanics and tow
+    // trucks earn from finished jobs (the quote total on the day the job was
+    // completed) PLUS any parts they sell in the shop: all money in.
+    const isDriver = profile?.providerType === 'DRIVER';
+    const earnsFromJobs = profile?.providerType !== 'PARTS_DEALER' && !isDriver;
+    const partOrders = this.prisma.sparePartOrder.findMany({
+      where: { providerId: id, deletedAt: null, paidAt: { gte: modelStart } },
+      select: { totalAmount: true, paidAt: true, refundedAt: true, status: true },
+      // shortcut: loads each order row; past ~20k orders in six months, group by day in SQL instead.
+      take: 20000,
+    });
+    const jobs = earnsFromJobs
+      ? this.prisma.booking
+          .findMany({
+            where: { providerId: id, deletedAt: null, status: 'COMPLETED', completedAt: { gte: modelStart } },
+            select: { completedAt: true, quotation: { select: { totalCost: true } } },
+            // shortcut: same per-row load as parts orders above.
+            take: 20000,
+          })
+          .then((rows) =>
+            rows.map((job) => ({ totalAmount: job.quotation.totalCost, paidAt: job.completedAt, refundedAt: null, status: 'PAID' })),
+          )
+      : Promise.resolve([]);
+    // Drivers earn their share of each finished Driver Go trip.
+    const trips = isDriver
+      ? this.prisma.driverBooking
+          .findMany({
+            where: { driverId: id, deletedAt: null, status: 'COMPLETED', completedAt: { gte: modelStart } },
+            select: { completedAt: true, driverEarning: true },
+            // shortcut: same per-row load as above.
+            take: 20000,
+          })
+          .then((rows) =>
+            rows.map((trip) => ({ totalAmount: trip.driverEarning, paidAt: trip.completedAt, refundedAt: null, status: 'PAID' })),
+          )
+      : Promise.resolve([]);
+    const ordersQuery = Promise.all([partOrders, jobs, trips]).then(([p, j, t]) => [...p, ...j, ...t]);
+
+    const [
+      orders,
+      pendingAggregate,
+      listings,
+      quotesSent,
+      quotesAccepted,
+      pendingQuotes,
+      decidedQuotes,
+      allAccepted,
+      unitsByPart,
+      requestsLast7,
+      requestsPrevious56,
+    ] = await Promise.all([
+      ordersQuery,
+      this.prisma.sparePartOrder.aggregate({
+        where: { providerId: id, status: 'PENDING', deletedAt: null },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.sparePart.findMany({
+        where: { providerId: id, deletedAt: null },
+        select: { id: true, name: true, price: true, stockQuantity: true, isActive: true, kind: true },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, createdAt: { gte: periodStart } },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: 'ACCEPTED', createdAt: { gte: periodStart } },
+      }),
+      this.prisma.quotation.aggregate({
+        where: { providerId: id, deletedAt: null, status: 'PENDING' },
+        _sum: { totalCost: true },
+        _count: true,
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: { in: ['ACCEPTED', 'REJECTED', 'EXPIRED'] } },
+      }),
+      this.prisma.quotation.count({
+        where: { providerId: id, deletedAt: null, status: 'ACCEPTED' },
+      }),
+      this.prisma.sparePartOrder.groupBy({
+        by: ['sparePartId'],
+        where: { providerId: id, deletedAt: null, status: 'PAID', paidAt: { gte: last28 } },
+        _sum: { quantity: true },
+      }),
+      requestCount(addDays(now, -7), now),
+      requestCount(addDays(now, -63), addDays(now, -7)),
+    ]);
 
     const analyticsOrders = orders.map((order) => ({
       ...order,
       totalAmount: Number(order.totalAmount),
     }));
-    const buckets = buildDailyBuckets(analyticsOrders, periodDays, now);
-    const summary = summariseAnalytics(buckets, analyticsOrders);
+    const allDays = buildDailyBuckets(analyticsOrders, MODEL_DAYS + 1, now, IST_OFFSET_MINUTES);
+    const buckets = allDays.slice(-periodDays);
+    const periodOrders = analyticsOrders.filter(
+      (order) => order.paidAt && order.paidAt.getTime() >= periodStart.getTime(),
+    );
+    const summary = summariseAnalytics(buckets, periodOrders);
     const activeListings = listings.filter((item) => item.isActive);
+    const unitsSold = new Map(unitsByPart.map((row) => [row.sparePartId, row._sum.quantity ?? 0]));
+
+    const forecast = forecastEarnings({
+      history: allDays.slice(0, -1), // today isn't over yet
+      shopOpen: isDriver ? (profile?.driverProfile?.isOnline ?? false) : (profile?.isAvailable ?? true),
+      closedText: isDriver
+        ? { label: 'You are offline', detail: 'Customers cannot book you until you go online. This forecast is ₹0 until then.' }
+        : undefined,
+      // Only physical parts have stock to run out of (service packages don't).
+      parts: activeListings.filter((item) => item.kind !== 'PACKAGE').map((item) => ({
+        name: item.name,
+        price: Number(item.price),
+        stock: item.stockQuantity,
+        unitsLast28: unitsSold.get(item.id) ?? 0,
+      })),
+      quotes: {
+        pendingTotal: Number(pendingQuotes._sum.totalCost ?? 0),
+        pendingCount: pendingQuotes._count,
+        accepted: allAccepted,
+        decided: decidedQuotes,
+      },
+      demand: { last7: requestsLast7, previous56: requestsPrevious56 },
+      requestWord: isDriver
+        ? 'trip'
+        : earnsFromJobs
+          ? profile?.providerType === 'TOWING'
+            ? 'towing'
+            : profile?.providerType === 'ROADSIDE'
+              ? 'roadside'
+              : 'repair'
+          : 'part',
+    });
 
     return {
       periodDays,
       currency: 'INR',
+      /** What the money comes from: 'jobs' (garage, mechanic, towing) or 'parts' (dealer). */
+      earningsFrom: isDriver ? 'trips' : earnsFromJobs ? 'jobs' : 'parts',
       summary: {
         ...summary,
         pendingValue: Number(pendingAggregate._sum.totalAmount ?? 0),
-        inventoryValue: Math.round(
-          activeListings.reduce(
-            (sum, item) => sum + Number(item.price) * item.stockQuantity,
-            0,
-          ) * 100,
-        ) / 100,
+        inventoryValue:
+          Math.round(
+            activeListings.reduce((sum, item) => sum + Number(item.price) * item.stockQuantity, 0) * 100,
+          ) / 100,
         activeListings: activeListings.length,
-        lowStockListings: activeListings.filter(
-          (item) => item.stockQuantity <= 3,
-        ).length,
+        lowStockListings: activeListings.filter((item) => item.stockQuantity <= 3).length,
         quotesSent,
         quotesAccepted,
         quoteConversionRate:
-          quotesSent === 0
-            ? 0
-            : Math.round((quotesAccepted / quotesSent) * 1000) / 10,
+          quotesSent === 0 ? 0 : Math.round((quotesAccepted / quotesSent) * 1000) / 10,
       },
       buckets,
-      forecast: forecastNetSales(buckets),
+      forecast,
     };
   }
 
@@ -190,10 +281,9 @@ export class ProvidersService {
         provider.providerType as keyof typeof PROVIDER_TYPE_CATEGORIES
       ] ?? [];
 
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    // Indian day: the server runs in UTC (midnight there is 05:30 IST).
+    const dayStart = istDayStart();
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60_000);
 
     const [
       openRequests,

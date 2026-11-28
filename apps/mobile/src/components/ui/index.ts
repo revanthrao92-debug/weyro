@@ -17,6 +17,9 @@ export { AppHeader } from './AppHeader';
 export type { AppHeaderProps } from './AppHeader';
 
 export { BackButton } from './BackButton';
+export { PageHeader } from './PageHeader';
+export { VehiclePhoto } from './VehiclePhoto';
+export { DrawCheck } from './DrawCheck';
 export type { BackButtonProps } from './BackButton';
 
 export { FilterBar } from './FilterBar';
@@ -60,7 +63,7 @@ export { AdSlot } from './AdSlot';
 export type { AdSlotProps } from './AdSlot';
 export type { AdBannerProps, AdPlacement } from './AdBanner';
 
-export { FadeSlideIn, PressableScale } from './Motion';
+export { CountUp, FadeSlideIn, FlashBorder, PopIn, PressableScale, Pulse } from './Motion';
 export { MetallicEdge, SideFade, Surface } from './Metallic';
 export type { MetallicEdgeProps, SideFadeProps, SurfaceProps } from './Metallic';
 export { Section } from './Section';
@@ -68,3 +71,5 @@ export { SectionHead } from './SectionHead';
 export type { SectionHeadProps } from './SectionHead';
 export type { SectionProps } from './Section';
 export type { FadeSlideInProps, PressableScaleProps } from './Motion';
+export { AppearancePicker } from './AppearancePicker';
+export { SwitchRow } from './SwitchRow';

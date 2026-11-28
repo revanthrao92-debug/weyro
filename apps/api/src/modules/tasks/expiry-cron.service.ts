@@ -1,15 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AdvisoryLockService } from '../../prisma/advisory-lock.service';
+
+const LOCK = 'expiry';
 
 @Injectable()
 export class ExpiryCronService {
   private readonly logger = new Logger(ExpiryCronService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly advisoryLock: AdvisoryLockService,
+  ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleExpiration() {
+    // One replica per tick; the updates are idempotent, so this only saves load.
+    if (!(await this.advisoryLock.tryLock(LOCK))) return;
     const now = new Date();
 
     try {
@@ -46,6 +54,8 @@ export class ExpiryCronService {
       }
     } catch (err: any) {
       this.logger.error(`Error executing expiration cron: ${err.message}`, err.stack);
+    } finally {
+      await this.advisoryLock.release(LOCK);
     }
   }
 }

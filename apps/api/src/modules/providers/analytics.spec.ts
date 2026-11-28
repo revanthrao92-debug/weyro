@@ -1,7 +1,6 @@
 import {
   addDays,
   buildDailyBuckets,
-  forecastNetSales,
   startOfDayUTC,
   summariseAnalytics,
 } from './analytics';
@@ -58,43 +57,12 @@ describe('analytics', () => {
     });
   });
 
-  it('refuses a forecast with too little history', () => {
-    const buckets = buildDailyBuckets([order(500, 1)], 5, now);
-    const forecast = forecastNetSales(buckets);
-    expect(forecast.available).toBe(false);
-  });
-
-  it('refuses a forecast with too few paid orders', () => {
-    const buckets = buildDailyBuckets([order(500, 1), order(500, 2)], 30, now);
-    const forecast = forecastNetSales(buckets);
-    expect(forecast.available).toBe(false);
-  });
-
-  it('projects the upward trend over the horizon', () => {
-    const orders = Array.from({ length: 30 }, (_, index) =>
-      order(100 + index * 10, 29 - index),
-    );
-    const buckets = buildDailyBuckets(orders, 30, now);
-    const forecast = forecastNetSales(buckets, { horizonDays: 7 });
-
-    expect(forecast.available).toBe(true);
-    if (!forecast.available) return;
-    expect(forecast.trend).toBe('UP');
-    expect(forecast.slopePerDay).toBeGreaterThan(5);
-    expect(forecast.points).toHaveLength(7);
-    expect(forecast.projectedTotal).toBeGreaterThan(0);
-  });
-
-  it('never projects negative revenue', () => {
-    const orders = Array.from({ length: 20 }, (_, index) =>
-      order(1000 - index * 45, 19 - index),
-    );
-    const buckets = buildDailyBuckets(orders, 20, now);
-    const forecast = forecastNetSales(buckets, { horizonDays: 14 });
-
-    expect(forecast.available).toBe(true);
-    if (!forecast.available) return;
-    expect(forecast.trend).toBe('DOWN');
-    expect(forecast.points.every((point) => point.value >= 0)).toBe(true);
+  it('counts a 1 am India-time sale on that Indian day', () => {
+    // 19:30 UTC on 11 Nov is 01:00 on 12 Nov in India.
+    const lateSale = { totalAmount: 400, paidAt: new Date('2026-11-11T19:30:00.000Z'), refundedAt: null, status: 'PAID' };
+    const utc = buildDailyBuckets([lateSale], 2, now);
+    const ist = buildDailyBuckets([lateSale], 2, now, 330);
+    expect(utc.find((b) => b.gross > 0)?.date).toBe('2026-11-11');
+    expect(ist.find((b) => b.gross > 0)?.date).toBe('2026-11-12');
   });
 });

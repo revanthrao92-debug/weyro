@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { AlertTriangle, Route } from 'lucide-react-native';
 import { MapSurface } from './MapSurface';
-import { hasMapAccess } from './config';
+import { FALLBACK_CENTER, hasMapAccess } from './config';
 import { reverseGeocode } from './client';
 import { centerOf, fitZoom, formatDistance, formatDuration } from './geo';
 import { useDirections } from './useDirections';
@@ -45,7 +45,7 @@ export function RoutePreview({
 
   const points = [from, to].filter(Boolean) as PickedLocation[];
   const center =
-    points.length > 0 ? centerOf(points) : { latitude: 12.9716, longitude: 77.5946 };
+    points.length > 0 ? centerOf(points) : FALLBACK_CENTER;
   const zoom = fitZoom(points, width, height, 48);
 
   const onLayout = (event: LayoutChangeEvent) => {

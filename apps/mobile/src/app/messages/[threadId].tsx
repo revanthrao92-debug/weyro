@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useIsFocused } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -18,13 +18,13 @@ import {
   PressableScale,
   Skeleton,
   EmptyState,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
   spacing,
   radii,
   typography,
-  fontFamilyMono,
 } from '@/theme';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -34,6 +34,7 @@ import {
   useSendChatMessage,
   type ChatMessage,
 } from '@/hooks/useChatThreads';
+import { notice } from '@/lib/confirm';
 
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -45,13 +46,13 @@ export default function MessagesThreadScreen() {
   const id = threadId ?? '';
 
   const { data: threadsData } = useChatThreads();
-  const { data, isLoading } = useChatMessages(id);
+  const { data, isLoading, isError, refetch } = useChatMessages(id, useIsFocused());
   const sendMessage = useSendChatMessage(id);
   const markRead = useMarkThreadRead(id);
 
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<ChatMessage>>(null);
-  const marked = useRef(false);
+  const markedCount = useRef(0);
 
   const thread = (threadsData?.items ?? []).find((t) => t.id === id);
   const title =
@@ -62,10 +63,12 @@ export default function MessagesThreadScreen() {
 
   const messages = data?.items ?? [];
 
+  // Re-mark whenever polling brings in new messages from the other party.
   useEffect(() => {
-    if (!id || marked.current || messages.length === 0) return;
-    marked.current = true;
-    if (messages.some((m) => !m.readAt)) {
+    if (!id || messages.length <= markedCount.current) return;
+    markedCount.current = messages.length;
+    const myRole = role === 'PROVIDER' ? 'PROVIDER' : 'CUSTOMER';
+    if (messages.some((m) => !m.readAt && m.senderRole !== myRole)) {
       markRead.mutate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,10 +79,11 @@ export default function MessagesThreadScreen() {
     if (!content || sendMessage.isPending) return;
     setText('');
     try {
+      haptics.tap();
       await sendMessage.mutateAsync(content);
     } catch (e: any) {
       setText(content);
-      Alert.alert('Message not sent', e?.message ?? 'Try again');
+      notice('Message not sent', e?.message ?? 'Try again');
     }
   };
 
@@ -106,6 +110,8 @@ export default function MessagesThreadScreen() {
               <Skeleton key={i} width={i % 2 ? '55%' : '70%'} height={40} style={{ marginTop: 12 }} />
             ))}
           </View>
+        ) : isError && !data ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
         ) : (
           <FlatList
             ref={listRef}
@@ -202,8 +208,7 @@ const styles = StyleSheet.create({
   },
   messageText: { ...typography.body, color: palette.textPrimary },
   time: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 4,
     alignSelf: 'flex-end',

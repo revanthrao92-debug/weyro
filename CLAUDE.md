@@ -9,8 +9,10 @@ See `AGENTS.md` for the Expo rules (check the SDK docs before touching Expo APIs
 - After changing `packages/database/prisma/schema.prisma`: `npm run db:generate`, then rebuild packages.
 - Migrations: `prisma migrate dev` is interactive and won't run in an agent shell. Generate SQL
   with `prisma migrate diff --from-url <db> --to-schema-datamodel prisma/schema.prisma --script`
-  and hand-trim it: Prisma wants to DROP the PostGIS `*_gix` GiST indexes because it can't model
-  them. Never include those drops. Hand-written partial indexes live only in SQL.
+  and read it before using it. The PostGIS `*_gix` GiST indexes and the `location` /
+  `dropoffLocation` columns are modelled in the schema (`type: Gist`, and `dbgenerated(...)` for the
+  columns the database computes from latitude/longitude), so a correct diff never touches them.
+  Never write those columns from code. Hand-written partial indexes live only in SQL.
 - E2E tests need a Postgres + PostGIS database with migrations applied (`npm run test:e2e -w @weyro/api`).
   Use a scratch database, never a developer's real one.
 - `/auth/register` is throttled per IP; e2e helpers register through `AuthService` for that reason.

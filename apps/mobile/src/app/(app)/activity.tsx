@@ -1,164 +1,95 @@
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Activity } from 'lucide-react-native';
-import {
-  useAdminActivity,
-  useAdminActivityStats,
-} from '@/hooks/useAdmin';
-import {
-  AppHeader,
-  Chip,
-  EmptyState,
-  ScreenContainer,
-  Skeleton,
-} from '@/components/ui';
-import { formatDate } from '@/utils/format';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-} from '@/theme';
+import { useAdminActivity, useAdminActivityStats } from '@/hooks/useAdmin';
+import { Chip, EmptyState, ErrorState, PageHeader, PressableScale, ScreenContainer, Skeleton } from '@/components/ui';
+import { ActivityChart } from '@/components/admin/ActivityChart';
+import { actionLabel, whenShort } from '@/components/admin/activityFormat';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { palette, radii, spacing, typography } from '@/theme';
 
-function actionLabel(action: string) {
-  const [head, ...rest] = action.split(/[._]/);
-  return [
-    head.charAt(0).toUpperCase() + head.slice(1).toLowerCase(),
-    ...rest.map((part) => part.toLowerCase()),
-  ].join(' ');
-}
+/** What each logged record type is called on screen. */
+const KIND: Record<string, string> = {
+  Payment: 'Payments',
+  Booking: 'Jobs',
+  ServiceRequest: 'Requests',
+  SparePartOrder: 'Parts orders',
+  ProviderProfile: 'Providers',
+};
 
+/** Admin activity log: what happened on the platform, newest first, with each record's number. */
 export default function ActivityScreen() {
-  const [entity, setEntity] = useState('ALL');
-  const { data, isLoading, refetch, isRefetching } = useAdminActivity({ limit: 50 });
+  const router = useRouter();
+  const [kind, setKind] = useState('ALL');
+  const activity = useAdminActivity({ limit: 50 });
   const stats = useAdminActivityStats();
+  const refreshControl = useRefreshControl(() => Promise.all([activity.refetch(), stats.refetch()]));
 
-  const logs = useMemo(() => data?.items ?? [], [data]);
-  const entities = useMemo(
-    () =>
-      Array.from(
-        new Set(logs.map((log) => log.entityType).filter(Boolean) as string[]),
-      ).slice(0, 5),
-    [logs],
-  );
-  const visible =
-    entity === 'ALL' ? logs : logs.filter((log) => log.entityType === entity);
-
+  const logs = useMemo(() => activity.data?.items ?? [], [activity.data]);
+  const kinds = useMemo(() => [...new Set(logs.map((l) => l.entityType).filter(Boolean) as string[])], [logs]);
+  const visible = kind === 'ALL' ? logs : logs.filter((l) => l.entityType === kind);
   const days = stats.data?.days ?? [];
-  const maxDay = Math.max(
-    1,
-    ...days.map(
-      (day) =>
-        day.requests + day.bookings + day.quotations + day.sparePartOrders,
-    ),
-  );
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Activity" subtitle="Platform audit trail" />
       <FlatList
-        data={isLoading ? [] : visible}
+        data={activity.isLoading ? [] : visible}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
-            tintColor={palette.textSecondary}
-          />
-        }
+        refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
-            <View style={styles.chart}>
-              {days.map((day) => {
-                const total =
-                  day.requests +
-                  day.bookings +
-                  day.quotations +
-                  day.sparePartOrders;
-                return (
-                  <View key={day.date} style={styles.chartCol}>
-                    <View style={styles.chartTrack}>
-                      <View
-                        style={[
-                          styles.chartBar,
-                          {
-                            height: Math.max(4, (total / maxDay) * 72),
-                            backgroundColor:
-                              day.date === days[days.length - 1]?.date
-                                ? palette.accent
-                                : palette.borderStrong,
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.chartLabel}>
-                      {new Date(`${day.date}T00:00:00.000Z`).getDate()}
-                    </Text>
-                  </View>
-                );
-              })}
+            <PageHeader
+              title="Activity"
+              subtitle={stats.data ? `${stats.data.totals.users} users, ${stats.data.totals.providers} providers` : 'What happened on Weyro'}
+            />
+            <View style={styles.card}>
+              {days.length ? <ActivityChart days={days} /> : <Skeleton width="100%" height={180} />}
             </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryText}>
-                {logs.length} events · {stats.data?.totals.users ?? 0} users ·{' '}
-                {stats.data?.totals.providers ?? 0} providers
-              </Text>
-            </View>
-
-            <View style={styles.filters}>
-              <Chip
-                label="All"
-                selected={entity === 'ALL'}
-                onPress={() => setEntity('ALL')}
-              />
-              {entities.map((item) => (
-                <Chip
-                  key={item}
-                  label={item.charAt(0) + item.slice(1).toLowerCase()}
-                  selected={entity === item}
-                  onPress={() => setEntity(item)}
-                />
-              ))}
-            </View>
-
-            {isLoading
-              ? [0, 1, 2].map((i) => (
-                  <View key={i} style={styles.skeleton}>
-                    <Skeleton width="65%" height={15} />
-                    <Skeleton width="40%" height={10} style={{ marginTop: 6 }} />
-                  </View>
-                ))
+            {kinds.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+                <Chip label="All" selected={kind === 'ALL'} onPress={() => setKind('ALL')} />
+                {kinds.map((k) => (
+                  <Chip key={k} label={KIND[k] ?? k} selected={kind === k} onPress={() => setKind(k)} />
+                ))}
+              </ScrollView>
+            ) : null}
+            <Text style={styles.section}>Latest events</Text>
+            {activity.isLoading
+              ? [0, 1, 2].map((i) => <Skeleton key={i} width="100%" height={52} style={{ marginBottom: spacing.sm }} />)
               : null}
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          activity.isLoading ? undefined : activity.isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void activity.refetch()} />
+          ) : (
             <EmptyState
               icon={<Activity size={26} color={palette.textMuted} strokeWidth={1.7} />}
-              title={entity === 'ALL' ? 'No activity yet' : 'Nothing here'}
-              message={
-                entity === 'ALL'
-                  ? 'Platform events will appear here as they happen.'
-                  : 'No events match this filter.'
-              }
+              title={kind === 'ALL' ? 'No activity yet' : 'Nothing here'}
+              message={kind === 'ALL' ? 'Platform events appear here as they happen.' : 'No events match this filter.'}
             />
           )
         }
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.rowTop}>
+        renderItem={({ item, index }) => (
+          <PressableScale
+            onPress={item.entityRef ? () => router.push(`/admin-record/${item.entityRef}`) : undefined}
+            disabled={!item.entityRef}
+            accessibilityRole={item.entityRef ? 'button' : undefined}
+            accessibilityLabel={`${actionLabel(item.action)}${item.entityRef ? `, ${item.entityRef}` : ''}`}
+            scaleTo={0.99}
+            style={[styles.row, index > 0 && styles.divider]}
+          >
+            <View style={styles.rowText}>
               <Text style={styles.action}>{actionLabel(item.action)}</Text>
-              <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+              <Text style={styles.meta} numberOfLines={1}>
+                {[item.entityRef, item.actorRole ? item.actorRole.toLowerCase() : 'system'].filter(Boolean).join(', ')}
+              </Text>
             </View>
-            <Text style={styles.meta} numberOfLines={1}>
-              {item.actorRole?.toLowerCase() ?? 'system'}
-              {item.entityType ? ` · ${item.entityType}` : ''}
-              {item.entityId ? ` · ${item.entityId.slice(0, 8)}` : ''}
-            </Text>
-          </View>
+            <Text style={styles.meta}>{whenShort(item.createdAt)}</Text>
+          </PressableScale>
         )}
       />
     </ScreenContainer>
@@ -166,54 +97,19 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  chart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  card: {
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
+    backgroundColor: palette.surface,
   },
-  chartCol: { flex: 1, alignItems: 'center', gap: 4 },
-  chartTrack: { height: 72, justifyContent: 'flex-end', width: '100%' },
-  chartBar: { width: '100%', borderRadius: 2 },
-  chartLabel: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
-    color: palette.textMuted,
-  },
-  summaryRow: { paddingVertical: spacing.sm },
-  summaryText: { ...typography.label, color: palette.textMuted },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  skeleton: { paddingVertical: spacing.md },
-  row: {
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    gap: 2,
-  },
-  rowTop: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  action: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-    flex: 1,
-  },
-  date: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
-    color: palette.textMuted,
-  },
-  meta: { ...typography.label, color: palette.textMuted },
+  filters: { gap: spacing.sm, paddingTop: spacing.md },
+  section: { ...typography.section, color: palette.textPrimary, marginTop: spacing.xl, marginBottom: spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56, paddingVertical: spacing.sm },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  rowText: { flex: 1 },
+  action: { ...typography.bodyMedium, color: palette.textPrimary },
+  meta: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
 });

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -22,17 +21,29 @@ import {
   Card,
   EmptyState,
   Input,
+  PageHeader,
   ScreenContainer,
   Skeleton,
   StatusPill,
 } from '@/components/ui';
 import {
   palette,
+  radii,
   spacing,
   typography,
   type StatusTone,
 } from '@/theme';
-import { formatDate, titleize } from '@/utils/format';
+import { formatDate, titleize, formatRupees, refOf } from '@/utils/format';
+import { Check } from 'lucide-react-native';
+import { notice } from '@/lib/confirm';
+
+const STEP_NAMES: Record<FulfillmentStatus, string> = {
+  PENDING: 'Paid, to pack',
+  PROCESSING: 'Packing',
+  READY: 'Ready to ship',
+  SHIPPED: 'On the way',
+  DELIVERED: 'Delivered',
+};
 
 const STEPS: FulfillmentStatus[] = [
   'PENDING',
@@ -122,7 +133,7 @@ export default function OrderDetailScreen() {
         setTrackingNumber('');
       }
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update fulfillment.');
+      notice('Failed', e?.message || 'Could not update fulfillment.');
     }
   };
 
@@ -137,49 +148,41 @@ export default function OrderDetailScreen() {
     void advance(next, notes.trim() ? { dealerNotes: notes.trim() } : undefined);
   };
 
+  const address = [order.shippingAddress, order.shippingCity, order.shippingPincode].filter(Boolean).join(', ');
+
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.eyebrow}>Order</Text>
-          <View style={styles.topBarSpacer} />
-        </View>
+      <ScrollView contentContainerStyle={styles.dealerBody} showsVerticalScrollIndicator={false}>
+        <PageHeader back title={order.sparePart?.name ?? 'Spare part'}>
+          <View style={styles.metaRow}>
+            <StatusPill
+              label={order.status === 'PENDING' ? 'Unpaid' : titleize(order.status)}
+              tone={order.status === 'PAID' ? 'success' : order.status === 'PENDING' ? 'warning' : 'danger'}
+            />
+            <Text style={styles.dealerMeta}>
+              Order {refOf(order)}, quantity {order.quantity}
+            </Text>
+          </View>
+        </PageHeader>
 
-        <Text style={styles.title} numberOfLines={2}>
-          {order.sparePart?.name ?? 'Spare part'}
-        </Text>
-        <View style={styles.metaRow}>
-          <StatusPill
-            label={titleize(order.status)}
-            tone={order.status === 'PAID' ? 'success' : order.status === 'PENDING' ? 'warning' : 'danger'}
-          />
-          {order.status === 'PAID' ? (
-            <StatusPill label={titleize(current)} tone={tone(current)} />
-          ) : null}
-          <Text style={styles.meta}>
-            #{order.id.slice(0, 8).toUpperCase()} · qty {order.quantity}
+        <View style={styles.dealerCard}>
+          <Text style={styles.dealerAmount}>{formatRupees(order.totalAmount)}</Text>
+          <Text style={styles.dealerMeta}>
+            {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Waiting for the customer to pay'}
           </Text>
         </View>
-
-        <Card style={styles.card}>
-          <Text style={styles.amount}>
-            ₹{Number(order.totalAmount).toLocaleString('en-IN')}
-          </Text>
-          <Text style={styles.meta}>
-            {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Payment not completed'}
-          </Text>
-        </Card>
 
         {order.status === 'PAID' ? (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Fulfillment</Text>
-            <FulfillmentSteps current={current} />
+          <>
+            <Text style={styles.dealerSection}>Progress</Text>
+            <DealerTimeline order={order} current={current} />
 
             {order.carrierName || order.trackingNumber ? (
-              <View style={styles.tracking}>
-                <Text style={styles.meta}>
-                  {order.carrierName ?? 'Carrier'} · {order.trackingNumber ?? 'No tracking yet'}
+              <View style={styles.dealerTracking}>
+                <Text style={styles.dealerRowValueLeft}>
+                  {[order.carrierName && `Courier: ${order.carrierName}`, order.trackingNumber && `tracking ${order.trackingNumber}`]
+                    .filter(Boolean)
+                    .join(', ')}
                 </Text>
                 {order.trackingNumber ? (
                   <Button
@@ -197,12 +200,10 @@ export default function OrderDetailScreen() {
               </View>
             ) : null}
 
-            {order.dealerNotes ? (
-              <Text style={styles.notes}>Note: {order.dealerNotes}</Text>
-            ) : null}
+            {order.dealerNotes ? <Text style={styles.dealerNote}>Your note: {order.dealerNotes}</Text> : null}
 
             {canFulfill && next && !showShipForm ? (
-              <>
+              <View style={styles.dealerActions}>
                 <Input
                   label="Note to customer (optional)"
                   placeholder="e.g. Packed and ready for pickup"
@@ -210,35 +211,30 @@ export default function OrderDetailScreen() {
                   onChangeText={setNotes}
                 />
                 <Button
-                  title={next === 'PROCESSING' ? 'Start processing' : next === 'READY' ? 'Mark ready' : next === 'DELIVERED' ? 'Mark delivered' : 'Mark shipped'}
+                  title={
+                    next === 'PROCESSING'
+                      ? 'Start packing'
+                      : next === 'READY'
+                        ? 'Mark ready to ship'
+                        : next === 'DELIVERED'
+                          ? 'Mark delivered'
+                          : 'Add tracking and ship'
+                  }
                   loading={updateFulfillment.isPending}
                   onPress={onPrimary}
                 />
-                {current !== 'SHIPPED' ? (
-                  <Button
-                    title="Mark shipped"
-                    variant="secondary"
-                    onPress={() => setShowShipForm(true)}
-                  />
+                {/* Shortcut to skip straight to shipping, only while shipping isn't already the next step. */}
+                {next !== 'SHIPPED' && current !== 'SHIPPED' ? (
+                  <Button title="Skip to shipping" variant="secondary" onPress={() => setShowShipForm(true)} />
                 ) : null}
-              </>
+              </View>
             ) : null}
 
             {showShipForm && canFulfill ? (
-              <View style={styles.shipForm}>
-                <Text style={styles.sectionTitle}>Shipping details</Text>
-                <Input
-                  label="Carrier"
-                  placeholder="Delhivery, Blue Dart…"
-                  value={carrierName}
-                  onChangeText={setCarrierName}
-                />
-                <Input
-                  label="Tracking number"
-                  placeholder="Tracking ID"
-                  value={trackingNumber}
-                  onChangeText={setTrackingNumber}
-                />
+              <View style={styles.dealerActions}>
+                <Text style={styles.dealerSection}>Shipping details</Text>
+                <Input label="Courier" placeholder="Delhivery, Blue Dart…" value={carrierName} onChangeText={setCarrierName} />
+                <Input label="Tracking number" placeholder="Tracking ID" value={trackingNumber} onChangeText={setTrackingNumber} />
                 <Button
                   title="Mark shipped"
                   loading={updateFulfillment.isPending}
@@ -251,43 +247,75 @@ export default function OrderDetailScreen() {
                     })
                   }
                 />
-                <Button
-                  title="Cancel"
-                  variant="secondary"
-                  onPress={() => setShowShipForm(false)}
-                />
+                <Button title="Cancel" variant="secondary" onPress={() => setShowShipForm(false)} />
               </View>
             ) : null}
-          </Card>
+          </>
         ) : (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Awaiting payment</Text>
-            <Text style={styles.meta}>
-              You can start fulfillment once the payment is confirmed.
-            </Text>
-          </Card>
+          <View style={styles.dealerCard}>
+            <Text style={styles.dealerRowValueLeft}>Waiting for payment</Text>
+            <Text style={styles.dealerMeta}>You can start packing once the customer has paid.</Text>
+          </View>
         )}
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Deliver to</Text>
-          <Row label="Name" value={order.shippingName ?? order.customer?.firstName ?? '—'} />
-          <Row label="Phone" value={order.shippingPhone ?? '—'} />
-          <Row
-            label="Address"
-            value={[order.shippingAddress, order.shippingCity, order.shippingPincode]
-              .filter(Boolean)
-              .join(', ') || 'Not provided'}
+        <Text style={styles.dealerSection}>Deliver to</Text>
+        <DealerRow label="Name" value={order.shippingName ?? order.customer?.firstName ?? 'Not given'} />
+        <DealerRow label="Phone" value={order.shippingPhone ?? 'Not given'} />
+        <DealerRow label="Address" value={address || 'Not given'} last />
+        {order.shippingPhone ? (
+          <Button
+            title="Call customer"
+            variant="secondary"
+            onPress={() => void Linking.openURL(`tel:${order.shippingPhone}`)}
+            style={styles.dealerCall}
           />
-          {order.shippingPhone ? (
-            <Button
-              title="Call customer"
-              variant="secondary"
-              onPress={() => void Linking.openURL(`tel:${order.shippingPhone}`)}
-            />
-          ) : null}
-        </Card>
+        ) : null}
       </ScrollView>
     </ScreenContainer>
+  );
+}
+
+/** The five steps top to bottom: reached ones ticked, the next one outlined in bold, later ones grey. */
+function DealerTimeline({ order, current }: { order: SparePartOrder; current: FulfillmentStatus }) {
+  const at = STEPS.indexOf(current);
+  const when: Partial<Record<FulfillmentStatus, string | null | undefined>> = {
+    PENDING: order.paidAt,
+    SHIPPED: order.shippedAt,
+    DELIVERED: order.deliveredAt,
+  };
+  return (
+    <View style={styles.timeline}>
+      {STEPS.map((step, i) => {
+        // Steps up to the current one have happened; the one after it is what the dealer does next.
+        const done = i <= at;
+        const now = i === at + 1;
+        const date = when[step];
+        return (
+          <View key={step} style={styles.tlRow} accessible accessibilityLabel={`${STEP_NAMES[step]}${done ? ', done' : now ? ', next step' : ''}`}>
+            <View style={styles.tlRail}>
+              <View style={[styles.tlDot, done && styles.tlDotDone, now && styles.tlDotNow]}>
+                {done ? <Check size={12} color={palette.onAccent} strokeWidth={3} /> : null}
+              </View>
+              {i < STEPS.length - 1 ? <View style={[styles.tlLine, done && styles.tlLineDone]} /> : null}
+            </View>
+            <View style={styles.tlText}>
+              <Text style={[styles.tlLabel, (done || now) && styles.tlLabelOn, now && styles.tlLabelNow]}>{STEP_NAMES[step]}</Text>
+              {date && done ? <Text style={styles.dealerMeta}>{formatDate(date)}</Text> : null}
+              {now ? <Text style={styles.dealerMeta}>Next step</Text> : null}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function DealerRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[styles.dealerRow, !last && styles.dealerRowDivider]}>
+      <Text style={styles.dealerRowLabel}>{label}</Text>
+      <Text style={styles.dealerRowValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -341,13 +369,13 @@ function CustomerOrderView({ order }: { order: SparePartOrder }) {
             <StatusPill label={titleize(current)} tone={tone(current)} />
           ) : null}
           <Text style={styles.meta}>
-            #{order.id.slice(0, 8).toUpperCase()} · qty {order.quantity}
+            {refOf(order)}, quantity {order.quantity}
           </Text>
         </View>
 
         <Card style={styles.card}>
           <Text style={styles.amount}>
-            ₹{Number(order.totalAmount).toLocaleString('en-IN')}
+            {formatRupees(order.totalAmount)}
           </Text>
           <Text style={styles.meta}>
             {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : 'Payment not completed'}
@@ -441,6 +469,48 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  // Dealer view (new look); the customer view below keeps its styles for now.
+  dealerBody: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  dealerMeta: { ...typography.caption, color: palette.textMuted },
+  dealerCard: {
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    gap: 2,
+  },
+  dealerAmount: { ...typography.title, color: palette.textPrimary, fontVariant: ['tabular-nums'] },
+  dealerSection: { ...typography.section, color: palette.textPrimary, marginTop: spacing.xl, marginBottom: spacing.md },
+  dealerTracking: { gap: spacing.sm, marginTop: spacing.md },
+  dealerNote: { ...typography.caption, color: palette.textSecondary, marginTop: spacing.md },
+  dealerActions: { gap: spacing.md, marginTop: spacing.lg },
+  dealerRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.md },
+  dealerRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  dealerRowLabel: { ...typography.body, color: palette.textMuted },
+  dealerRowValue: { ...typography.body, color: palette.textPrimary, flex: 1, textAlign: 'right' },
+  dealerRowValueLeft: { ...typography.bodyMedium, color: palette.textPrimary },
+  dealerCall: { marginTop: spacing.md },
+  timeline: {},
+  tlRow: { flexDirection: 'row', gap: spacing.md },
+  tlRail: { alignItems: 'center', width: 20 },
+  tlDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: palette.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tlDotDone: { backgroundColor: palette.accent, borderColor: palette.accent },
+  tlDotNow: { borderColor: palette.accent },
+  tlLine: { width: 2, flex: 1, minHeight: 18, backgroundColor: palette.border },
+  tlLineDone: { backgroundColor: palette.accent },
+  tlText: { flex: 1, paddingBottom: spacing.md },
+  tlLabel: { ...typography.body, color: palette.textMuted },
+  tlLabelOn: { color: palette.textPrimary },
+  tlLabelNow: { fontWeight: '600' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

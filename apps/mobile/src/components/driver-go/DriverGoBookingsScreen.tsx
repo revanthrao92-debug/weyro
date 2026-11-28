@@ -87,7 +87,7 @@ export function DriverGoBookingsScreen() {
           <>
             {active.length > 0 ? (
               <>
-                <SectionHead index="01" title="Active" />
+                <SectionHead title="Active" />
                 {active.map((booking) => (
                   <CustomerBookingCard
                     key={booking.id}
@@ -103,7 +103,6 @@ export function DriverGoBookingsScreen() {
             {past.length > 0 ? (
               <>
                 <SectionHead
-                  index={active.length > 0 ? '02' : '01'}
                   title="History"
                 />
                 {past.map((booking) => (

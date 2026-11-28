@@ -44,7 +44,7 @@ function makeHarness(): Harness {
     sparePart: {
       findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
       findFirst: jest.fn(),
-      update: jest.fn().mockResolvedValue({ stockQuantity: 99 }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     webhookEvent: {
       findUnique: jest.fn().mockResolvedValue(null),
@@ -252,7 +252,7 @@ describe('STEP 1 — race matrix (spare-part orders)', () => {
     await h.payments.handleWebhook('raw', 'sig', webhookPayload());
 
     expect(h.prisma.sparePartOrder.updateMany).toHaveBeenCalledTimes(1);
-    expect(h.prisma.sparePart.update).toHaveBeenCalledTimes(1); // ONE decrement
+    expect(h.prisma.sparePart.updateMany).toHaveBeenCalledTimes(1); // ONE decrement
   });
 
   it('webhook-then-verify: verify settles nothing twice', async () => {
@@ -274,7 +274,7 @@ describe('STEP 1 — race matrix (spare-part orders)', () => {
     });
 
     expect(h.prisma.sparePartOrder.updateMany).toHaveBeenCalledTimes(1);
-    expect(h.prisma.sparePart.update).toHaveBeenCalledTimes(1);
+    expect(h.prisma.sparePart.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it('wrong amount on webhook is recorded as rejected before any claim (order stays untouched)', async () => {

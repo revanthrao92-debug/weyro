@@ -107,7 +107,7 @@ export default function AppLayout() {
     : isDriver
     ? [
         <Tabs.Screen key="index" name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />,
-        <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ title: 'Jobs', tabBarIcon: tabIcon(Briefcase) }} />,
+        <Tabs.Screen key="driver-jobs" name="driver-jobs" options={{ title: 'Trips', tabBarIcon: tabIcon(Briefcase) }} />,
         <Tabs.Screen key="driver-earnings" name="driver-earnings" options={{ title: 'Earnings', tabBarIcon: tabIcon(Wallet) }} />,
         <Tabs.Screen key="messages" name="messages" options={{ title: 'Messages', tabBarIcon: tabIcon(MessageCircle) }} />,
         <Tabs.Screen key="profile" name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />,

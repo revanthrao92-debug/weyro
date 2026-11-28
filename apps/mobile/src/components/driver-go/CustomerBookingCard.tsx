@@ -4,7 +4,7 @@ import { PressableScale, StatusPill } from '@/components/ui';
 import { jobWhen, money } from '@/components/driver/driverFormat';
 import { customerStatusLabel, customerStatusTone } from './format';
 import type { CustomerDriverBooking } from '@/hooks/useDriverGoCustomer';
-import { fontFamilyMono, palette, radii, spacing, typography } from '@/theme';
+import { palette, radii, spacing, typography } from '@/theme';
 
 function duration(booking: CustomerDriverBooking) {
   if (booking.engagement === 'DAILY') {
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   when: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  whenText: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  whenText: { fontSize: 12, color: palette.textMuted },
   driver: { ...typography.bodyMedium, color: palette.textPrimary, marginTop: spacing.sm },
   pickup: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
   bottom: {
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
   },
   total: {
-    fontFamily: fontFamilyMono,
     fontSize: 13,
     color: palette.textPrimary,
     fontVariant: ['tabular-nums'],

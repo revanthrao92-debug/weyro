@@ -1,6 +1,8 @@
 import {
   CreateQuotationSchema,
   CreateQuotationInput,
+  QuotationFieldsSchema,
+  partialUpdate,
 } from '@weyro/validation';
 
 export class CreateQuotationDto implements CreateQuotationInput {
@@ -11,7 +13,9 @@ export class CreateQuotationDto implements CreateQuotationInput {
   shippingCost?: number;
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
   warrantyDays!: number;
-  etaDescription!: string;
+  etaDescription?: string;
+  startsAt?: string;
+  durationHours?: number;
   deliveryMethod?:
     | 'PICKUP'
     | 'DOORSTEP_DELIVERY'
@@ -20,10 +24,12 @@ export class CreateQuotationDto implements CreateQuotationInput {
   notes?: string;
 }
 
-const UpdateQuotationSchema = CreateQuotationSchema.partial().refine(
-  (value) => Object.keys(value).length > 0,
-  { message: 'At least one field is required' },
-);
+const UpdateQuotationSchema = partialUpdate(QuotationFieldsSchema)
+  .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' })
+  .refine((q) => (q.startsAt === undefined) === (q.durationHours === undefined), {
+    message: 'Send both startsAt and durationHours, or neither',
+    path: ['durationHours'],
+  });
 
 export class UpdateQuotationDto {
   static readonly schema = UpdateQuotationSchema;
@@ -34,6 +40,8 @@ export class UpdateQuotationDto {
   partCondition?: 'OEM' | 'AFTERMARKET' | 'USED';
   warrantyDays?: number;
   etaDescription?: string;
+  startsAt?: string;
+  durationHours?: number;
   deliveryMethod?:
     | 'PICKUP'
     | 'DOORSTEP_DELIVERY'

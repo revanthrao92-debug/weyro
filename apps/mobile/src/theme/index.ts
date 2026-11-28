@@ -13,7 +13,8 @@ import { radii } from './radii';
 import { typography } from './typography';
 import { elevation } from './elevation';
 
-export { palette, statusColors } from './colors';
+export { palette, statusColors, colorSchemeName, themePreference } from './colors';
+export { saveThemePreference, type ThemePreference } from './preference';
 export type { ColorToken, StatusTone } from './colors';
 
 export { spacing } from './spacing';

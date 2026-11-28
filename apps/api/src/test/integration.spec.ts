@@ -202,6 +202,9 @@ describe('End-to-End Core Integration Suite', () => {
         payment: {
           create: jest.fn().mockResolvedValue({}),
         },
+        thread: {
+          upsert: jest.fn().mockResolvedValue({}),
+        },
         providerProfile: {
           findUnique: jest.fn().mockResolvedValue({
             userId: 'prov_user_1',

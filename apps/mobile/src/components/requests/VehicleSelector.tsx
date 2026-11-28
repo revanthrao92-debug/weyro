@@ -3,7 +3,7 @@ import { Check, Car } from 'lucide-react-native';
 import { Input, PressableScale, Skeleton } from '@/components/ui';
 import type { Vehicle } from '@/hooks/useProfile';
 import type { ManualVehicle, RequestErrorMap } from './serviceRequestConfig';
-import { fontFamilyMono, palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export type VehicleSelectorProps = {
   vehicles: Vehicle[];
@@ -197,8 +197,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1 },
   rowTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   rowMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: 2,
   },

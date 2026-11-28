@@ -49,7 +49,7 @@ async function main() {
   });
   console.log(`👤 Admin user ready: ${adminUser.email} (Role: ${adminUser.role})`);
 
-  // 2. Create Verified Customer (Rohan Sharma - Bengaluru)
+  // 2. Create Verified Customer (Rohan Sharma - Hyderabad)
   const customerEmail = 'rohan.sharma@example.in';
   const customerUser = await prisma.user.upsert({
     where: { email: customerEmail },
@@ -69,9 +69,9 @@ async function main() {
           savedAddresses: [
             {
               title: 'Home',
-              address: '100ft Road, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka 560038',
-              latitude: 12.9784,
-              longitude: 77.6408,
+              address: 'Road No. 12, Banjara Hills, Hyderabad, Telangana 500034',
+              latitude: 17.4126,
+              longitude: 78.4357,
             },
           ],
         },
@@ -103,7 +103,7 @@ async function main() {
     },
   });
 
-  // 4. Create Verified Providers in Bengaluru
+  // 4. Create Verified Providers in Hyderabad
   const provider1User = await prisma.user.upsert({
     where: { email: 'contact@apexautobangalore.in' },
     update: { passwordHash },
@@ -119,11 +119,11 @@ async function main() {
         create: {
           businessName: 'Apex OEM Auto Spares & Body Works',
           providerType: 'PARTS_DEALER',
-          description: 'Specialists in certified OEM body panels, LED headlamps, and genuine spare parts across Bengaluru.',
+          description: 'Specialists in certified OEM body panels, LED headlamps, and genuine spare parts across Hyderabad.',
           phone: '+919880011223',
-          address: 'Plot 18, Whitefield Industrial Area, Bengaluru, Karnataka 560066',
-          latitude: 12.9698,
-          longitude: 77.7500,
+          address: 'Ameerpet, Hyderabad, Telangana 500016',
+          latitude: 17.4375,
+          longitude: 78.4482,
           serviceRadiusKm: 30,
           verificationStatus: 'VERIFIED',
           avgRating: 4.9,
@@ -149,13 +149,13 @@ async function main() {
       isActive: true,
       providerProfile: {
         create: {
-          businessName: 'Koramangala Motor Works & Diagnostics',
+          businessName: 'HITEC City Motor Works & Diagnostics',
           providerType: 'GARAGE',
           description: 'Full-service multi-brand diagnostic workshop with computerized paint booth and suspension repairs.',
           phone: '+919820033445',
-          address: '5th Block, Koramangala, Bengaluru, Karnataka 560095',
-          latitude: 12.9352,
-          longitude: 77.6245,
+          address: 'HITEC City, Madhapur, Hyderabad, Telangana 500081',
+          latitude: 17.4474,
+          longitude: 78.3762,
           serviceRadiusKm: 25,
           verificationStatus: 'VERIFIED',
           avgRating: 4.8,
@@ -181,13 +181,13 @@ async function main() {
       isActive: true,
       providerProfile: {
         create: {
-          businessName: 'Bengaluru Tow 24x7',
+          businessName: 'Hyderabad Tow 24x7',
           providerType: 'TOWING',
-          description: '24x7 flatbed and hook-and-chain towing across Bengaluru with live driver tracking.',
+          description: '24x7 flatbed and hook-and-chain towing across Hyderabad with live driver tracking.',
           phone: '+919845067788',
-          address: 'Hosur Road, Bommanahalli, Bengaluru, Karnataka 560068',
-          latitude: 12.9010,
-          longitude: 77.6220,
+          address: 'Kompally, Hyderabad, Telangana 500014',
+          latitude: 17.5360,
+          longitude: 78.4840,
           serviceRadiusKm: 40,
           verificationStatus: 'VERIFIED',
           avgRating: 4.7,
@@ -217,9 +217,9 @@ async function main() {
         category: 'REPAIR',
         title: 'Front Bumper & Headlight Assembly Replacement',
         description: 'Cracked front bumper valence and broken right-side LED projector headlamp unit after parking pole scrape.',
-        address: 'Indiranagar, Bengaluru, Karnataka',
-        latitude: 12.9784,
-        longitude: 77.6408,
+        address: 'Banjara Hills, Hyderabad, Telangana',
+        latitude: 17.4126,
+        longitude: 78.4357,
         urgency: 'URGENT',
         status: 'OPEN',
         isBroadcast: true,
@@ -253,33 +253,24 @@ async function main() {
         category: 'TOWING',
         title: 'Vehicle Towing Required - Flatbed',
         description:
-          'Sedan will not start after overheating. Needs a flatbed tow to the workshop in Koramangala.',
-        address: 'Indiranagar, Bengaluru, Karnataka',
-        latitude: 12.9784,
-        longitude: 77.6408,
+          'Sedan will not start after overheating. Needs a flatbed tow to the workshop in HITEC City.',
+        address: 'Banjara Hills, Hyderabad, Telangana',
+        latitude: 17.4126,
+        longitude: 78.4357,
         urgency: 'EMERGENCY',
         status: 'OPEN',
         isBroadcast: true,
         fulfillmentType: 'TOW_TO_GARAGE',
-        dropoffAddress: '5th Block, Koramangala, Bengaluru, Karnataka 560095',
-        dropoffLatitude: 12.9352,
-        dropoffLongitude: 77.6245,
+        dropoffAddress: 'HITEC City, Madhapur, Hyderabad, Telangana 500081',
+        dropoffLatitude: 17.4474,
+        dropoffLongitude: 78.3762,
         towingVehicleType: 'FLATBED',
         vehicleWeightKg: 1450,
-        towingDistanceKm: 5.12,
-        towingEstimatedFare: 705,
+        towingDistanceKm: 7.4,
+        towingEstimatedFare: 796,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
-
-    await prisma.$executeRaw`
-      UPDATE "service_requests"
-      SET "dropoffLocation" = ST_SetSRID(
-        ST_MakePoint(${77.6245}, ${12.9352}),
-        4326
-      )::geography
-      WHERE "id" = ${towingRequest.id}
-    `;
   }
 
   // 6. Create Verified Quotation and Booking
@@ -471,7 +462,7 @@ async function main() {
       kind: 'PACKAGE',
       estimatedMinutes: 60,
       description:
-        'Underbody anti-rust spray, brake inspection, wiper check and cabin sanitisation at our Koramangala workshop.',
+        'Underbody anti-rust spray, brake inspection, wiper check and cabin sanitisation at our HITEC City workshop.',
     },
     {
       name: 'Pre-Delivery Inspection Package',

@@ -48,9 +48,13 @@ export interface SideFadeProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Horizontal neutral fade for text over photography (left → transparent). */
+/**
+ * Horizontal fade for text over photography (left → transparent). Always a
+ * dark photo shade, not the page colour: in light theme the page colour is
+ * near-white and would wash the photo out instead of darkening it.
+ */
 export function SideFade({
-  from = palette.canvas,
+  from = '#0A0C0E',
   reach = 0.6,
   opacity = 0.9,
   style,

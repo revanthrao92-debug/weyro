@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
 
 export type SparePart = {
@@ -36,9 +36,13 @@ export type CreateSparePart = {
 
 export type UpdateSparePart = Partial<CreateSparePart> & {
   isActive?: boolean;
+  /** +1 / -1 from the stock buttons: applied to the current stock on the server. */
+  stockDelta?: number;
 };
 
 export type SparePartOrder = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   sparePartId: string;
   providerId: string;
@@ -113,6 +117,8 @@ export function useParts(params?: {
 }) {
   return useQuery({
     queryKey: ['parts', params],
+    // Keep showing the last results while a new search loads (no skeleton flash).
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params?.search) qs.set('search', params.search);
@@ -174,11 +180,14 @@ export function useUpdateSparePart() {
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['myParts'] });
-      queryClient.invalidateQueries({ queryKey: ['parts'] });
-      queryClient.invalidateQueries({ queryKey: ['part', variables.id] });
-    },
+    // Returned so mutateAsync waits for the refetch: a fast second stock tap must read the new count.
+    onSuccess: (_, variables) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['myParts'] }),
+        queryClient.invalidateQueries({ queryKey: ['parts'] }),
+        queryClient.invalidateQueries({ queryKey: ['part', variables.id] }),
+        queryClient.invalidateQueries({ queryKey: ['myPart', variables.id] }),
+      ]),
   });
 }
 
@@ -207,6 +216,15 @@ export function useSparePart(id: string) {
   });
 }
 
+/** One of the dealer's own parts, for the edit screen: real stock, and hidden listings too. */
+export function useMySparePart(id: string) {
+  return useQuery({
+    queryKey: ['myPart', id],
+    queryFn: async () => apiClient<SparePart>(`/spare-parts/mine/${id}`),
+    enabled: !!id,
+  });
+}
+
 /** Customer orders */
 export function useMyOrders() {
   return useQuery({
@@ -219,6 +237,8 @@ export function useMyOrders() {
 export function useDealerOrders(params?: {
   status?: string;
   fulfillmentStatus?: string;
+  /** Only paid orders the dealer still has to pack, ship or mark delivered. */
+  needsAction?: boolean;
   cursor?: string;
   limit?: number;
 }) {
@@ -229,6 +249,7 @@ export function useDealerOrders(params?: {
       if (params?.status) qs.set('status', params.status);
       if (params?.fulfillmentStatus)
         qs.set('fulfillmentStatus', params.fulfillmentStatus);
+      if (params?.needsAction) qs.set('needsAction', 'true');
       if (params?.cursor) qs.set('cursor', params.cursor);
       if (params?.limit) qs.set('limit', String(params.limit));
       return apiClient<{ items: SparePartOrder[]; nextCursor?: string | null }>(
@@ -277,11 +298,13 @@ export function useUpdateFulfillment() {
         }),
       });
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['dealerOrders'] });
-      queryClient.invalidateQueries({ queryKey: ['sparePartOrder', variables.orderId] });
-      queryClient.invalidateQueries({ queryKey: ['providerDashboard'] });
-    },
+    // Returned so the next-step button stays busy until the list shows the new step.
+    onSuccess: (_, variables) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dealerOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['sparePartOrder', variables.orderId] }),
+        queryClient.invalidateQueries({ queryKey: ['providerDashboard'] }),
+      ]),
   });
 }
 

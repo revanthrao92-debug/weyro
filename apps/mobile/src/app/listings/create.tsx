@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,11 +16,11 @@ import {
   Input,
   Button,
   Chip,
-  AppHeader,
-  BackButton,
+  PageHeader,
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
@@ -58,7 +57,7 @@ export default function CreateListingScreen() {
   const handleSubmit = async () => {
     const { name, partNumber, compatibleMakes, compatibleModels, condition, price, stockQuantity, description } = form;
     if (!name || !partNumber || !price || !stockQuantity) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      notice('Error', 'Please fill in all required fields');
       return;
     }
     setSubmitting(true);
@@ -75,10 +74,10 @@ export default function CreateListingScreen() {
         imageUrl: images[0]?.key,
         description: description || undefined,
       });
-      Alert.alert('Success', 'Part listed successfully');
+      notice('Success', 'Part listed successfully');
       router.replace('/my-listings');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to create listing');
+      notice('Failed', e.message || 'Unable to create listing');
     } finally {
       setSubmitting(false);
     }
@@ -89,12 +88,8 @@ export default function CreateListingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { paddingTop: insets.top }]}
     >
-      <AppHeader
-        title="List a Part"
-        subtitle="Add a new spare part to your inventory"
-        left={<BackButton />}
-      />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <PageHeader back title="Add a part" subtitle="It shows in the shop as soon as you save." />
         <View>
           <Input
             label="Part name"
@@ -127,7 +122,7 @@ export default function CreateListingScreen() {
             {CONDITIONS.map((c) => (
               <Chip
                 key={c}
-                label={labelize(c)}
+                label={c === 'OEM' ? 'OEM' : labelize(c)}
                 selected={form.condition === c}
                 onPress={() => setForm({ ...form, condition: c })}
               />

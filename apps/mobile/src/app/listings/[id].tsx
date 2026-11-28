@@ -2,15 +2,13 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSparePart, useUpdateSparePart, useDeleteSparePart, type SparePart } from '@/hooks/useParts';
+import { useMySparePart, useUpdateSparePart, useDeleteSparePart, type SparePart } from '@/hooks/useParts';
 import { EXISTING_IMAGE_KEY, type UploadedImage } from '@/services/uploads';
 import { PhotoPicker } from '@/components/requests/PhotoPicker';
 import {
@@ -20,12 +18,15 @@ import {
   Card,
   EmptyState,
   ScreenContainer,
-  AppHeader,
+  PageHeader,
   Skeleton,
-  BackButton,
+  SwitchRow,
+  ErrorState,
 } from '@/components/ui';
-import { palette, spacing, radii, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
+import { confirmAction, notice } from '@/lib/confirm';
 
 type ListingParams = { id: string };
 
@@ -33,12 +34,15 @@ const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams<ListingParams>();
-  const { data: part, isLoading } = useSparePart(id || '');
+  // The dealer's own copy: the public one hides exact stock (saving would have written 0) and hidden parts.
+  const { data: part, isLoading, isError, error, refetch } = useMySparePart(id || '');
 
   if (isLoading) {
     return (
       <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <AppHeader left={<BackButton />} title="Edit Listing" />
+        <View style={styles.scrollContent}>
+          <PageHeader back title="Edit listing" />
+        </View>
         <Card style={styles.skeletonCard}>
           <Skeleton width="60%" height={18} />
           <Skeleton width="40%" height={14} style={{ marginTop: spacing.sm }} />
@@ -51,8 +55,14 @@ export default function EditListingScreen() {
   if (!part) {
     return (
       <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <AppHeader left={<BackButton />} title="Edit Listing" />
-        <EmptyState title="Part not found" message="This part may have been removed." />
+        <View style={styles.scrollContent}>
+          <PageHeader back title="Edit listing" />
+        </View>
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Part not found" message="This part may have been removed." />
+        )}
       </ScreenContainer>
     );
   }
@@ -80,6 +90,9 @@ function ListingForm({ part }: { part: SparePart }) {
   );
   const [uploading, setUploading] = useState(false);
 
+  // Opened from a link or notification there is no screen to go back to.
+  const leave = () => (router.canGoBack() ? router.back() : router.replace('/my-listings'));
+
   const handleSave = async () => {
     if (uploading) return;
     setSubmitting(true);
@@ -96,32 +109,23 @@ function ListingForm({ part }: { part: SparePart }) {
         imageUrl: images[0] && images[0].key !== EXISTING_IMAGE_KEY ? images[0].key : undefined,
         isActive: form.isActive,
       });
-      Alert.alert('Saved', 'Listing updated');
-      router.back();
+      notice('Saved', 'Listing updated');
+      leave();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update listing');
+      notice('Failed', e.message || 'Unable to update listing');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Delete Listing',
-        'Are you sure you want to delete this part?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-        ]
-      );
-    });
+    const confirmed = await confirmAction('Delete Listing', 'Are you sure you want to delete this part?', 'Delete');
     if (!confirmed) return;
     try {
       await deletePart.mutateAsync(part.id);
-      router.back();
+      leave();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to delete listing');
+      notice('Failed', e.message || 'Unable to delete listing');
     }
   };
 
@@ -131,8 +135,8 @@ function ListingForm({ part }: { part: SparePart }) {
       style={styles.container}
     >
       <ScreenContainer chrome="dark" safeBottom padded={false}>
-        <AppHeader left={<BackButton />} title="Edit Listing" subtitle="Update part details" />
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <PageHeader back title="Edit listing" subtitle={part.name} />
           <View>
             <Input
               label="Part name"
@@ -153,7 +157,7 @@ function ListingForm({ part }: { part: SparePart }) {
               {CONDITIONS.map((c) => (
                 <Chip
                   key={c}
-                  label={labelize(c)}
+                  label={c === 'OEM' ? 'OEM' : labelize(c)}
                   selected={form.condition === c}
                   onPress={() => setForm({ ...form, condition: c })}
                 />
@@ -181,6 +185,7 @@ function ListingForm({ part }: { part: SparePart }) {
               max={1}
               folder="spare-parts"
               onUploadingChange={setUploading}
+              helper="A clear photo helps customers buy the right part."
             />
             <Input
               label="Description"
@@ -191,20 +196,12 @@ function ListingForm({ part }: { part: SparePart }) {
               style={styles.textarea}
             />
 
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Visible to customers</Text>
-              <TouchableOpacity
-                style={[styles.toggle, form.isActive && styles.toggleActive]}
-                onPress={() => setForm({ ...form, isActive: !form.isActive })}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: form.isActive }}
-                accessibilityLabel="Visible to customers"
-              >
-                <Text style={[styles.toggleText, form.isActive && styles.toggleTextActive]}>
-                  {form.isActive ? 'Live' : 'Hidden'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <SwitchRow
+              title="Show in the shop"
+              detail={form.isActive ? 'Customers can see and buy this part.' : 'Hidden: customers cannot see it.'}
+              value={form.isActive}
+              onToggle={() => setForm({ ...form, isActive: !form.isActive })}
+            />
           </View>
 
           <Button title="Save changes" onPress={handleSave} disabled={submitting} loading={submitting} />
@@ -222,29 +219,5 @@ const styles = StyleSheet.create({
   label: { ...typography.captionMedium, color: palette.textSecondary, marginBottom: spacing.xs },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   textarea: { minHeight: 88, textAlignVertical: 'top' },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  toggleLabel: { ...typography.body, color: palette.textPrimary, flex: 1, marginRight: spacing.md },
-  toggle: {
-    minWidth: 56,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceAlt,
-    alignItems: 'center',
-  },
-  toggleActive: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
-  },
-  toggleText: { ...typography.label, color: palette.textSecondary },
-  toggleTextActive: { color: palette.accent },
   deleteBtn: { marginTop: spacing.md, alignSelf: 'flex-start' },
 });

@@ -17,7 +17,6 @@ import {
 } from '@/components/ui';
 import {
   displayFamily,
-  fontFamilyMono,
   palette,
   radii,
   spacing,
@@ -80,7 +79,7 @@ export function DriverGoLandingScreen() {
           />
         </View>
 
-        <SectionHead index="01" title="How it works" />
+        <SectionHead title="How it works" />
         <Feature
           icon={<CalendarClock size={17} color={palette.textPrimary} strokeWidth={1.7} />}
           title="Pick your time"
@@ -206,10 +205,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   pilotTitle: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.accent,
-    letterSpacing: 0.8,
   },
   pilotBody: {
     ...typography.caption,

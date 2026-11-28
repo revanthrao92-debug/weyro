@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   Linking,
   StyleSheet,
   Text,
   View,
+  ScrollView,
 } from 'react-native';
 import { FileCheck2, UserRound } from 'lucide-react-native';
 import {
@@ -15,7 +15,6 @@ import {
   type ProviderVerificationRecord,
 } from '@/hooks/useAdmin';
 import {
-  AppHeader,
   Button,
   Chip,
   EmptyState,
@@ -24,17 +23,49 @@ import {
   ScreenContainer,
   Skeleton,
   StatusPill,
+  ErrorState,
+  PageHeader,
 } from '@/components/ui';
+import { confirmAction, notice } from '@/lib/confirm';
 import { formatDate, labelize } from '@/utils/format';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-  type StatusTone,
-} from '@/theme';
+import { palette, spacing, typography, type StatusTone } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const FILTERS = ['ALL', 'PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'] as const;
+const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = {
+  ALL: 'All',
+  PENDING: 'Waiting for review',
+  VERIFIED: 'Verified',
+  REJECTED: 'Not approved',
+  SUSPENDED: 'Suspended',
+};
+
+type Decision = 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+/** What each decision means for the business, asked before it happens. */
+const DECISION: Record<Decision, { button: string; ask: (name: string) => string; done: (name: string) => string }> = {
+  VERIFIED: {
+    button: 'Approve',
+    ask: (n) => `${n} can take work on Weyro straight away.`,
+    done: (n) => `${n} is approved.`,
+  },
+  REJECTED: {
+    button: 'Not approved',
+    ask: (n) => `${n} will see that their documents were not approved and can send new ones.`,
+    done: (n) => `${n} was marked not approved.`,
+  },
+  SUSPENDED: {
+    button: 'Suspend',
+    ask: (n) => `${n} can't take new work until you approve them again.`,
+    done: (n) => `${n} is suspended.`,
+  },
+};
+/** Only the decisions that make sense from the current status. */
+const NEXT: Record<string, Decision[]> = {
+  PENDING: ['VERIFIED', 'REJECTED'],
+  VERIFIED: ['SUSPENDED'],
+  REJECTED: ['VERIFIED'],
+  SUSPENDED: ['VERIFIED'],
+};
 
 function docLabel(label: string) {
   const upper = label.replace(/\b(gst|pan)\b/gi, (match) => match.toUpperCase());
@@ -52,30 +83,32 @@ function statusTone(status: string): StatusTone {
 export default function ProvidersScreen() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('PENDING');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { data, isLoading } = useAdminProviders(
+  const { data, isLoading, isError, refetch } = useAdminProviders(
     filter === 'ALL' ? undefined : filter,
   );
+  const refreshControl = useRefreshControl(refetch);
   const providers = data?.items ?? [];
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Providers" subtitle="Verification and onboarding" />
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : providers}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <View style={styles.filters}>
+            <PageHeader title="Providers" subtitle="Check documents and approve businesses" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
               {FILTERS.map((item) => (
                 <Chip
                   key={item}
-                  label={
-                    item === 'ALL'
-                      ? 'All'
-                      : item.charAt(0) + item.slice(1).toLowerCase()
-                  }
+                  label={FILTER_LABEL[item]}
                   selected={filter === item}
                   onPress={() => {
                     setFilter(item);
@@ -83,7 +116,7 @@ export default function ProvidersScreen() {
                   }}
                 />
               ))}
-            </View>
+            </ScrollView>
             {isLoading
               ? [0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeleton}>
@@ -95,7 +128,9 @@ export default function ProvidersScreen() {
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <EmptyState
               icon={<UserRound size={26} color={palette.textMuted} strokeWidth={1.7} />}
               title={filter === 'ALL' ? 'No providers yet' : 'Nothing here'}
@@ -134,7 +169,9 @@ function ProviderRow({
   const verify = useVerifyProvider();
   const [notes, setNotes] = useState('');
 
-  const update = async (status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED') => {
+  const update = async (status: Decision) => {
+    const d = DECISION[status];
+    if (!(await confirmAction(`${d.button}: ${item.businessName}?`, d.ask(item.businessName), d.button))) return;
     try {
       await verify.mutateAsync({
         id: item.id,
@@ -142,12 +179,9 @@ function ProviderRow({
         ...(notes.trim() ? { auditorNotes: notes.trim() } : {}),
       });
       setNotes('');
-      Alert.alert(
-        'Provider updated',
-        `${item.businessName} is now ${status.toLowerCase()}.`,
-      );
+      notice('Done', d.done(item.businessName));
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update this provider.');
+      notice('Could not update this provider', e?.message || 'Check your connection and try again.');
     }
   };
 
@@ -167,7 +201,7 @@ function ProviderRow({
             {item.businessName}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {labelize(item.providerType)} · {item.phone}
+            {labelize(item.providerType)}, {item.phone}
           </Text>
           <Text style={styles.registered}>
             Onboarded {formatDate(item.createdAt)}
@@ -190,13 +224,13 @@ function ProviderRow({
                 <Detail label="Address" value={detail.data.address} />
                 <Detail
                   label="Jobs"
-                  value={`${detail.data.counts.bookings} bookings · ${detail.data.counts.quotations} quotes`}
+                  value={`${detail.data.counts.bookings} jobs, ${detail.data.counts.quotations} quotes`}
                 />
                 <Detail
                   label="Reviews"
                   value={`${detail.data.counts.reviews} reviews${
                     detail.data.counts.listings
-                      ? ` · ${detail.data.counts.listings} listings`
+                      ? `, ${detail.data.counts.listings} listings`
                       : ''
                   }`}
                 />
@@ -215,7 +249,7 @@ function ProviderRow({
                   >
                     <FileCheck2 size={15} color={palette.textSecondary} strokeWidth={1.8} />
                     <Text style={styles.docLabel}>{docLabel(label)}</Text>
-                    <Text style={styles.docOpen}>Open</Text>
+                    <Text style={styles.docOpen}>View</Text>
                   </PressableScale>
                 ))
               ) : (
@@ -223,29 +257,25 @@ function ProviderRow({
               )}
 
               <Input
-                label="Auditor notes (optional)"
-                placeholder="Reason for rejection, missing documents, etc."
+                label="Note for the record (optional)"
+                placeholder="Why, or which documents are missing"
                 value={notes}
                 onChangeText={setNotes}
                 multiline
               />
 
               <View style={styles.actions}>
-                <Button
-                  title="Verify"
-                  loading={verify.isPending}
-                  onPress={() => void update('VERIFIED')}
-                />
-                <Button
-                  title="Reject"
-                  variant="destructive"
-                  onPress={() => void update('REJECTED')}
-                />
-                <Button
-                  title="Suspend"
-                  variant="secondary"
-                  onPress={() => void update('SUSPENDED')}
-                />
+                {(NEXT[item.verificationStatus] ?? []).map((status) => (
+                  <Button
+                    key={status}
+                    title={DECISION[status].button}
+                    variant={status === 'VERIFIED' ? 'primary' : status === 'REJECTED' ? 'destructive' : 'secondary'}
+                    loading={verify.isPending && verify.variables?.status === status}
+                    disabled={verify.isPending}
+                    onPress={() => void update(status)}
+                    style={styles.action}
+                  />
+                ))}
               </View>
             </>
           ) : (
@@ -267,10 +297,9 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
@@ -288,11 +317,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   name: { ...typography.bodyMedium, color: palette.textPrimary },
   meta: { ...typography.caption, color: palette.textSecondary },
-  registered: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
-    color: palette.textMuted,
-  },
+  registered: { ...typography.caption, color: palette.textMuted },
   detail: {
     paddingBottom: spacing.lg,
     gap: spacing.md,
@@ -304,23 +329,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: 3,
   },
-  detailLabel: { ...typography.label, color: palette.textMuted },
+  detailLabel: { ...typography.caption, color: palette.textMuted },
   detailValue: {
     ...typography.caption,
     color: palette.textPrimary,
     flex: 1,
     textAlign: 'right',
   },
-  sectionLabel: { ...typography.label, color: palette.textMuted, marginTop: spacing.sm },
+  sectionLabel: { ...typography.captionMedium, color: palette.textSecondary, marginTop: spacing.sm },
   docRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    minHeight: 40,
+    minHeight: 44,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
   docLabel: { ...typography.caption, color: palette.textPrimary, flex: 1 },
-  docOpen: { ...typography.label, color: palette.accent },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  docOpen: { ...typography.captionMedium, color: palette.accent },
+  actions: { flexDirection: 'row', gap: spacing.sm },
+  action: { flex: 1 },
 });

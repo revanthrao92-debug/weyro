@@ -15,9 +15,9 @@ export interface ButtonProps {
 
 const VARIANTS = {
   primary: {
-    backgroundColor: palette.textPrimary,
-    textColor: palette.canvas,
-    borderColor: palette.textPrimary,
+    backgroundColor: palette.primaryButton,
+    textColor: palette.onPrimaryButton,
+    borderColor: palette.primaryButton,
   },
   secondary: {
     backgroundColor: palette.transparent,

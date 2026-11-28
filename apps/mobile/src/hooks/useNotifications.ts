@@ -53,7 +53,7 @@ export function useNotifications() {
         method: 'PATCH',
       });
     },
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },

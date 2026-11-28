@@ -1,5 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { DamageRequestsService } from './damage-requests.service';
+import { DamageRequestsService, providerTypesFor } from './damage-requests.service';
 
 describe('DamageRequestsService', () => {
   let service: DamageRequestsService;
@@ -32,7 +32,7 @@ describe('DamageRequestsService', () => {
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
 
-    service = new DamageRequestsService(mockPrisma);
+    service = new DamageRequestsService(mockPrisma, { enqueue: jest.fn().mockResolvedValue("evt") } as any);
   });
 
   describe('create', () => {
@@ -68,6 +68,58 @@ describe('DamageRequestsService', () => {
       );
 
       expect(result.damagePhotos).toEqual(['damage-requests/cust-1/1700000000000_ab12cd34.jpg']);
+    });
+
+    it('pings matching garages near the customer and opens quotes for 24 hours', async () => {
+      const outbox = { enqueue: jest.fn().mockResolvedValue('evt') };
+      service = new DamageRequestsService(mockPrisma, outbox as any);
+      mockPrisma.serviceRequest.create.mockResolvedValue({
+        id: 'req-1',
+        title: 'Front bumper dent',
+        category: 'REPAIR',
+        isBroadcast: true,
+        latitude: 12.9716,
+        longitude: 77.5946,
+        towingVehicleType: null,
+        vehicleWeightKg: null,
+        media: [],
+      });
+      mockPrisma.$queryRaw.mockResolvedValue([
+        { providerId: 'p-1', userId: 'usr-garage', distanceKm: 3.24 },
+        { providerId: 'p-2', userId: 'usr-poster', distanceKm: 0.4 }, // the customer is also a garage
+      ]);
+
+      const before = Date.now();
+      const result = await service.create(
+        'cust-1',
+        {
+          title: 'Front bumper dent',
+          description: 'Dent on the front bumper',
+          address: 'MG Road, Bengaluru',
+          latitude: 12.9716,
+          longitude: 77.5946,
+          category: 'REPAIR',
+        } as any,
+        'usr-poster',
+      );
+
+      const data = mockPrisma.serviceRequest.create.mock.calls[0][0].data;
+      expect(data.quotesUntil.getTime()).toBeGreaterThanOrEqual(before + 24 * 3_600_000 - 1000);
+      expect(data.quotesUntil.getTime()).toBeLessThan(data.expiresAt.getTime());
+      expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+      expect(outbox.enqueue).toHaveBeenCalledWith(mockPrisma, 'request.new', {
+        userId: 'usr-garage',
+        title: 'New repair request near you',
+        body: 'Front bumper dent, 3.2 km away. Send your price and time.',
+        data: { type: 'new_request', requestId: 'req-1' },
+      });
+      expect(result.notifiedProviders).toBe(1); // the poster's own garage is not counted
+    });
+
+    it('maps each category to the provider types that serve it', () => {
+      expect(providerTypesFor('REPAIR').sort()).toEqual(['AUTHORIZED_CENTER', 'GARAGE', 'MECHANIC']);
+      expect(providerTypesFor('SPARE_PART')).toEqual(['PARTS_DEALER']);
+      expect(providerTypesFor('TOWING')).toEqual(['TOWING']);
     });
 
     it('H4: rejects signed URLs, foreign keys and un-finalized keys with 400', async () => {
@@ -276,7 +328,9 @@ describe('DamageRequestsService', () => {
       expect(data.vehicleWeightKg).toBe(1800);
       expect(data.towingDistanceKm).toBeGreaterThan(0);
       expect(data.towingEstimatedFare).toBeGreaterThanOrEqual(500);
-      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+      // The drop-off map point is computed by the database from these two columns.
+      expect(data.dropoffLatitude).toBe(12.9698);
+      expect(data.dropoffLongitude).toBe(77.7499);
     });
   });
 
@@ -348,6 +402,7 @@ describe('DamageRequestsService', () => {
         ]),
       );
       expect(where.AND).toEqual([
+        { OR: [{ quotesUntil: null }, { quotesUntil: { gt: expect.any(Date) } }] },
         {
           OR: [
             { vehicleWeightKg: null },
@@ -442,7 +497,7 @@ describe('DamageRequestsService authorization regressions', () => {
       },
       $queryRaw: jest.fn(),
     };
-    service = new DamageRequestsService(mockPrisma);
+    service = new DamageRequestsService(mockPrisma, { enqueue: jest.fn().mockResolvedValue("evt") } as any);
   });
 
   const providerUser = {

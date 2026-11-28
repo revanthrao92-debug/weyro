@@ -4,36 +4,63 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   estimateTowingFare,
   haversineDistanceKm,
   PROVIDER_TYPE_CATEGORIES,
   ROADSIDE_TARIFF,
-} from '@weyro/api-contracts';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateDamageRequestDto } from './dto/create-damage-request.dto';
-import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
+} from "@weyro/api-contracts";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CreateDamageRequestDto } from "./dto/create-damage-request.dto";
+import { AuthUserPayload } from "../../common/types/auth-user-payload.type";
 import {
   decodeFeedCursor,
   encodeFeedCursor,
+  getBroadcastRecipientsQuery,
   getProviderFeedQuery,
   urgencyRank,
   type FeedCursor,
-} from '@weyro/database';
-import { assertOwnedMediaKeys, MEDIA_FOLDERS_BY_USE } from '../../common/media/media-key';
-import { resolveRequestVehicle } from '../../common/serializers/request-vehicle';
+} from "@weyro/database";
+import {
+  assertOwnedMediaKeys,
+  MEDIA_FOLDERS_BY_USE,
+} from "../../common/media/media-key";
+import { resolveRequestVehicle } from "../../common/serializers/request-vehicle";
 import {
   buildCursorWhere,
   decodeCursor,
   encodeCursor,
-} from '../../common/utils/cursor';
-import { toPublicProvider } from '../../common/serializers/public-provider';
-import { validateServiceRequestTransition } from '../../common/state-machines/state-machines';
+} from "../../common/utils/cursor";
+import { toPublicProvider } from "../../common/serializers/public-provider";
+import { validateServiceRequestTransition } from "../../common/state-machines/state-machines";
+import { OutboxService } from "../notifications/outbox.service";
+
+/** How long a new request takes quotes. Accepting one stays possible until expiresAt (7 days). */
+const QUOTE_WINDOW_HOURS = 24;
+
+const CATEGORY_WORD: Record<string, string> = {
+  REPAIR: "repair",
+  MAINTENANCE: "service",
+  INSPECTION: "inspection",
+  SPARE_PART: "spare part",
+  TOWING: "towing",
+  ROADSIDE: "roadside help",
+};
+
+/** Provider types that serve a request category: the reverse of PROVIDER_TYPE_CATEGORIES. */
+export function providerTypesFor(category: string): string[] {
+  return Object.entries(PROVIDER_TYPE_CATEGORIES)
+    .filter(([, categories]) => (categories as string[]).includes(category))
+    .map(([type]) => type);
+}
 
 @Injectable()
 export class DamageRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   private formatRequest(req: any) {
     if (!req) return req;
@@ -42,13 +69,19 @@ export class DamageRequestsService {
       : req.damagePhotos || [];
     return {
       ...req,
-      ...('vehicle' in req ? { vehicle: resolveRequestVehicle(req) } : {}),
+      ...("vehicle" in req ? { vehicle: resolveRequestVehicle(req) } : {}),
       damagePhotos,
-      quotationsCount: Array.isArray(req.quotations) ? req.quotations.length : 0,
+      quotationsCount: Array.isArray(req.quotations)
+        ? req.quotations.length
+        : 0,
     };
   }
 
-  async create(customerId: string, dto: CreateDamageRequestDto, ownerUserId?: string) {
+  async create(
+    customerId: string,
+    dto: CreateDamageRequestDto,
+    ownerUserId?: string,
+  ) {
     // H4: photos must be finalized uploads owned by the caller.
     const photoKeys = await assertOwnedMediaKeys(
       this.prisma,
@@ -63,7 +96,7 @@ export class DamageRequestsService {
         select: { id: true },
       });
       if (!owned) {
-        throw new NotFoundException('Vehicle not found');
+        throw new NotFoundException("Vehicle not found");
       }
       vehicleId = owned.id;
     }
@@ -77,17 +110,17 @@ export class DamageRequestsService {
           vehicleYear: dto.vehicleYear || undefined,
         };
 
-    const rawCategory = (dto.category as any) || 'REPAIR';
+    const rawCategory = (dto.category as any) || "REPAIR";
     const category =
-      rawCategory === 'MECHANICAL' || rawCategory === 'BODYWORK'
-        ? 'REPAIR'
+      rawCategory === "MECHANICAL" || rawCategory === "BODYWORK"
+        ? "REPAIR"
         : rawCategory;
 
-    const isTowing = category === 'TOWING';
+    const isTowing = category === "TOWING";
     const towingDistanceKm =
       isTowing &&
-      typeof dto.dropoffLatitude === 'number' &&
-      typeof dto.dropoffLongitude === 'number'
+      typeof dto.dropoffLatitude === "number" &&
+      typeof dto.dropoffLongitude === "number"
         ? haversineDistanceKm(
             { latitude: dto.latitude, longitude: dto.longitude },
             {
@@ -102,73 +135,69 @@ export class DamageRequestsService {
         : undefined;
 
     // Roadside assist: flat-rate estimate from the shared tariff
-    const isRoadside = category === 'ROADSIDE';
+    const isRoadside = category === "ROADSIDE";
     const roadsideKind = isRoadside ? dto.roadsideKind : undefined;
     const estimatedFare =
-      isRoadside && roadsideKind
-        ? ROADSIDE_TARIFF[roadsideKind]
-        : undefined;
+      isRoadside && roadsideKind ? ROADSIDE_TARIFF[roadsideKind] : undefined;
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
-    const created = await this.prisma.serviceRequest.create({
-      data: {
-        customerId,
-        vehicleId,
-        ...freeForm,
-        category,
-        title: dto.title,
-        description: dto.description,
-        address: dto.address,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
-        urgency: dto.urgency || 'URGENT',
-        status: 'OPEN',
-        isBroadcast: dto.isBroadcast !== false,
-        fulfillmentType:
-          dto.fulfillmentType || (isTowing ? 'TOW_TO_GARAGE' : 'PARTS_SHIPPING'),
-        dropoffAddress: isTowing ? dto.dropoffAddress : undefined,
-        dropoffLatitude: isTowing ? dto.dropoffLatitude : undefined,
-        dropoffLongitude: isTowing ? dto.dropoffLongitude : undefined,
-        towingVehicleType: isTowing ? dto.towingVehicleType : undefined,
-        vehicleWeightKg: isTowing ? dto.vehicleWeightKg : undefined,
-        towingDistanceKm,
-        towingEstimatedFare,
-        roadsideKind,
-        estimatedFare,
-        expiresAt,
-        media: photoKeys.length
-          ? {
-              // C3: persist object keys only; URLs are signed when read.
-              create: photoKeys.map((key) => ({ url: key, fileType: 'image/jpeg' })),
-            }
-          : undefined,
-      },
-      include: {
-        media: true,
-        vehicle: true,
-        quotations: true,
-      },
+    const quotesUntil = new Date(Date.now() + QUOTE_WINDOW_HOURS * 3_600_000);
+    // One transaction: the request and the outbox pings commit together,
+    // so a garage is never pinged about a request that didn't save.
+    const { created, notifiedProviders } = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.serviceRequest.create({
+        data: {
+          customerId,
+          vehicleId,
+          ...freeForm,
+          category,
+          title: dto.title,
+          description: dto.description,
+          address: dto.address,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          urgency: dto.urgency || "URGENT",
+          status: "OPEN",
+          isBroadcast: true,
+          fulfillmentType:
+            dto.fulfillmentType ||
+            (isTowing ? "TOW_TO_GARAGE" : "PARTS_SHIPPING"),
+          dropoffAddress: isTowing ? dto.dropoffAddress : undefined,
+          dropoffLatitude: isTowing ? dto.dropoffLatitude : undefined,
+          dropoffLongitude: isTowing ? dto.dropoffLongitude : undefined,
+          towingVehicleType: isTowing ? dto.towingVehicleType : undefined,
+          vehicleWeightKg: isTowing ? dto.vehicleWeightKg : undefined,
+          towingDistanceKm,
+          towingEstimatedFare,
+          roadsideKind,
+          estimatedFare,
+          expiresAt,
+          quotesUntil: quotesUntil < expiresAt ? quotesUntil : expiresAt,
+          media: photoKeys.length
+            ? {
+                // C3: persist object keys only; URLs are signed when read.
+                create: photoKeys.map((key) => ({
+                  url: key,
+                  fileType: "image/jpeg",
+                })),
+              }
+            : undefined,
+        },
+        include: {
+          media: true,
+          vehicle: true,
+          quotations: true,
+        },
+      });
+
+      const notifiedProviders = await this.broadcastNewRequest(tx, created, ownerUserId);
+      return { created, notifiedProviders };
     });
 
-    // `dropoffLocation` is an Unsupported(...) column, so write it via raw SQL.
-    if (
-      isTowing &&
-      typeof dto.dropoffLongitude === 'number' &&
-      typeof dto.dropoffLatitude === 'number'
-    ) {
-      await this.prisma.$executeRaw`
-        UPDATE "service_requests"
-        SET "dropoffLocation" = ST_SetSRID(
-          ST_MakePoint(${dto.dropoffLongitude}, ${dto.dropoffLatitude}),
-          4326
-        )::geography
-        WHERE "id" = ${created.id}
-      `;
-    }
-
-    return this.formatRequest(created);
+    // 0 tells the app no provider covers this location, so it can say so.
+    return { ...this.formatRequest(created), notifiedProviders };
   }
 
   async findMine(
@@ -196,10 +225,10 @@ export class DamageRequestsService {
         vehicle: true,
         quotations: {
           include: { provider: true },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: boundedLimit,
     });
 
@@ -228,7 +257,9 @@ export class DamageRequestsService {
    * (urgency rank, createdAt, id). A bare request id from an older app build is
    * still honoured by looking the row up once.
    */
-  private async resolveFeedCursor(raw?: string): Promise<FeedCursor | undefined> {
+  private async resolveFeedCursor(
+    raw?: string,
+  ): Promise<FeedCursor | undefined> {
     if (!raw) return undefined;
     const decoded = decodeFeedCursor(raw);
     if (decoded) return decoded;
@@ -237,7 +268,7 @@ export class DamageRequestsService {
       where: { id: raw },
       select: { id: true, urgency: true, createdAt: true },
     });
-    if (!legacy) throw new BadRequestException('Invalid cursor');
+    if (!legacy) throw new BadRequestException("Invalid cursor");
     return {
       urgencyRank: urgencyRank(legacy.urgency),
       createdAt: legacy.createdAt,
@@ -251,7 +282,7 @@ export class DamageRequestsService {
    * NORMAL < URGENT < EMERGENCY, so "lower severity" = later in the feed.
    */
   private feedCursorWhere(cursor: FeedCursor) {
-    const bySeverity = ['EMERGENCY', 'URGENT', 'NORMAL'] as const; // rank 1, 2, 3
+    const bySeverity = ["EMERGENCY", "URGENT", "NORMAL"] as const; // rank 1, 2, 3
     const same = bySeverity[cursor.urgencyRank - 1];
     const later = bySeverity.slice(cursor.urgencyRank);
     return {
@@ -274,32 +305,78 @@ export class DamageRequestsService {
 
     const isOwner =
       user.customerProfileId && request.customerId === user.customerProfileId;
-    if (!isOwner && user.role !== 'ADMIN') {
+    if (!isOwner && user.role !== "ADMIN") {
       throw new ForbiddenException(
-        'You can only cancel your own service requests',
+        "You can only cancel your own service requests",
       );
     }
 
-    validateServiceRequestTransition(request.status, 'CANCELLED', user.role);
+    validateServiceRequestTransition(request.status, "CANCELLED", user.role);
 
     // M2: compare-and-set — if the request was accepted (or cancelled) while we
     // were validating, cancel nothing and tell the caller to refresh.
     const updated = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.serviceRequest.updateMany({
         where: { id, status: request.status },
-        data: { status: 'CANCELLED' },
+        data: { status: "CANCELLED" },
       });
       if (claimed.count === 0) {
-        throw new ConflictException('Request changed, refresh and try again');
+        throw new ConflictException("Request changed, refresh and try again");
       }
       await tx.quotation.updateMany({
-        where: { requestId: id, status: 'PENDING' },
-        data: { status: 'WITHDRAWN' },
+        where: { requestId: id, status: "PENDING" },
+        data: { status: "WITHDRAWN" },
       });
       return tx.serviceRequest.findUniqueOrThrow({ where: { id } });
     });
 
     return this.formatRequest(updated);
+  }
+
+  /**
+   * Ping every provider who should quote: verified, switched on, matching type, and whose own
+   * service area covers the customer (nearest 50). Delivered by the outbox worker with retries.
+   */
+  private async broadcastNewRequest(
+    tx: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
+    request: {
+      id: string;
+      title: string;
+      category: string;
+      latitude: number;
+      longitude: number;
+      towingVehicleType: string | null;
+      vehicleWeightKg: number | null;
+    },
+    ownerUserId?: string,
+  ) {
+    const providerTypes = providerTypesFor(request.category);
+    if (providerTypes.length === 0) return 0;
+    const recipients = await tx.$queryRaw<
+      { providerId: string; userId: string; distanceKm: number }[]
+    >(
+      getBroadcastRecipientsQuery({
+        latitude: request.latitude,
+        longitude: request.longitude,
+        providerTypes,
+        towingVehicleType: request.towingVehicleType,
+        vehicleWeightKg: request.vehicleWeightKg,
+      }),
+    );
+    const word = CATEGORY_WORD[request.category] ?? "service";
+    let sent = 0;
+    for (const r of recipients) {
+      if (r.userId === ownerUserId) continue; // a provider posting their own request
+      const km = Number(r.distanceKm);
+      await this.outbox.enqueue(tx as never, "request.new", {
+        userId: r.userId,
+        title: `New ${word} request near you`,
+        body: `${request.title}, ${km < 1 ? "under 1" : km.toFixed(1)} km away. Send your price and time.`,
+        data: { type: "new_request", requestId: request.id },
+      });
+      sent += 1;
+    }
+    return sent;
   }
 
   async getBroadcastFeed(params: {
@@ -345,7 +422,7 @@ export class DamageRequestsService {
 
     const towingVehicleTypes =
       provider?.towingVehicleTypes?.length &&
-      !provider.towingVehicleTypes.includes('ANY')
+      !provider.towingVehicleTypes.includes("ANY")
         ? provider.towingVehicleTypes
         : undefined;
     const maxVehicleWeightKg = provider?.maxVehicleWeightKg ?? undefined;
@@ -357,10 +434,7 @@ export class DamageRequestsService {
     const providerLat = provider?.latitude ?? params.providerLat;
     const providerLng = provider?.longitude ?? params.providerLng;
 
-    if (
-      typeof providerLat === 'number' &&
-      typeof providerLng === 'number'
-    ) {
+    if (typeof providerLat === "number" && typeof providerLng === "number") {
       const query = getProviderFeedQuery({
         providerId: params.providerId,
         providerLat,
@@ -391,13 +465,15 @@ export class DamageRequestsService {
       return {
         items,
         nextCursor:
-          items.length === boundedLimit ? encodeFeedCursor(items[items.length - 1]) : null,
+          items.length === boundedLimit
+            ? encodeFeedCursor(items[items.length - 1])
+            : null,
       };
     }
 
     const where: any = {
       // C2: a request stays visible to other providers after the first quote.
-      status: { in: ['OPEN', 'QUOTES_RECEIVED'] },
+      status: { in: ["OPEN", "QUOTES_RECEIVED"] },
       isBroadcast: true,
       expiresAt: { gt: new Date() },
     };
@@ -411,12 +487,13 @@ export class DamageRequestsService {
     if (towingVehicleTypes) {
       where.OR = [
         { towingVehicleType: null },
-        { towingVehicleType: 'ANY' },
+        { towingVehicleType: "ANY" },
         { towingVehicleType: { in: towingVehicleTypes } },
       ];
     }
-    const and: any[] = [];
-    if (typeof maxVehicleWeightKg === 'number') {
+    // Stop showing a request once it has stopped taking quotes.
+    const and: any[] = [{ OR: [{ quotesUntil: null }, { quotesUntil: { gt: new Date() } }] }];
+    if (typeof maxVehicleWeightKg === "number") {
       and.push({
         OR: [
           { vehicleWeightKg: null },
@@ -450,7 +527,7 @@ export class DamageRequestsService {
           },
         },
       },
-      orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ urgency: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: boundedLimit,
     });
 
@@ -472,7 +549,9 @@ export class DamageRequestsService {
     return {
       items,
       nextCursor:
-        items.length === boundedLimit ? encodeFeedCursor(items[items.length - 1]) : null,
+        items.length === boundedLimit
+          ? encodeFeedCursor(items[items.length - 1])
+          : null,
     };
   }
 
@@ -508,44 +587,40 @@ export class DamageRequestsService {
 
     const isCustomerOwner =
       user.customerProfileId && found.customerId === user.customerProfileId;
-    const isAdmin = user.role === 'ADMIN';
+    const isAdmin = user.role === "ADMIN";
 
     // Check if provider has an accepted booking on this request
     const acceptedQuotationForProvider = found.quotations.find(
       (q) =>
         q.providerId === user.providerProfileId &&
-        q.status === 'ACCEPTED' &&
+        q.status === "ACCEPTED" &&
         q.booking !== null,
     );
 
     const hasAcceptedBooking = Boolean(acceptedQuotationForProvider);
 
     // Providers can only open requests that match their service category.
-    if (
-      user.providerProfileId &&
-      !isCustomerOwner &&
-      !isAdmin
-    ) {
+    if (user.providerProfileId && !isCustomerOwner && !isAdmin) {
       const provider = await this.prisma.providerProfile.findUnique({
         where: { id: user.providerProfileId },
         select: { providerType: true, verificationStatus: true },
       });
-      if (!provider || provider.verificationStatus !== 'VERIFIED') {
+      if (!provider || provider.verificationStatus !== "VERIFIED") {
         throw new ForbiddenException(
-          'Only verified providers can open service requests',
+          "Only verified providers can open service requests",
         );
       }
       const eligible = PROVIDER_TYPE_CATEGORIES[provider.providerType];
       if (eligible && !eligible.includes(found.category)) {
         throw new ForbiddenException(
-          'This request does not match your provider service category',
+          "This request does not match your provider service category",
         );
       }
     }
 
     // If caller is customer: must be the owner
-    if (user.role === 'CUSTOMER' && !isCustomerOwner && !isAdmin) {
-      throw new ForbiddenException('You can only access your own requests');
+    if (user.role === "CUSTOMER" && !isCustomerOwner && !isAdmin) {
+      throw new ForbiddenException("You can only access your own requests");
     }
 
     // A provider with no relationship to the request may only open an open
@@ -559,7 +634,7 @@ export class DamageRequestsService {
       const hasOwnQuotation = found.quotations.some(
         (q) => q.providerId === user.providerProfileId,
       );
-      if (!found.isBroadcast || found.status !== 'OPEN') {
+      if (!found.isBroadcast || found.status !== "OPEN") {
         if (!hasOwnQuotation) {
           throw new NotFoundException(`Request with ID ${id} not found`);
         }
@@ -570,9 +645,7 @@ export class DamageRequestsService {
     const isOwnerOrAdmin = Boolean(isCustomerOwner) || isAdmin;
     const visibleQuotations = isOwnerOrAdmin
       ? found.quotations
-      : found.quotations.filter(
-          (q) => q.providerId === user.providerProfileId,
-        );
+      : found.quotations.filter((q) => q.providerId === user.providerProfileId);
 
     // Provider rows carry phone, exact address and KYC documents; only admins
     // get the full record. Everyone else gets the public provider projection.
@@ -639,24 +712,24 @@ export class DamageRequestsService {
   }
 
   private maskDetailAddress(fullAddress: string): string {
-    if (!fullAddress) return 'Location shared after acceptance';
+    if (!fullAddress) return "Location shared after acceptance";
     const parts = fullAddress
-      .split(',')
+      .split(",")
       .map((part) => part.trim())
       .filter(Boolean);
     if (parts.length >= 2) return parts[parts.length - 1];
-    return 'Location shared after acceptance';
+    return "Location shared after acceptance";
   }
 
   private maskAddress(fullAddress: string): string {
-    if (!fullAddress) return 'Location specified upon booking';
-    const parts = fullAddress.split(',');
+    if (!fullAddress) return "Location specified upon booking";
+    const parts = fullAddress.split(",");
     if (parts.length >= 2) {
       return parts
         .slice(-2)
         .map((part) => part.trim())
-        .join(', ');
+        .join(", ");
     }
-    return fullAddress.replace(/^\d+[\w\s]+,\s*/, '').trim();
+    return fullAddress.replace(/^\d+[\w\s]+,\s*/, "").trim();
   }
 }

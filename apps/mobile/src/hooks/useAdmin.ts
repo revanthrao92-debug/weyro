@@ -65,6 +65,8 @@ export type AdminOverview = {
   totalBookings: number;
   completedBookings: number;
   totalEscrowVolume: number;
+  /** All money paid through Weyro, by source. Missing on older servers. */
+  moneyIn?: { total: number; jobs: number; parts: number; trips: number };
   pendingVerifications: number;
   verifiedProviders: number;
 };
@@ -83,12 +85,14 @@ export type AdminProviderDetail = ProviderVerificationRecord & {
 };
 
 export type EscrowEntry = {
+  paymentRef?: string;
+  bookingRef?: string;
   bookingId: string;
   paymentId?: string;
   customerName: string;
   providerName: string;
   amount: number;
-  status: 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
+  status: 'AWAITING_PAYMENT' | 'HELD_IN_ESCROW' | 'RELEASED_TO_PROVIDER' | 'REFUNDED_TO_CUSTOMER';
   bookingStatus?: string;
   payoutReference?: string;
   confirmedAt: string;
@@ -103,6 +107,8 @@ export type AdminActivityLog = {
   action: string;
   entityType: string | null;
   entityId: string | null;
+  /** Weyro reference number of the record this event is about, when it has one. */
+  entityRef?: string | null;
   createdAt: string;
 };
 
@@ -161,6 +167,8 @@ export function useAdminActivityStats() {
 }
 
 export type AdminOrder = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status: string;
   fulfillmentStatus: string;
@@ -178,6 +186,8 @@ export type AdminOrder = {
 };
 
 export type AdminBooking = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status: string;
   scheduledAt: string | null;
@@ -234,6 +244,7 @@ export function useAdminRefundOrder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
       queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['adminRecord'] });
     },
   });
 }
@@ -246,6 +257,56 @@ export function useAdminRefundBooking() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
       queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['adminRecord'] });
     },
+  });
+}
+
+export type AdminLookupResult = {
+  ref: string;
+  type: string;
+  label: string;
+  id: string;
+  title: string | null;
+  status: string;
+  amount: number | null;
+  createdAt: string;
+  customer: string | null;
+  provider: string | null;
+  /** Reference numbers of linked records: a job lists its request, quote and payments. */
+  linked: string[];
+};
+
+/** Find anything by its Weyro reference number (admin only). */
+export function useAdminLookup() {
+  return useMutation({
+    mutationFn: async (ref: string) =>
+      apiClient<AdminLookupResult>(`/admin/lookup?ref=${encodeURIComponent(ref)}`),
+  });
+}
+
+export type AdminRecord = {
+  ref: string;
+  type: string;
+  label: string;
+  title: string;
+  status: string;
+  amount: number | null;
+  createdAt: string;
+  people: { role: string; name: string; phone?: string | null; email?: string | null }[];
+  sections: { title: string; rows: { label: string; value: string }[] }[];
+  timeline: { at: string; text: string; ref: string; tone: 'done' | 'problem' | 'neutral' }[];
+  location: { latitude: number; longitude: number; updatedAt: string; label: string } | null;
+  linked: { ref: string; label: string }[];
+  actions: { refund?: { kind: 'order' | 'booking'; id: string; amount: number }; jobId?: string; jobStatus?: string };
+};
+
+/** One record in full; refreshes every 20 seconds while a provider or driver is being tracked. */
+export function useAdminRecord(ref: string | undefined) {
+  return useQuery({
+    queryKey: ['adminRecord', ref],
+    enabled: Boolean(ref),
+    queryFn: async () => apiClient<AdminRecord>(`/admin/records/${encodeURIComponent(ref!)}`),
+    refetchInterval: (query) => (query.state.data?.location ? 20_000 : false),
   });
 }

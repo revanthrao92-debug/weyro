@@ -60,11 +60,11 @@ export function RequestWizard() {
   const [submitted, setSubmitted] = useState<{
     title: string;
     queued: boolean;
+    noProviders: boolean;
   } | null>(null);
 
   const [photos, setPhotos] = useState<UploadedImage[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [isBroadcast, setIsBroadcast] = useState(true);
 
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [dropoff, setDropoff] = useState<PickedLocation | null>(null);
@@ -134,7 +134,6 @@ export function RequestWizard() {
     manualVehicle,
     spareFulfillment,
     photoCount: photos.length,
-    isBroadcast,
   };
 
   const contactName =
@@ -234,12 +233,12 @@ export function RequestWizard() {
     try {
       const payload = buildPayload(config, ctx, {
         photos: photos.map((photo) => photo.key),
-        isBroadcast,
       });
       const result = await createRequest.mutateAsync(payload);
       setSubmitted({
         title: payload.title,
         queued: Boolean((result as { queued?: boolean }).queued),
+        noProviders: (result as { notifiedProviders?: number }).notifiedProviders === 0,
       });
     } catch (error: any) {
       setFormError(error?.message || 'Could not send the request. Try again.');
@@ -254,12 +253,14 @@ export function RequestWizard() {
         <View style={styles.success}>
           <CheckCircle2 size={42} color={palette.accent} strokeWidth={1.6} />
           <Text style={styles.successTitle}>
-            {submitted.queued ? 'Request saved' : 'Request sent'}
+            {submitted.queued ? 'Request saved' : submitted.noProviders ? 'No providers nearby yet' : 'Request sent'}
           </Text>
           <Text style={styles.successBody}>
             {submitted.queued
               ? `${submitted.title} will be sent automatically when your connection returns. It is not with providers yet.`
-              : `${submitted.title} is now with nearby verified providers. Quotes will appear in your requests.`}
+              : submitted.noProviders
+                ? `${submitted.title} is saved, but no verified provider covers this location yet, so no quotes may come. Check the location, or try again later as more providers join.`
+                : `${submitted.title} is now with nearby verified providers. Quotes will appear in your requests.`}
           </Text>
           <Button
             title="View my requests"
@@ -389,8 +390,6 @@ export function RequestWizard() {
                 urgency={urgency}
                 setUrgency={setUrgency}
                 setFormError={setFormError}
-                isBroadcast={isBroadcast}
-                setIsBroadcast={setIsBroadcast}
               />
             </>
           ) : null}

@@ -24,6 +24,7 @@ import {
   useMyDriverBooking,
 } from '@/hooks/useDriverGoCustomer';
 import { jobWhen, money } from '@/components/driver/driverFormat';
+import { refOf } from '@/utils/format';
 import { customerStatusLabel, customerStatusTone } from './format';
 import {
   displayFamily,
@@ -124,8 +125,11 @@ export function CustomerBookingDetailScreen() {
         <Text style={styles.subtitle}>
           {booking.engagement === 'HOURLY'
             ? `${booking.durationHours} hours`
-            : `${booking.durationDays} day · 8 hours`}{' '}
-          · {money(booking.totalAmount)}
+            : `${booking.durationDays} day, 8 hours`}
+          , {money(booking.totalAmount)}
+        </Text>
+        <Text style={styles.subtitle} selectable>
+          Trip {refOf(booking)}
         </Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -137,7 +141,7 @@ export function CustomerBookingDetailScreen() {
           </Text>
         ) : null}
 
-        <SectionHead index="01" title="Driver" />
+        <SectionHead title="Driver" />
         <View style={styles.driverRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
@@ -163,7 +167,7 @@ export function CustomerBookingDetailScreen() {
           </View>
         </View>
 
-        <SectionHead index="02" title="Trip" />
+        <SectionHead title="Trip" />
         <Row label="Pickup" value={booking.pickupAddress} />
         <Row
           label="Start"
@@ -181,7 +185,7 @@ export function CustomerBookingDetailScreen() {
 
         {booking.status === 'ARRIVED' ? (
           <>
-            <SectionHead index="03" title="Start code" />
+            <SectionHead title="Start code" />
             <Text style={styles.helper}>
               Share this 6-digit code with the driver. It confirms the right
               driver and starts the trip.
@@ -233,7 +237,6 @@ export function CustomerBookingDetailScreen() {
         ) : null}
 
         <SectionHead
-          index={booking.status === 'ARRIVED' ? '04' : '03'}
           title="Fare"
         />
         <View style={styles.totalRow}>
@@ -259,7 +262,7 @@ export function CustomerBookingDetailScreen() {
             variant="secondary"
             onPress={() =>
               void Linking.openURL(
-                `mailto:support@weyro.app?subject=Driver%20Go%20booking%20${booking.id.slice(0, 8)}`,
+                `mailto:support@weyro.app?subject=${encodeURIComponent(`Driver Go trip ${refOf(booking)}`)}`,
               )
             }
           />
@@ -340,8 +343,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   subtitle: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
@@ -376,13 +378,11 @@ const styles = StyleSheet.create({
   driverName: { ...typography.bodyMedium, color: palette.textPrimary },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   rating: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
+    fontSize: 12,
     color: palette.textPrimary,
   },
   driverMeta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
   },
   row: {
@@ -426,7 +426,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { ...typography.bodyMedium, color: palette.textPrimary },
   totalValue: {
-    fontFamily: fontFamilyMono,
     fontSize: 22,
     color: palette.textPrimary,
   },

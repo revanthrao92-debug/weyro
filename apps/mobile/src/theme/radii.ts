@@ -5,8 +5,8 @@
 
 export const radii = {
   sm: 4, // inline tags
-  md: 8, // inputs, buttons, standard cards
-  lg: 12, // sheets, modals
+  md: 10, // inputs, buttons
+  lg: 12, // every card and sheet (one card radius app-wide)
   pill: 999, // avatars and circular controls only
 } as const;
 

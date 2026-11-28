@@ -23,7 +23,7 @@ import {
   validatePaymentTransition,
 } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
-import { settleBookingPayment, settleSparePartOrderPayment } from './settle-payment';
+import { refundCancelledSpareOrder, settleBookingPayment, settleSparePartOrderPayment } from './settle-payment';
 import { notifyOrderPaid } from '../spare-parts/spare-part-notifications';
 import { env } from '../../config/env.config';
 
@@ -406,6 +406,7 @@ export class PaymentsService {
               where: { gatewayOrderId: orderId },
               select: {
                 id: true,
+                ref: true,
                 sparePartId: true,
                 quantity: true,
                 status: true,
@@ -441,10 +442,14 @@ export class PaymentsService {
               this.logger.log(
                 `Spare part order ${sparePartOrder.id} settled via webhook (${settled.status ?? 'no-op'})`,
               );
+              if (settled.outOfStock) {
+                await this.refundCancelledSpareOrder(sparePartOrder.id, gatewayPaymentId, sparePartOrder.totalAmount, 'sold_out_after_capture');
+              }
 
               if (settled.applied) {
                 notifyOrderPaid(this.notifications, {
                   orderId: sparePartOrder.id,
+                  ref: sparePartOrder.ref,
                   partName: sparePartOrder.sparePart?.name ?? 'your order',
                   totalAmount: Number(sparePartOrder.totalAmount),
                   quantity: sparePartOrder.quantity,
@@ -744,42 +749,9 @@ export class PaymentsService {
     orderId: string,
     gatewayPaymentId: string | undefined,
     amount: unknown,
+    reason = 'cancelled_after_capture',
   ): Promise<void> {
-    if (!gatewayPaymentId) return;
-    const amountInPaise = Math.round(Number(amount) * 100);
-    try {
-      const existing = await this.gateway.findRefund?.(
-        gatewayPaymentId,
-        amountInPaise,
-      );
-      const refund =
-        existing ??
-        (await this.gateway.refundPayment({
-          paymentId: gatewayPaymentId,
-          amountInPaise,
-          notes: { orderId, reason: 'cancelled_after_capture' },
-        }));
-
-      await this.prisma.sparePartOrder.updateMany({
-        where: { id: orderId, status: 'CANCELLED' },
-        data: { status: 'REFUNDED' },
-      });
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'payment.auto_refund',
-          entityType: 'SparePartOrder',
-          entityId: orderId,
-          newValues: { refundId: refund.refundId, reason: 'cancelled_after_capture' },
-        },
-      });
-      this.logger.warn(
-        `Auto-refunded cancelled order ${orderId} after late capture (${refund.refundId})`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Auto-refund failed for cancelled order ${orderId}: ${(error as Error).message}`,
-      );
-    }
+    await refundCancelledSpareOrder(this.prisma, this.gateway, { orderId, gatewayPaymentId, amount, reason });
   }
 
   async releasePayment(
@@ -875,8 +847,8 @@ export class PaymentsService {
         this.notifications
           .sendPushNotification({
             userId: booking.provider.userId,
-            title: 'Escrow Payout Released 💰',
-            body: `Payment of ₹${Number(updatedPayment.amount).toLocaleString('en-IN')} for booking #${booking.id.slice(0, 8)} has been released to your account.`,
+            title: 'Payment released',
+            body: `₹${Number(updatedPayment.amount).toLocaleString('en-IN')} for a completed job has been released to your account.`,
             data: {
               type: 'PAYMENT_RELEASED',
               bookingId: booking.id,

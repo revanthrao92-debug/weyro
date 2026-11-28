@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +15,7 @@ import * as Location from 'expo-location';
 import { Input, Chip, BackButton, Button } from '@/components/ui';
 import { palette, spacing, radii, typography, displayFamily } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { notice } from '@/lib/confirm';
 
 type RoleOption = 'CUSTOMER' | 'PROVIDER' | 'BOTH';
 
@@ -101,7 +101,7 @@ export default function RegisterScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(
+        notice(
           'Location needed',
           'Allow location access so customers can find your business.',
         );
@@ -138,7 +138,7 @@ export default function RegisterScreen() {
         address: address || current.address,
       }));
     } catch {
-      Alert.alert('Could not get location', 'Enter your address and try again.');
+      notice('Could not get location', 'Enter your address and try again.');
     } finally {
       setLocating(false);
     }
@@ -147,7 +147,7 @@ export default function RegisterScreen() {
   /** H1: the phone must be verified with an SMS code before an account is created. */
   async function handleSendOtp() {
     if (!form.phone.trim()) {
-      Alert.alert('Error', 'Enter your phone number first');
+      notice('Error', 'Enter your phone number first');
       return;
     }
     setSendingOtp(true);
@@ -157,9 +157,9 @@ export default function RegisterScreen() {
         body: JSON.stringify({ phone: form.phone.trim(), purpose: 'register' }),
       });
       setOtpSent(true);
-      Alert.alert('Code sent', 'We sent a 6-digit verification code to your phone.');
+      notice('Code sent', 'We sent a 6-digit verification code to your phone.');
     } catch (error: any) {
-      Alert.alert('Could not send code', error.message || 'Please try again');
+      notice('Could not send code', error.message || 'Please try again');
     } finally {
       setSendingOtp(false);
     }
@@ -168,11 +168,11 @@ export default function RegisterScreen() {
   async function handleRegister() {
     const { email, phone, otpCode, password, role, firstName, lastName, businessName } = form;
     if (!email || !phone || !password || !firstName || !lastName) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      notice('Error', 'Please fill in all required fields');
       return;
     }
     if (!/^\d{6}$/.test(otpCode)) {
-      Alert.alert('Verify your phone', 'Tap "Send code" and enter the 6-digit code we text you.');
+      notice('Verify your phone', 'Tap "Send code" and enter the 6-digit code we text you.');
       return;
     }
     if (
@@ -180,7 +180,7 @@ export default function RegisterScreen() {
       !/[A-Za-z]/.test(password) ||
       !/\d/.test(password)
     ) {
-      Alert.alert(
+      notice(
         'Error',
         'Password must be at least 8 characters and include a letter and a number.',
       );
@@ -189,7 +189,7 @@ export default function RegisterScreen() {
     const isProvider = role === 'PROVIDER' || role === 'BOTH';
     if (isProvider) {
       if (!businessName.trim() || !form.address.trim()) {
-        Alert.alert(
+        notice(
           'Business details needed',
           'Add your business name and address so customers can find you.',
         );
@@ -199,7 +199,7 @@ export default function RegisterScreen() {
         form.latitude === null ||
         form.longitude === null
       ) {
-        Alert.alert(
+        notice(
           'Location needed',
           'Use your current location so Weyro can match nearby work.',
         );
@@ -209,7 +209,7 @@ export default function RegisterScreen() {
         form.providerType === 'TOWING' &&
         form.towingVehicleTypes.length === 0
       ) {
-        Alert.alert(
+        notice(
           'Towing equipment needed',
           'Select at least one towing vehicle type.',
         );
@@ -241,7 +241,7 @@ export default function RegisterScreen() {
       });
       router.replace('/(app)');
     } catch (error: any) {
-      Alert.alert('Registration failed', error.message || 'Unable to register');
+      notice('Registration failed', error.message || 'Unable to register');
     } finally {
       setLoading(false);
     }

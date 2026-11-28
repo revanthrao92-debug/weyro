@@ -195,6 +195,46 @@ describe('SparePartsService order flow', () => {
     );
   });
 
+  describe('an unpaid order already exists for this part', () => {
+    const ship = { shippingName: 'Rohan', shippingPhone: '9845012345', shippingAddress: '12th Main', shippingCity: 'Bengaluru', shippingPincode: '560038' };
+    const pending = (quantity: number) => ({ id: 'old-order', quantity, totalAmount: 749 * quantity, currency: 'INR', gatewayOrderId: 'order_gw_old', ...ship });
+    beforeEach(() => {
+      mockPrisma.sparePart.findFirst.mockResolvedValue({
+        id: 'part-1', price: 749, stockQuantity: 10, kind: 'PART', providerId: 'prov-1',
+        provider: { verificationStatus: 'VERIFIED', isAvailable: true },
+      });
+      (mockGateway.createOrder as jest.Mock).mockResolvedValue({ orderId: 'order_gw_new' });
+      mockPrisma.sparePartOrder.create.mockResolvedValue({ id: 'new-order', quantity: 3, totalAmount: 2247, currency: 'INR' });
+    });
+
+    it('a plain retry reuses it (no duplicate charge)', async () => {
+      mockPrisma.sparePartOrder.findFirst.mockResolvedValue(pending(1));
+      const r = await service.createOrder('part-1', 'cust-1', { quantity: 1, ...ship });
+      expect(r.razorpayOrderId).toBe('order_gw_old');
+      expect(mockGateway.createOrder).not.toHaveBeenCalled();
+    });
+
+    it('a new quantity cancels the old one and charges for the new quantity (was charged for 1 after asking for 3)', async () => {
+      mockPrisma.sparePartOrder.findFirst.mockResolvedValue(pending(1));
+      const r = await service.createOrder('part-1', 'cust-1', { quantity: 3, ...ship });
+      expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: 'old-order', status: 'PENDING' },
+        data: { status: 'CANCELLED', fulfillmentStatus: 'CANCELLED' },
+      });
+      expect(mockGateway.createOrder).toHaveBeenCalledWith(expect.objectContaining({ amountInPaise: 224700 }));
+      expect(r.razorpayOrderId).toBe('order_gw_new');
+    });
+
+    it('a new delivery address also starts a fresh order', async () => {
+      mockPrisma.sparePartOrder.findFirst.mockResolvedValue(pending(1));
+      await service.createOrder('part-1', 'cust-1', { quantity: 1, ...ship, shippingAddress: '5th Block, Koramangala' });
+      expect(mockGateway.createOrder).toHaveBeenCalled();
+      expect(mockPrisma.sparePartOrder.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ shippingAddress: '5th Block, Koramangala' }) }),
+      );
+    });
+  });
+
   it('rejects payment verification with a bad signature', async () => {
     mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
       id: 'order-1',
@@ -242,6 +282,42 @@ describe('SparePartsService order flow', () => {
     expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
   });
 
+  it('sold out just before payment: refunds the customer and says so, instead of failing forever', async () => {
+    mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+      id: 'order-1', status: 'PENDING', customerId: 'cust-1', gatewayOrderId: 'order_gw_1',
+      totalAmount: 2999, currency: 'INR', quantity: 1, sparePartId: 'part-1',
+    });
+    mockPrisma.auditLog = { create: jest.fn().mockResolvedValue({}) };
+    (mockGateway.verifyPaymentSignature as jest.Mock).mockReturnValue(true);
+    (mockGateway.refundPayment as jest.Mock).mockResolvedValue({ refundId: 'rf_1' });
+    const tx = {
+      sparePart: {
+        findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }), // nothing left
+      },
+      sparePartOrder: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(tx));
+
+    await expect(
+      service.verifyOrderPayment('order-1', 'cust-1', {
+        razorpayOrderId: 'order_gw_1',
+        razorpayPaymentId: 'pay_1',
+        razorpaySignature: 'validsignature123',
+      }),
+    ).rejects.toThrow('sold out just before your payment went through');
+    expect(mockGateway.refundPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentId: 'pay_1', amountInPaise: 299900 }),
+    );
+    expect(mockPrisma.sparePartOrder.updateMany).toHaveBeenCalledWith({
+      where: { id: 'order-1', status: 'CANCELLED' },
+      data: { status: 'REFUNDED' },
+    });
+  });
+
   it('marks the order paid and decrements stock with a valid signature', async () => {
     mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
       id: 'order-1',
@@ -257,7 +333,7 @@ describe('SparePartsService order flow', () => {
     const tx = {
       sparePart: {
         findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
-        update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       sparePartOrder: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -279,8 +355,8 @@ describe('SparePartsService order flow', () => {
 
     expect(result.status).toBe('PAID');
     expect(tx.sparePart.findUnique).toHaveBeenCalled();
-    expect(tx.sparePart.update).toHaveBeenCalledWith({
-      where: { id: 'part-1' },
+    expect(tx.sparePart.updateMany).toHaveBeenCalledWith({
+      where: { id: 'part-1', stockQuantity: { gte: 2 } },
       data: { stockQuantity: { decrement: 2 } },
     });
     expect(tx.sparePartOrder.updateMany).toHaveBeenCalledWith(
@@ -367,6 +443,18 @@ describe('SparePartsService order flow', () => {
     expect(Object.keys(args.select)).not.toContain('providerId');
   });
 
+  it("edit view: a dealer opens their own part with real stock, even when hidden; never another dealer's", async () => {
+    mockPrisma.sparePart.findFirst = jest.fn().mockResolvedValue({ id: 'p1', stockQuantity: 20, isActive: false });
+    await expect(service.findMineOne('prov-1', 'PROVIDER', 'p1')).resolves.toMatchObject({ stockQuantity: 20 });
+    const where = mockPrisma.sparePart.findFirst.mock.calls[0][0].where;
+    expect(where).toEqual({ id: 'p1', deletedAt: null, providerId: 'prov-1' }); // no isActive filter
+
+    mockPrisma.sparePart.findFirst.mockResolvedValue(null);
+    await expect(service.findMineOne('prov-2', 'PROVIDER', 'p1')).rejects.toThrow('not found');
+    await expect(service.findMineOne(undefined, 'PROVIDER', 'p1')).rejects.toThrow('not found');
+    expect(mockPrisma.sparePart.findFirst.mock.calls[2][0].where.providerId).toBe('none');
+  });
+
   it('dealer order list shows customer names but no phone, user id, or gateway fields', async () => {
     mockPrisma.sparePartOrder.findMany.mockResolvedValue([
       {
@@ -386,6 +474,18 @@ describe('SparePartsService order flow', () => {
     expect(args.select).not.toHaveProperty('gatewayOrderId');
     expect(args.select).not.toHaveProperty('gatewayPaymentId');
     expect(result.items[0]).not.toHaveProperty('phone');
+  });
+
+  it("dealer to-do list: every paid order not yet delivered, whatever its step", async () => {
+    mockPrisma.sparePartOrder.findMany.mockResolvedValue([]);
+    await service.findDealerOrders('prov-1', { needsAction: true });
+
+    const args = mockPrisma.sparePartOrder.findMany.mock.calls[0][0];
+    expect(args.where).toMatchObject({
+      providerId: 'prov-1',
+      status: 'PAID',
+      fulfillmentStatus: { notIn: ['DELIVERED', 'CANCELLED'] },
+    });
   });
 
   it('admin order list includes gateway reconciliation fields', async () => {
@@ -497,6 +597,22 @@ describe('SparePartsService order flow', () => {
         where: { id: 'part-1' },
         data: { stockQuantity: { increment: 2 } },
       });
+    });
+
+    it.each(['SHIPPED', 'DELIVERED'])('refunds a %s order but does not restock a part the customer has', async (fulfillmentStatus) => {
+      mockPrisma.sparePartOrder.findUnique.mockResolvedValue({
+        ...pendingOrder,
+        status: 'PAID',
+        fulfillmentStatus,
+        gatewayPaymentId: 'pay_1',
+      });
+      mockPrisma.sparePartOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.sparePart.findUnique = jest.fn().mockResolvedValue({ kind: 'PART' });
+      (mockGateway.refundPayment as jest.Mock).mockResolvedValue({ refundId: 'rfnd_2', status: 'processed' });
+
+      await expect(service.refundOrder('order-1')).resolves.toMatchObject({ status: 'REFUNDED' });
+      expect(mockGateway.refundPayment).toHaveBeenCalled();
+      expect(mockPrisma.sparePart.update).not.toHaveBeenCalled();
     });
 
     it('does not restore stock when refunding a package', async () => {
@@ -619,7 +735,7 @@ describe('SparePartsService order flow', () => {
       const tx = {
         sparePart: {
           findUnique: jest.fn().mockResolvedValue({ kind: 'PART' }),
-          update: jest.fn().mockResolvedValue({ stockQuantity: 3 }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         sparePartOrder: {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -790,5 +906,47 @@ describe('SparePartsService order flow', () => {
         }),
       ).rejects.toMatchObject({ status: 403 });
     });
+  });
+});
+
+describe('SparePartsService stock + / − buttons (stockDelta)', () => {
+  const dealer = { role: 'PROVIDER', providerProfileId: 'prov-1', sub: 'user-1' };
+  let stock: number;
+  let prisma: any;
+  let service: SparePartsService;
+  beforeEach(() => {
+    stock = 5;
+    prisma = {
+      sparePart: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'p1', providerId: 'prov-1', kind: 'PART' }),
+        // Behaves like the database: conditional on the CURRENT stock.
+        updateMany: jest.fn().mockImplementation(async ({ where, data }: any) => {
+          if (stock < where.stockQuantity.gte) return { count: 0 };
+          stock += data.stockQuantity.increment;
+          return { count: 1 };
+        }),
+        findUniqueOrThrow: jest.fn().mockImplementation(async () => ({ id: 'p1', stockQuantity: stock })),
+        update: jest.fn(),
+      },
+    };
+    service = new SparePartsService(prisma, {} as PaymentGateway, {} as any, {} as any);
+  });
+
+  it('adds to the current stock, so a sale in between is not overwritten', async () => {
+    stock = 4; // a customer's payment took one while the dealer looked at "5"
+    const r = await service.update('p1', dealer, { stockDelta: 1 } as any);
+    expect(r.stockQuantity).toBe(5); // sending "6" would have created a phantom unit
+    expect(prisma.sparePart.update).not.toHaveBeenCalled();
+  });
+
+  it('− never takes stock below 0', async () => {
+    stock = 0;
+    await expect(service.update('p1', dealer, { stockDelta: -1 } as any)).rejects.toThrow('Stock is already 0');
+    expect(stock).toBe(0);
+  });
+
+  it('refuses a stock change on a service package', async () => {
+    prisma.sparePart.findFirst.mockResolvedValue({ id: 'p1', providerId: 'prov-1', kind: 'PACKAGE' });
+    await expect(service.update('p1', dealer, { stockDelta: 1 } as any)).rejects.toThrow('no stock');
   });
 });

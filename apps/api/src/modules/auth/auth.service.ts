@@ -22,7 +22,7 @@ import { env } from '../../config/env.config';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { buildSmsGateway, SmsGateway } from './sms.gateway';
 import type Redis from 'ioredis';
-import { REDIS_CLIENT } from '../../common/redis/redis.module';
+import { REDIS_CLIENT } from '../../common/redis/redis.constants';
 
 // Pre-computed bcrypt hash for constant-time comparison when user does not exist
 const DUMMY_HASH =
@@ -171,12 +171,12 @@ export class AuthService {
           dto.role === 'PROVIDER' || dto.role === 'BOTH'
             ? {
                 create: {
-                  businessName: dto.businessName || 'Auto Service Provider',
+                  businessName: dto.businessName as string, // required for providers by RegisterSchema
                   providerType: dto.providerType || 'MECHANIC',
                   description:
                     dto.description || 'Automotive service & parts specialist',
                   phone,
-                  address: dto.address || 'Bengaluru, Karnataka',
+                  address: dto.address as string, // required for providers by RegisterSchema
                   latitude: dto.latitude as number,
                   longitude: dto.longitude as number,
                   verificationStatus: 'PENDING',
@@ -432,18 +432,24 @@ export class AuthService {
         local d = tonumber(redis.call('GET', KEYS[2]) or '0')
         if d >= tonumber(ARGV[3]) then return 2 end
         redis.call('SET', KEYS[1], '1', 'EX', ARGV[1])
-        if redis.call('INCR', KEYS[2]) == 1 then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
+        local fresh = redis.call('INCR', KEYS[2]) == 1
+        if fresh then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
         if redis.call('INCR', KEYS[3]) == 1 then redis.call('EXPIRE', KEYS[3], ARGV[4]) end
+        if fresh then return 4 end
         return 0
       `;
+      const cooldownKey = `weyro:otp:send:cooldown:${phone}`;
+      const dailyKey = `weyro:otp:send:daily:${phone}`;
+      const globalKey = `weyro:otp:send:global:${hourBucket}`;
+      let freshDaily = false;
       try {
         const result = Number(
           await this.redis.eval(
             script,
             3,
-            `weyro:otp:send:cooldown:${phone}`,
-            `weyro:otp:send:daily:${phone}`,
-            `weyro:otp:send:global:${hourBucket}`,
+            cooldownKey,
+            dailyKey,
+            globalKey,
             String(cooldown),
             '86400',
             String(dailyMax),
@@ -451,11 +457,16 @@ export class AuthService {
             String(cap),
           ),
         );
+        // 4 = ok, and the daily counter was just created (first send in 24 h, or Redis lost it).
+        freshDaily = result === 4;
         verdict = (['ok', 'cooldown', 'daily', 'global'] as const)[result] ?? 'ok';
       } catch (error) {
         this.logger.warn(
           `Redis OTP send limiter unavailable, using database counts: ${(error as Error).message}`,
         );
+      }
+      if (verdict === 'ok') {
+        verdict = await this.reconcileOtpSendWithDb(phone, freshDaily, { cooldownKey, dailyKey, globalKey });
       }
     }
 
@@ -503,6 +514,51 @@ export class AuthService {
         'Verification codes are temporarily unavailable. Please try again later.',
       );
     }
+  }
+
+  /**
+   * Redis path, after the script allowed a send. If the daily counter is new,
+   * restore it from `otp_sends` so a Redis flush can't reset the per-phone cap
+   * (one indexed count, only on the first send per phone per 24 h). Then
+   * mirror the send into `otp_sends` as a durable log. Both steps are
+   * best-effort: a database error is logged and the send goes ahead.
+   */
+  private async reconcileOtpSendWithDb(
+    phone: string,
+    freshDaily: boolean,
+    { cooldownKey, dailyKey, globalKey }: { cooldownKey: string; dailyKey: string; globalKey: string },
+  ): Promise<'ok' | 'daily'> {
+    if (freshDaily) {
+      try {
+        const today = await this.prisma.otpSend.count({
+          where: { phone, createdAt: { gte: new Date(Date.now() - 24 * 3_600_000) } },
+        });
+        if (today > 0) {
+          await this.redis!.set(dailyKey, String(today + 1), 'EX', 86400);
+        }
+        if (today >= AuthService.OTP_MAX_SENDS_PER_DAY) {
+          // This send is refused: don't count it globally, and drop the cooldown the
+          // script set so a retry gets the daily message, not "wait 30 seconds".
+          await this.redis!.decr(globalKey);
+          await this.redis!.del(cooldownKey);
+          return 'daily';
+        }
+      } catch (error) {
+        this.logger.error(`OTP daily-cap reconcile failed: ${(error as Error).message}`);
+      }
+    }
+    try {
+      await this.prisma.otpSend.create({ data: { phone } });
+      // Same pruning as the database branch, which rarely runs while Redis is up.
+      if (crypto.randomInt(0, 50) === 0) {
+        await this.prisma.otpSend.deleteMany({
+          where: { createdAt: { lt: new Date(Date.now() - 48 * 3_600_000) } },
+        });
+      }
+    } catch (error) {
+      this.logger.error(`OTP send log write failed: ${(error as Error).message}`);
+    }
+    return 'ok';
   }
 
   /**

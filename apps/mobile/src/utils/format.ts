@@ -7,7 +7,7 @@ import { StatusTone } from '@/theme';
  * behaviors existed across screens — kept as three explicitly named helpers
  * (behavior is NOT silently unified — diffs stay intentional):
  *
- *   - `labelize`    : 'QUOTES_RECEIVED' → 'Quotes Received' (title-case words)
+ *   - `labelize`    : alias of titleize (sentence case)
  *   - `humanizeKey` : 'QUOTES_RECEIVED' → 'quotes received' (space, low-key)
  *   - `titleize`    : 'QUOTES_RECEIVED' → 'Quotes received' (first-upper)
  *
@@ -15,12 +15,8 @@ import { StatusTone } from '@/theme';
  */
 
 /** 'QUOTES_RECEIVED' → 'Quotes Received' */
-export function labelize(value: string): string {
-  return value
-    .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
-}
+/** Alias of titleize: 'PROVIDER_EN_ROUTE' -> 'Provider en route' (sentence case everywhere). */
+export const labelize = (value: string): string => titleize(value);
 
 /** 'QUOTES_RECEIVED' → 'quotes received' */
 export function humanizeKey(s: string): string {
@@ -29,7 +25,7 @@ export function humanizeKey(s: string): string {
 
 /** 'QUOTES_RECEIVED' → 'Quotes received' */
 export function titleize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace('_', ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
 /** 'SPARE_PART' → 'Spare_part' (original listings variant: case only, keeps underscores) */
@@ -52,14 +48,14 @@ export function bookingStatusTone(status: string): StatusTone {
   switch (status) {
     case 'CONFIRMED':
     case 'PROVIDER_EN_ROUTE':
-    case 'IN_PROGRESS':
       return 'info';
+    case 'IN_PROGRESS':
+      return 'progress';
     case 'COMPLETED':
       return 'success';
     case 'CANCELLED':
-      return 'danger';
     case 'DISPUTED':
-      return 'warning';
+      return 'danger';
     default:
       return 'neutral';
   }
@@ -96,4 +92,21 @@ export function requestStatusTone(status: string): StatusTone {
     default:
       return 'neutral';
   }
+}
+
+/**
+ * The one rupee format: "₹749" for whole rupees, "₹1,899.50" when there are
+ * paise (nine local helpers used to disagree: some rounded paise away).
+ */
+export function formatRupees(value: number | string | null | undefined): string {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  return `₹${n.toLocaleString('en-IN', Number.isInteger(n) ? undefined : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * A record's Weyro reference number (e.g. J-261127-0042-6). Falls back to a short ID only if the
+ * server is older than the app (an over-the-air update can briefly run ahead of the API).
+ */
+export function refOf(item: { ref?: string | null; id: string }): string {
+  return item.ref || `#${item.id.slice(0, 8).toUpperCase()}`;
 }

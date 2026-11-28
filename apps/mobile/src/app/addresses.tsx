@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -21,7 +20,8 @@ import {
   BackButton,
 } from '@/components/ui';
 import { LocationField, LocationPicker, type PickedLocation } from '@/maps';
-import { palette, spacing, radii, typography, fontFamilyMono } from '@/theme';
+import { palette, spacing, radii, typography } from '@/theme';
+import { notice } from '@/lib/confirm';
 
 export default function AddressesScreen() {
   const { data, isLoading, refetch } = useAddresses();
@@ -35,7 +35,7 @@ export default function AddressesScreen() {
 
   const handleAddAddress = async () => {
     if (!newTitle.trim() || !draft) {
-      Alert.alert('Missing details', 'Add a label and choose the address on the map.');
+      notice('Missing details', 'Add a label and choose the address on the map.');
       return;
     }
 
@@ -57,7 +57,7 @@ export default function AddressesScreen() {
       setDraft(null);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to add address');
+      notice('Failed', e.message || 'Unable to add address');
     } finally {
       setSaving(false);
     }
@@ -70,7 +70,7 @@ export default function AddressesScreen() {
       await replaceAddresses.mutateAsync(updated);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to remove address');
+      notice('Failed', e.message || 'Unable to remove address');
     } finally {
       setSaving(false);
     }
@@ -208,8 +208,6 @@ const styles = StyleSheet.create({
   addTitle: {
     ...typography.label,
     color: palette.textMuted,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
   saveButton: { marginTop: spacing.xs },
   listHeader: {
@@ -220,8 +218,7 @@ const styles = StyleSheet.create({
   },
   listTitle: { ...typography.heading, color: palette.textPrimary },
   listCount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
   },
   list: { paddingBottom: spacing.xxl },
@@ -240,6 +237,6 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     marginTop: 3,
   },
-  removeButton: { paddingVertical: 8, paddingHorizontal: 4 },
+  removeButton: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   removeText: { ...typography.label, color: palette.danger },
 });

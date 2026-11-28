@@ -7,7 +7,7 @@ export function AssuranceSection() {
   return (
     <>
       {/* Assurance */}
-      <Head index="07" title="Assurance" />
+      <Head title="Assurance" />
       <View style={styles.assurance}>
         {[
           ['Verified garages', 'Every partner is reviewed before quoting'],

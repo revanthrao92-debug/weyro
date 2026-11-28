@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   palette,
   spacing,
@@ -91,6 +92,8 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Always over a dark photo: light status-bar icons in both themes */}
+      <StatusBar style="light" />
       <Image
         source={{ uri: HERO_CAR }}
         style={StyleSheet.absoluteFill}
@@ -267,7 +270,7 @@ export default function LoginScreen() {
               </Text>
               <ArrowRight
                 size={18}
-                color={palette.canvas}
+                color={palette.onPrimaryButton}
                 strokeWidth={2}
               />
             </PressableScale>
@@ -277,7 +280,7 @@ export default function LoginScreen() {
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Create account"
-                onPress={() => router.push('/(auth)/register')}
+                onPress={() => router.push({ pathname: '/(auth)/register', params: { roleKey: role } })}
                 hitSlop={8}
               >
                 <Text style={styles.link}>Create account</Text>
@@ -320,21 +323,21 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: displayFamily,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
     fontSize: 24,
     marginBottom: spacing.xl,
   },
   headline: {
     fontFamily: displayFamily,
-    color: palette.textPrimary,
+    color: palette.onPhoto,
     fontSize: 30,
     lineHeight: 36,
     letterSpacing: -0.4,
   },
-  headlineAccent: { color: palette.accent },
+  headlineAccent: { color: palette.sos },
   subline: {
     ...typography.caption,
-    color: palette.textSecondary,
+    color: palette.onPhotoMuted,
     marginTop: spacing.sm,
     maxWidth: 300,
   },
@@ -439,15 +442,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     height: 48,
     borderRadius: 4,
-    backgroundColor: palette.textPrimary,
+    backgroundColor: palette.primaryButton,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.textPrimary,
+    borderColor: palette.primaryButton,
     marginTop: spacing.xs,
   },
   loginBtnDisabled: { opacity: 0.45 },
   loginText: {
     ...typography.bodyMedium,
-    color: palette.canvas,
+    color: palette.onPrimaryButton,
   },
   footerRow: {
     flexDirection: 'row',

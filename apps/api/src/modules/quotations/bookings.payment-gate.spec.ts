@@ -31,7 +31,10 @@ describe('BookingsService.updateStatus – payment rules (M3)', () => {
       serviceRequest: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
       payment: { findMany: jest.fn().mockResolvedValue([{ id: 'pay-1', status: 'REFUND_PENDING' }]) },
-      providerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr-p' }) },
+      providerProfile: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'usr-p' }),
+        update: jest.fn().mockResolvedValue({}),
+      },
       customerProfile: { findUnique: jest.fn().mockResolvedValue({ userId: 'usr-c' }) },
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma)),
     };
@@ -76,6 +79,24 @@ describe('BookingsService.updateStatus – payment rules (M3)', () => {
       const result: any = await service.updateStatus('book-1', provider, 'COMPLETED');
       expect(result.status).toBe('COMPLETED');
       expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it("counts the first completion on the provider's public completedJobs", async () => {
+      prisma.booking.findUnique.mockResolvedValue(bookingRow('IN_PROGRESS', 'CAPTURED'));
+      await service.updateStatus('book-1', provider, 'COMPLETED');
+      expect(prisma.providerProfile.update).toHaveBeenCalledWith({
+        where: { id: 'prov-1' },
+        data: { completedJobs: { increment: 1 } },
+      });
+    });
+
+    it('does not recount a booking re-completed after a dispute', async () => {
+      prisma.booking.findUnique.mockResolvedValue({
+        ...bookingRow('DISPUTED', 'CAPTURED'),
+        completedAt: new Date(),
+      });
+      await service.updateStatus('book-1', admin, 'COMPLETED');
+      expect(prisma.providerProfile.update).not.toHaveBeenCalled();
     });
 
     it('an admin can override with a reason, and the override is audit-logged', async () => {

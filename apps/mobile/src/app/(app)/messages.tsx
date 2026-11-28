@@ -10,16 +10,17 @@ import {
   EmptyState,
   Skeleton,
   Button,
+  ErrorState,
 } from '@/components/ui';
 import {
   palette,
   spacing,
   typography,
   displayFamily,
-  fontFamilyMono,
 } from '@/theme';
 import { useChatThreads } from '@/hooks/useChatThreads';
 import { useAuth } from '@/hooks/useAuth';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
 const timeLabel = (iso?: string) =>
   iso
@@ -30,7 +31,8 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
   const router = useRouter();
   const { role } = useAuth();
   const [query, setQuery] = useState('');
-  const { data, isLoading } = useChatThreads();
+  const { data, isLoading, isError, refetch } = useChatThreads();
+  const refreshControl = useRefreshControl(refetch);
 
   const allThreads = data?.items ?? [];
   const threads = allThreads.filter((t) => {
@@ -46,6 +48,7 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
   return (
     <ScreenContainer chrome="dark" safeBottom>
       <FlatList
+        refreshControl={refreshControl}
         data={isLoading ? [] : threads}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.body}
@@ -62,7 +65,7 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
             <Text style={styles.summary}>
               {allThreads.length === 0
                 ? 'No conversations yet'
-                : `${allThreads.length} conversations · ${unread} unread`}
+                : `${allThreads.length} conversations, ${unread} unread`}
             </Text>
 
             <View style={styles.search}>
@@ -93,7 +96,9 @@ export default function MessagesScreen({ pushed = false }: { pushed?: boolean } 
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          isLoading ? undefined : isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+          ) : (
             <View style={styles.empty}>
               <EmptyState
                 icon={<MessageCircle size={26} color={palette.textMuted} strokeWidth={1.7} />}
@@ -176,8 +181,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summary: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },
@@ -193,6 +197,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    minHeight: 44,
     ...typography.caption,
     color: palette.textPrimary,
     paddingVertical: 0,
@@ -210,18 +215,16 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   context: {
-    fontFamily: fontFamilyMono,
-    fontSize: 9,
+    fontSize: 12,
     color: palette.textMuted,
     marginBottom: 2,
   },
   name: { ...typography.bodyMedium, color: palette.textPrimary },
   preview: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
   meta: { alignItems: 'flex-end', gap: 4 },
-  time: { fontFamily: fontFamilyMono, fontSize: 10, color: palette.textMuted },
+  time: { fontSize: 12, color: palette.textMuted },
   unread: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.onAccent,
     backgroundColor: palette.accent,
     minWidth: 18,

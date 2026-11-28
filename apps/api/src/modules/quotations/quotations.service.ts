@@ -8,6 +8,7 @@ import { AcceptQuotationDto } from './dto/accept-quotation.dto';
 import { AuthUserPayload } from '../../common/types/auth-user-payload.type';
 import { validateQuotationTransition, validateServiceRequestTransition } from '../../common/state-machines/state-machines';
 import { NotificationsService } from '../notifications/notifications.service';
+import { quoteTiming, quotesCloseAt } from './quote-time';
 import { estimateTowingFare, PROVIDER_TYPE_CATEGORIES, TOWING_TARIFF } from '@weyro/api-contracts';
 import {
   buildCursorWhere,
@@ -46,9 +47,13 @@ export class QuotationsService {
       );
     }
 
-    if (request.expiresAt < new Date()) {
-      throw new BadRequestException('Cannot submit quotation: request has expired');
+    if (quotesCloseAt(request) < new Date()) {
+      throw new BadRequestException('Cannot submit quotation: this request has stopped taking quotes');
     }
+    const timing =
+      dto.startsAt !== undefined && dto.durationHours !== undefined
+        ? quoteTiming(dto.startsAt, dto.durationHours)
+        : null;
 
     const providerProfile = await this.prisma.providerProfile.findUnique({
       where: { id: providerId },
@@ -135,7 +140,7 @@ export class QuotationsService {
       .$transaction(async (tx) => {
         const current = await tx.serviceRequest.findUnique({
           where: { id: requestId },
-          select: { status: true, expiresAt: true },
+          select: { status: true, expiresAt: true, quotesUntil: true },
         });
 
         if (!current) {
@@ -150,9 +155,9 @@ export class QuotationsService {
           );
         }
 
-        if (current.expiresAt < new Date()) {
+        if (quotesCloseAt(current) < new Date()) {
           throw new BadRequestException(
-            'Cannot submit quotation: request has expired',
+            'Cannot submit quotation: this request has stopped taking quotes',
           );
         }
 
@@ -166,7 +171,9 @@ export class QuotationsService {
             totalCost,
             partCondition: (dto.partCondition as any) || 'OEM',
             warrantyDays: dto.warrantyDays || 30,
-            etaDescription: dto.etaDescription,
+            etaDescription: timing?.etaDescription ?? dto.etaDescription ?? '',
+            startsAt: timing?.startsAt,
+            durationHours: timing?.durationHours,
             deliveryMethod: dto.deliveryMethod || 'DOORSTEP_DELIVERY',
             notes: dto.notes,
             status: 'PENDING',
@@ -205,8 +212,8 @@ export class QuotationsService {
       this.notifications
         .sendPushNotification({
           userId: request.customer.userId,
-          title: 'New Quote Received',
-          body: `${providerLabel} submitted a quotation of ₹${totalCost} for "${request.title}".`,
+          title: 'New quote received',
+          body: `${providerLabel} sent a quote of ₹${Number(totalCost).toLocaleString('en-IN')} for "${request.title}".`,
           data: { requestId, quotationId: quote.id, type: 'new_quote' },
         })
         .catch(() => {});
@@ -424,6 +431,24 @@ export class QuotationsService {
         },
       });
 
+      // Open the customer <-> provider chat for this job. The app has no
+      // "start chat" button; its Messages screen says chats open on accept.
+      await tx.thread.upsert({
+        where: {
+          customerId_providerId_requestId: {
+            customerId: quote.request.customerId,
+            providerId: quote.providerId,
+            requestId: quote.requestId,
+          },
+        },
+        create: {
+          customerId: quote.request.customerId,
+          providerId: quote.providerId,
+          requestId: quote.requestId,
+        },
+        update: {},
+      });
+
       // Create initial Payment record in PENDING
       await tx.payment.create({
         data: {
@@ -448,8 +473,8 @@ export class QuotationsService {
         this.notifications
           .sendPushNotification({
             userId: providerUser.userId,
-            title: 'Quotation Accepted!',
-            body: `Your quotation for "${quote.request.title}" was accepted. Booking #${result.id.slice(0, 8)} confirmed.`,
+            title: 'Quote accepted',
+            body: `Your quote for "${quote.request.title}" was accepted. Open it to get started.`,
             data: {
               type: 'QUOTATION_ACCEPTED',
               bookingId: result.id,
@@ -489,6 +514,7 @@ export class QuotationsService {
       include: {
         request: {
           select: {
+            ref: true,
             id: true,
             title: true,
             description: true,
@@ -592,6 +618,14 @@ export class QuotationsService {
       );
     }
 
+    if (quotesCloseAt(quote.request) < new Date()) {
+      throw new BadRequestException('Cannot edit quotation: this request has stopped taking quotes');
+    }
+    const timing =
+      dto.startsAt !== undefined && dto.durationHours !== undefined
+        ? quoteTiming(dto.startsAt, dto.durationHours)
+        : null;
+
     let parts = Number(dto.partsCost ?? quote.partsCost);
     let labour = Number(dto.labourCost ?? quote.labourCost);
     let shipping = Number(dto.shippingCost ?? quote.shippingCost ?? 0);
@@ -637,9 +671,11 @@ export class QuotationsService {
         ...(dto.warrantyDays !== undefined
           ? { warrantyDays: dto.warrantyDays }
           : {}),
-        ...(dto.etaDescription !== undefined
-          ? { etaDescription: dto.etaDescription }
-          : {}),
+        ...(timing
+          ? timing
+          : dto.etaDescription !== undefined
+            ? { etaDescription: dto.etaDescription }
+            : {}),
         ...(dto.deliveryMethod !== undefined
           ? { deliveryMethod: dto.deliveryMethod }
           : {}),

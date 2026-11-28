@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import { env } from './config/env.config';
 import { PinoLogger } from './common/logger/pino.logger';
 import { httpSerializers } from './common/logger/http-serializers';
+import { RedisIoAdapter } from './common/redis/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -20,6 +21,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
+
+  // Chat and live tracking broadcast across replicas through Redis. Without
+  // REDIS_URL (single instance, dev) the default in-memory adapter is used.
+  if (env.REDIS_URL) {
+    app.useWebSocketAdapter(new RedisIoAdapter(app, env.REDIS_URL));
+  }
 
   // Behind a load balancer Express only sees the proxy socket. Without this,
   // the per-IP throttler would bucket every user under one address.
@@ -98,7 +105,10 @@ async function bootstrap() {
         }
         return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       },
-      customLogLevel: (res: any, err: any) => {
+      // pino-http calls this as (req, res, err). Naming the first argument
+      // `res` made `res.statusCode` undefined and `err` the always-truthy
+      // response object, so every 200 was logged at level "error".
+      customLogLevel: (_req: any, res: any, err: any) => {
         if (res.statusCode >= 500 || err) return 'error';
         if (res.statusCode >= 400) return 'warn';
         return 'info';

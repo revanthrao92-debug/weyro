@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { env } from '../../config/env.config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdvisoryLockService } from '../../prisma/advisory-lock.service';
-import { settleBookingPayment, settleSparePartOrderPayment } from '../payments/settle-payment';
+import { refundCancelledSpareOrder, settleBookingPayment, settleSparePartOrderPayment } from '../payments/settle-payment';
 import {
   PaymentGateway,
   PAYMENT_GATEWAY,
@@ -78,6 +78,9 @@ export class PaymentReconcileService {
       const stale = await this.prisma.payment.findMany({
         where: {
           status: { in: ['PENDING', 'AUTHORIZED'] as never },
+          // No gateway order = the customer never started paying: nothing to
+          // check. Without this, unpaid bookings filled every batch forever.
+          gatewayOrderId: { not: null },
           updatedAt: { lt: cutoff },
         },
         orderBy: { createdAt: 'asc' },
@@ -103,11 +106,20 @@ export class PaymentReconcileService {
         try {
           await this.reconcileOne(row);
         } catch (err: any) {
+          // Log only: an audit row here was written every minute, forever,
+          // for one stuck payment. Retry after the next window instead.
           this.logger.error(
             `Reconciliation for payment ${row.id} errored: ${err?.message ?? err}`,
           );
-          await this.audit(row.id, row.status, 'error', err?.message);
         }
+        // Rows still unsettled go to the back of the queue (by updatedAt), so
+        // the batch rotates through every row instead of the oldest 25 forever.
+        await this.prisma.payment
+          .updateMany({
+            where: { id: row.id, status: { in: ['PENDING', 'AUTHORIZED'] as never } },
+            data: { updatedAt: new Date() },
+          })
+          .catch(() => undefined);
       }
 
       await this.reconcileSparePartOrders(cutoff, batchSize);
@@ -243,6 +255,9 @@ export class PaymentReconcileService {
         status: 'PENDING',
         gatewayOrderId: { not: null },
         updatedAt: { lt: cutoff },
+        // Abandoned checkouts pile up; a real payment is confirmed long before
+        // a week passes (by the app, the webhook, or an earlier run of this).
+        createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
       },
       orderBy: { createdAt: 'asc' },
       take: batchSize,
@@ -294,10 +309,24 @@ export class PaymentReconcileService {
             'SparePartOrder',
           );
         }
+        if (settled.outOfStock && this.paymentGateway) {
+          await refundCancelledSpareOrder(this.prisma, this.paymentGateway, {
+            orderId: order.id,
+            gatewayPaymentId: captured.id,
+            amount: order.totalAmount,
+            reason: 'sold_out_after_capture',
+          });
+        }
       } catch (err: any) {
         this.logger.error(
           `Reconciliation for spare-part order ${order.id} errored: ${err?.message ?? err}`,
         );
+      } finally {
+        // Same rotation as booking payments: unpaid checkouts go to the back.
+        // In finally so the early `continue` (nothing captured) still rotates.
+        await this.prisma.sparePartOrder
+          .updateMany({ where: { id: order.id, status: 'PENDING' }, data: { updatedAt: new Date() } })
+          .catch(() => undefined);
       }
     }
   }

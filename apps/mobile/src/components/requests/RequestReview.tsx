@@ -13,7 +13,7 @@ import {
   type DraftContext,
   type ServiceConfig,
 } from './serviceRequestConfig';
-import { fontFamilyMono, palette, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 
 export type RequestReviewProps = {
   config: ServiceConfig;
@@ -93,12 +93,12 @@ export function RequestReview({
         {config.label} · {urgencyLabel(ctx.urgency)}
       </Text>
 
-      <SectionHead index="01" title="Details" action="Edit" onAction={() => onEdit(1)} />
+      <SectionHead title="Details" action="Edit" onAction={() => onEdit(1)} />
       {rows.map((row) => (
         <Row key={row.key} label={row.label} value={row.value} />
       ))}
 
-      <SectionHead index="02" title="Vehicle" action="Edit" onAction={() => onEdit(2)} />
+      <SectionHead title="Vehicle" action="Edit" onAction={() => onEdit(2)} />
       <Row
         label="Vehicle"
         value={vehicleSummary(ctx.selectedVehicle, ctx)}
@@ -108,7 +108,6 @@ export function RequestReview({
       )}
 
       <SectionHead
-        index="03"
         title={config.locationMode === 'trip' ? 'Route' : 'Location'}
         action="Edit"
         onAction={() => onEdit(2)}
@@ -144,7 +143,6 @@ export function RequestReview({
       {photos.length > 0 ? (
         <>
           <SectionHead
-            index="04"
             title={config.photos?.label ?? 'Photos'}
             action="Edit"
             onAction={() => onEdit(1)}
@@ -167,7 +165,6 @@ export function RequestReview({
       ) : null}
 
       <SectionHead
-        index={photos.length > 0 ? '05' : '04'}
         title="Dispatch"
         action="Edit"
         onAction={() => onEdit(2)}
@@ -179,7 +176,6 @@ export function RequestReview({
           value={ctx.spareFulfillment === 'DELIVERY' ? 'Delivery' : 'Dealer pickup'}
         />
       ) : null}
-      <Row label="Broadcast" value={ctx.isBroadcast ? 'On' : 'Off'} />
       <Row label="Contact" value={contact.name} />
       <Row label="Phone / email" value={contact.detail} />
     </View>
@@ -191,8 +187,6 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: palette.accent,
     marginTop: spacing.lg,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
   },
   title: {
     ...typography.title,
@@ -200,8 +194,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   subtitle: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
+    fontSize: 12,
     color: palette.textMuted,
     marginTop: spacing.xs,
   },

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  BackButton,
+  PageHeader,
+  SwitchRow,
   Button,
   Chip,
   EmptyState,
-  PressableScale,
   ScreenContainer,
   Skeleton,
 } from '@/components/ui';
@@ -16,7 +16,7 @@ import {
 } from '@/hooks/useDriverGo';
 import { palette, spacing, typography } from '@/theme';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const PRESETS = [
   { label: 'Morning', startMinute: 8 * 60, endMinute: 14 * 60 },
@@ -96,28 +96,13 @@ function AvailabilityEditor({
           const value = days[weekday];
           return (
             <View key={day} style={styles.dayRow}>
-              <View style={styles.dayHead}>
-                <Text style={styles.dayLabel}>{day}</Text>
-                <View style={styles.spacerFlex} />
-                <PressableScale
-                  onPress={() => update(weekday, { enabled: !value.enabled })}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: value.enabled }}
-                  accessibilityLabel={`${day} availability`}
-                  scaleTo={0.95}
-                  style={[styles.dayToggle, value.enabled && styles.dayToggleOn]}
-                >
-                  <Text
-                    style={[
-                      styles.dayToggleText,
-                      value.enabled && styles.dayToggleTextOn,
-                    ]}
-                  >
-                    {value.enabled ? 'On' : 'Off'}
-                  </Text>
-                </PressableScale>
-              </View>
-
+              <SwitchRow
+                title={day}
+                detail={value.enabled ? `${timeLabel(value.startMinute)} to ${timeLabel(value.endMinute)}` : 'Not available'}
+                value={value.enabled}
+                onToggle={() => update(weekday, { enabled: !value.enabled })}
+                accessibilityLabel={`${day} availability`}
+              />
               {value.enabled ? (
                 <View style={styles.presetRow}>
                   {PRESETS.map((preset) => {
@@ -139,19 +124,6 @@ function AvailabilityEditor({
                     );
                   })}
                 </View>
-              ) : (
-                <Text style={styles.offText}>Not available</Text>
-              )}
-              {value.enabled &&
-              !PRESETS.some(
-                (preset) =>
-                  preset.startMinute === value.startMinute &&
-                  preset.endMinute === value.endMinute,
-              ) ? (
-                <Text style={styles.custom}>
-                  Current window {timeLabel(value.startMinute)}–
-                  {timeLabel(value.endMinute)}
-                </Text>
               ) : null}
             </View>
           );
@@ -181,16 +153,11 @@ export function DriverAvailabilityScreen() {
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <View style={styles.topBar}>
-        <BackButton />
-        <Text style={styles.eyebrow}>AVAILABILITY</Text>
-        <View style={styles.spacer} />
-      </View>
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>When can you drive?</Text>
+        <PageHeader back title="Availability" subtitle="When can you drive?" />
         {query.isLoading ? (
           <View style={{ marginTop: spacing.lg }}>
             {[0, 1, 2, 3].map((i) => (
@@ -216,25 +183,11 @@ export function DriverAvailabilityScreen() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  eyebrow: {
-    ...typography.label,
-    color: palette.accent,
-    letterSpacing: 2,
-  },
-  spacer: { width: 44 },
   body: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  title: { ...typography.title, color: palette.textPrimary },
   intro: {
     ...typography.caption,
     color: palette.textSecondary,
@@ -246,46 +199,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  dayHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  spacerFlex: { flex: 1 },
-  dayLabel: {
-    ...typography.bodyMedium,
-    color: palette.textPrimary,
-    width: 38,
-  },
   presetRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
     marginBottom: spacing.xs,
-  },
-  offText: { ...typography.caption, color: palette.textMuted },
-  dayToggle: {
-    minHeight: 34,
-    minWidth: 54,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-    backgroundColor: palette.surfaceAlt,
-  },
-  dayToggleOn: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accentSoftBg,
-  },
-  dayToggleText: { ...typography.label, color: palette.textSecondary },
-  dayToggleTextOn: { color: palette.accent },
-  custom: {
-    ...typography.caption,
-    color: palette.textMuted,
-    marginTop: spacing.xs,
   },
   error: { ...typography.caption, color: palette.danger, marginTop: spacing.md },
   saved: { ...typography.caption, color: palette.accent, marginTop: spacing.md },

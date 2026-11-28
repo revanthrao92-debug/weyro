@@ -75,7 +75,7 @@ export async function refreshTokenSingleFlight(): Promise<string | null> {
   }
   if (!refreshInFlight) {
     refreshInFlight = tokenRefresher()
-      .catch((err) => {
+      .catch(() => {
         // Refresh failed → the session is unrecoverable. Surface once.
         void sessionExpiredHandler?.();
         return null as string | null;
@@ -99,6 +99,24 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/**
+ * React Query retry policy: retry network and server failures up to 3 times,
+ * but not client errors (404, 403, validation) — retrying can't fix them and
+ * only keeps the screen on a skeleton for seconds. 408 and 429 are transient.
+ */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 3) return false;
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+    return error.status === 408 || error.status === 429;
+  }
+  return true;
+}
+
+/** True when a request failed because the resource doesn't exist (vs. a network or server failure). */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
 }
 
 const RETRY_EXEMPT_PATHS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/send-otp', '/auth/verify-otp'];

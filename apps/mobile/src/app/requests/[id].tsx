@@ -2,12 +2,15 @@ import {
   View,
   Text,
   FlatList,
-  Alert,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
+import { haptics } from '@/lib/haptics';
 import { useState } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useNow } from '@/hooks/useNow';
+import { useRouter, useLocalSearchParams, useIsFocused } from 'expo-router';
+import { quoteMarkersFor, quoteTimeText, sortQuotes, timeLeft, type QuoteSort } from '@/utils/quotes';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -24,35 +27,61 @@ import {
   ScreenContainer,
   Card,
   Button,
+  Chip,
   StatusPill,
   Skeleton,
   ErrorState,
   EmptyState,
   BackButton,
   FadeSlideIn,
+  FlashBorder,
+  CountUp,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
-import { titleize as labelize, requestStatusTone as statusTone } from '@/utils/format';
+import { titleize as labelize, requestStatusTone as statusTone, formatRupees, refOf } from '@/utils/format';
+import { isNotFound } from '@/services/api-client';
+import { confirmAction, notice } from '@/lib/confirm';
 
 type RequestParams = { id: string };
 
 export default function RequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<RequestParams>();
-  const { role, providerProfile } = useAuth();
-  const { data: request, isLoading } = useRequest(id || '');
-  const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(id || '');
+  const { role, providerProfile, customerProfile } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
+  const focused = useIsFocused();
+  const { data: request, isLoading, isError, error, refetch } = useRequest(id || '', focused);
+  // The owner sees new quotes arrive while the request is open and in front.
+  const isOwnerOfRequest = !!customerProfile && request?.customerId === customerProfile.id;
+  const openToQuotes = ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+  const { data: quotesData, isLoading: quotesLoading } = useRequestQuotations(
+    id || '',
+    focused && isOwnerOfRequest && openToQuotes,
+  );
+  // Quotes present on first load are the baseline; later arrivals get a one-time
+  // highlight (ID-based, so phone/server clock skew can't misfire it).
+  const [baselineQuoteIds, setBaselineQuoteIds] = useState<Set<string> | null>(null);
+  if (baselineQuoteIds === null && quotesData) {
+    setBaselineQuoteIds(new Set(quotesData.items.map((q) => q.id)));
+  }
   const cancelRequest = useCancelRequest();
   const acceptQuotation = useAcceptQuotation();
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
-  const { data: myQuotesData } = useMyQuotations({ limit: 50 });
+  // /quotations/my is provider-only; customers would get a 403.
+  const { data: myQuotesData } = useMyQuotations(
+    { limit: 50 },
+    role === 'PROVIDER' || role === 'BOTH',
+  );
   const [editingQuote, setEditingQuote] = useState(false);
 
   // Checkpoint 3: providers get the quote form; customers keep Accept.
   const isProvider = role === 'PROVIDER' || role === 'BOTH';
+  const now = useNow();
+  // After the 24-hour window the server refuses new quotes, so the form hides too.
+  const quotesClosed = !!request?.quotesUntil && timeLeft(request.quotesUntil, now) === null;
   const canQuote =
-    isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '');
+    isProvider && ['OPEN', 'QUOTES_RECEIVED'].includes(request?.status ?? '') && !quotesClosed;
   const providerType = providerProfile?.providerType ?? '';
   const quoteMode =
     request?.category === 'TOWING'
@@ -64,7 +93,11 @@ export default function RequestDetailScreen() {
           : 'parts';
   const fareEstimate = Number(request?.towingEstimatedFare ?? 0);
 
-  const quotes = quotesData?.items ?? [];
+  const [sortBy, setSortBy] = useState<QuoteSort>('cheapest');
+  const quotes = sortQuotes(quotesData?.items ?? [], sortBy);
+  const quoteMarkers = quoteMarkersFor(quotes);
+  const quotesLeft = timeLeft(request?.quotesUntil, now);
+  const quoteCardW = Math.min(windowWidth - 64, 400);
   const myQuote = (myQuotesData?.items ?? []).find(
     (quote) => quote.requestId === id,
   );
@@ -90,44 +123,41 @@ export default function RequestDetailScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <BackButton />
-        <ErrorState title="Request not found" message="This request may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <ErrorState title="Request not found" message="This request may have been removed." />
+        )}
       </ScreenContainer>
     );
   }
 
-  const canCancel = request.status === 'OPEN' || request.status === 'QUOTES_RECEIVED';
+  // Only the customer who posted it may cancel or accept (the API enforces the same).
+  const isOwner = isOwnerOfRequest;
+  const canCancel = isOwner && openToQuotes;
 
   const handleCancel = async () => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Cancel Request',
-        'Are you sure you want to cancel this request?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Cancel Request', style: 'destructive', onPress: () => resolve(true) },
-        ]
-      );
-    });
+    const confirmed = await confirmAction('Cancel Request', 'Are you sure you want to cancel this request?', 'Cancel Request');
     if (!confirmed) return;
     try {
       await cancelRequest.mutateAsync(request.id);
-      Alert.alert('Success', 'Request cancelled');
+      notice('Success', 'Request cancelled');
       router.replace('/requests/my');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to cancel request');
+      notice('Failed', e.message || 'Unable to cancel request');
     }
   };
 
   const handleAccept = async (quotation: any) => {
     try {
-      await acceptQuotation.mutateAsync({
+      const booking = (await acceptQuotation.mutateAsync({
         quotationId: quotation.id,
         data: {},
-      });
-      Alert.alert('Success', 'Quotation accepted. Booking created!');
-      router.replace(`/bookings`);
+      })) as { id?: string };
+      haptics.success();
+      router.replace(booking?.id ? `/booking/${booking.id}?confirmed=1` : '/bookings');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to accept quotation');
+      notice('Failed', e.message || 'Unable to accept quotation');
     }
   };
 
@@ -143,6 +173,9 @@ export default function RequestDetailScreen() {
         </View>
 
         <Text style={styles.title}>{request.title}</Text>
+        <Text style={styles.address} selectable>
+          Request {refOf(request)}
+        </Text>
         <View style={styles.metaRow}>
           <StatusPill label={labelize(request.status)} tone={statusTone(request.status)} />
           <StatusPill label={labelize(request.category)} tone="neutral" />
@@ -169,9 +202,19 @@ export default function RequestDetailScreen() {
         ) : null}
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Dealer responses</Text>
+          <Text style={styles.sectionTitle}>{isOwner ? 'Quotes' : 'Your quote'}</Text>
           <Text style={styles.sectionCount}>{quotes.length}</Text>
         </View>
+
+        {isOwner && openToQuotes && request.quotesUntil ? (
+          <Text style={styles.windowNote}>
+            {quotesLeft
+              ? `Garages near you have been told. Taking quotes for ${quotesLeft}.`
+              : quotes.length > 0
+                ? `No new quotes now. Pick one of the ${quotes.length} you have.`
+                : 'No quotes came in. Cancel this request and post it again to try once more.'}
+          </Text>
+        ) : null}
 
         {quotesLoading ? (
           <Card>
@@ -179,19 +222,60 @@ export default function RequestDetailScreen() {
           </Card>
         ) : quotes.length === 0 ? (
           <Card>
-            <EmptyState title="No quotes yet" message="Dealers nearby will respond here." />
+            <EmptyState
+              title="No quotes yet"
+              message={
+                isOwner
+                  ? 'Providers nearby will respond here.'
+                  : 'Send your price below.'
+              }
+            />
           </Card>
         ) : (
-          <FlatList
-            data={quotes}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item, index }) => (
-              <FadeSlideIn delay={index * 60}>
-                <QuoteCard quote={item} onAccept={handleAccept} canAccept={!isProvider} />
-              </FadeSlideIn>
-            )}
-          />
+          <>
+            {quotes.length > 1 ? (
+              <>
+                <View style={styles.sortRow}>
+                  {SORTS.map((o) => (
+                    <Chip
+                      key={o.key}
+                      label={o.label}
+                      accessibilityLabel={`Sort quotes by ${o.label.toLowerCase()}`}
+                      selected={sortBy === o.key}
+                      onPress={() => setSortBy(o.key)}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.swipeHint}>Swipe to compare {quotes.length} quotes</Text>
+              </>
+            ) : null}
+            <FlatList
+              data={quotes}
+              keyExtractor={(item) => item.id}
+              horizontal={quotes.length > 1}
+              scrollEnabled={quotes.length > 1}
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={quotes.length > 1 ? quoteCardW + spacing.md : undefined}
+              decelerationRate="fast"
+              contentContainerStyle={quotes.length > 1 ? { gap: spacing.md, paddingRight: spacing.lg } : undefined}
+              renderItem={({ item, index }) => {
+                const fresh = baselineQuoteIds !== null && !baselineQuoteIds.has(item.id);
+                return (
+                  <FadeSlideIn delay={index * 60} style={quotes.length > 1 ? { width: quoteCardW } : undefined}>
+                    <FlashBorder active={fresh} radius={radii.md}>
+                      <QuoteCard
+                        quote={item}
+                        onAccept={handleAccept}
+                        canAccept={isOwner}
+                        marker={quoteMarkers[item.id]}
+                        fresh={fresh}
+                      />
+                    </FlashBorder>
+                  </FadeSlideIn>
+                );
+              }}
+            />
+          </>
         )}
 
         <View style={styles.sectionHead}>
@@ -222,11 +306,11 @@ export default function RequestDetailScreen() {
               <StatusPill label={labelize(myQuote.status)} tone={statusTone(myQuote.status)} />
             </View>
             <Card>
-              <DetailRow label="Parts" value={`₹${Number(myQuote.partsCost).toLocaleString('en-IN')}`} />
-              <DetailRow label="Labour" value={`₹${Number(myQuote.labourCost).toLocaleString('en-IN')}`} />
-              <DetailRow label="Shipping" value={`₹${Number(myQuote.shippingCost ?? 0).toLocaleString('en-IN')}`} />
+              <DetailRow label="Parts" value={formatRupees(myQuote.partsCost)} />
+              <DetailRow label="Labour" value={formatRupees(myQuote.labourCost)} />
+              <DetailRow label="Shipping" value={formatRupees(myQuote.shippingCost ?? 0)} />
               <DetailRow label="Warranty" value={`${myQuote.warrantyDays} days`} />
-              <DetailRow label="ETA" value={myQuote.etaDescription} last />
+              <DetailRow label="Time" value={quoteTimeText(myQuote) ?? '—'} last />
             </Card>
             {myQuote.status === 'PENDING' ? (
               <Button
@@ -258,13 +342,13 @@ export default function RequestDetailScreen() {
                   if (editingQuote && myQuote) {
                     await updateQuotation.mutateAsync({ id: myQuote.id, data });
                     setEditingQuote(false);
-                    Alert.alert('Saved', 'Your quotation has been updated.');
+                    notice('Saved', 'Your quotation has been updated.');
                   } else {
                     await createQuotation.mutateAsync({ requestId: request.id, data });
-                    Alert.alert('Sent', 'Quotation submitted to the customer.');
+                    notice('Sent', 'Quotation submitted to the customer.');
                   }
                 } catch (e: any) {
-                  Alert.alert('Failed', e.message || 'Unable to submit quotation');
+                  notice('Failed', e.message || 'Unable to submit quotation');
                 }
               }}
             />
@@ -293,17 +377,27 @@ function DetailRow({ label, value, last }: { label: string; value: string; last?
   );
 }
 
+const SORTS: { key: QuoteSort; label: string }[] = [
+  { key: 'cheapest', label: 'Cheapest' },
+  { key: 'soonest', label: 'Soonest' },
+  { key: 'rated', label: 'Best rated' },
+];
+
 function QuoteCard({
   quote,
   onAccept,
   canAccept,
+  marker,
+  fresh = false,
 }: {
   quote: any;
   onAccept: (q: any) => void;
   canAccept?: boolean;
+  marker?: string;
+  fresh?: boolean;
 }) {
   const provider = quote.provider;
-  const name = provider?.businessName || 'Verified garage';
+  const name = provider?.businessName || 'Garage';
   const initial = name.charAt(0).toUpperCase();
   const rating = provider?.avgRating ? provider.avgRating.toFixed(1) : null;
   const jobs = provider?.completedJobs ?? 0;
@@ -316,13 +410,28 @@ function QuoteCard({
           <Text style={styles.dealerAvatarText}>{initial}</Text>
         </View>
         <View style={styles.dealerIdentity}>
-          <Text style={styles.dealerName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.dealerMeta}>
-            {rating ? `★ ${rating}  ·  ` : ''}{jobs} jobs completed
-          </Text>
+          <Text style={styles.dealerName} numberOfLines={2}>{name}</Text>
+          <View style={styles.dealerMetaRow}>
+            {provider?.verificationStatus === 'VERIFIED' ? <StatusPill label="Verified" tone="success" /> : null}
+            {rating ? <Text style={styles.dealerRating}>★ {rating}</Text> : null}
+            <Text style={styles.dealerMeta}>{jobs} jobs done</Text>
+          </View>
         </View>
-        <Text style={styles.dealerAmount}>₹{quote.totalCost.toLocaleString()}</Text>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <CountUp
+            value={Number(quote.totalCost)}
+            animate={fresh}
+            format={(n) => formatRupees(n)}
+            style={styles.dealerAmount}
+          />
+        </View>
       </View>
+      {/* Own line: "Best rated and ready soonest" is too long to share a row with the name. */}
+      {marker ? (
+        <View style={styles.markerRow}>
+          <StatusPill label={marker} tone="info" />
+        </View>
+      ) : null}
 
       <View style={styles.dealerTags}>
         {quote.partCondition ? (
@@ -332,9 +441,7 @@ function QuoteCard({
         <StatusPill label={labelize(quote.status)} tone={statusTone(quote.status)} />
       </View>
 
-      {quote.etaDescription ? (
-        <Text style={styles.dealerEta}>{quote.etaDescription}</Text>
-      ) : null}
+      {quoteTimeText(quote) ? <Text style={styles.dealerEta}>{quoteTimeText(quote)}</Text> : null}
       {quote.notes ? <Text style={styles.dealerNotes}>{quote.notes}</Text> : null}
 
       {canAcceptNow ? (
@@ -346,6 +453,9 @@ function QuoteCard({
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  windowNote: { ...typography.caption, color: palette.textSecondary, marginBottom: spacing.sm },
+  markerRow: { flexDirection: 'row', marginTop: spacing.sm },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,12 +498,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
-  sectionTitle: {
-    ...typography.label,
-    color: palette.textSecondary,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
+  sectionTitle: { ...typography.bodyMedium, color: palette.textPrimary },
   sectionCount: { ...typography.label, color: palette.accent },
   detailRow: {
     flexDirection: 'row',
@@ -433,9 +538,12 @@ const styles = StyleSheet.create({
     color: palette.accent,
   },
   dealerIdentity: { flex: 1 },
-  dealerName: { ...typography.bodyMedium, color: palette.textPrimary },
-  dealerMeta: { ...typography.label, color: palette.textSecondary, marginTop: 2 },
+  dealerName: { ...typography.bodyMedium, color: palette.textPrimary, flexShrink: 1 },
+  dealerMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
+  dealerRating: { ...typography.label, color: palette.textPrimary, fontWeight: '700' },
+  dealerMeta: { ...typography.label, color: palette.textSecondary },
   dealerAmount: { ...typography.heading, color: palette.textPrimary },
+  swipeHint: { ...typography.caption, color: palette.textMuted, marginBottom: spacing.sm },
   dealerTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',

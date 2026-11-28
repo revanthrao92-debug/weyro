@@ -2,7 +2,6 @@ import {
   View,
   Text,
   KeyboardAvoidingView,
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,14 +18,17 @@ import {
   EmptyState,
   Skeleton,
   BackButton,
+  ErrorState,
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
+import { isNotFound } from '@/services/api-client';
+import { notice } from '@/lib/confirm';
 
 type ProviderParams = { id: string };
 
 export default function ProviderProfilePublicScreen() {
   const { id } = useLocalSearchParams<ProviderParams>();
-  const { data: provider, isLoading } = usePublicProvider(id || '');
+  const { data: provider, isLoading, isError, error, refetch } = usePublicProvider(id || '');
   const { data: reviewsData } = useProviderReviews(id || '');
 
   const reviews = reviewsData?.items ?? [];
@@ -48,13 +50,17 @@ export default function ProviderProfilePublicScreen() {
     return (
       <ScreenContainer chrome="dark" safeBottom>
         <AppHeader left={<BackButton />} title="Provider" />
-        <EmptyState title="Provider not found" message="This provider may have been removed." />
+        {isError && !isNotFound(error) ? (
+          <ErrorState message="Check your connection and try again." onRetry={() => void refetch()} />
+        ) : (
+          <EmptyState title="Provider not found" message="This provider may have been removed." />
+        )}
       </ScreenContainer>
     );
   }
 
   const handleStartChat = () => {
-    Alert.alert(
+    notice(
       'Start Chat',
       'Chat functionality will connect you with this provider.'
     );
@@ -170,8 +176,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.label,
     color: palette.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, color: palette.textSecondary, lineHeight: 22 },

@@ -157,8 +157,8 @@ async function main() {
   const shipping = {
     shippingName: 'Prod Test',
     shippingPhone: '+919876500003',
-    shippingAddress: '12th Main Road, Indiranagar',
-    shippingCity: 'Bengaluru',
+    shippingAddress: 'Road No. 12, Banjara Hills',
+    shippingCity: 'Hyderabad',
     shippingPincode: '560038',
   };
 

@@ -71,6 +71,16 @@ export class SparePartsController {
     );
   }
 
+  /** One of the dealer's own parts for editing: real stock, and hidden listings too. */
+  @Get('mine/:id')
+  @Roles('PROVIDER', 'BOTH', 'ADMIN')
+  async findMineOne(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+  ) {
+    return this.service.findMineOne(user.providerProfileId, user.role, id);
+  }
+
   @Get('orders/my')
   @Roles('CUSTOMER', 'BOTH', 'ADMIN')
   async findMyOrders(@CurrentUser() user: AuthUserPayload) {
@@ -93,6 +103,7 @@ export class SparePartsController {
     return this.service.findDealerOrders(user.providerProfileId || user.sub, {
       status: query.status,
       fulfillmentStatus: query.fulfillmentStatus,
+      needsAction: query.needsAction,
       cursor: query.cursor,
       limit: query.limit,
     });

@@ -9,7 +9,7 @@ export function WorkshopBand() {
       {/* Workshop band — real garages, real people */}
       <View style={styles.bandFull}>
         <Image
-          source={require('../../../assets/images/workshop-1.jpg')}
+          source={require('../../../../assets/images/workshop-1.jpg')}
           style={styles.bandImage}
           contentFit="cover"
           contentPosition="center"

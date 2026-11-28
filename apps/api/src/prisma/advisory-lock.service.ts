@@ -1,85 +1,66 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
 /**
- * STEP 3 — Postgres advisory lock helper.
+ * Cross-replica lock for scheduled jobs, so a job runs on one API replica at a time.
  *
- * `pg_try_advisory_lock(key)` is instance-scoped across ALL API replicas
- * sharing the same database, so scheduled jobs (expiry cron, payment
- * reconciliation) never double-run.
+ * A lease row in `job_locks`, not `pg_advisory_lock`: session advisory locks
+ * belong to one connection, and with a connection pool (or PgBouncer) the
+ * unlock can run on a different connection, leaving the lock held. Every
+ * operation here is a single statement, so pooling can't split it.
+ *
+ * A holder that crashes stops renewing; its lease expires after `ttlMs` and
+ * another replica takes over. Keep `ttlMs` above the job's worst-case runtime.
  *
  * Usage:
- *   if (!(await advisoryLock.tryLock('payments-reconcile'))) return;
- *   try { … } finally { release }
+ *   if (!(await locks.tryLock('payments-reconcile'))) return;
+ *   try { … } finally { await locks.release('payments-reconcile'); }
  */
-
-const LOCK_TTL_MS = 10 * 60 * 1000; // safety: release after 10 minutes even on crash
+const DEFAULT_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
-export class AdvisoryLockService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(AdvisoryLockService.name);
-  private readonly held = new Map<string, number>();
+export class AdvisoryLockService implements OnModuleDestroy {
+  /** Lock name → owner token of the lease this instance holds. */
+  private readonly held = new Map<string, string>();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  onModuleInit(): void {
-    // Held locks are safety-TTL'd by LOCK_TTL_MS; Postgres releases advisory
-    // locks automatically if the connection dies, so there is nothing to
-    // dispose of here.
+  async onModuleDestroy(): Promise<void> {
+    await Promise.all(
+      [...this.held.keys()].map((name) => this.release(name).catch(() => undefined)),
+    );
   }
 
-  onModuleDestroy(): void {
-    for (const key of this.held.keys()) {
-      void this.release(key).catch(() => undefined);
-    }
-  }
+  /** Try to take the named lease. Non-blocking: false if another holder's lease is live. */
+  async tryLock(name: string, ttlMs = DEFAULT_TTL_MS): Promise<boolean> {
+    const owner = randomUUID();
+    const expiresAt = new Date(Date.now() + ttlMs);
 
-  /** Stable 63-bit integer from a string key (Postgres advisory key space). */
-  static keyFrom(name: string): bigint {
-    // FNV-1a over the UTF-8 bytes, then mask toBigInt within 2^63-1.
-    let h = 2166136261;
-    for (let i = 0; i < name.length; i += 1) {
-      h ^= name.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return BigInt.asIntN(63, BigInt(h));
-  }
-
-  /**
-   * Attempt to acquire a named advisory lock. Returns true if this
-   * instance now holds it. Non-blocking (`pg_try_advisory_lock`).
-   */
-  async tryLock(name: string): Promise<boolean> {
-    const acquired = await this.prisma.$queryRaw<{ ok: boolean }[]>`
-      SELECT pg_try_advisory_lock(${AdvisoryLockService.keyFrom(name)}) AS ok
-    `;
-
-    if (!acquired?.length || acquired[0]?.ok !== true) {
-      return false;
+    // First run of this job: create the row (ON CONFLICT DO NOTHING).
+    const created = await this.prisma.jobLock.createMany({
+      data: [{ name, owner, expiresAt }],
+      skipDuplicates: true,
+    });
+    if (created.count === 0) {
+      // Row exists: take it over only if the previous lease has expired.
+      // Compare-and-set, so two replicas can't both win.
+      const taken = await this.prisma.jobLock.updateMany({
+        where: { name, expiresAt: { lt: new Date() } },
+        data: { owner, expiresAt },
+      });
+      if (taken.count === 0) return false;
     }
 
-    this.held.set(name, Date.now());
+    this.held.set(name, owner);
     return true;
   }
 
+  /** Release a lease this instance holds; a lease taken over by another replica is left alone. */
   async release(name: string): Promise<void> {
-    try {
-      await this.prisma.$queryRaw`
-        SELECT pg_advisory_unlock(${AdvisoryLockService.keyFrom(name)})
-      `;
-    } finally {
-      this.held.delete(name);
-    }
-  }
-
-  /** Simple TTL audit — logs suspicions if a lock looks abandoned (timer). */
-  auditHeld(): string[] {
-    const now = Date.now();
-    for (const [key, since] of this.held.entries()) {
-      if (now - since > LOCK_TTL_MS) {
-        this.logger.warn(`Advisory lock "${key}" held longer than TTL (${LOCK_TTL_MS} ms)`);
-      }
-    }
-    return Array.from(this.held.keys());
+    const owner = this.held.get(name);
+    this.held.delete(name);
+    if (!owner) return;
+    await this.prisma.jobLock.deleteMany({ where: { name, owner } });
   }
 }

@@ -48,14 +48,6 @@ const SOFT_DELETE_MODELS: Set<string> = new Set([
 ]);
 
 /**
- * Returns a where clause fragment that filters out soft-deleted records.
- * Use this in all find queries on soft-delete models.
- */
-export function softDeleteFilter(): Record<string, any> {
-  return { deletedAt: null };
-}
-
-/**
  * Merges a soft-delete filter into an existing where clause.
  */
 export function withSoftDelete(where: Record<string, any> = {}): Record<string, any> {

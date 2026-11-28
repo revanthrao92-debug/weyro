@@ -1,292 +1,155 @@
-import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Wrench } from 'lucide-react-native';
+import { JobRow, ToDoCard } from '@/components/provider/JobCards';
 import { useBookings, type Booking } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  AppHeader,
-  Card,
+  Button,
   Chip,
   EmptyState,
-  PressableScale,
+  ErrorState,
+  PageHeader,
   ScreenContainer,
   Skeleton,
-  StatusPill,
 } from '@/components/ui';
-import {
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-  type StatusTone,
-} from '@/theme';
-import { formatDate, titleize } from '@/utils/format';
+import { palette, spacing, typography } from '@/theme';
+import { useRefreshControl } from '@/hooks/useRefreshControl';
 
-const FILTERS = ['ACTIVE', 'TODAY', 'COMPLETED', 'CANCELLED', 'ALL'] as const;
-type Filter = (typeof FILTERS)[number];
+const FILTERS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+] as const;
+type Filter = (typeof FILTERS)[number]['key'];
 
-function statusTone(status: string): StatusTone {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'IN_PROGRESS' || status === 'PROVIDER_EN_ROUTE') return 'info';
-  if (status === 'CANCELLED' || status === 'DISPUTED') return 'danger';
-  return 'neutral';
+/** Same day on the phone's calendar. */
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  CONFIRMED: 'Confirmed',
-  PROVIDER_EN_ROUTE: 'On the way',
-  IN_PROGRESS: 'In progress',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  DISPUTED: 'Disputed',
-};
-
-function statusLabel(status: string, category?: string) {
-  if (status === 'IN_PROGRESS') {
-    if (category === 'TOWING') return 'Towing';
-    if (category === 'ROADSIDE') return 'On site';
-  }
-  return STATUS_LABEL[status] ?? titleize(status);
+/** "Today", "Yesterday" or "22 Nov". */
+function dayHeading(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86_400_000);
+  if (sameDay(d, today)) return 'Today';
+  if (sameDay(d, yesterday)) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-function isToday(value?: string | null) {
-  if (!value) return false;
-  const date = new Date(value);
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
+type ListItem = { kind: 'head'; key: string; label: string } | { kind: 'job'; key: string; job: Booking; first: boolean };
 
 export default function MechanicJobsScreen() {
   const router = useRouter();
   const { providerProfile } = useAuth();
   const providerType = providerProfile?.providerType ?? '';
-  const isTowing = providerType === 'TOWING';
-  const isRoadside = providerType === 'ROADSIDE';
-  const subtitle = isTowing
-    ? 'Assigned tows and deliveries'
-    : isRoadside
-      ? 'Assigned roadside calls'
-      : 'Assigned workshop work';
-  const [filter, setFilter] = useState<Filter>('ACTIVE');
-  const { data, isLoading } = useBookings();
-  const bookings = useMemo(() => data?.items ?? [], [data?.items]);
+  const kind = providerType === 'TOWING' ? 'tows' : providerType === 'ROADSIDE' ? 'calls' : 'jobs';
+  const [filter, setFilter] = useState<Filter>('ALL');
+  // To do: every job still moving, however old. History: the latest 50.
+  const activeQuery = useBookings(undefined, { active: true, limit: 50 });
+  const historyQuery = useBookings(undefined, { limit: 50 });
+  const refreshControl = useRefreshControl(() => Promise.all([activeQuery.refetch(), historyQuery.refetch()]));
 
-  const visible = useMemo(() => {
-    const matches = bookings.filter((booking) => {
-      switch (filter) {
-        case 'ACTIVE':
-          return ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(
-            booking.status,
-          );
-        case 'TODAY':
-          return (
-            isToday(booking.scheduledAt) &&
-            !['CANCELLED', 'COMPLETED'].includes(booking.status)
-          );
-        case 'COMPLETED':
-          return booking.status === 'COMPLETED';
-        case 'CANCELLED':
-          return booking.status === 'CANCELLED';
-        default:
-          return true;
-      }
-    });
-    return [...matches].sort((a, b) => {
-      const aTime = new Date(a.scheduledAt ?? a.createdAt).getTime();
-      const bTime = new Date(b.scheduledAt ?? b.createdAt).getTime();
-      return filter === 'COMPLETED' || filter === 'CANCELLED'
-        ? bTime - aTime
-        : aTime - bTime;
-    });
-  }, [bookings, filter]);
+  const todo = [...(activeQuery.data?.items ?? [])].sort(
+    (a, b) => new Date(a.scheduledAt ?? a.createdAt).getTime() - new Date(b.scheduledAt ?? b.createdAt).getTime(),
+  );
+  const todayCount = todo.filter((j) => j.scheduledAt && sameDay(new Date(j.scheduledAt), new Date())).length;
+  const done = (historyQuery.data?.items ?? []).filter(
+    (j) => !['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(j.status),
+  );
+  const shown = filter === 'ALL' ? done : done.filter((j) => j.status === filter);
 
-  const active = bookings.filter((b) =>
-    ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS'].includes(b.status),
-  ).length;
-  const today = bookings.filter(
-    (b) => isToday(b.scheduledAt) && !['CANCELLED', 'COMPLETED'].includes(b.status),
-  ).length;
-  const completed = bookings.filter((b) => b.status === 'COMPLETED').length;
+  const items: ListItem[] = [];
+  let lastHead = '';
+  for (const job of shown) {
+    const head = dayHeading(job.completedAt ?? job.scheduledAt ?? job.createdAt);
+    if (head !== lastHead) {
+      items.push({ kind: 'head', key: `h-${head}-${job.id}`, label: head });
+      lastHead = head;
+    }
+    items.push({ kind: 'job', key: job.id, job, first: items[items.length - 1]?.kind === 'head' });
+  }
+
+  const loading = activeQuery.isLoading || historyQuery.isLoading;
+  const subtitle = loading
+    ? `Your ${kind}`
+    : todo.length === 0
+      ? `Nothing in progress`
+      : `${todo.length} in progress${todayCount ? `, ${todayCount} today` : ''}`;
 
   return (
     <ScreenContainer chrome="dark" safeBottom padded={false}>
-      <AppHeader title="Jobs" subtitle={subtitle} />
       <FlatList
-        data={isLoading ? [] : visible}
-        keyExtractor={(item) => item.id}
+        refreshControl={refreshControl}
+        data={loading ? [] : items}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <View style={styles.stats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{active}</Text>
-                <Text style={styles.statLabel}>Active</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{today}</Text>
-                <Text style={styles.statLabel}>Today</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{completed}</Text>
-                <Text style={styles.statLabel}>Completed</Text>
-              </View>
-            </View>
-            <View style={styles.filters}>
-              {FILTERS.map((item) => (
-                <Chip
-                  key={item}
-                  label={
-                    item === 'ACTIVE'
-                      ? 'Active'
-                      : item.charAt(0) + item.slice(1).toLowerCase()
-                  }
-                  selected={filter === item}
-                  onPress={() => setFilter(item)}
-                />
-              ))}
-            </View>
-            {isLoading
-              ? [0, 1, 2].map((i) => (
-                  <Card key={i} style={styles.skeletonCard}>
-                    <Skeleton width="55%" height={16} />
-                    <Skeleton width="35%" height={12} style={{ marginTop: spacing.sm }} />
-                  </Card>
-                ))
+            <PageHeader title="Jobs" subtitle={subtitle} />
+            {loading
+              ? [0, 1].map((i) => <Skeleton key={i} width="100%" height={150} style={{ marginBottom: spacing.md }} />)
               : null}
+            {todo.length > 0 ? (
+              <>
+                <Text style={styles.section}>To do ({todo.length})</Text>
+                {todo.map((job) => (
+                  <ToDoCard key={job.id} job={job} onOpen={() => router.push(`/job/${job.id}`)} />
+                ))}
+              </>
+            ) : null}
+            {done.length > 0 ? (
+              <>
+                <Text style={styles.section}>Finished</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+                  {FILTERS.map((f) => (
+                    <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
-          isLoading ? undefined : (
+          loading ? undefined : activeQuery.isError || historyQuery.isError ? (
+            <ErrorState message="Check your connection and try again." onRetry={() => void historyQuery.refetch()} />
+          ) : todo.length === 0 ? (
             <EmptyState
               icon={<Wrench size={26} color={palette.textMuted} strokeWidth={1.7} />}
-              title={filter === 'ALL' ? 'No jobs yet' : 'Nothing here'}
-              message={
-                filter === 'ALL'
-                  ? 'Accepted quotes become jobs and appear here.'
-                  : 'No jobs match this filter.'
-              }
+              title={`No ${kind} yet`}
+              message="When a customer accepts your quote, the job appears here."
+              action={<Button title="See requests near you" variant="secondary" onPress={() => router.push('/opportunities')} />}
             />
+          ) : filter !== 'ALL' ? (
+            <Text style={styles.emptyLine}>Nothing here yet.</Text>
+          ) : undefined
+        }
+        ListFooterComponent={
+          (historyQuery.data?.items.length ?? 0) >= 50 ? <Text style={styles.footnote}>Showing your latest 50 jobs.</Text> : undefined
+        }
+        renderItem={({ item }) =>
+          item.kind === 'head' ? (
+            <Text style={styles.dayHead}>{item.label}</Text>
+          ) : (
+            <View style={item.first ? undefined : styles.divider}>
+              <JobRow job={item.job} onPress={() => router.push(`/job/${item.job.id}`)} />
+            </View>
           )
         }
-        renderItem={({ item }) => (
-          <JobRow booking={item} onPress={() => router.push(`/job/${item.id}`)} />
-        )}
       />
     </ScreenContainer>
   );
 }
 
-function JobRow({ booking, onPress }: { booking: Booking; onPress: () => void }) {
-  const request = booking.quotation?.request;
-  const vehicle = request?.vehicle
-    ? `${request.vehicle.make} ${request.vehicle.model}${
-        request.vehicle.year ? ` ${request.vehicle.year}` : ''
-      }`
-    : 'Vehicle';
-  const who = booking.customer
-    ? `${booking.customer.firstName} ${booking.customer.lastName ?? ''}`.trim()
-    : 'Customer';
-  const route =
-    request?.category === 'TOWING' && request.dropoffAddress
-      ? `${request.address} → ${request.dropoffAddress}`
-      : request?.address ?? 'Workshop';
-
-  return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${request?.title ?? 'Job'}, ${statusLabel(booking.status, request?.category)}`}
-      scaleTo={0.99}
-      style={styles.row}
-    >
-      <View style={styles.rowTop}>
-        <Text style={styles.when}>
-          {booking.scheduledAt ? formatDate(booking.scheduledAt) : formatDate(booking.createdAt)}
-        </Text>
-        <StatusPill
-          label={statusLabel(booking.status, request?.category)}
-          tone={statusTone(booking.status)}
-        />
-      </View>
-      <Text style={styles.title} numberOfLines={1}>
-        {request?.title ?? 'Service job'}
-      </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {who} · {vehicle}
-      </Text>
-      <View style={styles.rowBottom}>
-        <Text style={styles.address} numberOfLines={2}>
-          {route}
-        </Text>
-        <Text style={styles.amount}>
-          ₹{Number(booking.quotation?.totalCost ?? 0).toLocaleString('en-IN')}
-        </Text>
-      </View>
-    </PressableScale>
-  );
-}
-
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  stats: {
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.border,
-  },
-  stat: { flex: 1, gap: 2 },
-  statValue: {
-    fontFamily: fontFamilyMono,
-    fontSize: 18,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: { ...typography.label, color: palette.textMuted },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  skeletonCard: { marginBottom: spacing.md },
-  row: {
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    gap: 2,
-  },
-  rowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  when: {
-    fontFamily: fontFamilyMono,
-    fontSize: 10,
-    color: palette.textMuted,
-  },
-  title: { ...typography.bodyMedium, color: palette.textPrimary },
-  meta: { ...typography.caption, color: palette.textSecondary },
-  rowBottom: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  address: { ...typography.label, color: palette.textMuted, flex: 1 },
-  amount: {
-    fontFamily: fontFamilyMono,
-    fontSize: 13,
-    color: palette.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  section: { ...typography.section, color: palette.textPrimary, marginBottom: spacing.sm },
+  filters: { gap: spacing.sm, paddingBottom: spacing.sm },
+  dayHead: { ...typography.captionMedium, color: palette.textMuted, marginTop: spacing.lg, marginBottom: spacing.xs },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  emptyLine: { ...typography.caption, color: palette.textMuted, paddingVertical: spacing.md },
+  footnote: { ...typography.caption, color: palette.textMuted, textAlign: 'center', marginTop: spacing.lg },
 });

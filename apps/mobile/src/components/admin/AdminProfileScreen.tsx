@@ -1,29 +1,9 @@
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  Activity,
-  Bell,
-  ChevronRight,
-  ClipboardList,
-  Landmark,
-  LifeBuoy,
-  LogOut,
-  ShieldCheck,
-} from 'lucide-react-native';
-import {
-  AppHeader,
-  PressableScale,
-  ScreenContainer,
-  SectionHead,
-} from '@/components/ui';
+import { Bell, ChevronRight, LifeBuoy, LogOut } from 'lucide-react-native';
+import { AppearancePicker, PageHeader, PressableScale, ScreenContainer, SectionHead, StatusPill } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  displayFamily,
-  fontFamilyMono,
-  palette,
-  spacing,
-  typography,
-} from '@/theme';
+import { displayFamily, palette, radii, spacing, typography } from '@/theme';
 
 function Action({
   icon,
@@ -39,138 +19,100 @@ function Action({
   danger?: boolean;
 }) {
   return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      scaleTo={0.99}
-      style={styles.action}
-    >
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} scaleTo={0.99} style={styles.action}>
       <View style={styles.actionIcon}>{icon}</View>
       <View style={styles.actionText}>
-        <Text style={[styles.actionLabel, danger && styles.actionDanger]}>
-          {label}
-        </Text>
+        <Text style={[styles.actionLabel, danger && styles.actionDanger]}>{label}</Text>
         {detail ? <Text style={styles.actionDetail}>{detail}</Text> : null}
       </View>
-      <ChevronRight size={15} color={palette.textMuted} strokeWidth={1.8} />
+      {danger ? null : <ChevronRight size={16} color={palette.textMuted} strokeWidth={1.8} />}
     </PressableScale>
   );
 }
 
+/** Admin account and settings. The work itself lives in the tabs (Providers, Operations, Payments, Activity). */
 export function AdminProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const email = user?.email ?? 'Not given';
 
   return (
-    <ScreenContainer chrome="dark" safeBottom>
-      <AppHeader title="Profile" subtitle="Admin account" />
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.eyebrow}>Admin</Text>
-        <Text style={styles.name}>Administrator</Text>
-        <Text style={styles.meta}>{user?.email ?? '—'}</Text>
+    <ScreenContainer chrome="dark" safeBottom padded={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <PageHeader title="Profile" />
 
-        <View style={styles.identity}>
-          <Text style={styles.identityLabel}>Access</Text>
-          <Text style={styles.identityValue}>
-            Platform operations · verification · payments
-          </Text>
+        <View style={styles.card}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>W</Text>
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.name}>Weyro team</Text>
+            <Text style={styles.email} numberOfLines={1}>
+              {email}
+            </Text>
+            <View style={styles.pills}>
+              <StatusPill label="Admin" tone="neutral" />
+            </View>
+          </View>
         </View>
+        <Text style={styles.hint}>
+          You can approve providers, refund payments and see all platform activity. Keep this account to yourself.
+        </Text>
 
-        <SectionHead index="01" title="Operations" />
-        <Action
-          icon={<ShieldCheck size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Providers"
-          detail="Verification and onboarding"
-          onPress={() => router.push('/providers')}
-        />
-        <Action
-          icon={<ClipboardList size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Operations"
-          detail="Orders, jobs and disputes"
-          onPress={() => router.push('/operations')}
-        />
-        <Action
-          icon={<Landmark size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Payments"
-          detail="Held, released and refunded payments"
-          onPress={() => router.push('/escrow')}
-        />
-        <Action
-          icon={<Activity size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Activity"
-          detail="Audit trail"
-          onPress={() => router.push('/activity')}
-        />
-        <Action
-          icon={<Bell size={17} color={palette.textSecondary} strokeWidth={1.8} />}
-          label="Alerts"
-          onPress={() => router.push('/alerts')}
-        />
+        <SectionHead title="Settings" />
+        <AppearancePicker />
 
-        <SectionHead index="02" title="Account" />
+        <SectionHead title="More" />
+        <Action icon={<Bell size={20} color={palette.textSecondary} strokeWidth={1.8} />} label="Alerts" onPress={() => router.push('/alerts')} />
         <Action
-          icon={<LifeBuoy size={17} color={palette.textSecondary} strokeWidth={1.8} />}
+          icon={<LifeBuoy size={20} color={palette.textSecondary} strokeWidth={1.8} />}
           label="Contact support"
+          detail="support@weyro.app"
           onPress={() => void Linking.openURL('mailto:support@weyro.app')}
         />
-        <Action
-          icon={<LogOut size={17} color={palette.danger} strokeWidth={1.8} />}
-          label="Sign out"
-          danger
-          onPress={() => void logout()}
-        />
+        <Action icon={<LogOut size={20} color={palette.danger} strokeWidth={1.8} />} label="Sign out" danger onPress={() => void logout()} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  card: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
   },
-  eyebrow: { ...typography.label, color: palette.textMuted, letterSpacing: 0.3 },
-  name: {
-    fontFamily: displayFamily,
-    fontSize: 30,
-    color: palette.textPrimary,
-    marginTop: spacing.xs,
-  },
-  meta: {
-    fontFamily: fontFamilyMono,
-    fontSize: 11,
-    color: palette.textMuted,
-    marginTop: 2,
-  },
-  identity: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 6,
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: palette.surfaceAlt,
-    borderLeftWidth: 2,
-    borderLeftColor: palette.borderStrong,
-    gap: 2,
   },
-  identityLabel: { ...typography.label, color: palette.textMuted },
-  identityValue: { ...typography.caption, color: palette.textPrimary },
+  avatarText: { fontFamily: displayFamily, fontSize: 22, color: palette.textPrimary },
+  cardText: { flex: 1 },
+  name: { ...typography.heading, color: palette.textPrimary },
+  email: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+  pills: { flexDirection: 'row', marginTop: spacing.xs },
+  hint: { ...typography.caption, color: palette.textMuted, marginTop: spacing.sm },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 58,
+    minHeight: 56,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.border,
   },
-  actionIcon: { width: 22, alignItems: 'center', justifyContent: 'center' },
+  actionIcon: { width: 24, alignItems: 'center', justifyContent: 'center' },
   actionText: { flex: 1 },
   actionLabel: { ...typography.bodyMedium, color: palette.textPrimary },
-  actionDetail: { ...typography.label, color: palette.textMuted, marginTop: 1 },
+  actionDetail: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
   actionDanger: { color: palette.danger },
 });

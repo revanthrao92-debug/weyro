@@ -10,6 +10,9 @@ import {
   setTokenRefresher,
   setSessionExpiredHandler,
   refreshTokenSingleFlight,
+  ApiError,
+  isNotFound,
+  shouldRetryQuery,
 } from '../src/services/api-client';
 
 // Avoid loading the real token-storage (SecureStore) in unit tests
@@ -234,5 +237,22 @@ describe('request timeout (30s AbortController)', () => {
     const error = await pending;
     expect(error.status).toBe(0);
     expect(error.message).not.toMatch(/timed out/i);
+  });
+});
+
+describe('query error handling', () => {
+  it('retries network and server failures, but not client errors', () => {
+    expect(shouldRetryQuery(0, new Error('Network request failed'))).toBe(true);
+    expect(shouldRetryQuery(0, new ApiError(503, 'down'))).toBe(true);
+    expect(shouldRetryQuery(0, new ApiError(429, 'slow down'))).toBe(true);
+    expect(shouldRetryQuery(0, new ApiError(404, 'missing'))).toBe(false);
+    expect(shouldRetryQuery(0, new ApiError(403, 'forbidden'))).toBe(false);
+    expect(shouldRetryQuery(3, new ApiError(503, 'down'))).toBe(false);
+  });
+
+  it('tells a missing resource apart from a failed request', () => {
+    expect(isNotFound(new ApiError(404, 'missing'))).toBe(true);
+    expect(isNotFound(new ApiError(500, 'boom'))).toBe(false);
+    expect(isNotFound(new Error('Network request failed'))).toBe(false);
   });
 });

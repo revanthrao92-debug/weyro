@@ -31,6 +31,7 @@ export type ChatThread = {
 export function useChatThreads() {
   return useQuery({
     queryKey: ['chatThreads'],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const res = await apiClient<{ items: ChatThread[]; nextCursor?: string | null }>(
         '/chat/threads',
@@ -51,10 +52,12 @@ export type ChatMessage = {
   createdAt: string;
 };
 
-export function useChatMessages(threadId: string) {
+export function useChatMessages(threadId: string, live = true) {
   return useQuery({
     queryKey: ['chatMessages', threadId],
     enabled: Boolean(threadId),
+    // shortcut: polls while the thread is open; the API has a /chat socket gateway, switch to it if chat volume grows.
+    refetchInterval: live ? 5_000 : false,
     queryFn: async () => {
       const res = await apiClient<{ items: ChatMessage[]; nextCursor?: string | null }>(
         `/chat/threads/${threadId}/messages`,

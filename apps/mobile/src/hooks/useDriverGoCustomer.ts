@@ -19,6 +19,8 @@ export type CustomerDriver = {
 };
 
 export type CustomerDriverBooking = {
+  /** Weyro reference number, e.g. J-261127-0042-6. */
+  ref?: string;
   id: string;
   status:
     | 'REQUESTED'
