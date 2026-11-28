@@ -17,9 +17,9 @@ export function confirmAction(title: string, message: string, confirmLabel = 'Co
 }
 
 /** A message with an OK button, on phones and in a browser (for errors that must not go unseen). */
-export function notice(title: string, message: string): void {
+export function notice(title: string, message?: string): void {
   if (Platform.OS === 'web') {
-    globalThis.alert?.(`${title}\n\n${message}`);
+    globalThis.alert?.(message ? `${title}\n\n${message}` : title);
     return;
   }
   Alert.alert(title, message);

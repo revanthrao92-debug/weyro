@@ -171,12 +171,12 @@ export class AuthService {
           dto.role === 'PROVIDER' || dto.role === 'BOTH'
             ? {
                 create: {
-                  businessName: dto.businessName || 'Auto Service Provider',
+                  businessName: dto.businessName as string, // required for providers by RegisterSchema
                   providerType: dto.providerType || 'MECHANIC',
                   description:
                     dto.description || 'Automotive service & parts specialist',
                   phone,
-                  address: dto.address || 'Bengaluru, Karnataka',
+                  address: dto.address as string, // required for providers by RegisterSchema
                   latitude: dto.latitude as number,
                   longitude: dto.longitude as number,
                   verificationStatus: 'PENDING',

@@ -268,7 +268,7 @@ model ProviderProfile {
   address               String
   latitude              Float
   longitude             Float
-  location              Unsupported("geography(Point, 4326)")?
+  location              Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(longitude, latitude), 4326))::geography"))
   serviceRadiusKm       Float                                  @default(15.0)
   verificationStatus    VerificationStatus                     @default(PENDING)
   // Towing / roadside capabilities
@@ -299,6 +299,7 @@ model ProviderProfile {
   @@index([verificationStatus])
   @@index([providerType])
   @@index([avgRating])
+  @@index([location], map: "provider_profiles_location_gix", type: Gist)
   @@map("provider_profiles")
 }
 
@@ -405,7 +406,7 @@ model ServiceRequest {
   address             String
   latitude            Float
   longitude           Float
-  location            Unsupported("geography(Point, 4326)")?
+  location            Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(longitude, latitude), 4326))::geography"))
   urgency             Urgency                                @default(NORMAL)
   status              ServiceRequestStatus                   @default(OPEN)
   isBroadcast         Boolean                                @default(true)
@@ -417,7 +418,7 @@ model ServiceRequest {
   dropoffAddress      String?
   dropoffLatitude     Float?
   dropoffLongitude    Float?
-  dropoffLocation     Unsupported("geography(Point, 4326)")?
+  dropoffLocation     Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(\"dropoffLongitude\", \"dropoffLatitude\"), 4326))::geography"))
   towingVehicleType   TowingVehicleType?
   vehicleWeightKg     Int?
   towingDistanceKm    Float?
@@ -440,6 +441,8 @@ model ServiceRequest {
   @@index([category, status])
   @@index([expiresAt])
   @@index([deletedAt])
+  @@index([location], map: "service_requests_location_gix", type: Gist)
+  @@index([dropoffLocation], map: "service_requests_dropoffLocation_gix", type: Gist)
   @@map("service_requests")
 }
 

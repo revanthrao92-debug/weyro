@@ -27,7 +27,6 @@ export class CreateDamageRequestDto implements CreateServiceRequestInput {
   urgency!: 'NORMAL' | 'URGENT' | 'EMERGENCY';
   mediaUrls!: string[];
   damagePhotos!: string[];
-  isBroadcast!: boolean;
   fulfillmentType?:
     | 'ON_SITE'
     | 'WORKSHOP_VISIT'

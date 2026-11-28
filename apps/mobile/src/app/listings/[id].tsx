@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +26,7 @@ import {
 import { palette, spacing, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
 import { isNotFound } from '@/services/api-client';
+import { confirmAction, notice } from '@/lib/confirm';
 
 type ListingParams = { id: string };
 
@@ -109,32 +109,23 @@ function ListingForm({ part }: { part: SparePart }) {
         imageUrl: images[0] && images[0].key !== EXISTING_IMAGE_KEY ? images[0].key : undefined,
         isActive: form.isActive,
       });
-      Alert.alert('Saved', 'Listing updated');
+      notice('Saved', 'Listing updated');
       leave();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update listing');
+      notice('Failed', e.message || 'Unable to update listing');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Delete Listing',
-        'Are you sure you want to delete this part?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-        ]
-      );
-    });
+    const confirmed = await confirmAction('Delete Listing', 'Are you sure you want to delete this part?', 'Delete');
     if (!confirmed) return;
     try {
       await deletePart.mutateAsync(part.id);
       leave();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to delete listing');
+      notice('Failed', e.message || 'Unable to delete listing');
     }
   };
 

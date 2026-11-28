@@ -82,7 +82,6 @@ export type CreateServiceRequest = {
   urgency: string;
   mediaUrls: string[];
   damagePhotos: string[];
-  isBroadcast: boolean;
   fulfillmentType?: string;
   dropoffAddress?: string;
   dropoffLatitude?: number;

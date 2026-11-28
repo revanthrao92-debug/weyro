@@ -51,7 +51,6 @@ export type DraftContext = {
   manualVehicle: ManualVehicle;
   spareFulfillment: SpareFulfillment;
   photoCount: number;
-  isBroadcast: boolean;
 };
 
 export type PhotoConfig = {
@@ -867,7 +866,6 @@ export function buildPayload(
   ctx: DraftContext,
   extras: {
     photos: string[];
-    isBroadcast: boolean;
   },
 ): CreateServiceRequest {
   const place = effectiveLocationFor(config, ctx);
@@ -883,7 +881,6 @@ export function buildPayload(
     urgency: resolveUrgency(config, ctx.values, ctx.urgency),
     mediaUrls: extras.photos,
     damagePhotos: extras.photos,
-    isBroadcast: extras.isBroadcast,
   };
 
   if (ctx.selectedVehicle) {

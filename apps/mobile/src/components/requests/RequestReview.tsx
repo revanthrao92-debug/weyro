@@ -176,7 +176,6 @@ export function RequestReview({
           value={ctx.spareFulfillment === 'DELIVERY' ? 'Delivery' : 'Dealer pickup'}
         />
       ) : null}
-      <Row label="Broadcast" value={ctx.isBroadcast ? 'On' : 'Off'} />
       <Row label="Contact" value={contact.name} />
       <Row label="Phone / email" value={contact.detail} />
     </View>

@@ -2,7 +2,6 @@ import {
   View,
   Text,
   KeyboardAvoidingView,
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,6 +22,7 @@ import {
 } from '@/components/ui';
 import { palette, spacing, radii, typography } from '@/theme';
 import { isNotFound } from '@/services/api-client';
+import { notice } from '@/lib/confirm';
 
 type ProviderParams = { id: string };
 
@@ -60,7 +60,7 @@ export default function ProviderProfilePublicScreen() {
   }
 
   const handleStartChat = () => {
-    Alert.alert(
+    notice(
       'Start Chat',
       'Chat functionality will connect you with this provider.'
     );

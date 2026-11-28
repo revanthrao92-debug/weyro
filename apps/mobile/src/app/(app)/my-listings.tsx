@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Minus, MoreHorizontal, Package, Plus } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { useMyParts, useDeleteSparePart, useUpdateSparePart, type SparePart } fr
 import { Button, Chip, EmptyState, PageHeader, PressableScale, ScreenContainer, Skeleton, StatusPill } from '@/components/ui';
 import { palette, radii, spacing, typography } from '@/theme';
 import { labelize, formatRupees as money } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 const FILTERS = [
   { key: 'ALL', label: 'All' },
@@ -57,7 +58,7 @@ export default function MyListingsScreen() {
     try {
       await action();
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || failure);
+      notice('Failed', e?.message || failure);
     } finally {
       setBusyId(null);
     }

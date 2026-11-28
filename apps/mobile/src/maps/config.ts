@@ -19,8 +19,8 @@ export const MAP_STYLE = process.env.EXPO_PUBLIC_MAPBOX_STYLE?.trim() || 'mapbox
 
 export const MAPBOX_API = 'https://api.mapbox.com';
 
-/** Bengaluru fallback centre — the seeded market. */
-export const FALLBACK_CENTER = { latitude: 12.9716, longitude: 77.5946 };
+/** Hyderabad fallback centre — the launch market. */
+export const FALLBACK_CENTER = { latitude: 17.385, longitude: 78.4867 };
 
 export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 19;

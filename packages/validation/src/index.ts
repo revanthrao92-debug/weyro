@@ -191,7 +191,6 @@ export const CreateServiceRequestSchema = z
     urgency: z.enum(['NORMAL', 'URGENT', 'EMERGENCY']).default('NORMAL'),
     mediaUrls: z.array(z.string()).default([]),
     damagePhotos: z.array(z.string()).default([]),
-    isBroadcast: z.boolean().default(true),
     fulfillmentType: z
       .enum(['ON_SITE', 'WORKSHOP_VISIT', 'PARTS_SHIPPING', 'TOW_TO_GARAGE'])
       .optional(),

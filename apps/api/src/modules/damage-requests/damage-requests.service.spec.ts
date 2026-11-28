@@ -90,7 +90,7 @@ describe('DamageRequestsService', () => {
       ]);
 
       const before = Date.now();
-      await service.create(
+      const result = await service.create(
         'cust-1',
         {
           title: 'Front bumper dent',
@@ -113,6 +113,7 @@ describe('DamageRequestsService', () => {
         body: 'Front bumper dent, 3.2 km away. Send your price and time.',
         data: { type: 'new_request', requestId: 'req-1' },
       });
+      expect(result.notifiedProviders).toBe(1); // the poster's own garage is not counted
     });
 
     it('maps each category to the provider types that serve it', () => {
@@ -327,7 +328,9 @@ describe('DamageRequestsService', () => {
       expect(data.vehicleWeightKg).toBe(1800);
       expect(data.towingDistanceKm).toBeGreaterThan(0);
       expect(data.towingEstimatedFare).toBeGreaterThanOrEqual(500);
-      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+      // The drop-off map point is computed by the database from these two columns.
+      expect(data.dropoffLatitude).toBe(12.9698);
+      expect(data.dropoffLongitude).toBe(77.7499);
     });
   });
 

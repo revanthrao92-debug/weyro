@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSparePart, useCreateSparePartOrder } from '@/hooks/useParts';
@@ -25,6 +25,7 @@ import {
 } from '@/theme';
 import { isNotFound } from '@/services/api-client';
 import { formatRupees } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 type PartParams = { id: string };
 
@@ -78,11 +79,11 @@ export default function PartDetailScreen() {
 
   const handleOrder = async () => {
     if (!inStock || quantity < 1 || quantity > maxQty) {
-      Alert.alert('Error', 'Invalid quantity');
+      notice('Error', 'Invalid quantity');
       return;
     }
     if (!validShipping) {
-      Alert.alert('Delivery details needed', 'Add a name, phone and delivery address first.');
+      notice('Delivery details needed', 'Add a name, phone and delivery address first.');
       return;
     }
     setOrdering(true);
@@ -99,7 +100,7 @@ export default function PartDetailScreen() {
       // The order exists now; it appears in Orders with its payment state.
       router.replace('/my-orders');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to create order');
+      notice('Failed', e.message || 'Unable to create order');
     } finally {
       setOrdering(false);
     }

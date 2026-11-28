@@ -6,7 +6,7 @@ import {
   useState,
   ReactNode,
 } from 'react';
-import { Alert , Platform as RNPlatform } from 'react-native';
+import { Platform as RNPlatform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, setAccessToken, setTokenRefresher, setSessionExpiredHandler } from '@/services/api-client';
 import {
@@ -23,6 +23,7 @@ import {
   CustomerProfile,
   ProviderProfile,
 } from '@weyro/api-contracts';
+import { notice } from '@/lib/confirm';
 
 type AuthUser = User & {
   customerProfile?: CustomerProfile | null;
@@ -218,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         body: JSON.stringify({ phone, code, newPassword }),
       });
-      Alert.alert(
+      notice(
         'Success',
         'Password reset. Please log in with your new password.'
       );

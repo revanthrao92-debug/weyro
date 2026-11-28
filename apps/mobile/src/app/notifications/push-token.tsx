@@ -1,7 +1,7 @@
 import {
-  Alert,
   StyleSheet,
- Platform as RNPlatform } from 'react-native';
+  Platform as RNPlatform,
+} from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Button, ScreenContainer, AppHeader, ButtonRow, Card, ListItem, BackButton } from '@/components/ui';
 import { spacing } from '@/theme';
+import { notice } from '@/lib/confirm';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -27,7 +28,7 @@ export default function PushTokenScreen() {
   const handleRegister = async () => {
     try {
       if (RNPlatform.OS === 'web') {
-        Alert.alert('Not supported', 'Web push notifications are not configured.');
+        notice('Not supported', 'Web push notifications are not configured.');
         return;
       }
 
@@ -41,12 +42,12 @@ export default function PushTokenScreen() {
         const deviceOs = RNPlatform.OS === 'ios' ? 'ios' : 'android';
         await registerPushToken({ token, deviceOs });
 
-        Alert.alert('Success', 'Push notifications enabled');
+        notice('Success', 'Push notifications enabled');
       } else {
-        Alert.alert('Permission denied', 'Please enable notifications in settings.');
+        notice('Permission denied', 'Please enable notifications in settings.');
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Unable to register push token');
+      notice('Error', e.message || 'Unable to register push token');
     }
   };
 
@@ -56,10 +57,10 @@ export default function PushTokenScreen() {
       if (stored) {
         await deletePushToken(stored);
         await SecureStore.deleteItemAsync('weyro_push_token');
-        Alert.alert('Done', 'Push token removed');
+        notice('Done', 'Push token removed');
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Unable to remove push token');
+      notice('Error', e.message || 'Unable to remove push token');
     }
   };
 

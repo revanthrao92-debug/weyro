@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { plainTitleize as labelize } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 const CONDITIONS = ['OEM', 'AFTERMARKET', 'USED'];
 
@@ -57,7 +57,7 @@ export default function CreateListingScreen() {
   const handleSubmit = async () => {
     const { name, partNumber, compatibleMakes, compatibleModels, condition, price, stockQuantity, description } = form;
     if (!name || !partNumber || !price || !stockQuantity) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      notice('Error', 'Please fill in all required fields');
       return;
     }
     setSubmitting(true);
@@ -74,10 +74,10 @@ export default function CreateListingScreen() {
         imageUrl: images[0]?.key,
         description: description || undefined,
       });
-      Alert.alert('Success', 'Part listed successfully');
+      notice('Success', 'Part listed successfully');
       router.replace('/my-listings');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to create listing');
+      notice('Failed', e.message || 'Unable to create listing');
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -36,6 +35,7 @@ import {
 } from '@/theme';
 import { formatDate, titleize, formatRupees, refOf } from '@/utils/format';
 import { Check } from 'lucide-react-native';
+import { notice } from '@/lib/confirm';
 
 const STEP_NAMES: Record<FulfillmentStatus, string> = {
   PENDING: 'Paid, to pack',
@@ -133,7 +133,7 @@ export default function OrderDetailScreen() {
         setTrackingNumber('');
       }
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update fulfillment.');
+      notice('Failed', e?.message || 'Could not update fulfillment.');
     }
   };
 

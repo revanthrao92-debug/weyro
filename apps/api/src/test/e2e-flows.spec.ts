@@ -273,7 +273,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'URGENT',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
 
       expect(res.status).toBe(201);
@@ -889,7 +888,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'NORMAL',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       cancelRequestId = created.body.id;
@@ -1047,7 +1045,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'URGENT',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       multiQuoteRequestId = created.body.id;
@@ -1093,7 +1090,6 @@ describe('HTTP E2E flows (Postgres)', () => {
       latitude: 12.9784,
       longitude: 77.6408,
       urgency: 'NORMAL',
-      isBroadcast: true,
     };
 
     beforeAll(async () => {
@@ -1276,7 +1272,6 @@ describe('HTTP E2E flows (Postgres)', () => {
             urgency: 'NORMAL',
             mediaUrls: [],
             damagePhotos: [],
-            isBroadcast: true,
           });
         expect(created.status).toBe(201);
         const requestId = created.body.id as string;
@@ -1365,7 +1360,6 @@ describe('HTTP E2E flows (Postgres)', () => {
           urgency: 'NORMAL',
           mediaUrls: [],
           damagePhotos: [],
-          isBroadcast: true,
         });
       expect(created.status).toBe(201);
       extraRequestIds.push(created.body.id);

@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -38,6 +37,7 @@ import {
 } from '@/theme';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
 import { titleize as labelize } from '@/utils/format';
+import { confirmAction, notice } from '@/lib/confirm';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'CNG'];
 
@@ -62,7 +62,7 @@ export default function VehiclesScreen() {
 
   const handleAddVehicle = async () => {
     if (!make || !model || !year || !reg) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      notice('Error', 'Please fill in all required fields');
       return;
     }
     setAdding(true);
@@ -86,29 +86,20 @@ export default function VehiclesScreen() {
       setColor('');
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to add vehicle');
+      notice('Failed', e.message || 'Unable to add vehicle');
     } finally {
       setAdding(false);
     }
   };
 
   const handleDeleteVehicle = async (id: string) => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Delete Vehicle',
-        'Are you sure you want to remove this vehicle?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-        ]
-      );
-    });
+    const confirmed = await confirmAction('Delete Vehicle', 'Are you sure you want to remove this vehicle?', 'Delete');
     if (!confirmed) return;
     try {
       await deleteVehicle.mutateAsync(id);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to delete vehicle');
+      notice('Failed', e.message || 'Unable to delete vehicle');
     }
   };
 

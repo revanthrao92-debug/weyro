@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import { apiClient } from '@/services/api-client';
 import { Input, Button, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { notice } from '@/lib/confirm';
 
 export default function ForgotPasswordScreen() {
   const [phone, setPhone] = useState('');
@@ -22,7 +22,7 @@ export default function ForgotPasswordScreen() {
 
   async function handleSendOtp() {
     if (!phone) {
-      Alert.alert('Error', 'Please enter your phone number');
+      notice('Error', 'Please enter your phone number');
       return;
     }
     setLoading(true);
@@ -31,13 +31,13 @@ export default function ForgotPasswordScreen() {
         method: 'POST',
         body: JSON.stringify({ phone, purpose: 'reset_password' }),
       });
-      Alert.alert('OTP sent', 'A verification code has been sent to your phone.');
+      notice('OTP sent', 'A verification code has been sent to your phone.');
       // The backend's /auth/reset-password verifies the OTP itself (and rejects
       // already-verified OTPs), so go straight to the reset screen with the
       // phone prefilled instead of passing through verify-otp.
       router.push({ pathname: '/(auth)/reset-password', params: { phone } });
     } catch (error: any) {
-      Alert.alert('Failed', error.message || 'Unable to send OTP');
+      notice('Failed', error.message || 'Unable to send OTP');
     } finally {
       setLoading(false);
     }

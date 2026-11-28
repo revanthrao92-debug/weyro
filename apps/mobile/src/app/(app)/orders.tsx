@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Package } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +36,7 @@ import {
 } from '@/theme';
 import { formatDate, titleize, formatRupees, formatRupees as money } from '@/utils/format';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { notice } from '@/lib/confirm';
 
 function orderTone(status: string): StatusTone {
   switch (status) {
@@ -268,7 +269,7 @@ function ToDoCard({ order, onOpen }: { order: SparePartOrder; onOpen: () => void
       await update.mutateAsync({ orderId: order.id, status: step.next });
       haptics.success();
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update the order.');
+      notice('Failed', e?.message || 'Could not update the order.');
     }
   };
   return (

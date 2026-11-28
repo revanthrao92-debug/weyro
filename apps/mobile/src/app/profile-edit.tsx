@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -25,6 +24,7 @@ import {
 } from '@/components/ui';
 import { palette, spacing } from '@/theme';
 import { isNotFound } from '@/services/api-client';
+import { notice } from '@/lib/confirm';
 
 export default function CustomerProfileScreen() {
   const { user } = useAuth();
@@ -67,9 +67,9 @@ export default function CustomerProfileScreen() {
         lastName: lastName || undefined,
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
       });
-      Alert.alert('Success', 'Profile updated');
+      notice('Success', 'Profile updated');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update profile');
+      notice('Failed', e.message || 'Unable to update profile');
     } finally {
       setSaving(false);
     }

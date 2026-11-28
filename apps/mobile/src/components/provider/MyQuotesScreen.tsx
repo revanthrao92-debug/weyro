@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -21,6 +21,7 @@ import { quoteTimeText } from '@/utils/quotes';
 import { QuoteComposer } from '@/components/dealer/QuoteComposer';
 import { palette, spacing, typography } from '@/theme';
 import { formatDate, titleize as labelize, quotationStatusTone as statusTone, formatRupees } from '@/utils/format';
+import { notice } from '@/lib/confirm';
 
 const FILTERS = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'];
 
@@ -52,7 +53,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
       await withdrawQuotation.mutateAsync(id);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to withdraw quotation');
+      notice('Failed', e.message || 'Unable to withdraw quotation');
     }
   };
 
@@ -158,7 +159,7 @@ export function MyQuotesScreen({ pushed = false }: { pushed?: boolean } = {}) {
                           setEditingId(null);
                           await refetch();
                         } catch (e: any) {
-                          Alert.alert('Failed', e.message || 'Unable to update quote');
+                          notice('Failed', e.message || 'Unable to update quote');
                         }
                       }}
                     />

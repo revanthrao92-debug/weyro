@@ -2,7 +2,6 @@ import {
   View,
   Text,
   FlatList,
-  Alert,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -41,6 +40,7 @@ import {
 import { palette, spacing, radii, typography } from '@/theme';
 import { titleize as labelize, requestStatusTone as statusTone, formatRupees, refOf } from '@/utils/format';
 import { isNotFound } from '@/services/api-client';
+import { confirmAction, notice } from '@/lib/confirm';
 
 type RequestParams = { id: string };
 
@@ -137,23 +137,14 @@ export default function RequestDetailScreen() {
   const canCancel = isOwner && openToQuotes;
 
   const handleCancel = async () => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Cancel Request',
-        'Are you sure you want to cancel this request?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Cancel Request', style: 'destructive', onPress: () => resolve(true) },
-        ]
-      );
-    });
+    const confirmed = await confirmAction('Cancel Request', 'Are you sure you want to cancel this request?', 'Cancel Request');
     if (!confirmed) return;
     try {
       await cancelRequest.mutateAsync(request.id);
-      Alert.alert('Success', 'Request cancelled');
+      notice('Success', 'Request cancelled');
       router.replace('/requests/my');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to cancel request');
+      notice('Failed', e.message || 'Unable to cancel request');
     }
   };
 
@@ -166,7 +157,7 @@ export default function RequestDetailScreen() {
       haptics.success();
       router.replace(booking?.id ? `/booking/${booking.id}?confirmed=1` : '/bookings');
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to accept quotation');
+      notice('Failed', e.message || 'Unable to accept quotation');
     }
   };
 
@@ -351,13 +342,13 @@ export default function RequestDetailScreen() {
                   if (editingQuote && myQuote) {
                     await updateQuotation.mutateAsync({ id: myQuote.id, data });
                     setEditingQuote(false);
-                    Alert.alert('Saved', 'Your quotation has been updated.');
+                    notice('Saved', 'Your quotation has been updated.');
                   } else {
                     await createQuotation.mutateAsync({ requestId: request.id, data });
-                    Alert.alert('Sent', 'Quotation submitted to the customer.');
+                    notice('Sent', 'Quotation submitted to the customer.');
                   }
                 } catch (e: any) {
-                  Alert.alert('Failed', e.message || 'Unable to submit quotation');
+                  notice('Failed', e.message || 'Unable to submit quotation');
                 }
               }}
             />

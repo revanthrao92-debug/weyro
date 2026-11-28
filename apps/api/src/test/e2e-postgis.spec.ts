@@ -110,13 +110,7 @@ describe('PostGIS & Soft Delete E2E', () => {
         },
       });
 
-      // `location` is an Unsupported(...) column, so it is written via raw SQL.
-      await prisma.$executeRaw`
-        UPDATE "service_requests"
-        SET "location" = ST_GeogFromText('SRID=4326;POINT(77.5946 12.9716)')
-        WHERE "id" = ${request.id}
-      `;
-
+      // `location` is computed by the database from latitude/longitude.
       const rows = await prisma.$queryRaw<
         Array<{ distance: number }>
       >`
@@ -157,15 +151,6 @@ describe('PostGIS & Soft Delete E2E', () => {
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       });
-
-      await prisma.$executeRaw`
-        UPDATE "service_requests"
-        SET "dropoffLocation" = ST_SetSRID(
-          ST_MakePoint(77.6245, 12.9352),
-          4326
-        )::geography
-        WHERE "id" = ${request.id}
-      `;
 
       const rows = await prisma.$queryRaw<
         Array<{ distance: number; fare: number }>
@@ -240,6 +225,24 @@ describe('PostGIS & Soft Delete E2E', () => {
       expect(mine.map((r) => r.userId)).toEqual([near, wideFar]); // nearest first
       expect(Number(mine[0].distanceKm)).toBeLessThan(2);
       expect(Number(mine[1].distanceKm)).toBeGreaterThan(25);
+    });
+
+    it('matches a provider at its new place after it moves (profile edits change only lat/lng)', async () => {
+      const mover = await provider('Moving garage', { latOffset: 0.27 }); // ~30 km away, 15 km area
+      const recipients = async () =>
+        (
+          await prisma.$queryRaw<{ userId: string }[]>(
+            getBroadcastRecipientsQuery({ ...customer, providerTypes: ['MECHANIC'] }),
+          )
+        ).map((r) => r.userId);
+      expect(await recipients()).not.toContain(mover);
+
+      // Same write as PATCH /providers/me: coordinates only, no map point.
+      await prisma.providerProfile.update({
+        where: { userId: mover },
+        data: { latitude: customer.latitude + 0.02, longitude: customer.longitude },
+      });
+      expect(await recipients()).toContain(mover);
     });
   });
 

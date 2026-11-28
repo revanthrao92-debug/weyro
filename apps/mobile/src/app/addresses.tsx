@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui';
 import { LocationField, LocationPicker, type PickedLocation } from '@/maps';
 import { palette, spacing, radii, typography } from '@/theme';
+import { notice } from '@/lib/confirm';
 
 export default function AddressesScreen() {
   const { data, isLoading, refetch } = useAddresses();
@@ -35,7 +35,7 @@ export default function AddressesScreen() {
 
   const handleAddAddress = async () => {
     if (!newTitle.trim() || !draft) {
-      Alert.alert('Missing details', 'Add a label and choose the address on the map.');
+      notice('Missing details', 'Add a label and choose the address on the map.');
       return;
     }
 
@@ -57,7 +57,7 @@ export default function AddressesScreen() {
       setDraft(null);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to add address');
+      notice('Failed', e.message || 'Unable to add address');
     } finally {
       setSaving(false);
     }
@@ -70,7 +70,7 @@ export default function AddressesScreen() {
       await replaceAddresses.mutateAsync(updated);
       await refetch();
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to remove address');
+      notice('Failed', e.message || 'Unable to remove address');
     } finally {
       setSaving(false);
     }

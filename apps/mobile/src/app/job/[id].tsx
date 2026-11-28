@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { haptics } from '@/lib/haptics';
 import {
-  Alert,
   Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -42,6 +40,7 @@ import {
   spacing,
   typography,
 } from '@/theme';
+import { confirmAction, notice } from '@/lib/confirm';
 
 const STEPS = ['CONFIRMED', 'PROVIDER_EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'];
 
@@ -174,7 +173,7 @@ export default function MechanicJobDetailScreen() {
       else haptics.success();
       if (['COMPLETED', 'CANCELLED'].includes(status)) stopSharing();
     } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not update the job.');
+      notice('Failed', e?.message || 'Could not update the job.');
     }
   };
 
@@ -187,7 +186,7 @@ export default function MechanicJobDetailScreen() {
       // Provider-only screen: the only place background location is requested.
       const { permission, started } = await startJobLocationUpdates(booking.id);
       if (permission === 'denied') {
-        Alert.alert(
+        notice(
           'Location permission needed',
           'Allow location access to share your live position with the customer.',
         );
@@ -216,14 +215,14 @@ export default function MechanicJobDetailScreen() {
           },
           (position) => send(position.coords),
         );
-        Alert.alert(
+        notice(
           'Sharing only while Weyro is open',
           'To keep sharing when you switch apps or lock your phone, set Weyro\'s location access to "Always" in Settings.',
         );
       }
       setSharing(true);
     } catch {
-      Alert.alert('Could not start location', 'Location sharing is unavailable on this device.');
+      notice('Could not start location', 'Location sharing is unavailable on this device.');
     }
   };
 
@@ -236,15 +235,9 @@ export default function MechanicJobDetailScreen() {
       const message = isParts
         ? 'This marks the part delivered and releases the held payment.'
         : 'This marks the work complete and releases the held payment.';
-      // Alert.alert shows nothing in a browser, so the job could never be completed there.
-      if (Platform.OS === 'web') {
-        if (globalThis.confirm?.(`Complete job?\n\n${message}`)) void advance('COMPLETED', true);
-        return;
-      }
-      Alert.alert('Complete job', message, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Complete', onPress: () => void advance('COMPLETED', true) },
-      ]);
+      void confirmAction('Complete job', message, 'Complete').then((ok) => {
+        if (ok) void advance('COMPLETED', true);
+      });
     }
   };
 
@@ -404,14 +397,9 @@ export default function MechanicJobDetailScreen() {
                 title="Call off job"
                 variant="destructive"
                 onPress={() =>
-                  Alert.alert('Cancel job', 'Cancel this assigned job?', [
-                    { text: 'Keep job', style: 'cancel' },
-                    {
-                      text: 'Cancel job',
-                      style: 'destructive',
-                      onPress: () => void advance('CANCELLED'),
-                    },
-                  ])
+                  void confirmAction('Cancel job', 'Cancel this assigned job?', 'Cancel job').then((ok) => {
+                    if (ok) void advance('CANCELLED');
+                  })
                 }
               />
             ) : null}

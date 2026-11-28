@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   PageHeader,
@@ -17,6 +17,7 @@ import {
 import type { UploadedImage } from '@/services/uploads';
 import { titleize as labelize } from '@/utils/format';
 import { palette, spacing, typography } from '@/theme';
+import { notice } from '@/lib/confirm';
 
 const STATUS_LABEL: Record<string, string> = {
   VERIFIED: 'Verified',
@@ -39,7 +40,7 @@ export default function VerificationDocumentsScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert(
+      notice(
         'Documents needed',
         'Upload the business registration and owner ID before submitting.',
       );
@@ -50,13 +51,13 @@ export default function VerificationDocumentsScreen() {
         { label: 'Business registration', key: registration[0].key },
         { label: 'Owner ID', key: ownerId[0].key },
       ]);
-      Alert.alert(
+      notice(
         'Submitted for review',
         'Weyro will review your documents. Uploading documents does not verify the account automatically.',
-        [{ text: 'OK', onPress: () => router.back() }],
       );
+      router.back();
     } catch (error: any) {
-      Alert.alert(
+      notice(
         'Could not submit',
         error?.message || 'Try again. Your documents were not saved.',
       );

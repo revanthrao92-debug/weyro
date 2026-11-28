@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Input, Button, BackButton } from '@/components/ui';
 import { palette, spacing, typography } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { notice } from '@/lib/confirm';
 
 export default function ResetPasswordScreen() {
   const { phone: phoneParam } = useLocalSearchParams<{ phone?: string }>();
@@ -26,11 +26,11 @@ export default function ResetPasswordScreen() {
 
   async function handleReset() {
     if (!phone || !code || !newPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      notice('Error', 'Please fill in all fields');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      notice('Error', 'Password must be at least 8 characters');
       return;
     }
     setLoading(true);
@@ -38,7 +38,7 @@ export default function ResetPasswordScreen() {
       await resetPassword(phone, code, newPassword);
       router.replace('/(auth)/login');
     } catch (error: any) {
-      Alert.alert('Reset failed', error.message || 'Unable to reset password');
+      notice('Reset failed', error.message || 'Unable to reset password');
     } finally {
       setLoading(false);
     }

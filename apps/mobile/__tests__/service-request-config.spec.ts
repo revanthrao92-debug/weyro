@@ -59,7 +59,6 @@ function context(
     manualVehicle: { make: '', model: '', year: '' },
     spareFulfillment: 'PICKUP',
     photoCount: 0,
-    isBroadcast: true,
     ...overrides,
   };
 }
@@ -256,7 +255,6 @@ describe('submission mapping', () => {
       const ctx = context(validValues[category], explicitLocation[category]);
       const payload = buildPayload(config, ctx, {
         photos: ['https://files.example/photo.jpg'],
-        isBroadcast: true,
       });
 
       expect(payload.category).toBe(category);
@@ -268,7 +266,6 @@ describe('submission mapping', () => {
       expect(payload.latitude).toEqual(expect.any(Number));
       expect(payload.longitude).toEqual(expect.any(Number));
       expect(payload.vehicleId).toBe('vehicle-1');
-      expect(payload.isBroadcast).toBe(true);
       expect(payload.damagePhotos).toEqual([
         'https://files.example/photo.jpg',
       ]);
@@ -283,7 +280,6 @@ describe('submission mapping', () => {
     });
     const payload = buildPayload(SERVICE_CONFIGS.TOWING, ctx, {
       photos: [],
-      isBroadcast: false,
     });
     expect(payload.fulfillmentType).toBe('TOW_TO_GARAGE');
     expect(payload.dropoffAddress).toBe(KORAMANGALA.address);
@@ -300,7 +296,7 @@ describe('submission mapping', () => {
         location: KORAMANGALA,
         spareFulfillment: 'DELIVERY',
       }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(delivery.fulfillmentType).toBe('PARTS_SHIPPING');
     expect(delivery.address).toBe(KORAMANGALA.address);
@@ -308,7 +304,7 @@ describe('submission mapping', () => {
     const pickup = buildPayload(
       SERVICE_CONFIGS.SPARE_PART,
       context(validValues.SPARE_PART, { spareFulfillment: 'PICKUP' }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(pickup.fulfillmentType).toBe('WORKSHOP_VISIT');
     expect(pickup.address).toBe(HOME.address);
@@ -318,7 +314,7 @@ describe('submission mapping', () => {
     const battery = buildPayload(
       SERVICE_CONFIGS.ROADSIDE,
       context(validValues.ROADSIDE, { location: HOME, urgency: 'URGENT' }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(battery.roadsideKind).toBe('BATTERY');
     expect(battery.fulfillmentType).toBe('ON_SITE');
@@ -329,7 +325,7 @@ describe('submission mapping', () => {
         { assistanceType: 'Other', issue: 'Keys are locked inside the car.' },
         { location: HOME },
       ),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(other.roadsideKind).toBeUndefined();
     expect(other.description).toContain('Other');
@@ -339,14 +335,14 @@ describe('submission mapping', () => {
     const repair = buildPayload(
       SERVICE_CONFIGS.REPAIR,
       context({ ...validValues.REPAIR, serviceMode: 'ON_SITE' }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(repair.fulfillmentType).toBe('ON_SITE');
 
     const maintenance = buildPayload(
       SERVICE_CONFIGS.MAINTENANCE,
       context(validValues.MAINTENANCE),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(maintenance.fulfillmentType).toBe('WORKSHOP_VISIT');
 
@@ -356,7 +352,7 @@ describe('submission mapping', () => {
         { ...validValues.INSPECTION, serviceMode: 'ON_SITE' },
         { location: HOME },
       ),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(inspection.fulfillmentType).toBe('ON_SITE');
   });
@@ -368,7 +364,7 @@ describe('submission mapping', () => {
         location: HOME,
         dropoff: KORAMANGALA,
       }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(payload.urgency).toBe('EMERGENCY');
     expect(payload.vehicleWeightKg).toBe(2000);
@@ -388,7 +384,7 @@ describe('submission mapping', () => {
         selectedVehicle: null,
         manualVehicle: { make: 'Maruti', model: 'Swift', year: '2021' },
       }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     expect(payload.vehicleId).toBeUndefined();
     expect(payload.vehicleMake).toBe('Maruti');
@@ -400,7 +396,7 @@ describe('submission mapping', () => {
     const payload = buildPayload(
       SERVICE_CONFIGS.INSPECTION,
       context(validValues.INSPECTION, { location: HOME }),
-      { photos: [], isBroadcast: true },
+      { photos: [] },
     );
     const allowed = new Set([
       'vehicleId',
@@ -416,7 +412,6 @@ describe('submission mapping', () => {
       'urgency',
       'mediaUrls',
       'damagePhotos',
-      'isBroadcast',
       'fulfillmentType',
       'dropoffAddress',
       'dropoffLatitude',

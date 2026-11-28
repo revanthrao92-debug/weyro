@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +31,7 @@ import { PopularRow } from '@/components/home/customer/PopularRow';
 import { RecentJobs } from '@/components/home/customer/RecentJobs';
 import { WorkshopBand } from '@/components/home/customer/WorkshopBand';
 import { AssuranceSection } from '@/components/home/customer/AssuranceSection';
+import { notice } from '@/lib/confirm';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -97,7 +98,7 @@ export default function HomeScreen() {
         ...rest,
       ]);
     } catch (error: any) {
-      Alert.alert(
+      notice(
         'Location not saved',
         error?.message ?? 'Could not save this location. Try again.',
       );

@@ -176,7 +176,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
         hasCoordinates && pointGeog
           ? Prisma.sql`ROUND(
               (ST_Distance(
-                COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+                sr.location,
                 ${pointGeog}
               ) / 1000.0)::numeric,
               2
@@ -202,7 +202,7 @@ export function getProviderFeedQuery(params: ProviderFeedQueryParams): Prisma.Sq
       ${
         hasCoordinates && pointGeog
           ? Prisma.sql`AND ST_DWithin(
-              COALESCE(sr.location, ST_SetSRID(ST_MakePoint(sr.longitude, sr.latitude), 4326)::geography),
+              sr.location,
               ${pointGeog},
               ${radiusMeters}
             )`
@@ -249,7 +249,7 @@ export interface BroadcastRecipientsParams {
 export function getBroadcastRecipientsQuery(params: BroadcastRecipientsParams): Prisma.Sql {
   const { latitude, longitude, providerTypes, towingVehicleType, vehicleWeightKg, limit = 50 } = params;
   const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography`;
-  const providerPoint = Prisma.sql`COALESCE(pp.location, ST_SetSRID(ST_MakePoint(pp.longitude, pp.latitude), 4326)::geography)`;
+  const providerPoint = Prisma.sql`pp.location`;
   const towingSql =
     towingVehicleType && towingVehicleType !== 'ANY'
       ? Prisma.sql`AND (

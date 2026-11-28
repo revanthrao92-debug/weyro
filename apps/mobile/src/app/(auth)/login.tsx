@@ -280,7 +280,7 @@ export default function LoginScreen() {
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Create account"
-                onPress={() => router.push('/(auth)/register')}
+                onPress={() => router.push({ pathname: '/(auth)/register', params: { roleKey: role } })}
                 hitSlop={8}
               >
                 <Text style={styles.link}>Create account</Text>

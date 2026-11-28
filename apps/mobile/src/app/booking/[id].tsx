@@ -3,7 +3,6 @@ import { haptics } from '@/lib/haptics';
 import {
   View,
   Text,
-  Alert,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -26,6 +25,7 @@ import {
   SectionHead,
   PageHeader,
 } from '@/components/ui';
+import { notice } from '@/lib/confirm';
 
 /** Reference-screen step order; chained from booking mutation timestamps. */
 const TIMELINE: { key: string; label: string }[] = [
@@ -112,7 +112,7 @@ export default function BookingDetailScreen() {
       haptics.warning();
       setConfirmingCancel(false);
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to cancel booking');
+      notice('Failed', e.message || 'Unable to cancel booking');
     }
   };
 
@@ -126,7 +126,7 @@ export default function BookingDetailScreen() {
         carrierName: undefined,
       });
     } catch (e: any) {
-      Alert.alert('Failed', e.message || 'Unable to update status');
+      notice('Failed', e.message || 'Unable to update status');
     }
   };
 

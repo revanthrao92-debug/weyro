@@ -144,9 +144,9 @@ export class DamageRequestsService {
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
     const quotesUntil = new Date(Date.now() + QUOTE_WINDOW_HOURS * 3_600_000);
-    // One transaction: the request, its drop-off point, and the outbox pings commit together,
+    // One transaction: the request and the outbox pings commit together,
     // so a garage is never pinged about a request that didn't save.
-    const created = await this.prisma.$transaction(async (tx) => {
+    const { created, notifiedProviders } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.serviceRequest.create({
         data: {
           customerId,
@@ -160,7 +160,7 @@ export class DamageRequestsService {
           longitude: dto.longitude,
           urgency: dto.urgency || "URGENT",
           status: "OPEN",
-          isBroadcast: dto.isBroadcast !== false,
+          isBroadcast: true,
           fulfillmentType:
             dto.fulfillmentType ||
             (isTowing ? "TOW_TO_GARAGE" : "PARTS_SHIPPING"),
@@ -192,27 +192,12 @@ export class DamageRequestsService {
         },
       });
 
-      // `dropoffLocation` is an Unsupported(...) column, so write it via raw SQL.
-      if (
-        isTowing &&
-        typeof dto.dropoffLongitude === "number" &&
-        typeof dto.dropoffLatitude === "number"
-      ) {
-        await tx.$executeRaw`
-        UPDATE "service_requests"
-        SET "dropoffLocation" = ST_SetSRID(
-          ST_MakePoint(${dto.dropoffLongitude}, ${dto.dropoffLatitude}),
-          4326
-        )::geography
-        WHERE "id" = ${created.id}
-      `;
-      }
-
-      await this.broadcastNewRequest(tx, created, ownerUserId);
-      return created;
+      const notifiedProviders = await this.broadcastNewRequest(tx, created, ownerUserId);
+      return { created, notifiedProviders };
     });
 
-    return this.formatRequest(created);
+    // 0 tells the app no provider covers this location, so it can say so.
+    return { ...this.formatRequest(created), notifiedProviders };
   }
 
   async findMine(
@@ -358,7 +343,6 @@ export class DamageRequestsService {
       id: string;
       title: string;
       category: string;
-      isBroadcast: boolean;
       latitude: number;
       longitude: number;
       towingVehicleType: string | null;
@@ -366,7 +350,6 @@ export class DamageRequestsService {
     },
     ownerUserId?: string,
   ) {
-    if (!request.isBroadcast) return 0;
     const providerTypes = providerTypesFor(request.category);
     if (providerTypes.length === 0) return 0;
     const recipients = await tx.$queryRaw<

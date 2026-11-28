@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { haptics } from '@/lib/haptics';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -35,6 +34,7 @@ import {
   useSendChatMessage,
   type ChatMessage,
 } from '@/hooks/useChatThreads';
+import { notice } from '@/lib/confirm';
 
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -83,7 +83,7 @@ export default function MessagesThreadScreen() {
       await sendMessage.mutateAsync(content);
     } catch (e: any) {
       setText(content);
-      Alert.alert('Message not sent', e?.message ?? 'Try again');
+      notice('Message not sent', e?.message ?? 'Try again');
     }
   };
 

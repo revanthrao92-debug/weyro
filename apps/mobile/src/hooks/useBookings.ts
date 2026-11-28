@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api-client';
-import { Alert } from 'react-native';
+
+import { notice } from '@/lib/confirm';
 
 export type Booking = {
   /** Weyro reference number, e.g. J-261127-0042-6. */
@@ -166,7 +167,7 @@ export function useUpdateBookingStatus() {
     },
     onError: (err, { id }, context) => {
       queryClient.setQueryData<Booking>(['booking', id], context?.previous);
-      Alert.alert('Update failed', (err as Error).message);
+      notice('Update failed', (err as Error).message);
     },
     // Returned so the step button stays busy until the lists show the new step
     // (a fast second tap would otherwise send the same step again and fail).

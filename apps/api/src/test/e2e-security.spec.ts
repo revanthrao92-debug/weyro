@@ -162,7 +162,6 @@ describe('Security foundations (Postgres)', () => {
         urgency: 'NORMAL',
         mediaUrls: [],
         damagePhotos: [],
-        isBroadcast: true,
       });
     expect(created.status).toBe(201);
 
@@ -252,7 +251,6 @@ describe('Security foundations (Postgres)', () => {
         urgency: 'NORMAL',
         mediaUrls: [],
         damagePhotos: [],
-        isBroadcast: true,
       });
     expect(created.status).toBe(201);
 
